@@ -1,0 +1,398 @@
+"use client"
+import * as React from "react"
+import {
+    ColumnDef,
+    ColumnFiltersState,
+    SortingState,
+    VisibilityState,
+    flexRender,
+    getCoreRowModel,
+    getFilteredRowModel,
+    getPaginationRowModel,
+    getSortedRowModel,
+    useReactTable
+} from "@tanstack/react-table"
+import { defaultProjects, type Project } from "../../data";
+import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight, FilePlus2, MoreVertical, SquarePen, CircleOff } from 'lucide-react';
+import { Paperclip, ClipboardPenLine } from 'lucide-react';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Progress } from "@/components/ui/progress";
+
+import { Link } from '@/i18n/routing';
+import EditProject from "../../edit-project";
+import DeleteConfirmationDialog from "@/components/delete-confirmation-dialog";
+import { Input } from "@/components/ui/input";
+import DashboardDropdown from "@/components/dashboard-dropdown";
+import { Filter } from "lucide-react";
+
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import DateRangePicker from "@/components/date-range-picker";
+import { Label } from "@/components/ui/label";
+import { Controller, SubmitHandler, useForm } from "react-hook-form";
+// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import Select, { MultiValue } from "react-select";
+
+interface Option {
+    value: string;
+    label: string;
+    image?: string;
+}
+type Inputs = {
+    search: string;
+    assignee: MultiValue<Option> | [];
+    startDate: Date;
+    endDate: Date;
+};
+
+const assigneeOptions: Option[] = [
+    { value: "BKK", label: "BKK", image: "/images/avatar/av-1.svg" },
+    { value: "DMK", label: "DMK", image: "/images/avatar/av-2.svg" },
+    {
+        value: "HKT", label: "HKT", image: "/images/avatar/av-3.svg",
+    },
+    { value: "HDY", label: "HDY", image: "/images/avatar/av-4.svg" },
+    { value: "CNX", label: "CNX", image: "/images/avatar/av-4.svg" },
+    { value: "CEI", label: "CEI", image: "/images/avatar/av-4.svg" },
+    { value: "UTH", label: "UTH", image: "/images/avatar/av-4.svg" }
+];
+const ListTable = ({ projects }: { projects: Project[] }) => {
+    const [sorting, setSorting] = React.useState<SortingState>([])
+    const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+        []
+    )
+    const [columnVisibility, setColumnVisibility] =
+        React.useState<VisibilityState>({})
+    const [rowSelection, setRowSelection] = React.useState({})
+    const [editTaskOpen, setEditTaskOpen] = React.useState<boolean>(false);
+    const [deleteProject, setDeleteProject] = React.useState<boolean>(false)
+
+    const {
+        register,
+        handleSubmit,
+        control,
+        formState: { errors },
+    } = useForm<Inputs>();
+
+
+    const columns: ColumnDef<Project>[] = [
+        {
+            accessorKey: "flightNo",
+            header: "Flight No",
+            cell: ({ row }) => {
+                return (
+                    <div className="flex items-center gap-3">
+                        {/* <Avatar className="w-10 h-10 shadow-none border-none bg-transparent hover:bg-transparent">
+                            <AvatarImage src={row.original.projectLogo} />
+                            <AvatarFallback> DC</AvatarFallback>
+                        </Avatar> */}
+                        {/* <div><Paperclip className="w-4" /></div> */}
+                        <div className="font-medium text-sm leading-4 whitespace-nowrap">
+                            {row.getValue("flightNo")}
+                        </div>
+                    </div>
+                )
+            }
+        },
+        {
+            accessorKey: "station",
+            header: "STATION ",
+            cell: ({ row }) => {
+                return (
+                    // <span></span>
+                    <span className="whitespace-nowrap">{row.getValue("station")}</span>
+                )
+            }
+        },
+        {
+            accessorKey: "acReg",
+            header: "A/C Reg",
+            cell: ({ row }) => {
+                return (
+                    <span className="whitespace-nowrap">{row.getValue("acReg")}</span>
+                )
+            }
+        },
+        {
+            accessorKey: "acType",
+            header: "A/C Type",
+            cell: ({ row }) => {
+                return (
+                    <span className="whitespace-nowrap">{row.getValue("acType")}</span>
+                )
+            }
+        },
+        {
+            accessorKey: "ataUTC",
+            header: "ATA(UTC)",
+            cell: ({ row }) => {
+                return (
+                    <span className="whitespace-nowrap">{row.getValue("ataUTC")}</span>
+                )
+            }
+        },
+        {
+            accessorKey: "atdUTC",
+            header: "ATD(UTC)",
+            cell: ({ row }) => {
+                return (
+                    <span className="whitespace-nowrap">{row.getValue("atdUTC")}</span>
+                )
+            }
+        },
+
+        {
+            id: "actions",
+            accessorKey: "action",
+            header: "Action",
+            enableHiding: false,
+            cell: ({ row }) => {
+                return (
+                    <div className="flex items-center justify-between">
+                        <div><Paperclip className="w-4" /></div>
+                        <div><ClipboardPenLine className="w-4" /></div>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    size="icon"
+                                    className="flex-none ring-offset-transparent bg-transparent hover:bg-transparent hover:ring-0 hover:ring-transparent w-6"
+                                >
+                                    <MoreVertical className="h-4 w-4 text-default-700" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="p-0 overflow-hidden" align="end" >
+                                <DropdownMenuItem
+                                    className="py-2 border-b border-default-200 text-default-600 focus:bg-default focus:text-default-foreground rounded-none cursor-pointer"
+                                    asChild
+                                >
+                                    <Link href={`/flight/${defaultProjects[0].id}`}>
+                                        <FilePlus2 className="w-3.5 h-3.5 me-1" />
+                                        Create Maintenance
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    className="py-2 border-b border-default-200 text-default-600 focus:bg-default focus:text-default-foreground rounded-none cursor-pointer"
+                                    onClick={() => setEditTaskOpen(true)}
+                                >
+                                    <SquarePen className="w-3.5 h-3.5 me-1" />
+                                    Edit Flight
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    className="py-2  bg-destructive/10 text-destructive focus:bg-destructive focus:text-destructive-foreground rounded-none cursor-pointer"
+                                    onClick={() => setDeleteProject(true)}
+                                >
+                                    <CircleOff className="w-3.5 h-3.5  me-1" />
+                                    Flight Cancle
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                )
+            }
+        }
+    ]
+    const table = useReactTable({
+        data: projects,
+        columns,
+        onSortingChange: setSorting,
+        onColumnFiltersChange: setColumnFilters,
+        getCoreRowModel: getCoreRowModel(),
+        getPaginationRowModel: getPaginationRowModel(),
+        getSortedRowModel: getSortedRowModel(),
+        getFilteredRowModel: getFilteredRowModel(),
+        onColumnVisibilityChange: setColumnVisibility,
+        onRowSelectionChange: setRowSelection,
+        state: {
+            sorting,
+            columnFilters,
+            columnVisibility,
+            rowSelection
+        }
+    })
+    const onSubmit: SubmitHandler<Inputs> = (data) => {
+        console.log(data);
+
+    };
+    return (
+        <>
+            <EditProject
+                open={editTaskOpen}
+                setOpen={setEditTaskOpen}
+            />
+            <DeleteConfirmationDialog
+                open={deleteProject}
+                onClose={() => setDeleteProject(false)}
+            />
+            <Card>
+                <form onSubmit={handleSubmit(onSubmit)} >
+                    <CardHeader className="flex flex-row items-center space-x-2 justify-between">
+                        <div className="flex space-x-2">
+                            <Input
+                                className="max-w-[250px]"
+                                type="text"
+                                placeholder="Search Flight No..."
+                                {...register("search")}
+                            />
+                            <div className="flex">
+                                <Controller
+                                    name="assignee"
+                                    control={control}
+                                    defaultValue={[]}
+                                    render={({ field }) => (
+                                        <Select
+                                            {...field}
+                                            options={assigneeOptions}
+                                            isMulti
+                                            onChange={(selectedOption) => field.onChange(selectedOption)}
+                                            getOptionLabel={(option) =>
+                                                (
+                                                    <div className="flex items-center">
+                                                        <span className="text-sm text-default-600 font-medium">
+                                                            {option.label}
+                                                        </span>
+                                                    </div>
+                                                ) as unknown as string
+                                            }
+                                            placeholder="Station"
+                                        />
+                                    )}
+                                />
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-end  flex-1">
+                            {/* <span className="flex"> */}
+                            <DateRangePicker />
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="default">
+                                        <Filter className="w-3.5 h-3.5 me-1" />
+                                        {/* <span>Filter</span> */}
+                                    </Button>
+                                </DropdownMenuTrigger>
+
+                                <DropdownMenuContent className="w-[196px]" align="center">
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem>Day</DropdownMenuItem>
+                                    <DropdownMenuItem>Week</DropdownMenuItem>
+                                    <DropdownMenuItem>Month</DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                            {/* </span> */}
+                        </div>
+                    </CardHeader>
+                </form>
+                <CardContent className="p-0">
+                    <Table>
+                        <TableHeader className="px-3 bg-default-100">
+                            {table.getHeaderGroups().map((headerGroup) => (
+                                <TableRow key={headerGroup.id}>
+                                    {headerGroup.headers.map((header) => {
+                                        return (
+                                            <TableHead key={header.id}>
+                                                {header.isPlaceholder
+                                                    ? null
+                                                    : flexRender(
+                                                        header.column.columnDef.header,
+                                                        header.getContext()
+                                                    )}
+                                            </TableHead>
+                                        )
+                                    })}
+                                </TableRow>
+                            ))}
+                        </TableHeader>
+                        <TableBody>
+                            {table.getRowModel().rows?.length ? (
+                                table.getRowModel().rows.map((row) => (
+                                    <TableRow
+                                        key={row.id}
+                                        data-state={row.getIsSelected() && "selected"}
+                                        className="even:bg-default-100 px-6 h-20" >
+                                        {row.getVisibleCells().map((cell) => (
+                                            <TableCell key={cell.id}>
+                                                {flexRender(
+                                                    cell.column.columnDef.cell,
+                                                    cell.getContext()
+                                                )}
+                                            </TableCell>
+                                        ))}
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell
+                                        colSpan={columns.length}
+                                        className="h-24 text-center"
+                                    >
+                                        No results.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                    <div className="flex items-center justify-end py-4 px-10">
+
+                        <div className="flex-1 flex items-center gap-3">
+                            <div className=" flex gap-2 items-center">
+                                <div className="text-sm font-medium text-default-60">Go  </div>
+                                <Input
+                                    type="number"
+                                    className="w-16 px-2"
+                                    defaultValue={table.getState().pagination.pageIndex + 1}
+                                    onChange={(e) => {
+                                        const pageNumber = e.target.value ? Number(e.target.value) - 1 : 0;
+                                        table.setPageIndex(pageNumber);
+                                    }}
+                                />
+                            </div>
+                            <div className="text-sm font-medium text-default-600">
+                                Page{" "}  {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-none">
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => table.previousPage()}
+                                disabled={!table.getCanPreviousPage()}
+                                className='w-8 h-8'
+                            >
+                                <ChevronLeft className='w-4 h-4' />
+                            </Button>
+                            {table.getPageOptions().map((page, pageIndex) => (
+                                <Button
+                                    key={`basic-data-table-${pageIndex}`}
+                                    onClick={() => table.setPageIndex(pageIndex)}
+                                    size="icon"
+                                    className={`w-8 h-8 ${table.getState().pagination.pageIndex === pageIndex ? 'bg-default' : 'bg-default-300 text-default'}`}
+                                >
+                                    {page + 1}
+                                </Button>
+
+                            ))}
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => table.nextPage()}
+                                disabled={!table.getCanNextPage()}
+                                className='w-8 h-8'
+                            >
+                                <ChevronRight className='w-4 h-4' />
+                            </Button>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        </>
+    )
+}
+export default ListTable;
