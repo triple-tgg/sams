@@ -69,6 +69,28 @@ export function getMenuList(pathname: string, t: any): Group[] {
         },
       ],
     },
+    {
+      groupLabel: t("setting"),
+      id: "setting",
+      menus: [
+        {
+          id: "master-data",
+          href: "/master-data",
+          label: t("master-data"),
+          active: pathname.includes("/master-data"),
+          icon: "heroicons-outline:cog-6-tooth",
+          submenus: [],
+        },
+        {
+          id: "customer",
+          href: "/customer",
+          label: t("customer"),
+          active: pathname.includes("/customer"),
+          icon: "heroicons-outline:building-storefront",
+          submenus: [],
+        },
+      ],
+    },
   ];
 }
 export function getHorizontalMenuList(pathname: string, t: any): Group[] {

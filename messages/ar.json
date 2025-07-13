@@ -124,6 +124,9 @@
   },
   "Menu": {
     "dashboard": "لوحة التحكم",
+    "customer": "Customer",
+    "master-data": "Master Data",
+    "setting": "Settings",
     "flight":"Flight",
     "flightList":"Flight List",
     "aircraftMaintenance":"Aircraft Maintenance",
