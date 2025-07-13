@@ -24,12 +24,12 @@ const Logo = () => {
     if (config.sidebar === 'two-column' || !isDesktop) return null
 
     return (
-        <Link href="/dashboard/analytics" className="flex gap-2 items-center    ">
+        <Link href="/dashboard/analytics" className="flex gap-2 items-center justify-center  ">
             {/* <DashCodeLogo className="  text-default-900 h-8 w-8 [&>path:nth-child(3)]:text-background [&>path:nth-child(2)]:text-background" /> */}
             <Image
-                src="/images/logo/2.png"
+                src="/images/logo/logo.png"
                 alt="dashcode"
-                width={100}
+                width={90}
                 height={36}
                 className="w-full h-auto object-contain  [&>path:nth-child(3)]:text-background [&>path:nth-child(2)]:text-background"
             />

@@ -13,9 +13,9 @@ import { Trash } from 'lucide-react'
 type FluidOption = { label: string; value: string }
 
 const fluidOptions: FluidOption[] = [
-  { label: 'Hydraulic', value: 'hydraulic' },
-  { label: 'ENG OIL', value: 'eng_oil' },
-  { label: 'Other Oil', value: 'other' },
+  { label: 'Hydraulic', value: 'Hydraulic' },
+  { label: 'ENG Oil', value: 'ENG Oil' },
+  { label: 'APU Oil', value: 'APU Oil' },
 ]
 
 type FluidFormInputs = {

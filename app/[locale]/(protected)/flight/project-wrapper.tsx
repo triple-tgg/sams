@@ -26,35 +26,25 @@ const ProjectWrapper = ({ children }: { children: React.ReactNode }) => {
             <Card>
                 <CardContent className=" p-6">
                     <div className="grid xl:grid-cols-4 lg:grid-cols-2 md:grid-cols-2 grid-cols-1 gap-5 place-content-center">
-                        <div className="flex space-x-4 h-full items-center rtl:space-x-reverse">
-                            <div className="flex-none">
-                                <Avatar className="h-20 w-20 bg-transparent hover:bg-transparent">
-                                    <AvatarImage src="/images/all-img/main-user.png" />
-                                    <AvatarFallback>SA</AvatarFallback>
-                                </Avatar>
-                            </div>
-                            <div className="flex-1">
-                                <h4 className="text-xl font-medium mb-2">
-                                    <span className="block font-light text-default-800">
-                                        {/* {t("widget_title")} */}
-                                        SAMS Airline Maintenance
-                                    </span>
-                                    {/* <span className="block text-default-900">Mr. Jone Doe</span> */}
-                                </h4>
-                                <p className="text-sm text-default-600"></p>
-                            </div>
-                        </div>
+
                         {/*  status blocks */}
                         <StatusBlock
-                            title={"Customers"}
-                            total="$34,564"
+                            title={"Planned "}
+                            total="509"
                             chartType="bar"
                             className="bg-default-50 shadow-none border-none"
                             opacity={1}
                         />
                         <StatusBlock
-                            title={"Flight"}
-                            total="$3,564"
+                            title={"Actual"}
+                            total="459"
+                            chartType="bar"
+                            className="bg-default-50 shadow-none border-none"
+                            opacity={1}
+                        />
+                        <StatusBlock
+                            title={"Additional"}
+                            total="64"
                             chartColor="#80fac1"
                             className="bg-default-50 shadow-none border-none"
                             series={[40, 70, 45, 100, 75, 40, 80, 90]}
@@ -62,8 +52,8 @@ const ProjectWrapper = ({ children }: { children: React.ReactNode }) => {
                             opacity={1}
                         />
                         <StatusBlock
-                            title={"Flight Cancel"}
-                            total="$3,564"
+                            title={"Cancel"}
+                            total="50"
                             chartColor="#ffbf99"
                             className="bg-default-50 shadow-none border-none"
                             chartType="bar"

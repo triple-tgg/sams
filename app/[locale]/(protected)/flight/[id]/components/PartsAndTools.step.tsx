@@ -10,6 +10,7 @@ import { useStep } from './step-context'
 import { Trash } from 'lucide-react'
 import Select from 'react-select'
 import { useRouter } from 'next/navigation'
+import { CleaveInput } from '@/components/ui/cleave'
 
 type Tool = {
   name: string
@@ -70,7 +71,8 @@ export default function PartsToolsStep() {
 
   const onSubmit = (data: FormData) => {
     console.log('Submit data:', data)
-    router.push('/flight/list')
+    goNext()
+    // router.push('/flight')
     // alert(JSON.stringify(data, null, 2))
   }
 
@@ -88,7 +90,7 @@ export default function PartsToolsStep() {
             <Input
               id={`tools.${index}.name`}
               type="text"
-              {...register(`tools.${index}.name` as const, { required: true })}
+              {...register(`tools.${index}.name` as const, { required: false })}
               placeholder="name"
             />
           </div>
@@ -147,36 +149,35 @@ export default function PartsToolsStep() {
           </div>
 
           <div className="col-span-2">
-            <Label>From - To</Label>
+            <Label>From (UTC)</Label>
             <div className="grid lg:grid-cols-2 gap-4">
-              <Controller
-                name={`tools.${index}.fromStation`}
-                control={control}
-                render={({ field }) => (
-                  <Select
-                    value={stationOptions.find(opt => opt.value === field.value)}
-                    onChange={(selected) => field.onChange(selected?.value)} // 👈 แปลงเป็น string
-                    options={stationOptions}
-                    placeholder="From"
-                    isClearable
-                  />
-                )}
+              <CleaveInput
+                id="date"
+                options={{ date: true, datePattern: ["d", "m", "y"] }}
+                placeholder="DD-MM-YYYY"
               />
-
-              <Controller
-                name={`tools.${index}.toStation`}
-                control={control}
-                render={({ field }) => (
-                  <Select
-                    value={stationOptions.find(opt => opt.value === field.value)}
-                    onChange={(selected) => field.onChange(selected?.value)}
-                    options={stationOptions}
-                    placeholder="To"
-                    isClearable
-                  />
-                )}
+              <Input
+                id={`tools.${index}.fromStation`}
+                type="time"
+                {...register(`tools.${index}.fromStation` as const)}
+                placeholder="00:00"
               />
-
+            </div>
+          </div>
+          <div className="col-span-2">
+            <Label>To (UTC) </Label>
+            <div className="grid lg:grid-cols-2 gap-4">
+              <CleaveInput
+                id="date"
+                options={{ date: true, datePattern: ["d", "m", "y"] }}
+                placeholder="DD-MM-YYYY"
+              />
+              <Input
+                id={`tools.${index}.toStation`}
+                type="time"
+                {...register(`tools.${index}.toStation` as const)}
+                placeholder="00:00"
+              />
             </div>
           </div>
 
@@ -246,7 +247,7 @@ export default function PartsToolsStep() {
       <br />
       <div className="flex justify-between pt-4">
         <Button onClick={goBack} variant="soft">Back</Button>
-        <Button type="submit">Save</Button>
+        <Button type="submit">Next</Button>
       </div>
     </form>
   )

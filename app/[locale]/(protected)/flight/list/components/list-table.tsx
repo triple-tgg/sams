@@ -132,20 +132,20 @@ const ListTable = ({ projects }: { projects: Project[] }) => {
             }
         },
         {
-            accessorKey: "ataUTC",
-            header: "ATA(UTC)",
+            accessorKey: "staUTC",
+            header: "STA(UTC)",
             cell: ({ row }) => {
                 return (
-                    <span className="whitespace-nowrap">{row.getValue("ataUTC")}</span>
+                    <span className="whitespace-nowrap">{row.getValue("staUTC")}</span>
                 )
             }
         },
         {
-            accessorKey: "atdUTC",
-            header: "ATD(UTC)",
+            accessorKey: "stdUTC",
+            header: "STD(UTC)",
             cell: ({ row }) => {
                 return (
-                    <span className="whitespace-nowrap">{row.getValue("atdUTC")}</span>
+                    <span className="whitespace-nowrap">{row.getValue("stdUTC")}</span>
                 )
             }
         },
@@ -176,7 +176,7 @@ const ListTable = ({ projects }: { projects: Project[] }) => {
                                 >
                                     <Link href={`/flight/${defaultProjects[0].id}`}>
                                         <FilePlus2 className="w-3.5 h-3.5 me-1" />
-                                        Create Maintenance
+                                        Create THF
                                     </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
@@ -184,7 +184,7 @@ const ListTable = ({ projects }: { projects: Project[] }) => {
                                     onClick={() => setEditTaskOpen(true)}
                                 >
                                     <SquarePen className="w-3.5 h-3.5 me-1" />
-                                    Edit Flight
+                                    Edit THF
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                     className="py-2  bg-destructive/10 text-destructive focus:bg-destructive focus:text-destructive-foreground rounded-none cursor-pointer"

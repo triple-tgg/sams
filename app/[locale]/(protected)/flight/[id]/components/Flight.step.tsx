@@ -16,7 +16,7 @@ type StatusOption = {
 }
 
 type Step1FormInputs = {
-  customer: string
+  customer: StatusOption | null
   station: StatusOption | null
   acReg: string
   acType: string
@@ -50,9 +50,28 @@ const stationOptions: StatusOption[] = [
   { value: "HDY", label: "HDY" },
   { value: "CNX", label: "CNX" },
   { value: "CEI", label: "CEI" },
-  { value: "UTH", label: "UTH" }
-]
-
+  { value: "UTH", label: "UTH" },
+  { value: "KBV", label: "KBV" }
+];
+const customerOptions: StatusOption[] = [
+  { value: "SEJ ", label: "SEJ " },
+  { value: "KZR ", label: "KZR " },
+  { value: "CEB ", label: "CEB " },
+  { value: "AIX", label: "AIX" },
+  { value: "AIC", label: "AIC" },
+  { value: "QDA", label: "QDA" },
+  { value: "IGO", label: "IGO" },
+  { value: "FFM", label: "FFM" },
+  { value: "JDL", label: "JDL" },
+  { value: "MAS", label: "MAS" },
+  { value: "PAL", label: "PAL" },
+  { value: "RLH", label: "RLH" },
+  { value: "JYH", label: "JYH" },
+  { value: "MNA", label: "MNA" },
+  { value: "TGW", label: "TGW" },
+  { value: "NOK", label: "NOK" },
+  { value: "DRK", label: "DRK" },
+];
 const FlightStep = () => {
   const { goNext, onSave } = useStep()
 
@@ -64,7 +83,7 @@ const FlightStep = () => {
     formState: { errors },
   } = useForm<Step1FormInputs>({
     defaultValues: {
-      customer: '',
+      customer: null,
       station: null,
       acReg: '',
       acType: '',
@@ -101,7 +120,20 @@ const FlightStep = () => {
       <div className="grid lg:grid-cols-2 gap-6">
         <div className="space-y-1">
           <Label htmlFor="customer">Customer</Label>
-          <Input {...register('customer')} placeholder="Customer" />
+          <Controller
+            name="customer"
+            control={control}
+            render={({ field }) => (
+              <Select<StatusOption>
+                {...field}
+                options={customerOptions}
+                placeholder="Select station"
+                getOptionLabel={(e) => e.label}
+                getOptionValue={(e) => e.value}
+                isClearable
+              />
+            )}
+          />
         </div>
         <div className="space-y-1">
           <Label htmlFor="station">Station</Label>
@@ -155,6 +187,13 @@ const FlightStep = () => {
               <Label htmlFor="ata">ATA (UTC)</Label>
               <Input {...register('ata')} type="time" />
             </div>
+            <div className="space-y-1 col-span-2">
+              <Label htmlFor="arrivalRoute">Route </Label>
+            </div>
+            <div className="col-span-2 grid grid-cols-2 gap-2">
+              <Input {...register('atd')} />
+              <Input {...register('atd')} />
+            </div>
           </div>
         </div>
 
@@ -177,6 +216,13 @@ const FlightStep = () => {
             <div className="space-y-1">
               <Label htmlFor="atd">ATD (UTC)</Label>
               <Input {...register('atd')} type="time" />
+            </div>
+            <div className="space-y-1 col-span-2">
+              <Label htmlFor="departureRoute">Route </Label>
+            </div>
+            <div className="col-span-2 grid grid-cols-2 gap-2">
+              <Input {...register('atd')} />
+              <Input {...register('atd')} />
             </div>
           </div>
         </div>
@@ -223,8 +269,8 @@ const FlightStep = () => {
         <Label htmlFor="note">Note</Label>
         <Textarea {...register('note')} placeholder="Note..." />
       </div>
-
-      <div className="flex justify-end pt-4">
+      <div className="flex justify-end pt-4 space-x-2">
+        <Button type="button" variant="soft">Draft</Button>
         {currentStatus !== 'cancel' ? (
           <Button type="submit">Next</Button>
         ) : (

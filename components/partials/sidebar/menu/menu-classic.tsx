@@ -61,7 +61,7 @@ export function MenuClassic({ }) {
     return (
         <>
             {isDesktop && (
-                <div className="flex items-center justify-between  px-4 py-4 ">
+                <div className="flex items-center justify-center  px-4 py-4 ">
                     <Logo />
                     {/* <SidebarHoverToggle /> */}
                 </div>

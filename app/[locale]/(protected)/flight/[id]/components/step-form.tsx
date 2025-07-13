@@ -6,14 +6,16 @@ import ServicesStep from './Services.step'
 import PersonnelStep from './Personnel.step'
 import PartsAndToolsStep from './PartsAndTools.step'
 import EquipmentStep from './Equipment.step'
+import AttachFileStep from './AttachFile.step'
 
 const steps = [
   { label: 'Flight' },
-  { label: 'Fluid' },
+  // { label: 'Fluid' },
   { label: 'Services' },
-  { label: 'Personnel' },
+  // { label: 'Personnel' },
   { label: 'Equipment' },
   { label: 'Parts & Tools' },
+  { label: 'Attach file' },
 ]
 
 const StepForm = () => {
@@ -21,11 +23,10 @@ const StepForm = () => {
     <div className="p-4">
       <StepWrapper steps={steps}>
         <FlightStep />
-        <FluidStep flightNumber={''} />
-        <ServicesStep />
-        <PersonnelStep />
+        <ServicesStep flightNumber={''} />
         <EquipmentStep />
         <PartsAndToolsStep />
+        <AttachFileStep />
       </StepWrapper>
     </div>
   )

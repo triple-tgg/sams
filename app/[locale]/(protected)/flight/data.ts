@@ -6,7 +6,7 @@ export const defaultProjects = [
     id: faker.string.uuid(),
     customer: "Business Dashboard ",
     flightNo: "BG-1234",
-    station: "DNM",
+    station: "DMK",
     acReg: "VT-RTT",
     acType: "A320",
     ataUTC: "2022-10-03 15.30",
