@@ -16,6 +16,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { addFlight, FlightData } from "@/lib/api/fleght/addFlight";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { getLangDir } from 'rtl-detect';
+import { useParams } from 'next/navigation'
 
 // หากยังใช้ path เดิม ให้เปลี่ยน import ด้านบนเป็น "@/lib/api/fleght/addFlight"
 
@@ -97,6 +100,9 @@ const customerOptions: Option[] = [
 ];
 
 const CreateProject = ({ open, setOpen }: CreateTaskProps) => {
+  const params = useParams<{ locale: string; }>();
+
+
   const [submitting, setSubmitting] = useState(false);
 
   const {
@@ -161,180 +167,181 @@ const CreateProject = ({ open, setOpen }: CreateTaskProps) => {
       setSubmitting(false);
     }
   };
+  const direction = getLangDir(params?.locale ?? '');
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent size="md">
+    <Dialog open={open} onOpenChange={setOpen} >
+      <DialogContent size="md" className="h-full max-h-10/12">
         <DialogHeader>
           <DialogTitle>Create Project</DialogTitle>
         </DialogHeader>
         <DialogDescription className="hidden" />
         <Separator className="mb-4" />
+        <ScrollArea className="[&>div>div[style]]:block!" dir={direction}>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            {/* Customer / Station */}
+            <div className="grid lg:grid-cols-2 gap-6">
+              <div className="space-y-1">
+                <Label htmlFor="customer">Customer</Label>
+                <Controller
+                  name="customer"
+                  control={control}
+                  rules={{ required: "Required" }}
+                  render={({ field, fieldState }) => (
+                    <>
+                      <Select<Option>
+                        {...field}
+                        options={customerOptions}
+                        placeholder="Select customer"
+                        getOptionLabel={(e) => e.label}
+                        getOptionValue={(e) => e.value}
+                        isClearable
+                        onChange={(val) => field.onChange(val ?? null)}
+                      />
+                      {fieldState.error && (
+                        <p className="text-sm text-red-500 mt-1">
+                          {fieldState.error.message}
+                        </p>
+                      )}
+                    </>
+                  )}
+                />
+              </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          {/* Customer / Station */}
-          <div className="grid lg:grid-cols-2 gap-6">
-            <div className="space-y-1">
-              <Label htmlFor="customer">Customer</Label>
-              <Controller
-                name="customer"
-                control={control}
-                rules={{ required: "Required" }}
-                render={({ field, fieldState }) => (
-                  <>
-                    <Select<Option>
-                      {...field}
-                      options={customerOptions}
-                      placeholder="Select customer"
-                      getOptionLabel={(e) => e.label}
-                      getOptionValue={(e) => e.value}
-                      isClearable
-                      onChange={(val) => field.onChange(val ?? null)}
+              <div className="space-y-1">
+                <Label htmlFor="station">Station</Label>
+                <Controller
+                  name="station"
+                  control={control}
+                  rules={{ required: "Required" }}
+                  render={({ field, fieldState }) => (
+                    <>
+                      <Select<Option>
+                        {...field}
+                        options={stationOptions}
+                        placeholder="Select station"
+                        getOptionLabel={(e) => e.label}
+                        getOptionValue={(e) => e.value}
+                        isClearable
+                        onChange={(val) => field.onChange(val ?? null)}
+                      />
+                      {fieldState.error && (
+                        <p className="text-sm text-red-500 mt-1">
+                          {fieldState.error.message}
+                        </p>
+                      )}
+                    </>
+                  )}
+                />
+              </div>
+
+              {/* A/C Reg / A/C Type */}
+              <div className="space-y-1">
+                <Label htmlFor="acReg">A/C Reg</Label>
+                <Input
+                  {...register("acReg")}
+                  placeholder="A/C Reg"
+                  autoComplete="off"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="acType">A/C Type</Label>
+                <Input
+                  {...register("acType")}
+                  placeholder="A/C Type"
+                  autoComplete="off"
+                />
+              </div>
+            </div>
+
+            <Separator className="mb-8 mt-10" />
+
+            {/* ARRIVAL + DEPARTURE */}
+            <div className="grid lg:grid-cols-2 gap-6">
+              {/* ARRIVAL */}
+              <div>
+                <h4 className="text-sm font-medium mb-2">Arrival (UTC Time)</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="flightArrival">Flight No</Label>
+                    <Input
+                      {...register("flightArrival", { required: "Required" })}
+                      placeholder="Flight No"
+                      autoComplete="off"
                     />
-                    {fieldState.error && (
+                    {errors.flightArrival && (
                       <p className="text-sm text-red-500 mt-1">
-                        {fieldState.error.message}
+                        {errors.flightArrival.message}
                       </p>
                     )}
-                  </>
-                )}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="station">Station</Label>
-              <Controller
-                name="station"
-                control={control}
-                rules={{ required: "Required" }}
-                render={({ field, fieldState }) => (
-                  <>
-                    <Select<Option>
-                      {...field}
-                      options={stationOptions}
-                      placeholder="Select station"
-                      getOptionLabel={(e) => e.label}
-                      getOptionValue={(e) => e.value}
-                      isClearable
-                      onChange={(val) => field.onChange(val ?? null)}
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="arrivalDate">Date</Label>
+                    <Input
+                      type="date"
+                      {...register("arrivalDate", { required: "Required" })}
                     />
-                    {fieldState.error && (
+                    {errors.arrivalDate && (
                       <p className="text-sm text-red-500 mt-1">
-                        {fieldState.error.message}
+                        {errors.arrivalDate.message}
                       </p>
                     )}
-                  </>
-                )}
-              />
-            </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="sta">STA (UTC)</Label>
+                    <Input
+                      type="time"
+                      {...register("sta", { required: "Required" })}
+                    />
+                    {errors.sta && (
+                      <p className="text-sm text-red-500 mt-1">
+                        {errors.sta.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="ata">ATA (UTC)</Label>
+                    <Input type="time" {...register("ata")} />
+                  </div>
 
-            {/* A/C Reg / A/C Type */}
-            <div className="space-y-1">
-              <Label htmlFor="acReg">A/C Reg</Label>
-              <Input
-                {...register("acReg")}
-                placeholder="A/C Reg"
-                autoComplete="off"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="acType">A/C Type</Label>
-              <Input
-                {...register("acType")}
-                placeholder="A/C Type"
-                autoComplete="off"
-              />
-            </div>
-          </div>
-
-          <Separator className="mb-8 mt-10" />
-
-          {/* ARRIVAL + DEPARTURE */}
-          <div className="grid lg:grid-cols-2 gap-6">
-            {/* ARRIVAL */}
-            <div>
-              <h4 className="text-sm font-medium mb-2">Arrival (UTC Time)</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label htmlFor="flightArrival">Flight No</Label>
-                  <Input
-                    {...register("flightArrival", { required: "Required" })}
-                    placeholder="Flight No"
-                    autoComplete="off"
-                  />
-                  {errors.flightArrival && (
-                    <p className="text-sm text-red-500 mt-1">
-                      {errors.flightArrival.message}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="arrivalDate">Date</Label>
-                  <Input
-                    type="date"
-                    {...register("arrivalDate", { required: "Required" })}
-                  />
-                  {errors.arrivalDate && (
-                    <p className="text-sm text-red-500 mt-1">
-                      {errors.arrivalDate.message}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="sta">STA (UTC)</Label>
-                  <Input
-                    type="time"
-                    {...register("sta", { required: "Required" })}
-                  />
-                  {errors.sta && (
-                    <p className="text-sm text-red-500 mt-1">
-                      {errors.sta.message}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="ata">ATA (UTC)</Label>
-                  <Input type="time" {...register("ata")} />
-                </div>
-
-                {/* Route (ถ้าต้องใช้ให้เปิดคอมเมนต์และตั้งชื่อใหม่ ไม่ชน atd/std) */}
-                {/* <div className="space-y-1 col-span-2">
+                  {/* Route (ถ้าต้องใช้ให้เปิดคอมเมนต์และตั้งชื่อใหม่ ไม่ชน atd/std) */}
+                  {/* <div className="space-y-1 col-span-2">
                   <Label htmlFor="arrivalRoute">Route</Label>
                 </div>
                 <div className="col-span-2 grid grid-cols-2 gap-2">
                   <Input {...register("arrivalRouteFrom")} placeholder="From" />
                   <Input {...register("arrivalRouteTo")} placeholder="To" />
                 </div> */}
+                </div>
               </div>
-            </div>
 
-            {/* DEPARTURE */}
-            <div>
-              <h4 className="text-sm font-medium mb-2">Departure (UTC Time)</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label htmlFor="flightDeparture">Flight No</Label>
-                  <Input
-                    {...register("flightDeparture")}
-                    placeholder="Flight No"
-                    autoComplete="off"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="departureDate">Date</Label>
-                  <Input type="date" {...register("departureDate")} />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="std">STD (UTC)</Label>
-                  <Input type="time" {...register("std")} />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="atd">ATD (UTC)</Label>
-                  <Input type="time" {...register("atd")} />
-                </div>
+              {/* DEPARTURE */}
+              <div>
+                <h4 className="text-sm font-medium mb-2">Departure (UTC Time)</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="flightDeparture">Flight No</Label>
+                    <Input
+                      {...register("flightDeparture")}
+                      placeholder="Flight No"
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="departureDate">Date</Label>
+                    <Input type="date" {...register("departureDate")} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="std">STD (UTC)</Label>
+                    <Input type="time" {...register("std")} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="atd">ATD (UTC)</Label>
+                    <Input type="time" {...register("atd")} />
+                  </div>
 
-                {/* Route (ถ้าต้องใช้ให้เปิดคอมเมนต์และตั้งชื่อใหม่ ไม่ชน atd/std) */}
-                {/* <div className="space-y-1 col-span-2">
+                  {/* Route (ถ้าต้องใช้ให้เปิดคอมเมนต์และตั้งชื่อใหม่ ไม่ชน atd/std) */}
+                  {/* <div className="space-y-1 col-span-2">
                   <Label htmlFor="departureRoute">Route</Label>
                 </div>
                 <div className="col-span-2 grid grid-cols-2 gap-2">
@@ -344,79 +351,80 @@ const CreateProject = ({ open, setOpen }: CreateTaskProps) => {
                   />
                   <Input {...register("departureRouteTo")} placeholder="To" />
                 </div> */}
+                </div>
               </div>
             </div>
-          </div>
 
-          <Separator className="mb-8 mt-10" />
+            <Separator className="mb-8 mt-10" />
 
-          <div className="grid lg:grid-cols-3 gap-6">
-            <div className="space-y-1">
-              <Label htmlFor="bay">Bay</Label>
-              <Input {...register("bay")} placeholder="Bay" autoComplete="off" />
+            <div className="grid lg:grid-cols-3 gap-6">
+              <div className="space-y-1">
+                <Label htmlFor="bay">Bay</Label>
+                <Input {...register("bay")} placeholder="Bay" autoComplete="off" />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="thfNumber">THF Number</Label>
+                <Input
+                  {...register("thfNumber")}
+                  placeholder="รหัสอ้างอิงของฟอร์ม"
+                  autoComplete="off"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="status">Status</Label>
+                <Controller
+                  name="status"
+                  control={control}
+                  rules={{ required: "Required" }}
+                  render={({ field, fieldState }) => (
+                    <>
+                      <Select<Option>
+                        {...field}
+                        options={statusOptions}
+                        placeholder="Select status"
+                        getOptionLabel={(e) => e.label}
+                        getOptionValue={(e) => e.value}
+                        isClearable
+                        onChange={(val) => field.onChange(val ?? null)}
+                      />
+                      {fieldState.error && (
+                        <p className="text-sm text-red-500 mt-1">
+                          {fieldState.error.message}
+                        </p>
+                      )}
+                    </>
+                  )}
+                />
+              </div>
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="thfNumber">THF Number</Label>
-              <Input
-                {...register("thfNumber")}
-                placeholder="รหัสอ้างอิงของฟอร์ม"
-                autoComplete="off"
-              />
-            </div>
 
             <div className="space-y-1">
-              <Label htmlFor="status">Status</Label>
-              <Controller
-                name="status"
-                control={control}
-                rules={{ required: "Required" }}
-                render={({ field, fieldState }) => (
-                  <>
-                    <Select<Option>
-                      {...field}
-                      options={statusOptions}
-                      placeholder="Select status"
-                      getOptionLabel={(e) => e.label}
-                      getOptionValue={(e) => e.value}
-                      isClearable
-                      onChange={(val) => field.onChange(val ?? null)}
-                    />
-                    {fieldState.error && (
-                      <p className="text-sm text-red-500 mt-1">
-                        {fieldState.error.message}
-                      </p>
-                    )}
-                  </>
-                )}
-              />
+              <Label htmlFor="note">Note</Label>
+              <Textarea {...register("note")} placeholder="Note..." />
             </div>
-          </div>
 
-          <div className="space-y-1">
-            <Label htmlFor="note">Note</Label>
-            <Textarea {...register("note")} placeholder="Note..." />
-          </div>
+          </form>
+        </ScrollArea>
 
-          <Separator className="mb-2 mt-8" />
-
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              // variant="secondary"
-              color="secondary"
-              // variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={submitting}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "Adding..." : "Add"}
-            </Button>
-          </div>
-        </form>
+        <Separator className="mb-2 mt-0" />
+        <div className="flex justify-end gap-2 py-2 px-2">
+          <Button
+            type="button"
+            // variant="secondary"
+            color="secondary"
+            // variant="outline"
+            onClick={() => setOpen(false)}
+            disabled={submitting}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={submitting}>
+            {submitting ? "Adding..." : "Add"}
+          </Button>
+        </div>
       </DialogContent>
-    </Dialog>
+    </Dialog >
   );
 };
 

@@ -42,6 +42,9 @@ import DateRangePicker from "@/components/date-range-picker"
 import { Controller, SubmitHandler, useForm } from "react-hook-form"
 import Select, { MultiValue } from "react-select"
 import type { FlightItem } from "@/lib/api/fleght/filghtlist.interface"
+import { Badge } from "@/components/ui/badge"
+import { getFlightColumns } from "./columns"
+import { useParams, useRouter } from "next/navigation"
 
 // -----------------------------
 // Types & options
@@ -80,6 +83,9 @@ const stationInList = (row: any, _columnId: string, filterValue: string[] | unde
 // Component
 // -----------------------------
 const ListTable = ({ projects }: { projects: FlightItem[] }) => {
+    const router = useRouter();
+    const { locale } = useParams();
+
     const [sorting, setSorting] = React.useState<SortingState>([])
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
     const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
@@ -104,106 +110,189 @@ const ListTable = ({ projects }: { projects: FlightItem[] }) => {
     // react-hook-form watchers (wire up filters)
     const searchValue = watch("search")
     const assigneeValue = watch("assignee") as MultiValue<Option>
+    const columns = getFlightColumns({
+        onCreateTHF: (flight) => {
+            const q = new URLSearchParams({
+                flightNo: String(flight.arrivalFlightNo ?? ""),
+            });
+            router.push(`/${locale}/flight/thf/create?${q.toString()}`);
+        },
+        onAttach: (flight) => {
+            // เปิด dialog แนบไฟล์ หรือ set state
+            console.log("Attach for flight:", flight);
+        },
+        onCancel: (flight) => {
+            // แสดง confirm / call API
+            if (confirm(`Cancel flight ${flight.arrivalFlightNo}?`)) {
+                // await cancelFlight(flight.id)
+                console.log("Cancelled!");
+            }
+        },
+    });
+    // const columns = React.useMemo<ColumnDef<FlightItem>[]>(() => [
+    //     {
+    //         accessorKey: "arrivalFlightNo",
+    //         header: "Flight No",
+    //         cell: ({ row }) => (
+    //             <div className="flex items-center gap-3 relative">
+    //                 {/* {row.getValue("datasource") === "adhoc" && <Badge className="absolute -top-4 right-0 text-[10px] p-1 py-0" rounded="full" color="warning">adhoc</Badge>} */}
+    //                 <div className="font-medium text-sm leading-4 whitespace-nowrap">
+    //                     {row.getValue("arrivalFlightNo")}
+    //                 </div>
+    //             </div>
+    //         ),
+    //     },
+    //     // Map stationObj.code -> station (flat) for simpler filtering/rendering
+    //     {
+    //         id: "station",
+    //         header: "STATION",
+    //         accessorFn: (row) => row?.stationObj?.code ?? "",
+    //         cell: ({ getValue }) => <span className="whitespace-nowrap">{(getValue() as string) || "n/a"}</span>,
+    //         filterFn: stationInList,
+    //     },
+    //     {
+    //         accessorKey: "acreg",
+    //         header: "A/C Reg",
+    //         cell: ({ row }) => <span className="whitespace-nowrap">{row.getValue("acreg") || "n/a"}</span>,
+    //     },
+    //     {
+    //         accessorKey: "actype",
+    //         header: "A/C Type",
+    //         cell: ({ row }) => <span className="whitespace-nowrap">{row.getValue("actype") || "n/a"}</span>,
+    //     },
+    //     {
+    //         id: "sta",
+    //         header: "STA(UTC)",
+    //         accessorFn: (row) => `${row?.arrivalDate ?? ""} ${row?.arrivalStatime ?? ""}`.trim(),
+    //         cell: ({ getValue }) => <span className="whitespace-nowrap">{(getValue() as string) || "n/a"}</span>,
+    //     },
+    //     {
+    //         id: "std",
+    //         header: "STD(UTC)",
+    //         accessorFn: (row) => `${row?.departureDate ?? ""} ${row?.departureStdTime ?? ""}`.trim(),
+    //         cell: ({ getValue }) => <span className="whitespace-nowrap">{(getValue() as string) || "n/a"}</span>,
+    //     },
+    //     {
+    //         id: "actions",
+    //         accessorKey: "action",
+    //         header: "Action",
+    //         enableHiding: false,
+    //         cell: ({ row }) => {
+    //             return (
+    //                 <div className="flex items-center gap-2">
+    //                     <TooltipProvider>
+    //                         <Tooltip>
+    //                             <TooltipTrigger asChild>
+    //                                 <Button
+    //                                     variant="outline"
+    //                                     size="icon"
+    //                                     className="w-7 h-7 ring-offset-transparent border-default-300 text-default-500"
+    //                                     color="secondary"
+    //                                 >
+    //                                     <Eye className="w-4 h-4" />
+    //                                 </Button>
+    //                             </TooltipTrigger>
+    //                             <TooltipContent side="top">
+    //                                 <p>View</p>
+    //                             </TooltipContent>
+    //                         </Tooltip>
+    //                     </TooltipProvider>
+    //                     <TooltipProvider>
+    //                         <Tooltip>
+    //                             <TooltipTrigger asChild>
+    //                                 <Button
+    //                                     variant="outline"
+    //                                     size="icon"
+    //                                     className="w-7 h-7 ring-offset-transparent border-default-300 text-default-500"
+    //                                     color="secondary"
+    //                                 >
+    //                                     <SquarePen className="w-4 h-4" />
+    //                                 </Button>
 
-    const columns = React.useMemo<ColumnDef<FlightItem>[]>(() => [
-        {
-            accessorKey: "arrivalFlightNo",
-            header: "Flight No",
-            cell: ({ row }) => (
-                <div className="flex items-center gap-3">
-                    <div className="font-medium text-sm leading-4 whitespace-nowrap">
-                        {row.getValue("arrivalFlightNo")}
-                    </div>
-                </div>
-            ),
-        },
-        // Map stationObj.code -> station (flat) for simpler filtering/rendering
-        {
-            id: "station",
-            header: "STATION",
-            accessorFn: (row) => row?.stationObj?.code ?? "",
-            cell: ({ getValue }) => <span className="whitespace-nowrap">{(getValue() as string) || "n/a"}</span>,
-            filterFn: stationInList,
-        },
-        {
-            accessorKey: "acreg",
-            header: "A/C Reg",
-            cell: ({ row }) => <span className="whitespace-nowrap">{row.getValue("acreg") || "n/a"}</span>,
-        },
-        {
-            accessorKey: "actype",
-            header: "A/C Type",
-            cell: ({ row }) => <span className="whitespace-nowrap">{row.getValue("actype") || "n/a"}</span>,
-        },
-        {
-            id: "sta",
-            header: "STA(UTC)",
-            accessorFn: (row) => `${row?.arrivalDate ?? ""} ${row?.arrivalStatime ?? ""}`.trim(),
-            cell: ({ getValue }) => <span className="whitespace-nowrap">{(getValue() as string) || "n/a"}</span>,
-        },
-        {
-            id: "std",
-            header: "STD(UTC)",
-            accessorFn: (row) => `${row?.departureDate ?? ""} ${row?.departureStdTime ?? ""}`.trim(),
-            cell: ({ getValue }) => <span className="whitespace-nowrap">{(getValue() as string) || "n/a"}</span>,
-        },
-        {
-            id: "actions",
-            header: "Action",
-            enableHiding: false,
-            cell: ({ row }) => {
-                const flightNo = row.original?.arrivalFlightNo
-                // ถ้ามี id ใน FlightItem เปลี่ยนเป็น row.original.id
-                const linkHref = `/flight/${encodeURIComponent(String(flightNo ?? ""))}`
+    //                             </TooltipTrigger>
+    //                             <TooltipContent side="top">
+    //                                 <p>Edit</p>
+    //                             </TooltipContent>
+    //                         </Tooltip>
+    //                     </TooltipProvider>
+    //                     <TooltipProvider>
+    //                         <Tooltip>
+    //                             <TooltipTrigger asChild>
+    //                                 <Button
+    //                                     variant="outline"
+    //                                     size="icon"
+    //                                     className="w-7 h-7 ring-offset-transparent border-default-300 text-default-500"
+    //                                     color="secondary"
+    //                                 >
+    //                                     <Trash2 className="w-4 h-4" />
+    //                                 </Button>
+    //                             </TooltipTrigger>
+    //                             <TooltipContent side="top" className="bg-destructive text-destructive-foreground">
+    //                                 <p>Delete</p>
+    //                             </TooltipContent>
+    //                         </Tooltip>
+    //                     </TooltipProvider>
+    //                 </div>
+    //             )
+    //         }
+    //     },
+    //     {
+    //         id: "actions",
+    //         header: "Action",
+    //         enableHiding: false,
+    //         cell: ({ row }) => {
+    //             const flightNo = row.original?.arrivalFlightNo
+    //             // ถ้ามี id ใน FlightItem เปลี่ยนเป็น row.original.id
+    //             const linkHref = `/flight/${encodeURIComponent(String(flightNo ?? ""))}`
 
-                return (
-                    <div className="flex items-center justify-between">
-                        <div><Paperclip className="w-4" /></div>
-                        <div><ClipboardPenLine className="w-4" /></div>
+    //             return (
+    //                 <div className="flex items-center justify-between">
+    //                     <div><Paperclip className="w-4" /></div>
+    //                     <div><ClipboardPenLine className="w-4" /></div>
 
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button
-                                    size="icon"
-                                    className="flex-none ring-offset-transparent bg-transparent hover:bg-transparent hover:ring-0 hover:ring-transparent w-6"
-                                >
-                                    <MoreVertical className="h-4 w-4 text-default-700" />
-                                </Button>
-                            </DropdownMenuTrigger>
+    //                     <DropdownMenu>
+    //                         <DropdownMenuTrigger asChild>
+    //                             <Button
+    //                                 size="icon"
+    //                                 className="flex-none ring-offset-transparent bg-transparent hover:bg-transparent hover:ring-0 hover:ring-transparent w-6"
+    //                             >
+    //                                 <MoreVertical className="h-4 w-4 text-default-700" />
+    //                             </Button>
+    //                         </DropdownMenuTrigger>
 
-                            <DropdownMenuContent className="p-0 overflow-hidden" align="end">
-                                <DropdownMenuItem
-                                    className="py-2 border-b border-default-200 text-default-600 focus:bg-default focus:text-default-foreground rounded-none cursor-pointer"
-                                    asChild
-                                >
-                                    <Link href={linkHref}>
-                                        <FilePlus2 className="w-3.5 h-3.5 me-1" />
-                                        Create THF
-                                    </Link>
-                                </DropdownMenuItem>
+    //                         <DropdownMenuContent className="p-0 overflow-hidden" align="end">
+    //                             <DropdownMenuItem
+    //                                 className="py-2 border-b border-default-200 text-default-600 focus:bg-default focus:text-default-foreground rounded-none cursor-pointer"
+    //                                 asChild
+    //                             >
+    //                                 <Link href={linkHref}>
+    //                                     <FilePlus2 className="w-3.5 h-3.5 me-1" />
+    //                                     Create THF
+    //                                 </Link>
+    //                             </DropdownMenuItem>
 
-                                <DropdownMenuItem
-                                    className="py-2 border-b border-default-200 text-default-600 focus:bg-default focus:text-default-foreground rounded-none cursor-pointer"
-                                    onClick={() => setEditTaskOpen(true)}
-                                >
-                                    <SquarePen className="w-3.5 h-3.5 me-1" />
-                                    Edit THF
-                                </DropdownMenuItem>
+    //                             <DropdownMenuItem
+    //                                 className="py-2 border-b border-default-200 text-default-600 focus:bg-default focus:text-default-foreground rounded-none cursor-pointer"
+    //                                 onClick={() => setEditTaskOpen(true)}
+    //                             >
+    //                                 <SquarePen className="w-3.5 h-3.5 me-1" />
+    //                                 Edit THF
+    //                             </DropdownMenuItem>
 
-                                <DropdownMenuItem
-                                    className="py-2 bg-destructive/10 text-destructive focus:bg-destructive focus:text-destructive-foreground rounded-none cursor-pointer"
-                                    onClick={() => setDeleteProject(true)}
-                                >
-                                    <CircleOff className="w-3.5 h-3.5 me-1" />
-                                    Flight Cancel
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
-                )
-            },
-        },
-    ], [])
+    //                             <DropdownMenuItem
+    //                                 className="py-2 bg-destructive/10 text-destructive focus:bg-destructive focus:text-destructive-foreground rounded-none cursor-pointer"
+    //                                 onClick={() => setDeleteProject(true)}
+    //                             >
+    //                                 <CircleOff className="w-3.5 h-3.5 me-1" />
+    //                                 Flight Cancel
+    //                             </DropdownMenuItem>
+    //                         </DropdownMenuContent>
+    //                     </DropdownMenu>
+    //                 </div>
+    //             )
+    //         },
+    //     },
+    // ], [])
 
     const table = useReactTable({
         data: projects,

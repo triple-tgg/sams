@@ -24,26 +24,26 @@ export type Config = {
   radius: number;
 };
 export const defaultConfig: Config = {
-  collapsed: false,
-  theme: "zinc",
-  skin: "default",
-  layout: "vertical",
-  sidebar: "classic",
-  menuHidden: false,
-  showSearchBar: true,
-  topHeader: "default",
-  contentWidth: "wide",
-  navbar: "sticky",
-  footer: "default",
-  isRtl: false,
-  showSwitcher: true,
-  subMenu: false,
-  hasSubMenu: false,
-  sidebarColor: "light",
-  headerColor: "light",
-  sidebarBgImage: undefined,
-  radius: 0.5,
-};
+  "collapsed": false,
+  "theme": "zinc",
+  "skin": "default",
+  "layout": "vertical",
+  "sidebar": "compact",
+  "menuHidden": false,
+  "showSearchBar": true,
+  "topHeader": "default",
+  "contentWidth": "boxed",
+  "navbar": "sticky",
+  "footer": "hidden",
+  "isRtl": false,
+  "showSwitcher": true,
+  "subMenu": true,
+  "hasSubMenu": false,
+  "sidebarColor": "ocean-blue",
+  "headerColor": "light",
+  "radius": 0.5,
+  "sidebarBgImage": "/images/all-img/img-2.jpeg"
+}
 
 const configAtom = atomWithStorage<Config>("config", defaultConfig);
 

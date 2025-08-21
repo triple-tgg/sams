@@ -16,15 +16,21 @@ const Logo = () => {
     const isDesktop = useMediaQuery('(min-width: 1280px)');
 
     if (config.sidebar === 'compact') {
-        return <Link href="/dashboard/analytics" className="flex gap-2 items-center   justify-center    ">
-            <DashCodeLogo className="  text-default-900 h-8 w-8 [&>path:nth-child(3)]:text-background [&>path:nth-child(2)]:text-background" />
-
+        return <Link href="/dashboard" className="flex gap-2 items-center justify-center bg-blue-50 rounded-2xl p-2 pb-0">
+            {/* <DashCodeLogo className="  text-default-900 h-8 w-8 [&>path:nth-child(3)]:text-background [&>path:nth-child(2)]:text-background" /> */}
+            <Image
+                src="/images/logo/logo.png"
+                alt="dashcode"
+                width={90}
+                height={36}
+                className="w-full h-auto object-contain  [&>path:nth-child(3)]:text-background [&>path:nth-child(2)]:text-background"
+            />
         </Link>
     }
     if (config.sidebar === 'two-column' || !isDesktop) return null
 
     return (
-        <Link href="/dashboard/analytics" className="flex gap-2 items-center justify-center  ">
+        <Link href="/dashboard" className="flex gap-2 items-center justify-center  ">
             {/* <DashCodeLogo className="  text-default-900 h-8 w-8 [&>path:nth-child(3)]:text-background [&>path:nth-child(2)]:text-background" /> */}
             <Image
                 src="/images/logo/logo.png"

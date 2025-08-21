@@ -44,7 +44,7 @@ const SidebarNav = ({ menuList }: { menuList: Group[] }) => {
           <TeamSwitcher />
           <SearchBar />
         </div>
-        <div className="px-4 pt-6  sticky top-0  z-20">
+        <div className="px-4 pt-0  sticky top-0  z-20">
           {data?.groupLabel && (
             <MenuLabel
               label={data?.groupLabel}
