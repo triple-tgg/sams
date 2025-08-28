@@ -2,7 +2,7 @@ import axios from 'axios'
 
 // สร้าง axios instance
 const instance = axios.create({
-  baseURL: `${(process.env.NEXT_PUBLIC_ENVIRONTMENT !== 'production' ? process.env.NEXT_PUBLIC_DEVELOPMENT_API : process.env.NEXT_PUBLIC_PRODUCTION_API)}` + process.env.NEXT_PUBLIC_API_VERSION,
+  baseURL: `${(process.env.NEXT_PUBLIC_ENVIRONTMENT !== 'production' ? process.env.NEXT_PUBLIC_DEVELOPMENT_API : process.env.NEXT_PUBLIC_PRODUCTION_API)}`,// + process.env.NEXT_PUBLIC_API_VERSION,
   timeout: (10 * 1000),
   headers: {
     "Content-Type": "Application/json"

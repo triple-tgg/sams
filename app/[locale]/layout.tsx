@@ -12,6 +12,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import DirectionProvider from "@/providers/direction-provider";
 import AuthProvider from "@/providers/auth.provider";
+import ReactQueryProviders from "@/providers/reactQuery.providers";
 
 export const metadata: Metadata = {
   title: "Dashcode admin Template",
@@ -30,24 +31,26 @@ export default async function RootLayout({
   return (
     <html lang={locale} dir={direction}>
       <body className={`${inter.className} dashcode-app `}>
-        <NextIntlClientProvider messages={messages} locale={locale}>
-          <AuthProvider>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="system"
-              enableSystem
-              disableTransitionOnChange
-            >
-              <MountedProvider>
-                <DirectionProvider direction={direction}>
-                  {children}
-                </DirectionProvider>
-              </MountedProvider>
-              <Toaster />
-              <SonnerToaster />
-            </ThemeProvider>
-          </AuthProvider>
-        </NextIntlClientProvider>
+        <ReactQueryProviders>
+          <NextIntlClientProvider messages={messages} locale={locale}>
+            <AuthProvider>
+              <ThemeProvider
+                attribute="class"
+                defaultTheme="system"
+                enableSystem
+                disableTransitionOnChange
+              >
+                <MountedProvider>
+                  <DirectionProvider direction={direction}>
+                    {children}
+                  </DirectionProvider>
+                </MountedProvider>
+                <Toaster />
+                <SonnerToaster />
+              </ThemeProvider>
+            </AuthProvider>
+          </NextIntlClientProvider>
+        </ReactQueryProviders>
       </body>
     </html>
   );

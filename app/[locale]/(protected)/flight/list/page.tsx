@@ -1,40 +1,85 @@
+// 'ProjectList.tsx'
 "use client";
-import React from 'react'
-import ListTable from './components/list-table'
-import getFlightList from '@/lib/api/fleght/getFlightList';
+import React, { useState } from "react";
+import ListTable from "./components/list-table";
+import { useFlightListQuery } from "@/lib/api/hooks/useFlightListQuery";
+import { GetFlightListParams } from "@/lib/api/flight/getFlightList";
+// ถ้าคุณมี type เหล่านี้อยู่แล้วก็ใช้ต่อได้
+import { FlightItem, Pagination } from "@/lib/api/flight/filghtlist.interface";
+import dayjs from "dayjs";
 
-import { useEffect, useState } from 'react';
-import { FlightItem, Pagination } from '@/lib/api/fleght/filghtlist.interface';
+interface FilterParams {
+    flightNo: string
+    stationCodeList: string[]
+    dateStart: string
+    dateEnd: string
+}
 
-const ProjectList = () => {
-    const [flightList, setFlightList] = useState<FlightItem[]>([]);
-    const [pagination, setPagination] = useState<Pagination | null>({
+export default function FlightList() {
+    const [pagination, setPagination] = useState<{ page: number; perPage: number }>({
         page: 1,
         perPage: 20,
-        total: 0
     });
 
-    useEffect(() => {
-        const fetchData = async () => {
-            const data = await getFlightList({
-                flightNo: '',
-                stationCodeList: [],
-                dateStart: '2025-08-19',
-                dateEnd: '2025-08-20',
-                page: pagination?.page,
-                perPage: pagination?.perPage,
-            });
-            setFlightList(data.responseData);
-            console.log("flightList", data);
-        };
-        fetchData();
-    }, [pagination]);
+    // State สำหรับ filter parameters
+    const [filters, setFilters] = useState<FilterParams>({
+        flightNo: "",
+        stationCodeList: [],
+        dateStart: dayjs().format("YYYY-MM-DD"), // Today's date
+        dateEnd: dayjs().format("YYYY-MM-DD"), // Today's date
+    });
+
+    // Combine filters with pagination for API call
+    const params: GetFlightListParams = {
+        flightNo: filters.flightNo,
+        stationCodeList: filters.stationCodeList,
+        dateStart: filters.dateStart,
+        dateEnd: filters.dateEnd,
+        page: pagination.page,
+        perPage: pagination.perPage,
+    };
+
+    const { data, isLoading, isError, error, isFetching } = useFlightListQuery(params);
+
+    const rows = (data?.responseData ?? []) as FlightItem[];
+    const total = data?.pagination?.total ?? 0;
+
+    // Handler สำหรับเปลี่ยน filter
+    const handleFilterChange = (newFilters: FilterParams) => {
+        setFilters(newFilters);
+        // Reset to page 1 when filter changes
+        setPagination(prev => ({ ...prev, page: 1 }));
+    };
 
     return (
-        <div>
-            <ListTable projects={flightList} />
+        <div className="space-y-3">
+            {/* <div className="text-sm text-gray-500">
+                {isFetching ? "กำลังอัปเดตข้อมูล…" : "ข้อมูลล่าสุด"}
+            </div> */}
+
+            {isLoading && <div className="text-sm text-gray-500">กำลังโหลด…</div>}
+            {isError && (
+                <div className="text-red-600">
+                    {(error as Error)?.message ?? "โหลดข้อมูลไม่สำเร็จ"}
+                </div>
+            )}
+
+            {!isLoading && !isError && (
+                <ListTable
+                    projects={rows}
+                    pagination={{
+                        page: pagination.page,
+                        perPage: pagination.perPage,
+                        total,
+                        onPageChange: (nextPage: number) =>
+                            setPagination((p) => ({ ...p, page: nextPage })),
+                        onPerPageChange: (pp: number) =>
+                            setPagination((p) => ({ ...p, perPage: pp, page: 1 })),
+                    }}
+                    onFilterChange={handleFilterChange}
+                    initialFilters={filters}
+                />
+            )}
         </div>
     );
 }
-
-export default ProjectList

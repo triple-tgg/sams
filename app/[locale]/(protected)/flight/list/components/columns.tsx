@@ -1,18 +1,21 @@
 "use client";
 import { ColumnDef } from "@tanstack/react-table";
-import type { FlightItem } from "@/lib/api/fleght/filghtlist.interface";
+import type { FlightItem } from "@/lib/api/flight/filghtlist.interface";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CircleOff, Paperclip, SquarePen } from "lucide-react";
+import clsx from "clsx";
 
 export function getFlightColumns({
   onCreateTHF,
   onAttach,
   onCancel,
+  isCancelLoading = false,
 }: {
   onCreateTHF?: (flight: FlightItem) => void;
   onAttach?: (flight: FlightItem) => void;
   onCancel?: (flight: FlightItem) => void;
+  isCancelLoading?: boolean;
 }): ColumnDef<FlightItem>[] {
   return [
     {
@@ -31,12 +34,12 @@ export function getFlightColumns({
       },
     },
     {
-      accessorKey: "acreg", header: "A/C Reg",
-      cell: ({ row }) => <span className="whitespace-nowrap">{row.getValue("acreg") || "n/a"}</span>
+      accessorKey: "acReg", header: "A/C Reg",
+      cell: ({ row }) => <span className="whitespace-nowrap">{row.getValue("acReg") || "n/a"}</span>
     },
     {
-      accessorKey: "actype", header: "A/C Type",
-      cell: ({ row }) => <span className="whitespace-nowrap">{row.getValue("actype") || "n/a"}</span>
+      accessorKey: "acType", header: "A/C Type",
+      cell: ({ row }) => <span className="whitespace-nowrap">{row.getValue("acType") || "n/a"}</span>
     },
     {
       id: "sta", header: "STA(UTC)",
@@ -60,6 +63,7 @@ export function getFlightColumns({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
+                    disabled
                     variant="outline"
                     size="icon"
                     className="w-7 h-7 ring-offset-transparent border-default-300 text-default-500"
@@ -79,6 +83,7 @@ export function getFlightColumns({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
+                    disabled={flight.statusObj.code === "Cancel"}
                     variant="outline"
                     size="icon"
                     className="w-7 h-7 ring-offset-transparent border-default-300 text-default-500"
@@ -98,17 +103,18 @@ export function getFlightColumns({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    variant="outline"
+                    variant={flight.statusObj.code === "Cancel" ? "default" : "outline"}
                     size="icon"
-                    className="w-7 h-7 ring-offset-transparent border-default-300 text-default-500"
+                    className={clsx("w-7 h-7 ring-offset-transparent border-default-300 text-default-500", flight.statusObj.code === "Cancel" && "text-secondary")}
                     color="destructive"
                     onClick={() => onCancel?.(flight)}
+                    disabled={flight.statusObj.code === "Cancel" || isCancelLoading}
                   >
                     <CircleOff className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="bg-destructive text-destructive-foreground">
-                  <p>Cancel</p>
+                  <p>{isCancelLoading ? "Cancelling..." : "Cancel"}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
