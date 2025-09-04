@@ -12,10 +12,12 @@ export interface FlightData {
   arrivalDate: string;       // "YYYY-MM-DD"
   arrivalStaTime: string;    // "HH:mm" (ถ้า API ต้อง HHmm ให้แปลงก่อน)
   arrivalAtaTime: string;    // "HH:mm"
+  routeFrom?: string;        // Station code for route from
   departureFlightNo: string;
   departureDate: string;     // "YYYY-MM-DD"
   departureStdTime: string;  // "HH:mm"
   departureAtdTime: string;  // "HH:mm"
+  routeTo?: string;          // Station code for route to
   bayNo: string;
   thfNo: string;
   statusCode: string;

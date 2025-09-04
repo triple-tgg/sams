@@ -12,7 +12,8 @@ export interface ResFlightItem extends Pagination {
 
 
 export interface FlightItem {
-  id: number
+  flightsId: number | null
+  flightInfosId: number | null
   airlineObj: AirlineObj
   stationObj: StationObj
   acReg: string
@@ -22,11 +23,10 @@ export interface FlightItem {
   arrivalStatime: string
   arrivalAtaTime: string
   departureFlightNo: string
-  departureDate: any
-  departureStdTime: any
-  departureAtdtime: any
+  departureDate: string | null
+  departureStdTime: string | null
+  departureAtdtime: string | null
   bayNo: string
-  thfNo: string
   statusObj: StatusObj
   note: string
   datasource: string
@@ -38,6 +38,8 @@ export interface FlightItem {
   isFiles: boolean
   isLlineMaintenances: boolean
   state: string
+  routeForm: string | null
+  routeTo: string | null
 }
 export interface AirlineObj {
   id: number

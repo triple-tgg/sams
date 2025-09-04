@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "@/components/navigation";
+import { redirect } from '@/components/navigation'
 
 const schema = z.object({
   email: z.string().email({ message: "Your email is invalid." }),
@@ -38,7 +39,7 @@ const LoginForm = () => {
     resolver: zodResolver(schema),
     mode: "all",
     defaultValues: {
-      email: "dashcode@codeshaper.net",
+      email: "test@example.com",
       password: "password",
     },
   });
@@ -46,7 +47,8 @@ const LoginForm = () => {
   const onSubmit = (data: z.infer<typeof schema>) => {
     startTransition(async () => {
       try {
-        router.push("/dashboard/analytics");
+        // router.push("/dashboard");
+        redirect({ href: '/dashboard', locale: 'en' })
         toast.success("Successfully logged in");
       } catch (err: any) {
         toast.error(err.message);
@@ -113,7 +115,7 @@ const LoginForm = () => {
         </div>
       )}
 
-      <div className="flex justify-between">
+      {/* <div className="flex justify-between">
         <div className="flex gap-2 items-center">
           <Checkbox id="checkbox" defaultChecked />
           <Label htmlFor="checkbox">Keep Me Signed In</Label>
@@ -124,7 +126,7 @@ const LoginForm = () => {
         >
           Forgot Password?
         </Link>
-      </div>
+      </div> */}
       <Button fullWidth disabled={isPending}>
         {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         {isPending ? "Loading..." : "Sign In"}

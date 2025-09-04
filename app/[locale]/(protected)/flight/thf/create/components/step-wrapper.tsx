@@ -70,7 +70,7 @@ const StepWrapper: React.FC<StepWrapperProps> = ({ steps, children }) => {
         </div>
         <HorizontalStepper steps={steps} activeStep={currentStep + 1} />
         {/* Current Step Component */}
-        <div className="rounded-xl border p-6 shadow-sm bg-white max-w-5xl mx-auto">
+        <div className="rounded-xl bordershadow-sm bg-white max-w-5xl mx-auto">
           <div>{CurrentComponent}</div>
         </div>
       </div>

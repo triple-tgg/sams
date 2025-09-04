@@ -116,14 +116,15 @@ const ListTable = ({
 
     const columns = getFlightColumns({
         onCreateTHF: (flight) => {
-            const q = new URLSearchParams({ flightId: String(flight.id ?? "") })
+            const q = new URLSearchParams({ flightId: String(flight.flightInfosId ?? "") })
             router.push(`/${locale}/flight/thf/create?${q.toString()}`)
         },
         onAttach: (flight) => console.log("Attach for flight:", flight),
         onCancel: (flight) => {
-            if (confirm(`Are you sure you want to cancel flight ${flight.arrivalFlightNo || flight.id}?`)) {
+            if (!flight.flightInfosId) return;
+            if (confirm(`Are you sure you want to cancel flight ${flight.arrivalFlightNo || flight.flightInfosId}?`)) {
                 cancelFlightMutation.mutate({
-                    flightId: flight.id
+                    flightId: flight.flightInfosId
                 });
             }
         },
@@ -306,13 +307,13 @@ const ListTable = ({
                             table.getRowModel().rows.map((row) => {
                                 const flight = row.original;
                                 const isCancelled = flight.statusObj?.code === "Cancel";
-                                
+
                                 return (
-                                    <TableRow 
-                                        key={row.id} 
-                                        data-state={row.getIsSelected() && "selected"} 
+                                    <TableRow
+                                        key={row.id}
+                                        data-state={row.getIsSelected() && "selected"}
                                         className={clsx(
-                                            "even:bg-default-100 px-6 h-20", 
+                                            "even:bg-default-100 px-6 h-20",
                                             row.getIsSelected() && "bg-primary/10",
                                             isCancelled && "bg-primary/10 border-l-4 border-l-red-600"
                                         )}

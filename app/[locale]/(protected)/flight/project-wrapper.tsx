@@ -5,7 +5,6 @@ import CreateProject from "./create-project";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Link, usePathname } from "@/components/navigation";
-import { getProjectNav } from "./data";
 import DateRangePicker from "@/components/date-range-picker";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBlock } from "@/components/blocks/status-block";
@@ -18,13 +17,9 @@ import { useDashboardFlight } from "@/lib/api/hooks/useDashboardFlight";
 
 const ProjectWrapper = ({ children }: { children: React.ReactNode }) => {
     const [open, setOpen] = useState<boolean>(false);
-    const pathname = usePathname();
-    const menus = getProjectNav(pathname);
-    const { toast } = useToast();
 
     const { handleDownloadTemplate } = useTemplateDownload();
     const { data: dashboard, isLoading: dashboardLoading, error: dashboardError } = useDashboardFlight();
-    console.log("dashboard", dashboard)
 
     // Callback เมื่อ import สำเร็จ
     const handleImportSuccess = () => {

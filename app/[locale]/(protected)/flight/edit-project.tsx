@@ -24,7 +24,6 @@ import Image from "next/image";
 import { useState } from "react";
 import { useForm, SubmitHandler, Controller } from "react-hook-form";
 import Select, { MultiValue } from "react-select";
-import { customerOption } from "./data";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useParams } from "next/navigation";
 import { getLangDir } from "rtl-detect";
