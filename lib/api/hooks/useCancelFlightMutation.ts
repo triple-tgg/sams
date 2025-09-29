@@ -10,17 +10,19 @@ export const useCancelFlightMutation = () => {
     onSuccess: (data, variables) => {
       // Show success message
       toast.success(data.message || "Flight cancelled successfully");
-      
-      // Invalidate and refetch flight list
-      queryClient.invalidateQueries({ queryKey: ["flightList"] });
-      
-      console.log(`Flight ${variables.flightId} cancelled successfully`);
+
+      // Invalidate flight list with a slight delay to avoid concurrent operations
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["flightList"] });
+      }, 100);
+
+      console.log(`Flight ${variables.flightInfosId} cancelled successfully`);
     },
     onError: (error: any) => {
       // Show error message
       const errorMessage = error?.response?.data?.message || "Failed to cancel flight";
       toast.error(errorMessage);
-      
+
       console.error("Cancel flight error:", error);
     },
   });

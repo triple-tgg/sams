@@ -1,14 +1,18 @@
+import { Equipment as EquipmentAPI } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
+
+import dayjs from 'dayjs'
+
 // Equipment Step Types
 export interface Equipment {
   equipmentName: string // Required
   hrs: string // Optional
-  svcQty: string // Optional
+  svc: string // Optional
   fromDate: string // Required
   fromTime: string // Required
   toDate: string // Required
   toTime: string // Required
-  loan: boolean // Optional
-  samsTool: boolean // Optional
+  isLoan: boolean // Optional
+  isSamsTool: boolean // Optional
 
 }
 
@@ -17,18 +21,20 @@ export interface EquipmentFormData {
 }
 
 export interface EquipmentStepProps {
-  initialData?: EquipmentFormData | null
+  initialData?: EquipmentAPI[]
+  flightInfosId: number | null
+  lineMaintenanceId: number | null
 }
 
-// Default equipment values
+// Default equipment values with current date/time
 export const defaultEquipment: Equipment = {
   equipmentName: '',
   hrs: '',
-  svcQty: '',
-  fromDate: '',
-  fromTime: '',
-  toDate: '',
-  toTime: '',
-  loan: false,
-  samsTool: false,
+  svc: '',
+  fromDate: dayjs().format('YYYY-MM-DD'),
+  fromTime: dayjs().format('HH:mm'),
+  toDate: dayjs().format('YYYY-MM-DD'),
+  toTime: dayjs().format('HH:mm'),
+  isLoan: false,
+  isSamsTool: false,
 }

@@ -1,5 +1,6 @@
 // Types and constants for Services Step form
 
+import { AdditionalDefectAttachFile } from "@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId";
 import { AircraftCheckSubType, AircraftCheckType } from "@/lib/api/master/aircraft-check-types/airlines.interface";
 
 
@@ -14,11 +15,14 @@ export type DropdownOption = {
 }
 
 export type Personnel = {
-  staffId: string
+  staffId: number
+  staffCode: string
   name: string
   type: string
-  from: string
-  to: string
+  formDate: string
+  formTime: string
+  toDate: string
+  toTime: string
   remark?: string
 }
 
@@ -34,20 +38,21 @@ export type ServicesFormInputs = {
     defect: string
     ataChapter: string
     photo?: FileList
+    attachFiles: AdditionalDefectAttachFile | null
     laeMH?: string
     mechMH?: string
   }[]
   servicingPerformed: boolean
   fluid: {
     fluidName: FluidOption | null
-    engOilSets: { left: string; right: string }[]
-    hydOilBlue?: string
-    hydOilGreen?: string
-    hydOilYellow?: string
-    hydOilA?: string
-    hydOilB?: string
-    hydOilSTBY?: string
-    otherQty?: string
+    engOilSets: { left: number; right: number }[]
+    hydOilBlue?: number
+    hydOilGreen?: number
+    hydOilYellow?: number
+    hydOilA?: number
+    hydOilB?: number
+    hydOilSTBY?: number
+    otherOil?: number
   }
   addPersonnels: boolean
   personnel?: Personnel[] | null
@@ -59,9 +64,10 @@ export type ServicesFormInputs = {
   }[] | null
   aircraftTowing: boolean
   aircraftTowingInfo?: {
-    date: string;
-    timeOn: string;
-    timeOf: string;
+    onDate: string;
+    offDate: string;
+    onTime: string;
+    offTime: string;
     bayFrom: string;
     bayTo: string;
   }[] | null
@@ -74,32 +80,12 @@ export const staffList = [
   { staffId: 'C003', name: 'สมปอง น่ารัก', type: 'LAE' },
 ]
 
-// export const maintenanceOptions = [
-//   { value: "TR", label: "TR" },
-//   { value: "Preflight", label: "Preflight" },
-//   { value: "NS", label: "NS" },
-//   { value: "Weekly", label: "Weekly" },
-//   { value: "A-Check", label: "A-Check" },
-// ]
-
-// export const maintenanceSubTypesOptions = [
-//   { value: "Assistance", label: "Assistance" },
-//   { value: "CRS", label: "CRS" },
-//   { value: "On Call", label: "On Call" },
-//   { value: "Standby", label: "Standby" },
-// ]
-
 export const fluidOptions: FluidOption[] = [
   { label: 'Hydraulic', value: 'Hydraulic' },
   { label: 'ENG Oil', value: 'ENG Oil' },
   { label: 'APU Oil', value: 'APU Oil' },
 ]
 
-// Master Data Transformation Functions
-
-/**
- * Transform Aircraft Check Types from API to dropdown options
- */
 export const transformAircraftCheckTypesToOptions = (checkTypes: AircraftCheckType[]): DropdownOption[] => {
   return checkTypes
     .filter(type => !type.isdelete) // Filter out deleted items

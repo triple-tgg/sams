@@ -32,8 +32,6 @@ export interface PushThfResponse {
 export const pushThf = async (data: PushThfRequest): Promise<PushThfResponse> => {
   try {
     const response = await axiosConfig.put("/lineMaintenances/flight-thf", data);
-    console.log(`API URL: ${axiosConfig.defaults.baseURL}/lineMaintenances/flight-thf`);
-    console.log("Push THF Request Data:", data);
     return response.data;
   } catch (error) {
     console.error("Push THF error:", error);

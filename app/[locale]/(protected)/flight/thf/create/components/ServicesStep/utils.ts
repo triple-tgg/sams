@@ -24,14 +24,14 @@ export const getDefaultValues = (checkTypes?: AircraftCheckType[]): ServicesForm
     servicingPerformed: false,
     fluid: {
       fluidName: null,
-      engOilSets: [{ left: "", right: "" }],
-      hydOilBlue: "",
-      hydOilGreen: "",
-      hydOilYellow: "",
-      hydOilA: "",
-      hydOilB: "",
-      hydOilSTBY: "",
-      otherQty: "",
+      engOilSets: [{ left: 0, right: 0 }],
+      hydOilBlue: 0,
+      hydOilGreen: 0,
+      hydOilYellow: 0,
+      hydOilA: 0,
+      hydOilB: 0,
+      hydOilSTBY: 0,
+      otherOil: 0,
     },
     addPersonnels: false,
     personnel: [],
@@ -55,7 +55,7 @@ export const getDefaultMaintenanceType = (checkTypes?: AircraftCheckType[]): str
 
   // Find the first non-deleted check type
   const availableType = checkTypes.find(type => !type.isdelete)
-  
+
   if (!availableType) {
     console.warn('No active aircraft check types found')
     return ""
@@ -70,25 +70,45 @@ export const transformFluidData = (fluidData: FluidFormData) => {
 
   return {
     fluidName: fluidData.fluidName?.value || "",
-    engOil1L: engOilSets[0]?.left || "",
-    engOil1R: engOilSets[0]?.right || "",
-    engOil2L: engOilSets[1]?.left || "",
-    engOil2R: engOilSets[1]?.right || "",
-    engOil3L: engOilSets[2]?.left || "",
-    engOil3R: engOilSets[2]?.right || "",
-    engOil4L: engOilSets[3]?.left || "",
-    engOil4R: engOilSets[3]?.right || "",
-    hydOilBlue: fluidData.hydOilBlue || "",
-    hydOilGreen: fluidData.hydOilGreen || "",
-    hydOilYellow: fluidData.hydOilYellow || "",
-    hydOilA: fluidData.hydOilA || fluidData.hydOilBlue || "",
-    hydOilB: fluidData.hydOilB || fluidData.hydOilGreen || "",
-    hydOilSTBY: fluidData.hydOilSTBY || fluidData.hydOilYellow || "",
-    otherQty: fluidData.otherQty || "",
+    engOil1L: engOilSets[0]?.left || 0,
+    engOil1R: engOilSets[0]?.right || 0,
+    engOil2L: engOilSets[1]?.left || 0,
+    engOil2R: engOilSets[1]?.right || 0,
+    engOil3L: engOilSets[2]?.left || 0,
+    engOil3R: engOilSets[2]?.right || 0,
+    engOil4L: engOilSets[3]?.left || 0,
+    engOil4R: engOilSets[3]?.right || 0,
+
+    hydOilBlue: fluidData.hydOilBlue || 0,
+    hydOilGreen: fluidData.hydOilGreen || 0,
+    hydOilYellow: fluidData.hydOilYellow || 0,
+
+    hydOilA: fluidData.hydOilA || fluidData.hydOilBlue || 0,
+    hydOilB: fluidData.hydOilB || fluidData.hydOilGreen || 0,
+    hydOilSTBY: fluidData.hydOilSTBY || fluidData.hydOilYellow || 0,
+    otherOil: fluidData.otherOil || 0,
   }
 }
+export const transformFluidDataToAPI = (fluidData: FluidFormData) => {
+  const engOilSets = fluidData.engOilSets || [{ left: "", right: "" }]
 
-export const transformServicesData = (data: ServicesFormInputs) => {
+  return {
+    fluidName: fluidData.fluidName?.value || "",
+    engOil: engOilSets.map(set => ({ left: set.left || 0, right: set.right || 0 })),
+
+    hydOilBlue: fluidData.hydOilBlue || 0,
+    hydOilGreen: fluidData.hydOilGreen || 0,
+    hydOilYellow: fluidData.hydOilYellow || 0,
+
+    hydOilA: fluidData.hydOilA || fluidData.hydOilBlue || 0,
+    hydOilB: fluidData.hydOilB || fluidData.hydOilGreen || 0,
+    hydOilSTBY: fluidData.hydOilSTBY || fluidData.hydOilYellow || 0,
+    otherOil: fluidData.otherOil || 0,
+  }
+}
+export const transformServicesDataToAPI = (data: ServicesFormInputs) => {
+  console.log("transformServicesDataToAPI called with data:", data);
+
   const aircraftChecks = data.aircraftChecks.map(check => ({
     maintenanceTypes: check.maintenanceTypes,
     maintenanceSubTypes: check.maintenanceSubTypes.join(','),
@@ -99,18 +119,22 @@ export const transformServicesData = (data: ServicesFormInputs) => {
   const personnel = data.addPersonnels ?
     (data.personnel || []).map(p => ({
       staffId: p.staffId,
+      staffCode: p.staffCode,
       name: p.name,
       type: p.type,
-      from: p.from,
-      to: p.to,
+      formDate: p.formDate,
+      toDate: p.toDate,
+      formTime: p.formTime,
+      toTime: p.toTime,
       remark: p.remark || "",
     })) : []
 
   const aircraftTowingInfo = data.aircraftTowing ?
     (data.aircraftTowingInfo || []).map(info => ({
-      date: info.date,
-      timeOn: info.timeOn,
-      timeOf: info.timeOf,
+      onDate: info.onDate,
+      offDate: info.offDate,
+      onTime: info.onTime,
+      offTime: info.offTime,
       bayForm: info.bayFrom, // Transform bayFrom to bayForm for API
       bayTo: info.bayTo,
     })) : []
@@ -120,7 +144,7 @@ export const transformServicesData = (data: ServicesFormInputs) => {
     additionalDefectRectification: data.additionalDefectRectification,
     additionalDefects: data.additionalDefectRectification ? (data.additionalDefects || []) : [],
     servicingPerformed: data.servicingPerformed,
-    fluid: data.servicingPerformed ? transformFluidData(data.fluid) : null,
+    fluid: data.servicingPerformed ? data.fluid : null,
     addPersonnels: data.addPersonnels,
     personnel,
     flightDeck: data.flightDeck,
@@ -182,15 +206,16 @@ export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse |
     ataChapter: defect.ataChapter || "",
     laeMH: defect.lae?.toString() || "",
     mechMH: defect.mech?.toString() || "",
+    attachFiles: defect.attachFiles ? defect.attachFiles : null,
     // Note: photo files would need special handling for FileList
   })) || [];
 
   // Map fluid data
   const fluidServicing = aircraft?.fluidServicing;
   const engOilSets = fluidServicing?.engOil?.map(oil => ({
-    left: oil.leftOil?.toString() || "",
-    right: oil.rightOil?.toString() || "",
-  })) || [{ left: "", right: "" }];
+    left: oil.left || 0,
+    right: oil.left || 0,
+  })) || [{ left: 0, right: 0 }];
 
   const fluid = {
     fluidName: fluidServicing?.fluidName ? {
@@ -198,39 +223,36 @@ export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse |
       label: fluidServicing.fluidName
     } : null,
     engOilSets,
-    hydOilBlue: fluidServicing?.hydraulicA?.toString() || "",
-    hydOilGreen: fluidServicing?.hydraulicB?.toString() || "",
-    hydOilYellow: fluidServicing?.hydraulicSTBY?.toString() || "",
+    hydOilBlue: fluidServicing?.hydraulicA || 0,
+    hydOilGreen: fluidServicing?.hydraulicB || 0,
+    hydOilYellow: fluidServicing?.hydraulicSTBY || 0,
 
-    hydOilA: fluidServicing?.hydraulicA?.toString() || "",
-    hydOilB: fluidServicing?.hydraulicB?.toString() || "",
-    hydOilSTBY: fluidServicing?.hydraulicSTBY?.toString() || "",
+    hydOilA: fluidServicing?.hydraulicA || 0,
+    hydOilB: fluidServicing?.hydraulicB || 0,
+    hydOilSTBY: fluidServicing?.hydraulicSTBY || 0,
 
-    otherQty: fluidServicing?.otherOil || "",
+    otherOil: fluidServicing?.otherOil || 0,
   };
 
   // Map personnel
   const personnel = aircraft?.personnels?.map(person => ({
-    staffId: person.staff?.code || "",
+    staffId: person.staff?.id || 0,
+    staffCode: person.staff?.code || "",
     name: person.staff?.name || "",
     type: person.staff?.staffsType || "",
-    from: person.formTime || "",
-    to: person.toTime || "",
+    formDate: person.formDate || "",
+    toDate: person.toDate || "",
+    formTime: person.formTime || "",
+    toTime: person.toTime || "",
     remark: person.note || "",
   })) || [];
 
-  // Map flight deck info (if available in aircraft towing data)
-  // const flightDeckInfo = aircraft?.aircraftTowing?.map(towing => ({
-  //   date: towing.aircraftDate || "",
-  //   timeOn: towing.onTime || "",
-  //   timeOf: towing.offTime || "",
-  // })) || [];
 
-  // Map aircraft towing info
   const aircraftTowingInfo = aircraft?.aircraftTowing?.map(towing => ({
-    date: towing.aircraftDate || "",
-    timeOn: towing.onTime || "",
-    timeOf: towing.offTime || "",
+    onDate: towing.onDate || "",
+    offDate: towing.offDate || "",
+    onTime: towing.onTime || "",
+    offTime: towing.offTime || "",
     bayFrom: towing.bayForm || "", // API field is bayForm, mapping to bayFrom
     bayTo: towing.bayTo || "", // Add bay to field
   })) || [];

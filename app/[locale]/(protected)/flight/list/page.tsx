@@ -8,12 +8,7 @@ import { GetFlightListParams } from "@/lib/api/flight/getFlightList";
 import { FlightItem, Pagination } from "@/lib/api/flight/filghtlist.interface";
 import dayjs from "dayjs";
 
-interface FilterParams {
-    flightNo: string
-    stationCodeList: string[]
-    dateStart: string
-    dateEnd: string
-}
+import { FilterParams } from "./components/list-table";  // Import the interface
 
 export default function FlightList() {
     const [pagination, setPagination] = useState<{ page: number; perPage: number }>({
@@ -25,6 +20,7 @@ export default function FlightList() {
     const [filters, setFilters] = useState<FilterParams>({
         flightNo: "",
         stationCodeList: [],
+        stationCode: "",
         dateStart: dayjs().format("YYYY-MM-DD"), // Today's date
         dateEnd: dayjs().format("YYYY-MM-DD"), // Today's date
     });

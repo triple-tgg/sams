@@ -14,7 +14,7 @@ interface UseEquipmentSubmissionProps {
   onUpdateData: (data: any) => void
   reset: () => void
   updateEquipment: (lineMaintenancesId: number, equipmentData: any[]) => void
-  existingData?: LineMaintenanceThfData
+  lineMaintenanceId?: number | null
 }
 
 export const useEquipmentSubmission = ({
@@ -24,7 +24,7 @@ export const useEquipmentSubmission = ({
   onUpdateData,
   updateEquipment,
   reset,
-  existingData
+  lineMaintenanceId
 }: UseEquipmentSubmissionProps) => {
   const { toast } = useToast()
 
@@ -68,8 +68,7 @@ export const useEquipmentSubmission = ({
 
     // Save the data
     // saveEquipmentMutation.mutate(data)
-    const lineMaintenancesId = existingData?.lineMaintenance.id
-    if (lineMaintenancesId === undefined) {
+    if (lineMaintenanceId === undefined) {
       toast({
         variant: "destructive",
         title: "line Maintenances Id",
@@ -78,7 +77,7 @@ export const useEquipmentSubmission = ({
       return
     }
     try {
-      const result = await updateEquipment(lineMaintenancesId, data.equipments)
+      const result = await updateEquipment(lineMaintenanceId || 0, data.equipments)
       console.log('Update result:', result)
     } catch (error) {
       console.error('Update failed:', error)

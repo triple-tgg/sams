@@ -43,11 +43,11 @@ export function useAirlineOptions() {
   const apiOptions = data?.responseData?.map((airline: AirlineItem) => ({
     value: airline.code,
     label: airline.code,
-  })) ?? [];
+  })).filter(item => item.value && item.label) ?? [];
 
   // ใช้ API options ถ้ามีข้อมูล ไม่งั้นใช้ fallback
   const options = apiOptions.length > 0 ? apiOptions : (error ? fallbackOptions : []);
-
+  console.log("options:", options)
   return {
     options,
     isLoading,

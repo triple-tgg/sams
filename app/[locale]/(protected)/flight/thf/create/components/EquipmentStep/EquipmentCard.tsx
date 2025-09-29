@@ -32,12 +32,6 @@ const FieldError: React.FC<{ message?: string }> = ({ message }) => {
   )
 }
 
-// Equipment Name Searchable Dropdown Component
-// Features:
-// - Search existing equipment from API
-// - Show equipment suggestions as you type
-// - Add new equipment when no match found
-// - Visual indicators for existing vs new equipment
 const EquipmentNameDropdown: React.FC<{
   value: string
   onChange: (value: string) => void
@@ -296,22 +290,22 @@ export const EquipmentCard: React.FC<EquipmentCardProps> = ({
           <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <Label htmlFor={`equipments.${index}.loan`} className="text-sm font-medium text-gray-700">
+              <Label htmlFor={`equipments.${index}.isLoan`} className="text-sm font-medium text-gray-700">
                 LOAN
               </Label>
             </div>
             <Controller
               control={control}
-              name={`equipments.${index}.loan` as const}
+              name={`equipments.${index}.isLoan` as const}
               render={({ field }) => (
                 <Switch
-                  id={`equipments.${index}.loan`}
+                  id={`equipments.${index}.isLoan`}
                   checked={field.value}
                   onCheckedChange={(checked) => {
                     // Set LOAN to new state
                     field.onChange(checked)
                     // Set SAMS TOOL to opposite state
-                    setValue(`equipments.${index}.samsTool`, !checked)
+                    setValue(`equipments.${index}.isSamsTool`, !checked)
                   }}
                 />
               )}
@@ -320,22 +314,22 @@ export const EquipmentCard: React.FC<EquipmentCardProps> = ({
           <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <Label htmlFor={`equipments.${index}.samsTool`} className="text-sm font-medium text-gray-700">
+              <Label htmlFor={`equipments.${index}.isSamsTool`} className="text-sm font-medium text-gray-700">
                 SAMS TOOL
               </Label>
             </div>
             <Controller
               control={control}
-              name={`equipments.${index}.samsTool` as const}
+              name={`equipments.${index}.isSamsTool` as const}
               render={({ field }) => (
                 <Switch
-                  id={`equipments.${index}.samsTool`}
+                  id={`equipments.${index}.isSamsTool`}
                   checked={field.value}
                   onCheckedChange={(checked) => {
                     // Set SAMS TOOL to new state
                     field.onChange(checked)
                     // Set LOAN to opposite state
-                    setValue(`equipments.${index}.loan`, !checked)
+                    setValue(`equipments.${index}.isLoan`, !checked)
                   }}
                 />
               )}
@@ -361,18 +355,18 @@ export const EquipmentCard: React.FC<EquipmentCardProps> = ({
         </div>
         {/* SVC Quantity */}
         <div className="col-span-1">
-          <Label htmlFor={`equipments.${index}.svcQty`} className="text-sm font-medium text-gray-700 mb-2 block">
+          <Label htmlFor={`equipments.${index}.svc`} className="text-sm font-medium text-gray-700 mb-2 block">
             Service Qty
           </Label>
           <Input
-            id={`equipments.${index}.svcQty`}
+            id={`equipments.${index}.svc`}
             type="text"
-            {...register(`equipments.${index}.svcQty` as const)}
+            {...register(`equipments.${index}.svc` as const)}
             placeholder="0"
-            className={`focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${equipmentErrors?.svcQty ? 'border-red-500 bg-red-50' : ''
+            className={`focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${equipmentErrors?.svc ? 'border-red-500 bg-red-50' : ''
               }`}
           />
-          <FieldError message={equipmentErrors?.svcQty?.message} />
+          <FieldError message={equipmentErrors?.svc?.message} />
         </div>
         {/* HRS - Auto-calculated */}
         <div className="col-span-1">

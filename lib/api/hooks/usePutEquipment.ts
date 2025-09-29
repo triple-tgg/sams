@@ -35,7 +35,7 @@ export const usePutEquipment = (options: UsePutEquipmentOptions = {}) => {
     mutationFn: async ({ lineMaintenancesId, equipmentData }) => {
       // Transform form data to API format
       const transformedData = transformEquipmentDataForAPI(equipmentData, lineMaintenancesId)
-
+      console.log("transformedData", transformedData)
       // Call API
       return await putEquipment(lineMaintenancesId, transformedData)
     },

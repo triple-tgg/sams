@@ -1,7 +1,7 @@
 import axiosConfig from "@/lib/axios.config";
 
 export interface CancelFlightParams {
-  flightId: number | string;
+  flightInfosId: number | string;
 }
 
 export interface CancelFlightResponse {
@@ -11,7 +11,7 @@ export interface CancelFlightResponse {
 
 export const cancelFlight = async (params: CancelFlightParams): Promise<CancelFlightResponse> => {
   try {
-    const response = await axiosConfig.post(`/flight/cancel/${params.flightId}`);
+    const response = await axiosConfig.post(`/flight/cancel/${params.flightInfosId}`);
     return response.data;
   } catch (error) {
     console.error('Cancel flight error:', error);

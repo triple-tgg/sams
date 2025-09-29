@@ -1,7 +1,7 @@
 import { UseFormReturn } from 'react-hook-form'
 import { toast } from 'sonner'
 import { ServicesFormInputs } from './types'
-import { transformServicesData } from './utils'
+import { transformServicesDataToAPI } from './utils'
 import { usePutServiceFromForm } from '@/lib/api/hooks/usePutService'
 import { dateTimeUtils } from '@/lib/dayjs'
 
@@ -11,6 +11,7 @@ interface UseServicesSubmissionProps {
   onBackStep: () => void
   onUpdateData: (data: any) => void
   existingFlightData?: any // Add flight data for line maintenance ID
+  lineMaintenanceId?: number | null
 }
 
 export const useServicesSubmission = ({
@@ -19,6 +20,7 @@ export const useServicesSubmission = ({
   onBackStep,
   onUpdateData,
   existingFlightData,
+  lineMaintenanceId
 }: UseServicesSubmissionProps) => {
 
   // Initialize the PUT service mutation hook
@@ -26,6 +28,10 @@ export const useServicesSubmission = ({
 
 
   const handleSubmit = async (data: ServicesFormInputs) => {
+    console.log("Submitting services data:handleSubmit", {
+      lineMaintenanceId: lineMaintenanceId,
+      formData: data
+    })
     try {
       // Validate form data
       const isValid = await form.trigger()
@@ -35,14 +41,13 @@ export const useServicesSubmission = ({
       }
 
       // Check if we have line maintenance ID
-      if (!existingFlightData?.responseData.lineMaintenance?.id) {
+      if (!lineMaintenanceId) {
         toast.error("Line maintenance ID not found. Please ensure flight data is loaded properly.")
         console.error("Missing line maintenance ID:", existingFlightData)
         return
       }
-
       // Transform data for local state
-      const transformedData = transformServicesData(data)
+      const transformedData = transformServicesDataToAPI(data)
 
       // Update parent component data immediately
       onUpdateData(transformedData)
@@ -56,16 +61,9 @@ export const useServicesSubmission = ({
         enableAircraftTowing: data.aircraftTowing || false,
       }
 
-      console.log("Submitting services data:", {
-        lineMaintenanceId: existingFlightData?.responseData.lineMaintenance?.id,
-        formData: data,
-        serviceOptions,
-        transformedData
-      })
-
       // Call API to save services data
       await putServiceMutation.mutateAsync({
-        lineMaintenanceId: existingFlightData?.responseData.lineMaintenance?.id,
+        lineMaintenanceId: lineMaintenanceId,
         formData: data,
         options: serviceOptions
       })
@@ -88,65 +86,6 @@ export const useServicesSubmission = ({
     }
   }
 
-  const handleSaveDraft = async () => {
-    try {
-      const data = form.getValues()
-
-      // Validate basic required fields only for draft
-      const requiredFieldsValid = data.aircraftChecks && data.aircraftChecks.length > 0
-
-      if (!requiredFieldsValid) {
-        toast.error("At least one aircraft check is required to save draft")
-        return
-      }
-
-      // Check if we have line maintenance ID
-      if (!existingFlightData?.lineMaintenance?.id) {
-        // For draft, we can save locally without API call
-        const transformedData = transformServicesData(data)
-        onUpdateData(transformedData)
-        toast.success("Draft saved locally")
-        return
-      }
-
-      // Transform data for local state
-      const transformedData = transformServicesData(data)
-      onUpdateData(transformedData)
-
-      // Prepare options based on current form state (for draft, we can be more lenient)
-      const serviceOptions = {
-        enablePersonnels: data.addPersonnels || false,
-        enableAdditionalDefect: data.additionalDefectRectification || false,
-        enableFluidServicing: data.servicingPerformed || false,
-        enableFlightdeck: data.flightDeck || false,
-        enableAircraftTowing: data.aircraftTowing || false,
-      }
-
-      console.log("Saving services draft:", {
-        lineMaintenanceId: existingFlightData?.responseData.lineMaintenance?.id,
-        formData: data,
-        serviceOptions
-      })
-
-      // Save draft to API (non-blocking)
-      try {
-        await putServiceMutation.mutateAsync({
-          lineMaintenanceId: existingFlightData?.responseData.lineMaintenance?.id,
-          formData: data,
-          options: serviceOptions
-        })
-
-        toast.success("Draft saved successfully to server")
-      } catch (apiError) {
-        console.warn("Failed to save draft to server, but saved locally:", apiError)
-        toast.success("Draft saved locally (server save failed)")
-      }
-
-    } catch (error) {
-      console.error("Error saving draft:", error)
-      toast.error("Failed to save draft")
-    }
-  }
 
   const handleAddAircraftCheck = () => {
     const currentChecks = form.getValues('aircraftChecks')
@@ -177,6 +116,12 @@ export const useServicesSubmission = ({
         ataChapter: "",
         laeMH: "",
         mechMH: "",
+        attachFiles: {
+          additionalDefectId: "",
+          storagePath: "",
+          realName: "",
+          fileType: "",
+        }
       }
     ])
   }
@@ -211,7 +156,7 @@ export const useServicesSubmission = ({
     if (currentSets.length < 4) {
       form.setValue('fluid.engOilSets', [
         ...currentSets,
-        { left: "", right: "" }
+        { left: 0, right: 0 }
       ])
     }
   }
@@ -247,9 +192,10 @@ export const useServicesSubmission = ({
     form.setValue('aircraftTowingInfo', [
       ...currentInfo,
       {
-        date: dateTimeUtils.getCurrentDate(),
-        timeOn: "",
-        timeOf: "",
+        onDate: dateTimeUtils.getCurrentDate(),
+        offDate: dateTimeUtils.getCurrentDate(),
+        onTime: "",
+        offTime: "",
         bayFrom: "",
         bayTo: "",
       }
@@ -268,7 +214,6 @@ export const useServicesSubmission = ({
   return {
     handleOnBackStep,
     handleSubmit,
-    handleSaveDraft,
     handleAddAircraftCheck,
     handleRemoveAircraftCheck,
     handleAddDefect,

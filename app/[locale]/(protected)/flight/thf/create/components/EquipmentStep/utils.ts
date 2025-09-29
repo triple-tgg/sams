@@ -1,12 +1,27 @@
+import dayjs from 'dayjs'
 import { EquipmentFormData, defaultEquipment } from './types'
 import { dateTimeUtils } from '@/lib/dayjs'
+import { Equipment } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
 
 /**
- * Get default values for the equipment form
+ * Get default values for the equipment form with current date/time
  */
 export const getDefaultValues = (): EquipmentFormData => {
+  const currentDate = dayjs().format('YYYY-MM-DD')
+  const currentTime = dayjs().format('HH:mm')
+
   return {
-    equipments: [{ ...defaultEquipment }]
+    equipments: [{
+      equipmentName: '',
+      hrs: '',
+      svc: '',
+      fromDate: currentDate,
+      fromTime: currentTime,
+      toDate: currentDate,
+      toTime: currentTime,
+      isLoan: false,
+      isSamsTool: false,
+    }]
   }
 }
 
@@ -18,13 +33,13 @@ export const mapEquipmentFormToApiData = (formData: EquipmentFormData) => {
     equipments: formData.equipments.map(equipment => ({
       equipmentName: equipment.equipmentName,
       hrs: equipment.hrs ? parseFloat(equipment.hrs) : null,
-      svcQty: equipment.svcQty ? parseInt(equipment.svcQty) : null,
+      svcQty: equipment.svc ? parseInt(equipment.svc) : null,
       fromDate: equipment.fromDate,
       fromTime: equipment.fromTime,
       toDate: equipment.toDate,
       toTime: equipment.toTime,
-      loan: equipment.loan,
-      samsTool: equipment.samsTool,
+      isLoan: equipment.isLoan,
+      isSamsTool: equipment.isSamsTool,
     }))
   }
 }
@@ -32,22 +47,25 @@ export const mapEquipmentFormToApiData = (formData: EquipmentFormData) => {
 /**
  * Convert API data to equipment form format
  */
-export const mapApiDataToEquipmentForm = (apiData: any): EquipmentFormData => {
-  if (!apiData?.equipments || !Array.isArray(apiData.equipments)) {
+export const mapApiDataToEquipmentForm = (equipments: Equipment[]): EquipmentFormData => {
+  if (!equipments || !Array.isArray(equipments)) {
     return getDefaultValues()
   }
 
+  const currentDate = dayjs().format('YYYY-MM-DD')
+  const currentTime = dayjs().format('HH:mm')
+
   return {
-    equipments: apiData.equipments.map((equipment: any) => ({
+    equipments: equipments.map((equipment: any) => ({
       equipmentName: equipment.equipmentName || '',
       hrs: equipment.hrs?.toString() || '',
-      svcQty: equipment.svcQty?.toString() || '',
-      fromDate: equipment.fromDate || '',
-      fromTime: equipment.fromTime || '',
-      toDate: equipment.toDate || '',
-      toTime: equipment.toTime || '',
-      loan: equipment.loan ?? false,
-      samsTool: equipment.samsTool ?? false,
+      svc: equipment.svc?.toString() || '',
+      fromDate: equipment.fromDate || currentDate,
+      fromTime: equipment.fromTime || currentTime,
+      toDate: equipment.toDate || currentDate,
+      toTime: equipment.toTime || currentTime,
+      isLoan: equipment.isLoan ?? false,
+      isSamsTool: equipment.isSamsTool ?? false,
     }))
   }
 }

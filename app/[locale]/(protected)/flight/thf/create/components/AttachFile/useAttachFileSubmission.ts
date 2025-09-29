@@ -13,6 +13,7 @@ export interface UseAttachFileSubmissionParams {
   onBackStep: () => void
   onUpdateData?: () => void
   existingFlightData?: LineMaintenanceThfResponse | null
+  lineMaintenanceId: number | null
 }
 
 export interface UseAttachFileSubmissionReturn {
@@ -24,7 +25,6 @@ export interface UseAttachFileSubmissionReturn {
   submitError: Error | null
   resetMutation: () => void
   hasLineMaintenanceId: boolean
-  lineMaintenanceId: number | null
 }
 
 /**
@@ -37,11 +37,10 @@ export const useAttachFileSubmission = ({
   onNextStep,
   onBackStep,
   onUpdateData,
-  existingFlightData
+  lineMaintenanceId
 }: UseAttachFileSubmissionParams): UseAttachFileSubmissionReturn => {
 
   // Get line maintenance ID from existing data
-  const lineMaintenanceId = existingFlightData?.responseData?.lineMaintenance?.id || null
   const hasLineMaintenanceId = lineMaintenanceId !== null
   const queryClient = useQueryClient()
   const router = useRouter()
@@ -112,7 +111,6 @@ export const useAttachFileSubmission = ({
     isSubmitError,
     submitError,
     resetMutation,
-    hasLineMaintenanceId,
-    lineMaintenanceId
+    hasLineMaintenanceId
   }
 }

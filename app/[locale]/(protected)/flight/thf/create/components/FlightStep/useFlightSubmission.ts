@@ -8,6 +8,7 @@ export const useFlightSubmission = (flightData: any, onSave: (data: any) => void
 
   const onSubmit = (data: Step1FormInputs) => {
     // Prepare data for push THF API
+    console.log("onSubmit", flightData)
     const pushThfData = {
       flightsId: flightData?.flightsId || 0,
       flightInfosId: flightData?.flightInfosId || 0,

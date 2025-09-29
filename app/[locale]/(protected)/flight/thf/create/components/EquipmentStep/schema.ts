@@ -51,7 +51,7 @@ export const equipmentFormSchema = z.object({
 
     // Optional fields
     hrs: numericStringSchema,
-    svcQty: numericStringSchema,
+    svc: numericStringSchema,
 
     // From/To Date and Time - Required (now using YYYY-MM-DD format)
     fromDate: requiredDateSchema,
@@ -60,54 +60,54 @@ export const equipmentFormSchema = z.object({
     toTime: requiredTimeSchema,
 
     // Equipment classification
-    loan: z.boolean().default(false),
-    samsTool: z.boolean().default(false),
+    isLoan: z.boolean().default(false),
+    isSamsTool: z.boolean().default(false),
   }).refine((equipment) => {
     // Validate that 'to' date/time is after 'from' date/time
     // Only run this validation if ALL required fields are present
-    if (equipment.fromDate && equipment.fromTime && equipment.toDate && equipment.toTime && 
-        equipment.fromDate.trim() !== '' && equipment.fromTime.trim() !== '' && 
-        equipment.toDate.trim() !== '' && equipment.toTime.trim() !== '') {
-      
+    if (equipment.fromDate && equipment.fromTime && equipment.toDate && equipment.toTime &&
+      equipment.fromDate.trim() !== '' && equipment.fromTime.trim() !== '' &&
+      equipment.toDate.trim() !== '' && equipment.toTime.trim() !== '') {
+
       try {
         // Method 1: Compare dates first
         const fromDateOnly = new Date(equipment.fromDate);
         const toDateOnly = new Date(equipment.toDate);
-        
+
         console.log('� Date Only Comparison:');
         console.log('From Date:', equipment.fromDate, fromDateOnly);
         console.log('To Date:', equipment.toDate, toDateOnly);
-        
+
         // If To date is after From date, it's definitely valid
         if (toDateOnly > fromDateOnly) {
           console.log('✅ To date is after From date - Valid');
           return true;
         }
-        
+
         // If dates are the same, check times
         if (toDateOnly.getTime() === fromDateOnly.getTime()) {
           console.log('📅 Same date, checking times...');
-          
+
           // Convert times to minutes for easier comparison
           const [fromHour, fromMin] = equipment.fromTime.split(':').map(Number);
           const [toHour, toMin] = equipment.toTime.split(':').map(Number);
-          
+
           const fromMinutes = fromHour * 60 + fromMin;
           const toMinutes = toHour * 60 + toMin;
-          
+
           console.log('⏰ Time comparison:');
           console.log('From time:', equipment.fromTime, '=', fromMinutes, 'minutes');
           console.log('To time:', equipment.toTime, '=', toMinutes, 'minutes');
-          
+
           const timeIsValid = toMinutes > fromMinutes;
           console.log('Time is valid:', timeIsValid);
           return timeIsValid;
         }
-        
+
         // If To date is before From date, it's invalid
         console.log('❌ To date is before From date - Invalid');
         return false;
-        
+
       } catch (error) {
         console.error('❌ Date validation error:', error);
         return false;
@@ -125,15 +125,15 @@ export const equipmentFormSchema = z.object({
       const equipmentDate = new Date(equipment.fromDate);
       const today = new Date();
       today.setHours(0, 0, 0, 0); // Reset time to start of day
-      
+
       const maxFutureDate = new Date(today);
       maxFutureDate.setDate(today.getDate() + 30); // Allow up to 30 days in future
-      
+
       // Ensure valid date
       if (isNaN(equipmentDate.getTime())) {
         return false;
       }
-      
+
       return equipmentDate <= maxFutureDate;
     }
     return true;
@@ -146,15 +146,15 @@ export const equipmentFormSchema = z.object({
       const equipmentDate = new Date(equipment.fromDate);
       const today = new Date();
       today.setHours(0, 0, 0, 0); // Reset time to start of day
-      
+
       const minPastDate = new Date(today);
       minPastDate.setDate(today.getDate() - 365); // Allow up to 1 year in past
-      
+
       // Ensure valid date
       if (isNaN(equipmentDate.getTime())) {
         return false;
       }
-      
+
       return equipmentDate >= minPastDate;
     }
     return true;

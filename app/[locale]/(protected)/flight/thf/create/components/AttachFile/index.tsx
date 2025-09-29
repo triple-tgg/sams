@@ -23,17 +23,15 @@ import CardContentStep from '../CardContentStep'
  * AttachFile Step component for THF form
  * Handles file attachment and upload functionality
  */
-const AttachFileStep: React.FC = () => {
-  const searchParams = useSearchParams()
-  const flightId = searchParams.get('flightId') ? parseInt(searchParams.get('flightId')!) : null
+type Props = {
+  lineMaintenanceId?: number | null;
+  flightInfosId?: number | null;
+  initialData?: any; // Replace 'any' with actual type if available
+  loading?: boolean;
+  flightError?: Error | null;
+}
+const AttachFileStep: React.FC<Props> = ({ lineMaintenanceId, flightInfosId, initialData, loading, flightError }) => {
   const { goNext, onSave, goBack } = useStep()
-
-  // Fetch existing data
-  const {
-    isLoading: loadingFlight,
-    error: flightError,
-    data: existingFlightData
-  } = useLineMaintenancesQueryThfByFlightId({ flightId })
 
   // File upload management
   const {
@@ -56,11 +54,11 @@ const AttachFileStep: React.FC = () => {
 
   // Transform existing data for form
   const transformedData = useMemo(() => {
-    if (!existingFlightData || loadingFlight) {
+    if (!initialData || loading) {
       return null
     }
-    return mapDataThfToAttachFileStep(existingFlightData)
-  }, [existingFlightData, loadingFlight])
+    return mapDataThfToAttachFileStep(initialData)
+  }, [initialData, loading])
 
   // Initialize form with validation
   const form = useForm<AttachFileFormInputs>({
@@ -78,14 +76,13 @@ const AttachFileStep: React.FC = () => {
     isSubmitError,
     submitError,
     resetMutation,
-    hasLineMaintenanceId,
-    lineMaintenanceId
+    hasLineMaintenanceId
   } = useAttachFileSubmission({
     form,
     onNextStep: goNext,
     onBackStep: goBack,
     onUpdateData: () => onSave({}),
-    existingFlightData
+    lineMaintenanceId: lineMaintenanceId || 0,
   })
 
   // Load initial data when available
@@ -94,11 +91,11 @@ const AttachFileStep: React.FC = () => {
       console.log('AttachFileStep: Using transformed data', transformedData)
       form.reset(transformedData)
       console.log('AttachFileStep: Form reset completed')
-    } else if (!loadingFlight && !flightError) {
+    } else if (!loading && !flightError) {
       console.log('AttachFileStep: No data available, using default values')
       form.reset(memoizedDefaultValues)
     }
-  }, [transformedData, loadingFlight, flightError, form, memoizedDefaultValues])
+  }, [transformedData, loading, flightError, form, memoizedDefaultValues])
 
   // Handle file selection from drop zone
   const handleFilesSelected = (fileList: FileList) => {
@@ -137,7 +134,7 @@ const AttachFileStep: React.FC = () => {
       title="Attach Files"
       description="Upload and manage supporting documents and files for this maintenance record"
     >
-      {loadingFlight && (
+      {loading && (
         <div className="flex items-center justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
           <span className="ml-2">Loading attach file data...</span>
@@ -152,7 +149,7 @@ const AttachFileStep: React.FC = () => {
         />
       )}
 
-      {!hasLineMaintenanceId && !loadingFlight && (
+      {!hasLineMaintenanceId && !loading && (
         <StatusMessages
           isWarning={true}
           warningTitle="Line Maintenance ID Missing"
@@ -160,7 +157,7 @@ const AttachFileStep: React.FC = () => {
         />
       )}
 
-      {!loadingFlight && !flightError && (
+      {!loading && !flightError && (
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 

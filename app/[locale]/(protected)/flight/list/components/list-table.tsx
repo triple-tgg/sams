@@ -8,8 +8,8 @@ import { ChevronLeft, ChevronRight, Filter as FilterIcon } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Controller, SubmitHandler, useForm } from "react-hook-form"
-import Select, { MultiValue } from "react-select"
+import { Controller, FormProvider, SubmitHandler, useForm } from "react-hook-form"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { FlightItem } from "@/lib/api/flight/filghtlist.interface"
 import { getFlightColumns } from "./columns"
 import { useParams, useRouter } from "next/navigation"
@@ -19,6 +19,8 @@ import { DateRange } from "react-day-picker"
 import dayjs from "dayjs"
 import { useCancelFlightMutation } from "@/lib/api/hooks/useCancelFlightMutation"
 import clsx from "clsx"
+import FilterRange from "./FilterRange"
+import DateRangeFilter from "./DateRange"
 
 interface Option {
     value: string; label: string; image?: string;
@@ -26,13 +28,14 @@ interface Option {
 
 type Inputs = {
     search: string
-    stationCodeList: MultiValue<Option> | []
+    stationCode: string | undefined
     dateRange: DateRange | undefined
 }
 
-interface FilterParams {
+export interface FilterParams {
     flightNo: string
-    stationCodeList: string[]
+    stationCodeList?: string[]
+    stationCode: string
     dateStart: string
     dateEnd: string
 }
@@ -95,28 +98,25 @@ const ListTable = ({
         return undefined
     }, [initialFilters])
 
-    const initialStationOptions = React.useMemo(() => {
-        return (initialFilters?.stationCodeList || []).map(code => ({
-            value: code,
-            label: code
-        }))
+    const initialStationCode = React.useMemo(() => {
+        return initialFilters?.stationCode || undefined
     }, [initialFilters])
 
-    const { register, handleSubmit, control, watch, setValue } = useForm<Inputs>({
+    const { register, handleSubmit, control, watch, setValue, getValues, ...props } = useForm<Inputs>({
         defaultValues: {
             search: initialFilters?.flightNo || "",
-            stationCodeList: initialStationOptions,
+            stationCode: initialStationCode,
             dateRange: initialDateRange
         },
     })
 
     const searchValue = watch("search")
-    const stationCodeListValue = watch("stationCodeList") as MultiValue<Option>
+    const stationCodeValue = watch("stationCode")
     const dateRangeValue = watch("dateRange")
 
     const columns = getFlightColumns({
         onCreateTHF: (flight) => {
-            const q = new URLSearchParams({ flightId: String(flight.flightInfosId ?? "") })
+            const q = new URLSearchParams({ flightInfosId: String(flight.flightInfosId ?? "") })
             router.push(`/${locale}/flight/thf/create?${q.toString()}`)
         },
         onAttach: (flight) => console.log("Attach for flight:", flight),
@@ -124,7 +124,7 @@ const ListTable = ({
             if (!flight.flightInfosId) return;
             if (confirm(`Are you sure you want to cancel flight ${flight.arrivalFlightNo || flight.flightInfosId}?`)) {
                 cancelFlightMutation.mutate({
-                    flightId: flight.flightInfosId
+                    flightInfosId: flight.flightInfosId
                 });
             }
         },
@@ -174,15 +174,15 @@ const ListTable = ({
     }, [searchValue, table])
 
     React.useEffect(() => {
-        const values = (stationCodeListValue ?? []).map((o) => o.value)
-        table.getColumn("station")?.setFilterValue(values)
-    }, [stationCodeListValue, table])
+        const filterValue = stationCodeValue ? [stationCodeValue] : []
+        table.getColumn("station")?.setFilterValue(filterValue)
+    }, [stationCodeValue, table])
 
     const onSubmit: SubmitHandler<Inputs> = (data) => {
         // Convert form data to API params
         const filters: FilterParams = {
             flightNo: data.search || "",
-            stationCodeList: (data.stationCodeList || []).map((option) => option.value),
+            stationCode: data.stationCode || "",
             dateStart: data.dateRange?.from ?
                 dayjs(data.dateRange.from).format('YYYY-MM-DD') : "",
             dateEnd: data.dateRange?.to ?
@@ -198,96 +198,104 @@ const ListTable = ({
 
     return (
         <Card>
-            <form onSubmit={handleSubmit(onSubmit)}>
-                <CardHeader className="flex flex-row items-center space-x-2 justify-between">
-                    <div className="flex space-x-2">
-                        <Input
-                            className="max-w-[250px]"
-                            type="text"
-                            placeholder="Search Flight No..."
-                            {...register("search")}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                    e.preventDefault()
-                                    handleSubmit(onSubmit)()
-                                }
-                            }}
-                        />
-                        <div className="flex min-w-[180px]">
+            <FormProvider {...{ register, handleSubmit, control, watch, setValue, getValues, ...props }}>
+                <form onSubmit={handleSubmit(onSubmit)}>
+                    <CardHeader className="flex flex-row items-center space-x-2 justify-between">
+                        <div className="flex space-x-2">
+                            <Input
+                                className="max-w-[250px]"
+                                type="text"
+                                placeholder="Search Flight No..."
+                                {...register("search")}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                        e.preventDefault()
+                                        handleSubmit(onSubmit)()
+                                    }
+                                }}
+                            />
+                            <div className="flex min-w-[180px]">
+                                <Controller
+                                    name="stationCode"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <Select value={field.value} onValueChange={field.onChange}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select Station Code" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {assigneeOptions.map((option) => (
+                                                    <SelectItem key={option.value} value={option.value}>
+                                                        {option.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    )}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-end flex-1 gap-2">
                             <Controller
-                                name="stationCodeList"
+                                name="dateRange"
                                 control={control}
                                 render={({ field }) => (
-                                    <Select
-                                        {...field}
-                                        isMulti
-                                        options={assigneeOptions}
-                                        onChange={(selected) => field.onChange(selected)}
-                                        placeholder="Code"
-                                        classNamePrefix="react-select"
+                                    <DateRangeFilter
+                                        value={field.value}
+                                        onChange={(dateRange) => {
+                                            field.onChange(dateRange);
+                                            // Auto-submit when date range changes
+                                            setTimeout(() => {
+                                                handleSubmit(onSubmit)();
+                                            }, 100);
+                                        }}
+                                        placeholder="Select date range"
                                     />
                                 )}
                             />
+                            {/* <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="outline">
+                                        <FilterIcon className="w-3.5 h-3.5 me-1" />
+                                        Filter
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent className="w-[196px]" align="center">
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={() => {
+                                        const today = dayjs().toDate();
+                                        setValue("dateRange", { from: today, to: today });
+                                        handleSubmit(onSubmit)();
+                                    }}>
+                                        Day
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => {
+                                        const weekStart = dayjs().startOf('week').toDate();
+                                        const weekEnd = dayjs().endOf('week').toDate();
+                                        setValue("dateRange", { from: weekStart, to: weekEnd });
+                                        handleSubmit(onSubmit)();
+                                    }}>
+                                        Week
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => {
+                                        const monthStart = dayjs().startOf('month').toDate();
+                                        const monthEnd = dayjs().endOf('month').toDate();
+                                        setValue("dateRange", { from: monthStart, to: monthEnd });
+                                        handleSubmit(onSubmit)();
+                                    }}>
+                                        Month
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu> */}
+                            <FilterRange
+                                value={dateRangeValue}
+                                onClick={() => handleSubmit(onSubmit)()}
+                            />
                         </div>
-                    </div>
-
-                    <div className="flex items-center justify-end flex-1 gap-2">
-                        <Controller
-                            name="dateRange"
-                            control={control}
-                            render={({ field }) => (
-                                <DateRangePicker
-                                    value={field.value}
-                                    onChange={(dateRange) => {
-                                        field.onChange(dateRange);
-                                        // Auto-submit when date range changes
-                                        setTimeout(() => {
-                                            handleSubmit(onSubmit)();
-                                        }, 100);
-                                    }}
-                                    placeholder="Select date range"
-                                />
-                            )}
-                        />
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline">
-                                    <FilterIcon className="w-3.5 h-3.5 me-1" />
-                                    Filter
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="w-[196px]" align="center">
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => {
-                                    const today = dayjs().toDate();
-                                    setValue("dateRange", { from: today, to: today });
-                                    handleSubmit(onSubmit)();
-                                }}>
-                                    Day
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => {
-                                    const weekStart = dayjs().startOf('week').toDate();
-                                    const weekEnd = dayjs().endOf('week').toDate();
-                                    setValue("dateRange", { from: weekStart, to: weekEnd });
-                                    handleSubmit(onSubmit)();
-                                }}>
-                                    Week
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => {
-                                    const monthStart = dayjs().startOf('month').toDate();
-                                    const monthEnd = dayjs().endOf('month').toDate();
-                                    setValue("dateRange", { from: monthStart, to: monthEnd });
-                                    handleSubmit(onSubmit)();
-                                }}>
-                                    Month
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-
-                    </div>
-                </CardHeader>
-            </form>
-
+                    </CardHeader>
+                </form>
+            </FormProvider>
             <CardContent className="p-0">
                 <Table>
                     <TableHeader className="px-3 bg-primary-50">

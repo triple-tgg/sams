@@ -1,7 +1,7 @@
 import axiosConfig from "@/lib/axios.config";
 
 export interface LineMaintenanceThfParams {
-  flightId: number | string | null;
+  flightInfosId: number | string | null;
 }
 
 export interface StaffMember {
@@ -13,9 +13,11 @@ export interface StaffMember {
 
 export interface Personnel {
   staff: StaffMember;
+  formDate: string;
+  toDate: string;
   formTime: string;
   toTime: string;
-  note: string | null; // Changed from optional to explicit null
+  note: string | null;
 }
 
 export interface AdditionalDefectAttachFile {
@@ -31,12 +33,12 @@ export interface AdditionalDefect {
   ataChapter: string;
   lae: number;
   mech: number;
-  attachFiles: AdditionalDefectAttachFile | null; // Changed to object type
+  attachFiles: AdditionalDefectAttachFile | null; // Changed to array type
 }
 
 export interface EngOil {
-  leftOil: number;
-  rightOil: number;
+  left: number;
+  right: number;
 }
 
 export interface FluidServicing {
@@ -45,13 +47,14 @@ export interface FluidServicing {
   hydraulicB: number | null; // Changed from optional to explicit null
   hydraulicSTBY: number | null; // Changed from optional to explicit null
   engOil: EngOil[];
-  otherOil: string | null; // Changed from optional to explicit null
+  otherOil: number | null; // Changed from optional to explicit null
 }
 
 export interface AircraftTowing {
   bayForm: string | null; // Changed from optional to explicit null
   bayTo: string | null; // Changed from optional to explicit null
-  aircraftDate: string;
+  onDate: string;
+  offDate: string;
   onTime: string;
   offTime: string;
 }
@@ -70,15 +73,15 @@ export interface Aircraft {
 }
 
 export interface Equipment {
-  isSamsTool: boolean;
-  isLoan: boolean;
   equipmentName: string;
+  hrs: number;
   svc: number;
   formDate: string;
-  toDate: string | null; // Changed from optional to explicit null
   formTime: string;
+  toDate: string | null; // Changed from optional to explicit null
   toTime: string | null; // Changed from optional to explicit null
-  hrs: number;
+  isLoan: boolean;
+  isSamsTool: boolean;
 }
 
 export interface PartsTool {
@@ -179,8 +182,7 @@ export const getlineMaintenancesThfByFlightId = async (
   params: LineMaintenanceThfParams
 ): Promise<LineMaintenanceThfResponse> => {
   try {
-    const response = await axiosConfig.get(`/lineMaintenances/flight/${params.flightId}`);
-    console.log(`API URL: ${axiosConfig.defaults.baseURL}/lineMaintenances/flight/${params.flightId}`);
+    const response = await axiosConfig.get(`/lineMaintenances/flightInfo/${params.flightInfosId}`);
     return response.data;
   } catch (error) {
     console.error("Get line maintenances THF by flight ID error:", error);

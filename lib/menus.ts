@@ -67,8 +67,47 @@ export function getMenuList(pathname: string, t: any): Group[] {
           icon: "heroicons-outline:clipboard-document-list",
           submenus: [],
         },
+        {
+          id: "report",
+          href: "/report",
+          label: t("report"),
+          active: pathname.includes("/report"),
+          icon: "heroicons-outline:cog-6-tooth",
+          submenus: [],
+        },
       ],
     },
+    // {
+    //   groupLabel: t("report"),
+    //   id: "report",
+    //   menus: [
+    //     {
+    //       id: "report",
+    //       href: "/report",
+    //       label: t("report"),
+    //       active: pathname.includes("/report"),
+    //       icon: "heroicons-outline:cog-6-tooth",
+    //       submenus: [
+    //         {
+    //           // id: "equipment-report",
+    //           href: "/report/equipment",
+    //           label: t("equipment-report"),
+    //           active: pathname.includes("/report/equipment"),
+    //           icon: "heroicons-outline:cog-6-tooth",
+    //           submenus: [],
+    //         },
+    //         {
+    //           // id: "parts-tool-report",
+    //           href: "/report/parts-tool",
+    //           label: t("parts-tool-report"),
+    //           active: pathname.includes("/report/parts-tool"),
+    //           icon: "heroicons-outline:cog-6-tooth",
+    //           submenus: [],
+    //         },
+    //       ],
+    //     },
+    //   ],
+    // },
     {
       groupLabel: t("setting"),
       id: "setting",

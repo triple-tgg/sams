@@ -133,6 +133,81 @@ export const putService = async (
  * @param options - Additional options for data transformation
  * @returns ServiceRequest - Formatted service request data
  */
+// Helper function to safely parse number values
+const safeParseFloat = (value: any): number => {
+  if (value === null || value === undefined || value === '') return 0;
+  const parsed = parseFloat(value);
+  return isNaN(parsed) ? 0 : parsed;
+};
+
+// Helper function to safely parse integer values
+const safeParseInt = (value: any): number => {
+  if (value === null || value === undefined || value === '') return 0;
+  const parsed = parseInt(value, 10);
+  return isNaN(parsed) ? 0 : parsed;
+};
+
+// Helper function to create fluid servicing data
+const createFluidServicing = (fluidData: any): FluidServicing => {
+  const fluidType = fluidData?.fluidName?.value || "";
+
+  // Base values calculation (only if needed)
+  const baseHydraulicA = safeParseFloat(fluidData.hydOilA || fluidData.hydOilBlue);
+  const baseHydraulicB = safeParseFloat(fluidData.hydOilB || fluidData.hydOilGreen);
+  const baseHydraulicSTBY = safeParseFloat(fluidData.hydOilSTBY || fluidData.hydOilYellow);
+  const baseOtherOil = safeParseFloat(fluidData.otherOil);
+
+  console.log("createFluidServicing", { fluidData, baseHydraulicA, baseHydraulicB, baseHydraulicSTBY, baseOtherOil });
+  // Create engine oil array only if needed
+  const createEngOilArray = () => (fluidData.engOilSets || []).map((oilSet: any) => ({
+    leftOil: safeParseFloat(oilSet.left || oilSet.leftOil),
+    rightOil: safeParseFloat(oilSet.right || oilSet.rightOil)
+  }));
+
+  // Apply conditional logic based on fluid type for optimal performance
+  switch (fluidType) {
+    case 'ENG Oil':
+      return {
+        fluidName: fluidType,
+        hydraulicA: 0,
+        hydraulicB: 0,
+        hydraulicSTBY: 0,
+        engOil: createEngOilArray(),
+        otherOil: 0
+      };
+
+    case 'Hydraulic':
+      return {
+        fluidName: fluidType,
+        hydraulicA: baseHydraulicA,
+        hydraulicB: baseHydraulicB,
+        hydraulicSTBY: baseHydraulicSTBY,
+        engOil: [],
+        otherOil: 0
+      };
+
+    case 'APU Oil':
+      return {
+        fluidName: fluidType,
+        hydraulicA: 0,
+        hydraulicB: 0,
+        hydraulicSTBY: 0,
+        engOil: [],
+        otherOil: baseOtherOil
+      };
+
+    default:
+      return {
+        fluidName: fluidType,
+        hydraulicA: baseHydraulicA,
+        hydraulicB: baseHydraulicB,
+        hydraulicSTBY: baseHydraulicSTBY,
+        engOil: createEngOilArray(),
+        otherOil: baseOtherOil
+      };
+  }
+};
+
 export const createServiceRequestFromForm = (
   formData: any,
   options: {
@@ -143,6 +218,18 @@ export const createServiceRequestFromForm = (
     enableAircraftTowing?: boolean;
   } = {}
 ): ServiceRequest => {
+  // Pre-calculate boolean flags for better performance
+  const shouldIncludePersonnels = formData.addPersonnels && formData.personnel?.length > 0;
+  const shouldIncludeDefects = formData.additionalDefectRectification && formData.additionalDefects?.length > 0;
+  const shouldIncludeFluid = !!formData.servicingPerformed && formData.fluid;
+  const shouldIncludeTowing = formData.aircraftTowing && formData.aircraftTowingInfo?.length > 0;
+
+  console.log("createServiceRequestFromForm options:", {
+    shouldIncludePersonnels,
+    shouldIncludeDefects,
+    shouldIncludeFluid,
+    shouldIncludeTowing
+  });
   return {
     isPersonnels: options.enablePersonnels ?? formData.addPersonnels ?? false,
     isAdditionalDefect: options.enableAdditionalDefect ?? formData.additionalDefectRectification ?? false,
@@ -150,51 +237,51 @@ export const createServiceRequestFromForm = (
     isFlightdeck: options.enableFlightdeck ?? formData.flightDeck ?? false,
     isAircraftTowing: options.enableAircraftTowing ?? formData.aircraftTowing ?? false,
     aircraft: {
+      // Always include aircraft checks (required)
       aircraftCheckType: (formData.aircraftChecks || []).map((check: any) => ({
         checkType: check.maintenanceTypes || "",
         checkSubType: check.maintenanceSubTypes || []
       })),
-      ...(formData.addPersonnels && formData.personnel && {
+
+      // Conditionally include other sections for better performance
+      ...(shouldIncludePersonnels && {
         personnels: formData.personnel.map((person: any) => ({
-          staffId: parseInt(person.staffId) || 0,
-          fromTime: person.from || "",
-          toTime: person.to || "",
+          staffId: person.staffId || "",
+          formTime: person.formTime || "",
+          formDate: person.formDate || "",
+          toDate: person.toDate || "",
+          toTime: person.toTime || "",
           note: person.remark || ""
         }))
       }),
-      ...(formData.additionalDefectRectification && formData.additionalDefects && {
+
+      ...(shouldIncludeDefects && {
         additionalDefect: formData.additionalDefects.map((defect: any) => ({
           details: defect.defect || "",
           maintenancePerformed: defect.maintenancePerformed || "",
           ataChapter: defect.ataChapter || "",
-          lae: parseFloat(defect.laeMH) || 0,
-          mech: parseFloat(defect.mechMH) || 0,
-          ...(defect.photo && defect.photo.length > 0 && {
+          lae: safeParseFloat(defect.laeMH),
+          mech: safeParseFloat(defect.mechMH),
+          ...(defect.attachFiles?.length > 0 && {
             attachFiles: {
-              storagePath: defect.photo[0], // First photo path
-              realName: defect.photo[0].split('/').pop() || "",
+              storagePath: defect.attachFiles[0],
+              realName: defect.attachFiles[0].split('/').pop() || "",
               fileType: "service"
             }
           })
         }))
       }),
-      ...(formData.servicingPerformed && formData.fluid && {
-        fluidServicing: {
-          fluidName: formData.fluid.fluidName.value || "",
-          hydraulicA: parseFloat(formData.fluid.hydraulicA) || 0,
-          hydraulicB: parseFloat(formData.fluid.hydraulicB) || 0,
-          hydraulicSTBY: parseFloat(formData.fluid.hydraulicSTBY) || 0,
-          engOil: (formData.fluid.engineOilSets || []).map((oilSet: any) => ({
-            leftOil: parseFloat(oilSet.leftOil) || 0,
-            rightOil: parseFloat(oilSet.rightOil) || 0
-          })),
-          otherOil: parseFloat(formData.fluid.otherOil) || 0
-        }
+
+      ...(shouldIncludeFluid && {
+        fluidServicing: createFluidServicing(formData.fluid)
       }),
-      ...(formData.aircraftTowing && formData.aircraftTowingInfo && {
+
+      ...(shouldIncludeTowing && {
         aircraftTowing: formData.aircraftTowingInfo.map((towing: any) => ({
           aircraftDate: towing.aircraftDate || "",
+          onDate: towing.onDate || "",
           onTime: towing.onTime || "",
+          offDate: towing.offDate || "",
           offTime: towing.offTime || "",
           ...(towing.bayFrom && { bayFrom: towing.bayFrom }),
           ...(towing.bayTo && { bayTo: towing.bayTo })

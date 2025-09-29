@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { dateTimeUtils } from '@/lib/dayjs'
+import dayjs from 'dayjs';
 
 // Helper function to validate time format (HH:MM) using Day.js
 const timeSchema = z.string().refine((time) => {
@@ -41,7 +42,13 @@ export const servicesFormSchema = z.object({
   additionalDefects: z.array(z.object({
     defect: z.string().min(5, "Defect details must be at least 5 characters").max(500, "Defect details cannot exceed 500 characters"),
     ataChapter: ataChapterSchema,
-    photo: z.array(z.string()).optional(), // Changed from z.any() to z.array(z.string()) for file paths
+    attachFiles: z.union([
+      z.string().min(1, "File path cannot be empty"),  // Single file as string
+      z.array(z.string().min(1, "File path cannot be empty")),  // Multiple files as array
+      z.literal(""),  // Empty string
+      z.null(),  // Null
+      z.undefined()  // Undefined
+    ]).optional().nullable().default(""),
     laeMH: z.string().optional().refine((val) => !val || numericStringSchema.safeParse(val).success, {
       message: "LAE MH must be a valid number"
     }),
@@ -60,57 +67,50 @@ export const servicesFormSchema = z.object({
       value: z.string(),
     }).nullable(),
     engOilSets: z.array(z.object({
-      left: z.string().optional().refine((val) => !val || numericStringSchema.safeParse(val).success, {
-        message: "Left engine oil must be a valid number"
-      }),
-      right: z.string().optional().refine((val) => !val || numericStringSchema.safeParse(val).success, {
-        message: "Right engine oil must be a valid number"
-      }),
+      left: z.number().optional(),
+      right: z.number().optional(),
     })).max(3, "Maximum 3 engine oil sets allowed").default([]),
-    hydOilBlue: z.string().optional().refine((val) => !val || numericStringSchema.safeParse(val).success, {
-      message: "Hydraulic oil blue must be a valid number"
-    }),
-    hydOilGreen: z.string().optional().refine((val) => !val || numericStringSchema.safeParse(val).success, {
-      message: "Hydraulic oil green must be a valid number"
-    }),
-    hydOilYellow: z.string().optional().refine((val) => !val || numericStringSchema.safeParse(val).success, {
-      message: "Hydraulic oil yellow must be a valid number"
-    }),
-    hydOilA: z.string().optional().refine((val) => !val || numericStringSchema.safeParse(val).success, {
-      message: "Hydraulic oil A must be a valid number"
-    }),
-    hydOilB: z.string().optional().refine((val) => !val || numericStringSchema.safeParse(val).success, {
-      message: "Hydraulic oil B must be a valid number"
-    }),
-    hydOilSTBY: z.string().optional().refine((val) => !val || numericStringSchema.safeParse(val).success, {
-      message: "Hydraulic oil STBY must be a valid number"
-    }),
-    otherQty: z.string().optional().refine((val) => !val || numericStringSchema.safeParse(val).success, {
-      message: "Other quantity must be a valid number"
-    }),
+    hydOilBlue: z.number().optional(),
+    hydOilGreen: z.number().optional(),
+    hydOilYellow: z.number().optional(),
+    hydOilA: z.number().optional(),
+    hydOilB: z.number().optional(),
+    hydOilSTBY: z.number().optional(),
+    otherOil: z.number().optional(),
   }),
 
   // Personnel
   addPersonnels: z.boolean().default(false),
-  personnel: z.array(z.object({
-    staffId: z.string().min(1, "Staff ID is required").max(20, "Staff ID cannot exceed 20 characters"),
-    name: z.string().min(1, "Name is required").max(100, "Name cannot exceed 100 characters"),
-    type: z.string().min(1, "Type is required").max(50, "Type cannot exceed 50 characters"),
-    from: timeSchema.refine((time) => time !== "", { message: "From time is required" }),
-    to: timeSchema.refine((time) => time !== "", { message: "To time is required" }),
-    remark: z.string().max(200, "Remark cannot exceed 200 characters").optional(),
-  }).refine((personnel) => {
-    // Validate that 'to' time is after 'from' time using Day.js
-    if (personnel.from && personnel.to) {
-      const fromDateTime = `2000-01-01 ${personnel.from}`;
-      const toDateTime = `2000-01-01 ${personnel.to}`;
-      return dateTimeUtils.isAfter(toDateTime, fromDateTime);
-    }
-    return true;
-  }, {
-    message: "End time must be after start time",
-    path: ["to"]
-  })).nullable().optional().default([]),
+  personnel: z.array(
+    z.object({
+      staffId: z.number().min(1, "Staff ID is required").max(20, "Staff ID cannot exceed 20 characters"),
+      name: z.string().min(1, "Name is required").max(100, "Name cannot exceed 100 characters"),
+      type: z.string().min(1, "Type is required").max(50, "Type cannot exceed 50 characters"),
+      formDate: dateSchema.refine((date) => date !== "", { message: "From date is required" }),
+      toDate: dateSchema.refine((date) => date !== "", { message: "To date is required" }),
+      formTime: timeSchema.refine((time) => time !== "", { message: "From time is required" }),
+      toTime: timeSchema.refine((time) => time !== "", { message: "To time is required" }),
+      remark: z.string().max(200, "Remark cannot exceed 200 characters").optional(),
+    }).superRefine((personnel, ctx) => {
+      if (personnel.formDate && personnel.toDate && personnel.formTime && personnel.toTime) {
+        const from = dayjs(`${personnel.formDate} ${personnel.formTime}`, "YYYY-MM-DD HH:mm");
+        const to = dayjs(`${personnel.toDate} ${personnel.toTime}`, "YYYY-MM-DD HH:mm");
+
+        if (!to.isAfter(from)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "End datetime must be after start datetime",
+            path: ["toDate"], // โชว์ error ที่ toDate
+          });
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "End datetime must be after start datetime",
+            path: ["toTime"], // โชว์ error ที่ toTime
+          });
+        }
+      }
+    })
+  ).nullable().optional().default([]),
 
   // Flight Deck
   flightDeck: z.boolean().default(false),
@@ -118,16 +118,17 @@ export const servicesFormSchema = z.object({
   // Aircraft Towing
   aircraftTowing: z.boolean().default(false),
   aircraftTowingInfo: z.array(z.object({
-    date: dateSchema.refine((date) => date !== "", { message: "Date is required" }),
-    timeOn: timeSchema.refine((time) => time !== "", { message: "Time on is required" }),
-    timeOf: timeSchema.refine((time) => time !== "", { message: "Time off is required" }),
+    onDate: dateSchema.refine((date) => date !== "", { message: "Date is required" }),
+    offDate: dateSchema.refine((date) => date !== "", { message: "Date is required" }),
+    onTime: timeSchema.refine((time) => time !== "", { message: "Time on is required" }),
+    offTime: timeSchema.refine((time) => time !== "", { message: "Time off is required" }),
     bayFrom: z.string().min(1, "Bay From is required").max(10, "Bay From cannot exceed 10 characters"),
     bayTo: z.string().min(1, "Bay To is required").max(10, "Bay To cannot exceed 10 characters"),
   }).refine((info) => {
-    // Validate that 'timeOf' is after 'timeOn' using Day.js
-    if (info.timeOn && info.timeOf) {
-      const onDateTime = `${info.date} ${info.timeOn}`;
-      const offDateTime = `${info.date} ${info.timeOf}`;
+    // Validate that 'offTime' is after 'onTime' using Day.js
+    if (info.onTime && info.offTime) {
+      const onDateTime = `${info.onDate} ${info.onTime}`;
+      const offDateTime = `${info.offDate} ${info.offTime}`;
       return dateTimeUtils.isAfter(offDateTime, onDateTime);
     }
     return true;
@@ -211,11 +212,11 @@ export const servicesFormSchema = z.object({
         const person1 = data.personnel[i];
         const person2 = data.personnel[j];
 
-        if (person1.staffId === person2.staffId && person1.from && person1.to && person2.from && person2.to) {
-          const start1 = `2000-01-01 ${person1.from}`;
-          const end1 = `2000-01-01 ${person1.to}`;
-          const start2 = `2000-01-01 ${person2.from}`;
-          const end2 = `2000-01-01 ${person2.to}`;
+        if (person1.staffId === person2.staffId && person1.formTime && person1.toTime && person2.formTime && person2.toTime) {
+          const start1 = `2000-01-01 ${person1.formTime}`;
+          const end1 = `2000-01-01 ${person1.toTime}`;
+          const start2 = `2000-01-01 ${person2.formTime}`;
+          const end2 = `2000-01-01 ${person2.toTime}`;
 
           // Check for overlap using Day.js: start1 < end2 && start2 < end1
           if (dateTimeUtils.isBefore(start1, end2) && dateTimeUtils.isBefore(start2, end1)) {
@@ -234,7 +235,7 @@ export const servicesFormSchema = z.object({
   if (data.aircraftTowing && data.aircraftTowingInfo) {
     const today = dateTimeUtils.getCurrentDate();
     for (const towing of data.aircraftTowingInfo) {
-      if (towing.date && dateTimeUtils.isBefore(towing.date, today)) {
+      if (towing.offDate && dateTimeUtils.isBefore(towing.offDate, today)) {
         // This is just a warning, we'll allow past dates but could add a warning
         continue;
       }

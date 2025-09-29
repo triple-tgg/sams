@@ -3,10 +3,7 @@
 import React, { useEffect, useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useSearchParams } from "next/navigation"
 import { Form } from "@/components/ui/form"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useStep } from "../step-context"
 import { FormActions, StatusMessages } from "../shared"
 
@@ -17,51 +14,27 @@ import { getDefaultValues, mapDataThfToPartsToolsStep } from './utils'
 import { usePartsToolsSubmission } from './usePartsToolsSubmission'
 import { PartsToolsCard } from './PartsToolsCard'
 import { LineMaintenanceThfResponse } from "@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId"
-import { useLineMaintenancesQueryThfByFlightId } from "@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId"
 import CardContentStep from "../CardContentStep"
 
 /**
  * Props for PartsAndToolsStep component
  */
 interface PartsAndToolsStepProps {
-  initialData?: LineMaintenanceThfResponse | null
+  initialData?: LineMaintenanceThfResponse | null;
+  flightInfosId?: number | null;
+  lineMaintenanceId?: number | null;
+  flightError?: Error | null;
+  loading?: boolean;
 }
 
-/**
- * Parts and Tools Step component for THF form
- * Handles parts and tools information management
- */
-const PartsAndToolsStep: React.FC<PartsAndToolsStepProps> = ({
-  initialData
-}) => {
-  const searchParams = useSearchParams()
-  const flightId = searchParams.get('flightId') ? parseInt(searchParams.get('flightId')!) : null
-  const { goNext, onSave, goBack } = useStep()
+const PartsAndToolsStep: React.FC<PartsAndToolsStepProps> = (props) => {
 
-  const {
-    isLoading: loadingFlight,
-    error: flightError,
-    formData: existingFlightData,
-    aircraftData,
-    data
-  } = useLineMaintenancesQueryThfByFlightId({ flightId })
+  const { goNext, onSave, goBack } = useStep()
 
   // Memoize default values to prevent unnecessary re-calculations
   const memoizedDefaultValues = useMemo(() => {
-    return getDefaultValues()
-  }, [])
-
-  // Memoize transformed data to prevent unnecessary re-calculations
-  const transformedData = useMemo(() => {
-    console.log('PartsAndToolsStep: Calculating transformed data')
-
-    if (data) {
-      return mapDataThfToPartsToolsStep(data)
-    } else if (initialData) {
-      return mapDataThfToPartsToolsStep(initialData)
-    }
-    return null
-  }, [data, initialData])
+    return props.initialData ? mapDataThfToPartsToolsStep(props.initialData) : getDefaultValues()
+  }, [props.initialData])
 
   // Initialize form with validation
   const form = useForm<PartsToolsFormInputs>({
@@ -106,20 +79,9 @@ const PartsAndToolsStep: React.FC<PartsAndToolsStepProps> = ({
     onNextStep: goNext,
     onBackStep: goBack,
     onUpdateData: handleOnSave,
-    existingFlightData: data
+    existingFlightData: props.initialData,
+    lineMaintenanceId: props.lineMaintenanceId || 0
   })
-
-  // Load initial data if provided
-  useEffect(() => {
-    if (transformedData) {
-      console.log('PartsAndToolsStep: Using transformed data', transformedData)
-      form.reset(transformedData)
-      console.log('PartsAndToolsStep: Form reset completed')
-    } else if (!loadingFlight && !flightError) {
-      console.log('PartsAndToolsStep: No data available, using default values')
-      form.reset(memoizedDefaultValues)
-    }
-  }, [transformedData, loadingFlight, flightError, form, memoizedDefaultValues])
 
   return (
 
@@ -128,22 +90,22 @@ const PartsAndToolsStep: React.FC<PartsAndToolsStepProps> = ({
       title={"Parts & Tools Information"}
       description={"Manage parts and tools usage, tracking, and operational details for maintenance activities"}
     >
-      {loadingFlight && (
+      {props.loading && (
         <div className="flex items-center justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
           <span className="ml-2">Loading parts & tools data...</span>
         </div>
       )}
 
-      {flightError && (
+      {props.flightError && (
         <StatusMessages
           isError={true}
           errorTitle="Error loading data"
-          errorMessage={flightError.message || 'Failed to load parts & tools information'}
+          errorMessage={props.flightError.message || 'Failed to load parts & tools information'}
         />
       )}
 
-      {!hasLineMaintenanceId && !loadingFlight && (
+      {!hasLineMaintenanceId && !props.loading && (
         <StatusMessages
           isWarning={true}
           warningTitle="Line Maintenance ID Missing"
@@ -151,7 +113,7 @@ const PartsAndToolsStep: React.FC<PartsAndToolsStepProps> = ({
         />
       )}
 
-      {!loadingFlight && !flightError && (
+      {!props.loading && !props.flightError && (
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
 
@@ -164,19 +126,6 @@ const PartsAndToolsStep: React.FC<PartsAndToolsStepProps> = ({
                 </pre>
               </div>
             )}
-
-            {/* Data Source Information */}
-            {data && (
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-4">
-                <div className="text-xs text-blue-600">
-                  Data source: Flight ID {flightId} | Line Maintenance ID: {lineMaintenanceId}
-                  {data.responseData?.lineMaintenance?.thfNumber &&
-                    ` | THF: ${data.responseData.lineMaintenance.thfNumber}`
-                  }
-                </div>
-              </div>
-            )}
-
             {/* Parts & Tools Card */}
             <PartsToolsCard form={form} />
 
@@ -184,13 +133,7 @@ const PartsAndToolsStep: React.FC<PartsAndToolsStepProps> = ({
             <FormActions
               onBack={handleOnBackStep}
               onReset={() => {
-                if (transformedData) {
-                  console.log('Reset to original transformed data')
-                  form.reset(transformedData)
-                } else {
-                  console.log('Reset to default values')
-                  form.reset(memoizedDefaultValues)
-                }
+                form.reset(memoizedDefaultValues)
               }}
               onSubmit={() => form.handleSubmit(handleSubmit)()}
               backText="← Back to Equipment"

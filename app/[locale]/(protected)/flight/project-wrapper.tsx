@@ -1,6 +1,6 @@
 "use client"
 import { Button } from "@/components/ui/button";
-import { Filter, Download, Plus, BarChart, CircleOff } from "lucide-react";
+import { Filter, Download, Plus, BarChart, CircleOff, CalendarPlus, CalendarCheck, CalendarX } from "lucide-react";
 import CreateProject from "./create-project";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -37,7 +37,7 @@ const ProjectWrapper = ({ children }: { children: React.ReactNode }) => {
                 </div>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 py-10 ">
-                <Card className="bg-info/20">
+                <Card className="bg-primary/20">
                     <CardContent className=" p-4  text-center">
                         <div className="mx-auto h-10 w-10  rounded-full flex items-center justify-center bg-white mb-4">
                             <Icon className="w-6 h-6 text-primary" icon="heroicons:calendar-date-range" />
@@ -48,10 +48,11 @@ const ProjectWrapper = ({ children }: { children: React.ReactNode }) => {
                         </div>
                     </CardContent>
                 </Card>
-                <Card className="bg-success/20">
+                <Card className="bg-info/20">
                     <CardContent className=" p-4  text-center">
                         <div className="mx-auto h-10 w-10  rounded-full flex items-center justify-center bg-white mb-4">
-                            <Icon className="w-6 h-6 text-success" icon="heroicons:chart-pie" />
+                            {/* <Icon className="w-6 h-6 text-success" icon="heroicons:chart-pie" /> */}
+                            <CalendarPlus className="w-6 h-6  text-info " />
                         </div>
                         <div className="block text-sm text-default-600 font-medium  mb-1.5">Additional</div>
                         <div className="text-2xl text-default-900  font-medium">
@@ -59,10 +60,11 @@ const ProjectWrapper = ({ children }: { children: React.ReactNode }) => {
                         </div>
                     </CardContent>
                 </Card>
-                <Card className="bg-primary/20">
+                <Card className="bg-success/20">
                     <CardContent className=" p-4  text-center">
                         <div className="mx-auto h-10 w-10  rounded-full flex items-center justify-center bg-white mb-4">
-                            <Icon className="w-6 h-6 text-primary" icon="heroicons:check-circle" />
+                            {/* <Icon className="w-6 h-6 text-primary" icon="heroicons:check-circle" /> */}
+                            <CalendarCheck className="w-6 h-6 text-success" />
                         </div>
                         <div className="block text-sm text-default-600 font-medium  mb-1.5">Actual </div>
                         <div className="text-2xl text-default-900  font-medium">
@@ -74,7 +76,8 @@ const ProjectWrapper = ({ children }: { children: React.ReactNode }) => {
                     <CardContent className="p-4 text-center">
                         <div className="mx-auto h-10 w-10  rounded-full flex items-center justify-center bg-white mb-4">
                             {/* <Icon className="w-6 h-6 text-warning " icon="heroicons:calculator" /> */}
-                            <CircleOff className="w-6 h-6 text-warning" />
+                            {/* <CircleOff className="w-6 h-6 text-warning" /> */}
+                            <CalendarX className="w-6 h-6 text-warning" />
                         </div>
                         <div className="block text-sm text-default-600 font-medium  mb-1.5">Cancel</div>
                         <div className="text-2xl text-default-900  font-medium">

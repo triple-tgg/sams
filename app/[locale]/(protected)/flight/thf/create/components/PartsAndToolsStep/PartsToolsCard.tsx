@@ -10,6 +10,8 @@ import { PlusIcon, TrashIcon } from 'lucide-react'
 import { PartsToolsFormInputs, defaultPartToolItem } from './types'
 import { useStationsOptions } from '@/lib/api/hooks/useStations'
 import { Plus } from 'lucide-react'
+import PartsToolsNameDropdown from './PartsToolsNameDropdown'
+import { Label } from '@/components/ui/label'
 
 interface PartsToolsCardProps {
   form: UseFormReturn<PartsToolsFormInputs>
@@ -35,23 +37,6 @@ export const PartsToolsCard: React.FC<PartsToolsCardProps> = ({ form }) => {
 
   return (
     <div className="space-y-4">
-
-      {/* Parts/Tools Entries Counter
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <PlusIcon className="h-5 w-5 text-blue-600" />
-            <div>
-              <h3 className="font-medium">Parts/Tools Entries</h3>
-              <p className="text-sm text-gray-600">{fields.length} of 20 maximum entries</p>
-            </div>
-          </div>
-          <div className="text-lg font-semibold text-blue-600">
-            {fields.length}/20
-          </div>
-        </div>
-      </div> */}
-      {/* Parts/Tools Summary */}
       <div className="bg-gradient-to-r from-slate-50 to-gray-50 rounded-lg p-4 border border-slate-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -59,7 +44,7 @@ export const PartsToolsCard: React.FC<PartsToolsCardProps> = ({ form }) => {
               <Plus className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Equipment Entries</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Parts/Tools</h3>
               <p className="text-sm text-gray-600">
                 {fields?.length || 0} of 20 maximum entries
               </p>
@@ -100,45 +85,61 @@ export const PartsToolsCard: React.FC<PartsToolsCardProps> = ({ form }) => {
 
             {/* Classification Section */}
             <div className="mb-6">
-              <h5 className="font-medium mb-3">Parts/Tools Classification</h5>
-              <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                <div className="flex items-center gap-4">
-                  <FormField
-                    control={form.control}
-                    name={`partsTools.${index}.isSamsTool`}
-                    render={({ field }) => (
-                      <FormItem className="flex items-center space-x-2">
-                        <div className="flex items-center space-x-1">
-                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                          <FormLabel className="text-sm font-medium">SAMS TOOL</FormLabel>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name={`partsTools.${index}.isLoan`}
-                    render={({ field }) => (
-                      <FormItem className="flex items-center space-x-2">
-                        <div className="flex items-center space-x-1">
-                          <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                          <FormLabel className="text-sm font-medium">LOAN</FormLabel>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
+              <div className="bg-slate-50 rounded-lg p-4 mb-6 border border-slate-200">
+                <h5 className="font-medium mb-3">Parts/Tools Classification</h5>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200 ">
+                    <FormField
+                      control={form.control}
+                      name={`partsTools.${index}.isSamsTool`}
+                      render={({ field }) => (
+                        <FormItem className='w-full flex items-center space-x-2 justify-between'>
+                          <div className="flex items-center space-x-1 m-0">
+                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            <FormLabel className="text-sm font-medium">SAMS TOOL</FormLabel>
+                          </div>
+                          <FormControl className=' m-0'>
+                            <Switch
+                              checked={field.value}
+                              // onCheckedChange={field.onChange}
+                              onCheckedChange={(checked) => {
+                                // Set LOAN to new state
+                                field.onChange(checked)
+                                // Set SAMS TOOL to opposite state
+                                form.setValue(`partsTools.${index}.isLoan`, !checked)
+                              }}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200">
+                    <FormField
+                      control={form.control}
+                      name={`partsTools.${index}.isLoan`}
+                      render={({ field }) => (
+                        <FormItem className='w-full flex items-center space-x-2 justify-between'>
+                          <div className="flex items-center space-x-1  m-0">
+                            <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                            <FormLabel className="text-sm font-medium">LOAN</FormLabel>
+                          </div>
+                          <FormControl className=' m-0'>
+                            <Switch
+                              checked={field.value}
+                              // onCheckedChange={field.onChange}
+                              onCheckedChange={(checked) => {
+                                // Set LOAN to new state
+                                field.onChange(checked)
+                                // Set SAMS TOOL to opposite state
+                                form.setValue(`partsTools.${index}.isSamsTool`, !checked)
+                              }}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -146,19 +147,20 @@ export const PartsToolsCard: React.FC<PartsToolsCardProps> = ({ form }) => {
             {/* Main Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               {/* Part/Tool Name */}
-              <FormField
-                control={form.control}
-                name={`partsTools.${index}.pathToolName`}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Parts/Tools Name <span className="text-red-500">*</span></FormLabel>
-                    <FormControl>
-                      <Input placeholder="Search or enter parts/tools name..." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="col-span-1">
+                <Label
+                  htmlFor={`partsTools.${index}.pathToolName`}
+                  className="text-sm font-medium text-gray-700 block mb-0"
+                >
+                  Parts/Tools Name <span className="text-red-500">*</span>
+                </Label>
+                <PartsToolsNameDropdown
+                  value={form.watch(`partsTools.${index}.pathToolName`) || ''}
+                  onChange={(value) => form.setValue(`partsTools.${index}.pathToolName`, value)}
+                  error={form?.formState?.errors?.partsTools?.[index]?.pathToolName?.message}
+                  index={index}
+                />
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 {/* Service Qty */}
                 <FormField
@@ -189,10 +191,11 @@ export const PartsToolsCard: React.FC<PartsToolsCardProps> = ({ form }) => {
                       <FormLabel>Hours (HRS)</FormLabel>
                       <FormControl>
                         <Input
+                          disabled
                           type="number"
-                          min="0"
-                          step="0.1"
-                          placeholder="0.0"
+                          // min="0"
+                          // step="0.1"
+                          placeholder="Auto-calculated"
                           {...field}
                           onChange={(e) => field.onChange(Number(e.target.value))}
                         />

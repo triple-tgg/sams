@@ -6,16 +6,8 @@ import { useSearchParams } from 'next/navigation'
 import { zodResolver } from '@hookform/resolvers/zod'
 
 import { useStep } from '../step-context'
-import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { FormActions } from '../shared'
-
-// Hooks
-import { useAirlineOptions } from '@/lib/api/hooks/useAirlines'
-import { useStationsOptions } from '@/lib/api/hooks/useStations'
-import { useStatusOptions } from '@/lib/api/hooks/useStatus'
-import { useLineMaintenancesQueryThfByFlightId } from '@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId'
-import { useAircraftTypes } from '@/lib/api/hooks/useAircraftTypes'
 
 // Local imports
 import type { Step1FormInputs } from './types'
@@ -27,46 +19,47 @@ import { CustomerStationSection, FlightSection } from './FormSections'
 import { SelectField, InputField, TextareaField } from './FormFields'
 import CardContentStep from '../CardContentStep'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { FlightFormData, useLineMaintenancesQueryThfByFlightId } from '@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId'
+import { Flight } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
 
-const FlightStep = () => {
+interface FlightStepProps {
+  flightInfosId: number | null;
+  flightData: Flight | null;
+  formData: FlightFormData | null;
+  loading: boolean;
+  flightError: Error | null;
+
+  customerOptions: Option[]
+  stationOptions: Option[]
+  aircraftOptions: Option[]
+  statusOptions: Option[]
+
+  loadingAirlines: boolean;
+  loadingStations: boolean;
+  isLoadingAircraft: boolean;
+  loadingStatus: boolean;
+
+  airlinesError: Error | null;
+  stationsError: Error | null;
+  acTypeCodeError: Error | null;
+  statusError: Error | null;
+
+  airlinesUsingFallback?: boolean;
+  stationsUsingFallback?: boolean;
+  acTypeCodeUsingFallback?: boolean;
+  statusUsingFallback?: boolean | null;
+
+}
+
+interface Option {
+  value: string;
+  label: string;
+}
+const FlightStep = (props: FlightStepProps) => {
+
   const { goNext, onSave } = useStep()
   const searchParams = useSearchParams()
   const hasLoadedData = useRef(false)
-
-  // Get flightId from URL parameters
-  const flightId = searchParams.get('flightId') ? parseInt(searchParams.get('flightId')!) : null
-
-  // API Hooks
-  const {
-    isLoading: loadingFlight,
-    error: flightError,
-    formData: existingFlightData,
-    flightData,
-  } = useLineMaintenancesQueryThfByFlightId({ flightId });
-
-  const {
-    options: customerOptions,
-    isLoading: loadingAirlines,
-    error: airlinesError,
-    usingFallback: airlinesUsingFallback
-  } = useAirlineOptions()
-
-  const { options: aircraftOptions, isLoading: isLoadingAircraft, usingFallback: acTypeCodeUsingFallback, error: acTypeCodeError } = useAircraftTypes();
-
-  const {
-    options: stationOptions,
-    isLoading: loadingStations,
-    error: stationsError,
-    usingFallback: stationsUsingFallback
-  } = useStationsOptions()
-
-  const {
-    options: statusOptions,
-    isLoading: loadingStatus,
-    error: statusError,
-    usingFallback: statusUsingFallback
-  } = useStatusOptions()
-
   // Form setup
   const {
     handleSubmit,
@@ -78,20 +71,22 @@ const FlightStep = () => {
     formState: { errors },
   } = useForm<Step1FormInputs>({
     resolver: zodResolver(flightFormSchema),
-    defaultValues: getDefaultValues(),
+    defaultValues: props.formData ? sanitizeFormData(props.formData) : getDefaultValues(),
   })
 
   // Submission handler
-  const { onSubmit, isPending } = useFlightSubmission(flightData, onSave, goNext);
+  const { onSubmit, isPending } = useFlightSubmission(props.flightData, onSave, goNext);
+  // useEffect(() => {
 
-  // Load existing flight data into form when available (only once)
-  useEffect(() => {
-    if (existingFlightData && !loadingFlight && !hasLoadedData.current && !loadingAirlines && !loadingStatus && !loadingStations && !isLoadingAircraft) {
-      const sanitizedData = sanitizeFormData(existingFlightData);
-      reset(sanitizedData)
-      hasLoadedData.current = true
-    }
-  }, [existingFlightData, loadingFlight, loadingStatus, loadingStations, isLoadingAircraft, loadingAirlines, reset])
+  // }, [props.formData])
+  // // Load existing flight data into form when available (only once)
+  // useEffect(() => {
+  //   if (existingFlightData && !loadingFlight && !hasLoadedData.current && !loadingAirlines && !loadingStatus && !loadingStations && !isLoadingAircraft) {
+  //     const sanitizedData = sanitizeFormData(existingFlightData);
+  //     reset(sanitizedData)
+  //     hasLoadedData.current = true
+  //   }
+  // }, [existingFlightData, loadingFlight, loadingStatus, loadingStations, isLoadingAircraft, loadingAirlines, reset])
 
   return (
     <CardContentStep
@@ -100,9 +95,9 @@ const FlightStep = () => {
       description={"Manage parts and tools usage, tracking, and operational details for maintenance activities"}
     >
       <LoadingStates
-        flightId={flightId}
-        loadingFlight={loadingFlight}
-        flightError={flightError}
+        flightInfosId={props.flightInfosId}
+        loadingFlight={props.loading}
+        flightError={props.flightError}
       />
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 mt-6" >
@@ -112,21 +107,21 @@ const FlightStep = () => {
             <CardTitle>Airlines Info</CardTitle>
           </CardHeader>
           <CardContent>
-            < CustomerStationSection
+            <CustomerStationSection
               control={control}
               errors={errors}
-              customerOptions={customerOptions}
-              stationOptions={stationOptions}
-              loadingAirlines={loadingAirlines}
-              loadingStations={loadingStations}
-              airlinesError={airlinesError}
-              stationsError={stationsError}
-              airlinesUsingFallback={!!airlinesUsingFallback}
-              stationsUsingFallback={!!stationsUsingFallback}
-              aircraftOptions={aircraftOptions}
-              isLoadingAircraft={isLoadingAircraft}
-              acTypeCodeUsingFallback={!!acTypeCodeUsingFallback}
-              acTypeCodeError={acTypeCodeError}
+              customerOptions={props.customerOptions || []}
+              stationOptions={props.stationOptions || []}
+              loadingAirlines={props.loadingAirlines}
+              loadingStations={props.loadingStations}
+              airlinesError={props.airlinesError}
+              stationsError={props.stationsError}
+              airlinesUsingFallback={!!props.airlinesUsingFallback}
+              stationsUsingFallback={!!props.stationsUsingFallback}
+              aircraftOptions={props.aircraftOptions}
+              isLoadingAircraft={props.isLoadingAircraft}
+              acTypeCodeUsingFallback={!!props.acTypeCodeUsingFallback}
+              acTypeCodeError={props.acTypeCodeError}
             />
           </CardContent>
         </Card>
@@ -141,13 +136,13 @@ const FlightStep = () => {
               <CardTitle>Arrival (UTC Time)</CardTitle>
             </CardHeader>
             <CardContent>
-              < FlightSection
+              <FlightSection
                 control={control}
                 errors={errors}
-                stationOptions={stationOptions}
-                loadingStations={loadingStations}
-                stationsError={stationsError}
-                stationsUsingFallback={!!stationsUsingFallback}
+                stationOptions={props.stationOptions}
+                loadingStations={props.loadingStations}
+                stationsError={props.stationsError}
+                stationsUsingFallback={!!props.stationsUsingFallback}
                 // title="Arrival (UTC Time)"
                 flightField="flightArrival"
                 dateField="arrivalDate"
@@ -170,10 +165,10 @@ const FlightStep = () => {
               < FlightSection
                 control={control}
                 errors={errors}
-                stationOptions={stationOptions}
-                loadingStations={loadingStations}
-                stationsError={stationsError}
-                stationsUsingFallback={!!stationsUsingFallback}
+                stationOptions={props.stationOptions}
+                loadingStations={props.loadingStations}
+                stationsError={props.stationsError}
+                stationsUsingFallback={!!props.stationsUsingFallback}
                 // title="Departure (UTC Time)"
                 flightField="flightDeparture"
                 dateField="departureDate"
@@ -220,10 +215,10 @@ const FlightStep = () => {
                     control={control}
                     label="Status"
                     placeholder="Select status"
-                    options={statusOptions}
-                    isLoading={loadingStatus}
-                    error={statusError?.message}
-                    usingFallback={!!statusUsingFallback}
+                    options={props.statusOptions}
+                    isLoading={props.loadingStatus}
+                    error={props.statusError?.message}
+                    usingFallback={!!props.statusUsingFallback}
                     errorMessage={errors.status?.message}
                   />
                 </div>

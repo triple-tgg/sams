@@ -34,6 +34,7 @@ export interface FlightFormData {
 export const mapFlightToFormData = (flightItem: Flight | null): FlightFormData | null => {
   if (!flightItem) return null;
 
+  console.log(`Mapping flight data to form data:`, flightItem);
   return {
     // Customer dropdown - ใช้ airlines data
     customer: flightItem.airlineObj?.code ?
@@ -83,9 +84,9 @@ export const mapFlightToFormData = (flightItem: Flight | null): FlightFormData |
 // Main hook for line maintenance THF data with form mapping
 export const useLineMaintenancesQueryThfByFlightId = (params: LineMaintenanceThfParams) => {
   const query = useQuery<LineMaintenanceThfResponse, Error>({
-    queryKey: ["lineMaintenancesThf", "flight", params.flightId],
+    queryKey: ["lineMaintenancesThf", "flight", params.flightInfosId],
     queryFn: () => getlineMaintenancesThfByFlightId(params),
-    enabled: !!params.flightId, // Only run query if flightId exists
+    enabled: !!params.flightInfosId, // Only run query if flightId exists
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
     retry: 2,

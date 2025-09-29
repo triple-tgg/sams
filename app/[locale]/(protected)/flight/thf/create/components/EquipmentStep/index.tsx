@@ -4,7 +4,6 @@ import React, { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form } from '@/components/ui/form'
 import { Plus } from 'lucide-react'
 import { useStep } from '../step-context'
@@ -16,29 +15,17 @@ import { equipmentFormSchema } from './schema'
 import { getDefaultValues, mapApiDataToEquipmentForm } from './utils'
 import { EquipmentCard } from './EquipmentCard'
 import { useEquipmentSubmission } from './useEquipmentSubmission'
-import { usePutEquipment, usePutEquipmentWithLoading } from '@/lib/api/hooks/usePutEquipment'
+import { usePutEquipmentWithLoading } from '@/lib/api/hooks/usePutEquipment'
 import { toast } from '@/components/ui/use-toast'
-import { useLineMaintenancesQueryThfByFlightId } from '@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId'
-import { useSearchParams } from 'next/navigation'
 import CardContentStep from '../CardContentStep'
 
-export default function EquipmentStep({ initialData }: EquipmentStepProps) {
+export default function EquipmentStep(props: EquipmentStepProps) {
   const { goNext, goBack, onSave } = useStep()
-  const searchParams = useSearchParams()
-
-  const flightId = searchParams.get('flightId') ? parseInt(searchParams.get('flightId')!) : null
-
-  const {
-    isLoading: loadingFlight,
-    error: flightError,
-    equipmentData,
-    data
-  } = useLineMaintenancesQueryThfByFlightId({ flightId });
 
   // Initialize form with validation
   const form = useForm<EquipmentFormData>({
     resolver: zodResolver(equipmentFormSchema),
-    defaultValues: getDefaultValues(),
+    defaultValues: props.initialData ? mapApiDataToEquipmentForm(props.initialData) : getDefaultValues(),
     mode: "onChange",
   })
   const {
@@ -81,16 +68,16 @@ export default function EquipmentStep({ initialData }: EquipmentStepProps) {
     onUpdateData: onSave,
     updateEquipment: updateEquipment,
     reset: reset,
-    existingData: data?.responseData
+    lineMaintenanceId: props.lineMaintenanceId
   })
 
   // Load initial data if provided
-  useEffect(() => {
-    if (initialData) {
-      console.log('EquipmentStep: Loading initial data', mapApiDataToEquipmentForm(equipmentData))
-      form.reset(mapApiDataToEquipmentForm(equipmentData))
-    }
-  }, [initialData, form, equipmentData])
+  // useEffect(() => {
+  //   if (props.initialData) {
+  //     console.log('EquipmentStep: Loading initial data', mapApiDataToEquipmentForm(props.initialData))
+  //     form.reset(mapApiDataToEquipmentForm(props.initialData))
+  //   }
+  // }, [props.initialData, form])
 
   // Console log form errors for debugging
   useEffect(() => {
@@ -109,8 +96,6 @@ export default function EquipmentStep({ initialData }: EquipmentStepProps) {
     >
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-
-
           {/* Equipment Summary */}
           <div className="bg-gradient-to-r from-slate-50 to-gray-50 rounded-lg p-4 border border-slate-200">
             <div className="flex items-center justify-between">

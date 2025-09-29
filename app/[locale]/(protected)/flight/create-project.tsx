@@ -244,10 +244,15 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                         const option = customerOptions.find(opt => opt.value === value);
                         field.onChange(option || null);
                       }}
-                      disabled={loadingAirlines}
+                      disabled={loadingAirlines || customerOptions.length === 0}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder={loadingAirlines ? "Loading airlines..." : "Select customer"} />
+                        <SelectValue placeholder={
+                          loadingAirlines ? "Loading airlines..." :
+                            airlinesError ? "Failed to load airlines" :
+                              customerOptions.length === 0 ? "No airlines found" :
+                                "Select customer"
+                        } />
                       </SelectTrigger>
                       <SelectContent>
                         {customerOptions.map((option) => (
@@ -255,11 +260,6 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                             {option.label}
                           </SelectItem>
                         ))}
-                        {customerOptions.length === 0 && !loadingAirlines && (
-                          <SelectItem value="" disabled>
-                            {airlinesError ? "Failed to load airlines" : "No airlines found"}
-                          </SelectItem>
-                        )}
                       </SelectContent>
                     </Select>
                   )}
@@ -284,10 +284,15 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                         const option = stationOptions.find(opt => opt.value === value);
                         field.onChange(option || null);
                       }}
-                      disabled={loadingStations}
+                      disabled={loadingStations || stationOptions.length === 0}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder={loadingStations ? "Loading stations..." : "Select station"} />
+                        <SelectValue placeholder={
+                          loadingStations ? "Loading stations..." :
+                            stationsError ? "Failed to load stations" :
+                              stationOptions.length === 0 ? "No stations found" :
+                                "Select station"
+                        } />
                       </SelectTrigger>
                       <SelectContent>
                         {stationOptions.map((option) => (
@@ -295,11 +300,6 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                             {option.label}
                           </SelectItem>
                         ))}
-                        {stationOptions.length === 0 && !loadingStations && (
-                          <SelectItem value="" disabled>
-                            {stationsError ? "Failed to load stations" : "No stations found"}
-                          </SelectItem>
-                        )}
                       </SelectContent>
                     </Select>
                   )}
@@ -368,7 +368,12 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                           disabled={loadingStations}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder={loadingStations ? "Loading stations..." : "Select station"} />
+                            <SelectValue placeholder={
+                              loadingStations ? "Loading stations..." :
+                                stationsError ? "Failed to load stations" :
+                                  stationOptions.length === 0 ? "No stations found" :
+                                    "Select station"
+                            } />
                           </SelectTrigger>
                           <SelectContent>
                             {stationOptions.map((option) => (
@@ -376,11 +381,6 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                                 {option.label}
                               </SelectItem>
                             ))}
-                            {stationOptions.length === 0 && !loadingStations && (
-                              <SelectItem value="" disabled>
-                                {stationsError ? "Failed to load stations" : "No stations found"}
-                              </SelectItem>
-                            )}
                           </SelectContent>
                         </Select>
                       )}
@@ -434,7 +434,12 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                           disabled={loadingStations}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder={loadingStations ? "Loading stations..." : "Select station"} />
+                            <SelectValue placeholder={
+                              loadingStations ? "Loading stations..." :
+                                stationsError ? "Failed to load stations" :
+                                  stationOptions.length === 0 ? "No stations found" :
+                                    "Select station"
+                            } />
                           </SelectTrigger>
                           <SelectContent>
                             {stationOptions.map((option) => (
@@ -442,11 +447,6 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                                 {option.label}
                               </SelectItem>
                             ))}
-                            {stationOptions.length === 0 && !loadingStations && (
-                              <SelectItem value="" disabled>
-                                {stationsError ? "Failed to load stations" : "No stations found"}
-                              </SelectItem>
-                            )}
                           </SelectContent>
                         </Select>
                       )}
@@ -483,10 +483,15 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                           const option = statusOptions.find(opt => opt.value === value);
                           field.onChange(option || null);
                         }}
-                        disabled={loadingStatus}
+                        disabled={loadingStatus || statusOptions.length === 0}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder={loadingStatus ? "Loading status..." : "Select status"} />
+                          <SelectValue placeholder={
+                            loadingStatus ? "Loading status..." :
+                              statusError ? "Failed to load status" :
+                                statusOptions.length === 0 ? "No status found" :
+                                  "Select status"
+                          } />
                         </SelectTrigger>
                         <SelectContent>
                           {statusOptions.map((option) => (
@@ -494,11 +499,6 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                               {option.label}
                             </SelectItem>
                           ))}
-                          {statusOptions.length === 0 && !loadingStatus && (
-                            <SelectItem value="" disabled>
-                              {statusError ? "Failed to load status" : "No status found"}
-                            </SelectItem>
-                          )}
                         </SelectContent>
                       </Select>
                     )}

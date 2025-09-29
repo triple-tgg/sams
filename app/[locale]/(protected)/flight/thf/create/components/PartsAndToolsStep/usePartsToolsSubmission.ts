@@ -10,6 +10,7 @@ interface UsePartsToolsSubmissionProps {
   onBackStep: () => void
   onUpdateData: () => void
   existingFlightData?: LineMaintenanceThfResponse | null
+  lineMaintenanceId: number
 }
 
 export const usePartsToolsSubmission = ({
@@ -17,11 +18,9 @@ export const usePartsToolsSubmission = ({
   onNextStep,
   onBackStep,
   onUpdateData,
-  existingFlightData
+  existingFlightData,
+  lineMaintenanceId
 }: UsePartsToolsSubmissionProps) => {
-  
-  // Get line maintenance ID from existing data
-  const lineMaintenanceId = existingFlightData?.responseData?.lineMaintenance?.id
 
   const putPartsToolsMutation = usePutPartsToolsWithCallbacks({
     onSuccess: (data, variables) => {
@@ -50,7 +49,7 @@ export const usePartsToolsSubmission = ({
 
     // Transform form data to API format
     const apiData = transformPartsToolsForApi(data)
-    
+
     // Validate that we have at least one part/tool with required data
     const hasValidItems = apiData.some(item => item.pathToolName.trim() !== '')
     if (!hasValidItems) {
@@ -78,7 +77,7 @@ export const usePartsToolsSubmission = ({
 
     // Transform and save even if validation fails (draft mode)
     const apiData = transformPartsToolsForApi(data)
-    
+
     putPartsToolsMutation.mutate({
       lineMaintenancesId: lineMaintenanceId,
       partsTools: apiData
@@ -99,14 +98,14 @@ export const usePartsToolsSubmission = ({
     handleSubmit,
     handleSaveDraft,
     handleOnBackStep,
-    
+
     // Mutation states
     isSubmitting: putPartsToolsMutation.isPending,
     isSubmitSuccess: putPartsToolsMutation.isSuccess,
     isSubmitError: putPartsToolsMutation.isError,
     submitError: putPartsToolsMutation.error,
     resetMutation: putPartsToolsMutation.reset,
-    
+
     // Computed states
     hasLineMaintenanceId: !!lineMaintenanceId,
     lineMaintenanceId,

@@ -13,16 +13,30 @@ import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "@/components/navigation";
-import { redirect } from '@/components/navigation'
-
+import { useLogin } from "@/lib/api/hooks/useLogin";
+import { handleLogin } from "./store";
+import { useDispatch } from "react-redux";
 const schema = z.object({
-  email: z.string().email({ message: "Your email is invalid." }),
-  password: z.string().min(4),
+  email: z.string().min(1, { message: "email is required." }), // Changed to email
+  password: z.string().min(4, { message: "Password must be at least 4 characters." }),
 });
 const LoginForm = () => {
-  const [isPending, startTransition] = React.useTransition();
   const router = useRouter();
+  const dispatch = useDispatch();
   const [passwordType, setPasswordType] = React.useState("password");
+
+  // Use login mutation hook - Redux only
+  const { mutate: loginUser, isPending } = useLogin({
+    onSuccess: (data) => {
+      // Login hook will handle Redux update and navigation
+      // console.log('Login successful:', data);
+      router.push('/dashboard')
+    },
+    onError: (error) => {
+      // Error toast will be handled by the hook
+      console.error('Login error:', error);
+    }
+  });
 
   const togglePasswordType = () => {
     if (passwordType === "text") {
@@ -39,20 +53,16 @@ const LoginForm = () => {
     resolver: zodResolver(schema),
     mode: "all",
     defaultValues: {
-      email: "test@example.com",
-      password: "password",
+      email: "navee@gmail.com", // Changed to email
+      password: "sams-password",
     },
   });
 
   const onSubmit = (data: z.infer<typeof schema>) => {
-    startTransition(async () => {
-      try {
-        // router.push("/dashboard");
-        redirect({ href: '/dashboard', locale: 'en' })
-        toast.success("Successfully logged in");
-      } catch (err: any) {
-        toast.error(err.message);
-      }
+    // Send login request to API
+    loginUser({
+      email: data.email, // Using email field as username
+      password: data.password
     });
   };
 
@@ -60,7 +70,7 @@ const LoginForm = () => {
     <form onSubmit={handleSubmit(onSubmit)} className="mt-5 2xl:mt-7 space-y-4">
       <div className="space-y-2">
         <Label htmlFor="email" className=" font-medium text-default-600">
-          Email{" "}
+          Email
         </Label>
         <Input
           size="lg"

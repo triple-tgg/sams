@@ -25,6 +25,7 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
   const servicingPerformed = form.watch('servicingPerformed')
   const engOilSets = form.watch('fluid.engOilSets')
 
+
   return (
     <Card className='border border-blue-200'>
       <CardHeader>
@@ -40,7 +41,15 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                 <Checkbox
                   color='primary'
                   checked={field.value}
-                  onCheckedChange={field.onChange}
+                  onCheckedChange={(value) => {
+                    field.onChange(value)
+                    if (field.value) {
+                      form.setValue('fluid.engOilSets', [])
+                    } else {
+                      onAddEngineOilSet() // Add initial defect when enabling
+                    }
+                  }}
+
                 />
               </FormControl>
               <div className="space-y-1 leading-none">
@@ -82,9 +91,9 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                   <FormMessage />
                   {field.value && (
                     <p className="text-sm text-gray-600 mt-1">
-                      {field.value.value === 'ENG Oil' && 'Engine Oil Sets section will be displayed'}
-                      {field.value.value === 'Hydraulic' && 'Hydraulic Oils section will be displayed'}
-                      {field.value.value === 'APU Oil' && 'Other Quantity section will be displayed'}
+                      {field.value.value === 'ENG Oil' && `Engine Oil Sets section will be displayed (acType : ${acType})`}
+                      {field.value.value === 'Hydraulic' && `Hydraulic Oils section will be displayed (acType : ${acType})`}
+                      {field.value.value === 'APU Oil' && `Other Quantity section will be displayed (acType : ${acType})`}
                     </p>
                   )}
                 </FormItem>
@@ -94,16 +103,6 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
             {/* Engine Oil Sets - Show only when Fluid Type is "ENG Oil" */}
             {form.watch('fluid.fluidName')?.value === 'ENG Oil' && (
               <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h4 className="font-medium">Engine Oil Sets</h4>
-                  {engOilSets.length < 3 && (
-                    <Button type="button" onClick={onAddEngineOilSet} size="sm" color='primary'>
-                      <PlusIcon className="h-4 w-4 mr-1" />
-                      Add Engine Set
-                    </Button>
-                  )}
-                </div>
-
                 {engOilSets.map((_, index) => (
                   <div key={index} className="border rounded-lg p-4">
                     <div className="flex justify-between items-center mb-4">
@@ -125,11 +124,20 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                       <FormField
                         control={form.control}
                         name={`fluid.engOilSets.${index}.left`}
-                        render={({ field }) => (
+                        render={({ field: { value, onChange, ...field } }) => (
                           <FormItem>
                             <FormLabel>Left Engine</FormLabel>
                             <FormControl>
-                              <Input type="number" placeholder="0.0" {...field} />
+                              <Input
+                                type="number"
+                                placeholder="0.0"
+                                value={value ?? ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  onChange(val === '' ? undefined : parseFloat(val));
+                                }}
+                                {...field}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -139,11 +147,20 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                       <FormField
                         control={form.control}
                         name={`fluid.engOilSets.${index}.right`}
-                        render={({ field }) => (
+                        render={({ field: { value, onChange, ...field } }) => (
                           <FormItem>
                             <FormLabel>Right Engine</FormLabel>
                             <FormControl>
-                              <Input type="number" placeholder="0.0" {...field} />
+                              <Input
+                                type="number"
+                                placeholder="0.0"
+                                value={value ?? ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  onChange(val === '' ? undefined : parseFloat(val));
+                                }}
+                                {...field}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -152,13 +169,22 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                     </div>
                   </div>
                 ))}
+                <div className="flex justify-end items-center">
+                  {/* <h4 className="font-medium">Engine Oil Sets</h4> */}
+                  {engOilSets.length < 3 && (
+                    <Button type="button" onClick={onAddEngineOilSet} size="sm" color='primary'>
+                      <PlusIcon className="h-4 w-4 mr-1" />
+                      Add Engine Set
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
 
             {/* Hydraulic Oils - Show only when Fluid Type is "Hydraulic" */}
             {form.watch('fluid.fluidName')?.value === 'Hydraulic' && (
               <div className="space-y-4">
-                <h4 className="font-medium">Hydraulic Oils</h4>
+                <h4 className="font-medium">Hydraulic Oils </h4>
 
                 {/* Check acType and show appropriate hydraulic oils */}
                 {!acType ? (
@@ -183,11 +209,20 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                         <FormField
                           control={form.control}
                           name="fluid.hydOilBlue"
-                          render={({ field }) => (
+                          render={({ field: { onChange, value, ...field } }) => (
                             <FormItem>
                               <FormLabel>Hyd Oil Blue</FormLabel>
                               <FormControl>
-                                <Input type="number" placeholder="0.0" {...field} />
+                                <Input
+                                  type="number"
+                                  placeholder="0.0"
+                                  {...field}
+                                  value={value || ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value
+                                    onChange(val === '' ? undefined : parseFloat(val) || 0)
+                                  }}
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -197,11 +232,20 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                         <FormField
                           control={form.control}
                           name="fluid.hydOilGreen"
-                          render={({ field }) => (
+                          render={({ field: { onChange, value, ...field } }) => (
                             <FormItem>
                               <FormLabel>Hyd Oil Green</FormLabel>
                               <FormControl>
-                                <Input type="number" placeholder="0.0" {...field} />
+                                <Input
+                                  type="number"
+                                  placeholder="0.0"
+                                  {...field}
+                                  value={value || ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value
+                                    onChange(val === '' ? undefined : parseFloat(val) || 0)
+                                  }}
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -211,11 +255,20 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                         <FormField
                           control={form.control}
                           name="fluid.hydOilYellow"
-                          render={({ field }) => (
+                          render={({ field: { onChange, value, ...field } }) => (
                             <FormItem>
                               <FormLabel>Hyd Oil Yellow</FormLabel>
                               <FormControl>
-                                <Input type="number" placeholder="0.0" {...field} />
+                                <Input
+                                  type="number"
+                                  placeholder="0.0"
+                                  {...field}
+                                  value={value || ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value
+                                    onChange(val === '' ? undefined : parseFloat(val) || 0)
+                                  }}
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -231,11 +284,20 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                         <FormField
                           control={form.control}
                           name="fluid.hydOilA"
-                          render={({ field }) => (
+                          render={({ field: { onChange, value, ...field } }) => (
                             <FormItem>
                               <FormLabel>Hyd Oil A</FormLabel>
                               <FormControl>
-                                <Input type="number" placeholder="0.0" {...field} />
+                                <Input
+                                  type="number"
+                                  placeholder="0.0"
+                                  {...field}
+                                  value={value || ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value
+                                    onChange(val === '' ? undefined : parseFloat(val) || 0)
+                                  }}
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -245,11 +307,20 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                         <FormField
                           control={form.control}
                           name="fluid.hydOilB"
-                          render={({ field }) => (
+                          render={({ field: { onChange, value, ...field } }) => (
                             <FormItem>
                               <FormLabel>Hyd Oil B</FormLabel>
                               <FormControl>
-                                <Input type="number" placeholder="0.0" {...field} />
+                                <Input
+                                  type="number"
+                                  placeholder="0.0"
+                                  {...field}
+                                  value={value || ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value
+                                    onChange(val === '' ? undefined : parseFloat(val) || 0)
+                                  }}
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -259,11 +330,20 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                         <FormField
                           control={form.control}
                           name="fluid.hydOilSTBY"
-                          render={({ field }) => (
+                          render={({ field: { onChange, value, ...field } }) => (
                             <FormItem>
                               <FormLabel>Hyd Oil STBY</FormLabel>
                               <FormControl>
-                                <Input type="number" placeholder="0.0" {...field} />
+                                <Input
+                                  type="number"
+                                  placeholder="0.0"
+                                  {...field}
+                                  value={value || ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value
+                                    onChange(val === '' ? undefined : parseFloat(val) || 0)
+                                  }}
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -295,12 +375,21 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
             {form.watch('fluid.fluidName')?.value === 'APU Oil' && (
               <FormField
                 control={form.control}
-                name="fluid.otherQty"
-                render={({ field }) => (
+                name="fluid.otherOil"
+                render={({ field: { value, onChange, ...field } }) => (
                   <FormItem>
                     <FormLabel>Other Quantity</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="0.0" {...field} />
+                      <Input
+                        type="number"
+                        placeholder="0.0"
+                        value={value ?? ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          onChange(val === '' ? undefined : parseFloat(val));
+                        }}
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -329,9 +418,8 @@ export const OperationalSections: React.FC<OperationalSectionsProps> = ({
   onAddTowingInfo,
   onRemoveTowingInfo,
 }) => {
-  const flightDeck = form.watch('flightDeck')
+
   const aircraftTowing = form.watch('aircraftTowing')
-  const flightDeckInfo = form.watch('flightDeckInfo') || []
   const aircraftTowingInfo = form.watch('aircraftTowingInfo') || []
 
   return (
@@ -450,7 +538,15 @@ export const OperationalSections: React.FC<OperationalSectionsProps> = ({
                   <Checkbox
                     color='primary'
                     checked={field.value}
-                    onCheckedChange={field.onChange}
+                    onCheckedChange={(value) => {
+                      field.onChange(value)
+                      // Clear defects if unchecked
+                      if (field.value) {
+                        form.setValue('aircraftTowingInfo', [])
+                      } else {
+                        onAddTowingInfo() // Add initial defect when enabling
+                      }
+                    }}
                   />
                 </FormControl>
                 <div className="space-y-1 leading-none">
@@ -462,15 +558,6 @@ export const OperationalSections: React.FC<OperationalSectionsProps> = ({
 
           {aircraftTowing && (
             <>
-              <div className="flex justify-between items-center">
-                <h4 className="font-medium">Towing Information</h4>
-                {aircraftTowingInfo.length < 3 && (
-                  <Button type="button" onClick={onAddTowingInfo} size="sm" color='primary'>
-                    <PlusIcon className="h-4 w-4 mr-1" />
-                    Add Info
-                  </Button>
-                )}
-              </div>
 
               {aircraftTowingInfo.length >= 3 && (
                 <div className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-md p-3">
@@ -498,12 +585,12 @@ export const OperationalSections: React.FC<OperationalSectionsProps> = ({
                     ) : null}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                     <FormField
                       control={form.control}
-                      name={`aircraftTowingInfo.${index}.date`}
+                      name={`aircraftTowingInfo.${index}.onDate`}
                       render={({ field }) => (
-                        <FormItem>
+                        <FormItem className='col-span-3'>
                           <FormLabel>Date *</FormLabel>
                           <FormControl>
                             <Input type="date" {...field} />
@@ -515,9 +602,9 @@ export const OperationalSections: React.FC<OperationalSectionsProps> = ({
 
                     <FormField
                       control={form.control}
-                      name={`aircraftTowingInfo.${index}.timeOn`}
+                      name={`aircraftTowingInfo.${index}.onTime`}
                       render={({ field }) => (
-                        <FormItem>
+                        <FormItem className='col-span-3'>
                           <FormLabel>Time On *</FormLabel>
                           <FormControl>
                             <Input type="time" {...field} />
@@ -526,12 +613,24 @@ export const OperationalSections: React.FC<OperationalSectionsProps> = ({
                         </FormItem>
                       )}
                     />
-
                     <FormField
                       control={form.control}
-                      name={`aircraftTowingInfo.${index}.timeOf`}
+                      name={`aircraftTowingInfo.${index}.offDate`}
                       render={({ field }) => (
-                        <FormItem>
+                        <FormItem className='col-span-3'>
+                          <FormLabel>Date *</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name={`aircraftTowingInfo.${index}.offTime`}
+                      render={({ field }) => (
+                        <FormItem className='col-span-3'>
                           <FormLabel>Time Of *</FormLabel>
                           <FormControl>
                             <Input type="time" {...field} />
@@ -545,7 +644,7 @@ export const OperationalSections: React.FC<OperationalSectionsProps> = ({
                       control={form.control}
                       name={`aircraftTowingInfo.${index}.bayFrom`}
                       render={({ field }) => (
-                        <FormItem>
+                        <FormItem className='col-span-3'>
                           <FormLabel>Bay From *</FormLabel>
                           <FormControl>
                             <Input placeholder="e.g., A1, B2, C3" {...field} />
@@ -559,7 +658,7 @@ export const OperationalSections: React.FC<OperationalSectionsProps> = ({
                       control={form.control}
                       name={`aircraftTowingInfo.${index}.bayTo`}
                       render={({ field }) => (
-                        <FormItem>
+                        <FormItem className='col-span-3'>
                           <FormLabel>Bay To *</FormLabel>
                           <FormControl>
                             <Input placeholder="e.g., A1, B2, C3" {...field} />
@@ -571,6 +670,15 @@ export const OperationalSections: React.FC<OperationalSectionsProps> = ({
                   </div>
                 </div>
               ))}
+              <div className="flex justify-end items-center">
+                {/* <h4 className="font-medium">Towing Information</h4> */}
+                {aircraftTowingInfo.length < 3 && (
+                  <Button type="button" onClick={onAddTowingInfo} size="sm" color='primary'>
+                    <PlusIcon className="h-4 w-4 mr-1" />
+                    Add Info
+                  </Button>
+                )}
+              </div>
             </>
           )}
         </CardContent>

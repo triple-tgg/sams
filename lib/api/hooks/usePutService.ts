@@ -1,10 +1,10 @@
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "@/components/ui/use-toast";
-import { 
-  putService, 
+import {
+  putService,
   createServiceRequestFromForm,
-  type ServiceRequest, 
-  type ServiceResponse 
+  type ServiceRequest,
+  type ServiceResponse
 } from "../lineMaintenances/services/putService";
 
 /**
@@ -61,13 +61,13 @@ export const usePutServiceFromForm = () => {
     mutationFn: async ({ lineMaintenanceId, formData, options = {} }) => {
       // Transform form data to service request format
       const serviceRequest = createServiceRequestFromForm(formData, options);
-      
+
       console.log("Transformed service request:", {
         lineMaintenanceId,
         serviceRequest,
         originalFormData: formData
       });
-      
+
       return await putService(lineMaintenanceId, serviceRequest);
     },
     onSuccess: (data, variables) => {
@@ -111,15 +111,15 @@ export const usePutServiceSection = () => {
         enableFlightdeck: section === 'flightdeck',
         enableAircraftTowing: section === 'aircraftTowing',
       };
-      
+
       const serviceRequest = createServiceRequestFromForm(formData, options);
-      
+
       console.log(`Updating ${section} section:`, {
         lineMaintenanceId,
         section,
         serviceRequest
       });
-      
+
       return await putService(lineMaintenanceId, serviceRequest);
     },
     onSuccess: (data, variables) => {
@@ -130,7 +130,7 @@ export const usePutServiceSection = () => {
         flightdeck: 'Flight Deck',
         aircraftTowing: 'Aircraft Towing'
       };
-      
+
       toast({
         title: "Section Updated",
         description: `${sectionNames[variables.section]} section has been updated successfully.`,
@@ -145,7 +145,7 @@ export const usePutServiceSection = () => {
         flightdeck: 'Flight Deck',
         aircraftTowing: 'Aircraft Towing'
       };
-      
+
       toast({
         variant: "destructive",
         title: "Section Update Failed",

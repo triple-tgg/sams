@@ -125,6 +125,9 @@
   "Menu": {
     "dashboard": "لوحة التحكم",
     "customer": "Customer",
+    "report": "Report",
+    "equipment-report": "Equipment",
+    "parts-tool-report": "Parts Tool",
     "master-data": "Master Data",
     "setting": "Settings",
     "flight":"Flight",
