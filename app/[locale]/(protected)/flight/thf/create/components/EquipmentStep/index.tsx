@@ -72,12 +72,12 @@ export default function EquipmentStep(props: EquipmentStepProps) {
   })
 
   // Load initial data if provided
-  // useEffect(() => {
-  //   if (props.initialData) {
-  //     console.log('EquipmentStep: Loading initial data', mapApiDataToEquipmentForm(props.initialData))
-  //     form.reset(mapApiDataToEquipmentForm(props.initialData))
-  //   }
-  // }, [props.initialData, form])
+  useEffect(() => {
+    if (props.initialData) {
+      console.log('EquipmentStep: Loading initial data', mapApiDataToEquipmentForm(props.initialData))
+      form.reset(mapApiDataToEquipmentForm(props.initialData))
+    }
+  }, [props.initialData, form])
 
   // Console log form errors for debugging
   useEffect(() => {

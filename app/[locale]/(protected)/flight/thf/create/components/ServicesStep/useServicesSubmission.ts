@@ -196,7 +196,7 @@ export const useServicesSubmission = ({
         offDate: dateTimeUtils.getCurrentDate(),
         onTime: "",
         offTime: "",
-        bayFrom: "",
+        bayForm: "",
         bayTo: "",
       }
     ])

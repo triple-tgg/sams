@@ -135,7 +135,7 @@ const PartsAndToolsStep: React.FC<PartsAndToolsStepProps> = (props) => {
               onReset={() => {
                 form.reset(memoizedDefaultValues)
               }}
-              onSubmit={() => form.handleSubmit(handleSubmit)()}
+              onSubmit={form.handleSubmit(handleSubmit)}
               backText="← Back to Equipment"
               submitText={isSubmitting ? 'Saving...' : 'Next Step →'}
               resetText="Reset"

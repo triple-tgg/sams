@@ -245,7 +245,7 @@ export const PartsToolsCard: React.FC<PartsToolsCardProps> = ({ form }) => {
                 name={`partsTools.${index}.serialNoIn`}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Serial IN <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Serial IN </FormLabel>
                     <FormControl>
                       <Input placeholder="Enter serial number IN" {...field} />
                     </FormControl>
@@ -260,7 +260,7 @@ export const PartsToolsCard: React.FC<PartsToolsCardProps> = ({ form }) => {
                 name={`partsTools.${index}.serialNoOut`}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Serial OUT <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Serial OUT</FormLabel>
                     <FormControl>
                       <Input placeholder="Enter serial number OUT" {...field} />
                     </FormControl>

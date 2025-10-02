@@ -15,7 +15,7 @@ const dateSchema = z.string().refine((date) => {
   if (!date || date === "") return false;
   return dateTimeUtils.isValidDate(date) && /^\d{4}-\d{2}-\d{2}$/.test(date);
 }, {
-  message: "Invalid date format (YYYY-MM-DD)"
+  message: "Invalid date format (DD-MM-YYYY)"
 });
 
 // Helper function to validate ATA Chapter format
@@ -122,7 +122,7 @@ export const servicesFormSchema = z.object({
     offDate: dateSchema.refine((date) => date !== "", { message: "Date is required" }),
     onTime: timeSchema.refine((time) => time !== "", { message: "Time on is required" }),
     offTime: timeSchema.refine((time) => time !== "", { message: "Time off is required" }),
-    bayFrom: z.string().min(1, "Bay From is required").max(10, "Bay From cannot exceed 10 characters"),
+    bayForm: z.string().min(1, "Bay From is required").max(10, "Bay From cannot exceed 10 characters"),
     bayTo: z.string().min(1, "Bay To is required").max(10, "Bay To cannot exceed 10 characters"),
   }).refine((info) => {
     // Validate that 'offTime' is after 'onTime' using Day.js
@@ -136,8 +136,8 @@ export const servicesFormSchema = z.object({
     message: "Time off must be after time on",
     path: ["timeOf"]
   }).refine((info) => {
-    // Validate that bayFrom and bayTo are different
-    return info.bayFrom !== info.bayTo;
+    // Validate that bayForm and bayTo are different
+    return info.bayForm !== info.bayTo;
   }, {
     message: "Bay From and Bay To must be different",
     path: ["bayTo"]

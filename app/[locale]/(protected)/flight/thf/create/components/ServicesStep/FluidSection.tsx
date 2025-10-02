@@ -642,7 +642,7 @@ export const OperationalSections: React.FC<OperationalSectionsProps> = ({
 
                     <FormField
                       control={form.control}
-                      name={`aircraftTowingInfo.${index}.bayFrom`}
+                      name={`aircraftTowingInfo.${index}.bayForm`}
                       render={({ field }) => (
                         <FormItem className='col-span-3'>
                           <FormLabel>Bay From *</FormLabel>

@@ -135,7 +135,7 @@ export const transformServicesDataToAPI = (data: ServicesFormInputs) => {
       offDate: info.offDate,
       onTime: info.onTime,
       offTime: info.offTime,
-      bayForm: info.bayFrom, // Transform bayFrom to bayForm for API
+      bayForm: info.bayForm, // Transform bayForm to bayForm for API
       bayTo: info.bayTo,
     })) : []
 
@@ -253,7 +253,7 @@ export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse |
     offDate: towing.offDate || "",
     onTime: towing.onTime || "",
     offTime: towing.offTime || "",
-    bayFrom: towing.bayForm || "", // API field is bayForm, mapping to bayFrom
+    bayForm: towing.bayForm || "", // API field is bayForm, mapping to bayForm
     bayTo: towing.bayTo || "", // Add bay to field
   })) || [];
 

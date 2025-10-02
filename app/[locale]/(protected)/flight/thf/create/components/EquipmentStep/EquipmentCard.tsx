@@ -289,30 +289,6 @@ export const EquipmentCard: React.FC<EquipmentCardProps> = ({
         <div className="grid md:grid-cols-2 gap-4">
           <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <Label htmlFor={`equipments.${index}.isLoan`} className="text-sm font-medium text-gray-700">
-                LOAN
-              </Label>
-            </div>
-            <Controller
-              control={control}
-              name={`equipments.${index}.isLoan` as const}
-              render={({ field }) => (
-                <Switch
-                  id={`equipments.${index}.isLoan`}
-                  checked={field.value}
-                  onCheckedChange={(checked) => {
-                    // Set LOAN to new state
-                    field.onChange(checked)
-                    // Set SAMS TOOL to opposite state
-                    setValue(`equipments.${index}.isSamsTool`, !checked)
-                  }}
-                />
-              )}
-            />
-          </div>
-          <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200">
-            <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
               <Label htmlFor={`equipments.${index}.isSamsTool`} className="text-sm font-medium text-gray-700">
                 SAMS TOOL
@@ -335,6 +311,31 @@ export const EquipmentCard: React.FC<EquipmentCardProps> = ({
               )}
             />
           </div>
+          <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <Label htmlFor={`equipments.${index}.isLoan`} className="text-sm font-medium text-gray-700">
+                LOAN
+              </Label>
+            </div>
+            <Controller
+              control={control}
+              name={`equipments.${index}.isLoan` as const}
+              render={({ field }) => (
+                <Switch
+                  id={`equipments.${index}.isLoan`}
+                  checked={field.value}
+                  onCheckedChange={(checked) => {
+                    // Set LOAN to new state
+                    field.onChange(checked)
+                    // Set SAMS TOOL to opposite state
+                    setValue(`equipments.${index}.isSamsTool`, !checked)
+                  }}
+                />
+              )}
+            />
+          </div>
+
         </div>
       </div>
 

@@ -68,7 +68,7 @@ export type ServicesFormInputs = {
     offDate: string;
     onTime: string;
     offTime: string;
-    bayFrom: string;
+    bayForm: string;
     bayTo: string;
   }[] | null
 }

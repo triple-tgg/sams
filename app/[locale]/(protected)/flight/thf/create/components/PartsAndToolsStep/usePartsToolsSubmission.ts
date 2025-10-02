@@ -25,7 +25,7 @@ export const usePartsToolsSubmission = ({
   const putPartsToolsMutation = usePutPartsToolsWithCallbacks({
     onSuccess: (data, variables) => {
       console.log('Parts/Tools saved successfully:', data)
-      onUpdateData()
+      // onUpdateData()
       onNextStep()
     },
     onError: (error, variables) => {
@@ -86,10 +86,11 @@ export const usePartsToolsSubmission = ({
 
   const handleOnBackStep = () => {
     // Optional: Save as draft before going back
-    const currentData = form.getValues()
-    if (lineMaintenanceId && currentData.partsTools.some(item => item.pathToolName.trim() !== '')) {
-      handleSaveDraft(currentData)
-    }
+    // const currentData = form.getValues()
+    // if (lineMaintenanceId && currentData.partsTools.some(item => item.pathToolName.trim() !== '')) {
+    //   // handleSaveDraft(currentData)
+    //   console.log("handleOnBackStep:PartsAndToolsStepProps")
+    // }
     onBackStep()
   }
 

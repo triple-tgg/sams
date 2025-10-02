@@ -254,40 +254,6 @@ const ListTable = ({
                                     />
                                 )}
                             />
-                            {/* <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="outline">
-                                        <FilterIcon className="w-3.5 h-3.5 me-1" />
-                                        Filter
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent className="w-[196px]" align="center">
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={() => {
-                                        const today = dayjs().toDate();
-                                        setValue("dateRange", { from: today, to: today });
-                                        handleSubmit(onSubmit)();
-                                    }}>
-                                        Day
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => {
-                                        const weekStart = dayjs().startOf('week').toDate();
-                                        const weekEnd = dayjs().endOf('week').toDate();
-                                        setValue("dateRange", { from: weekStart, to: weekEnd });
-                                        handleSubmit(onSubmit)();
-                                    }}>
-                                        Week
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => {
-                                        const monthStart = dayjs().startOf('month').toDate();
-                                        const monthEnd = dayjs().endOf('month').toDate();
-                                        setValue("dateRange", { from: monthStart, to: monthEnd });
-                                        handleSubmit(onSubmit)();
-                                    }}>
-                                        Month
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu> */}
                             <FilterRange
                                 value={dateRangeValue}
                                 onClick={() => handleSubmit(onSubmit)()}

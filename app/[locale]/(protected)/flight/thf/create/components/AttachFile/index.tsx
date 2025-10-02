@@ -223,7 +223,7 @@ const AttachFileStep: React.FC<Props> = ({ lineMaintenanceId, flightInfosId, ini
               onBack={handleOnBackStep}
               onSubmit={() => form.handleSubmit(onSubmit)()}
               backText="← Back to Parts & Tools"
-              submitText={isSubmitting ? 'Saving...' : 'Complete'}
+              submitText={isSubmitting ? 'Saving...' : 'Save'}
               isSubmitting={isSubmitting}
               disableBack={isSubmitting}
               disableSubmit={isSubmitting || !hasLineMaintenanceId}

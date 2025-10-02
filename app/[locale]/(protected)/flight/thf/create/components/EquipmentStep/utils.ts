@@ -65,7 +65,7 @@ export const mapApiDataToEquipmentForm = (equipments: Equipment[]): EquipmentFor
       toDate: equipment.toDate || currentDate,
       toTime: equipment.toTime || currentTime,
       isLoan: equipment.isLoan ?? false,
-      isSamsTool: equipment.isSamsTool ?? false,
+      isSamsTool: equipment.isSamsTool ?? true,
     }))
   }
 }

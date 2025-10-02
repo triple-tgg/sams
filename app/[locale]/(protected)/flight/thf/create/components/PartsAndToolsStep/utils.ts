@@ -16,13 +16,13 @@ export const getDefaultValues = (): PartsToolsFormInputs => {
 export const mapDataThfToPartsToolsStep = (data: LineMaintenanceThfResponse): PartsToolsFormInputs => {
   // Extract parts/tools data from API response
   const apiPartsTools = data?.responseData?.partsTool || []
-  
+
   if (apiPartsTools.length === 0) {
     return getDefaultValues()
   }
 
   const transformedPartsTools: PartToolItem[] = apiPartsTools.map((item: any) => ({
-    isSamsTool: item.isSamsTool || false,
+    isSamsTool: item.isSamsTool || true,
     isLoan: item.isLoan || false,
     pathToolName: item.pathToolName || '',
     pathToolNo: item.pathToolNo || '',

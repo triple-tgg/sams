@@ -6,26 +6,26 @@ interface FormActionsProps {
   onBack: () => void
   onSubmit?: () => void
   onReset?: () => void
-  
+
   // Loading states
   isLoading?: boolean
   isSubmitting?: boolean
-  
+
   // Button text customization
   backText?: string
   submitText?: string
   resetText?: string
   loadingText?: string
-  
+
   // Button states
   disableBack?: boolean
   disableSubmit?: boolean
   disableReset?: boolean
-  
+
   // Show/hide buttons
   showReset?: boolean
   showSubmit?: boolean
-  
+
   // Styling
   className?: string
   variant?: 'default' | 'outline' | 'ghost' | 'soft'
