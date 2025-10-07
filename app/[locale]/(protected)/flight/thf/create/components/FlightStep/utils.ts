@@ -1,4 +1,5 @@
 import { FlightFormData } from "@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId";
+import { formatFromPicker } from "@/lib/utils/formatPicker";
 
 
 // Utility functions for Flight Step
@@ -38,11 +39,11 @@ export const sanitizeFormData = (existingFlightData: FlightFormData) => ({
   acReg: existingFlightData.acReg || '',
   acTypeCode: existingFlightData.acTypeCode || null,
   flightArrival: existingFlightData.flightArrival || '',
-  arrivalDate: existingFlightData.arrivalDate || '',
+  arrivalDate: existingFlightData.arrivalDate ? formatFromPicker(existingFlightData.arrivalDate) : '',
   sta: existingFlightData.sta || '',
   ata: existingFlightData.ata || '',
   flightDeparture: existingFlightData.flightDeparture || '',
-  departureDate: existingFlightData.departureDate || '',
+  departureDate: existingFlightData.departureDate ? formatFromPicker(existingFlightData.departureDate) : '',
   std: existingFlightData.std || '',
   atd: existingFlightData.atd || '',
   bay: existingFlightData.bay || '',

@@ -52,17 +52,14 @@ export const useEquipmentSubmission = ({
 
   // Form submission handler
   const handleSubmit = async (data: EquipmentFormData) => {
-    console.log('Equipment form submitted:', data)
-
-    // Validate the data
     const validation = equipmentFormSchema.safeParse(data)
     if (!validation.success) {
-      console.error('Validation errors:', validation.error)
-      toast({
-        variant: "destructive",
-        title: "Validation Error",
-        description: "Please fix validation errors before submitting"
-      })
+      // console.error('Validation errors:', validation.error)
+      // toast({
+      //   variant: "destructive",
+      //   title: "Validation Error",
+      //   description: "Please fix validation errors before submitting"
+      // })
       return
     }
 

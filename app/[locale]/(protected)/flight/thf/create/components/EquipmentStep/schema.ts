@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { dateTimeUtils } from '@/lib/dayjs'
+import { convertDateToBackend } from '@/lib/utils/formatPicker';
 
 // Helper function to validate time format (HH:MM) using Day.js - Required version
 const requiredTimeSchema = z.string().min(1, "Time is required").refine((time) => {
@@ -20,7 +21,7 @@ const optionalTimeSchema = z.string().refine((time) => {
 const requiredDateSchema = z.string()
   .min(1, "Date is required")
   .refine((date) => {
-    return /^\d{4}-\d{2}-\d{2}$/.test(date) && dateTimeUtils.isValidDate(date);
+    return /^\d{4}-\d{2}-\d{2}$/.test(convertDateToBackend(date)) && dateTimeUtils.isValidDate(convertDateToBackend(date));
   }, {
     message: "Invalid date format (YYYY-MM-DD)"
   });
@@ -61,6 +62,7 @@ export const equipmentFormSchema = z.object({
 
     // Equipment classification
     isLoan: z.boolean().default(false),
+    loanRemark: z.string().max(200, "Loan remark cannot exceed 200 characters").optional().default(''),
     isSamsTool: z.boolean().default(false),
   }).refine((equipment) => {
     // Validate that 'to' date/time is after 'from' date/time
@@ -71,12 +73,8 @@ export const equipmentFormSchema = z.object({
 
       try {
         // Method 1: Compare dates first
-        const fromDateOnly = new Date(equipment.fromDate);
-        const toDateOnly = new Date(equipment.toDate);
-
-        console.log('� Date Only Comparison:');
-        console.log('From Date:', equipment.fromDate, fromDateOnly);
-        console.log('To Date:', equipment.toDate, toDateOnly);
+        const fromDateOnly = new Date(convertDateToBackend(equipment.fromDate));
+        const toDateOnly = new Date(convertDateToBackend(equipment.toDate));
 
         // If To date is after From date, it's definitely valid
         if (toDateOnly > fromDateOnly) {
@@ -95,12 +93,12 @@ export const equipmentFormSchema = z.object({
           const fromMinutes = fromHour * 60 + fromMin;
           const toMinutes = toHour * 60 + toMin;
 
-          console.log('⏰ Time comparison:');
-          console.log('From time:', equipment.fromTime, '=', fromMinutes, 'minutes');
-          console.log('To time:', equipment.toTime, '=', toMinutes, 'minutes');
+          // console.log('⏰ Time comparison:');
+          // console.log('From time:', equipment.fromTime, '=', fromMinutes, 'minutes');
+          // console.log('To time:', equipment.toTime, '=', toMinutes, 'minutes');
 
           const timeIsValid = toMinutes > fromMinutes;
-          console.log('Time is valid:', timeIsValid);
+          // console.log('Time is valid:', timeIsValid);
           return timeIsValid;
         }
 
@@ -122,7 +120,7 @@ export const equipmentFormSchema = z.object({
   }).refine((equipment) => {
     // Validate that fromDate is not in the future (reasonable operational dates)
     if (equipment.fromDate) {
-      const equipmentDate = new Date(equipment.fromDate);
+      const equipmentDate = new Date(convertDateToBackend(equipment.fromDate));
       const today = new Date();
       today.setHours(0, 0, 0, 0); // Reset time to start of day
 
@@ -143,7 +141,7 @@ export const equipmentFormSchema = z.object({
   }).refine((equipment) => {
     // Validate that dates are not too far in the past (reasonable operational window)
     if (equipment.fromDate) {
-      const equipmentDate = new Date(equipment.fromDate);
+      const equipmentDate = new Date(convertDateToBackend(equipment.fromDate));
       const today = new Date();
       today.setHours(0, 0, 0, 0); // Reset time to start of day
 
@@ -161,7 +159,7 @@ export const equipmentFormSchema = z.object({
   }, {
     message: "Equipment date cannot be more than 1 year in the past",
     path: ["fromDate"]
-  })).min(1, "At least one equipment entry is required").max(20, "Maximum 20 equipment entries allowed"),
+  })).max(20, "Maximum 20 equipment entries allowed").nullable().optional().default([]),
 });
 
 export type EquipmentFormData = z.infer<typeof equipmentFormSchema>;

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { dateTimeUtils } from '@/lib/dayjs'
 import dayjs from 'dayjs';
+import { convertDateToBackend } from '@/lib/utils/formatPicker';
 
 // Helper function to validate time format (HH:MM) using Day.js
 const timeSchema = z.string().refine((time) => {
@@ -13,7 +14,7 @@ const timeSchema = z.string().refine((time) => {
 // Helper function to validate date format (YYYY-MM-DD) using Day.js
 const dateSchema = z.string().refine((date) => {
   if (!date || date === "") return false;
-  return dateTimeUtils.isValidDate(date) && /^\d{4}-\d{2}-\d{2}$/.test(date);
+  return dateTimeUtils.isValidDate(convertDateToBackend(date)) && /^\d{4}-\d{2}-\d{2}$/.test(convertDateToBackend(date));
 }, {
   message: "Invalid date format (DD-MM-YYYY)"
 });
@@ -86,6 +87,8 @@ export const servicesFormSchema = z.object({
       staffId: z.number().min(1, "Staff ID is required").max(20, "Staff ID cannot exceed 20 characters"),
       name: z.string().min(1, "Name is required").max(100, "Name cannot exceed 100 characters"),
       type: z.string().min(1, "Type is required").max(50, "Type cannot exceed 50 characters"),
+      // formDate: z.string().min(1, "Form date is required"),
+      // toDate: z.string().min(1, "To date is required"),
       formDate: dateSchema.refine((date) => date !== "", { message: "From date is required" }),
       toDate: dateSchema.refine((date) => date !== "", { message: "To date is required" }),
       formTime: timeSchema.refine((time) => time !== "", { message: "From time is required" }),
@@ -93,8 +96,9 @@ export const servicesFormSchema = z.object({
       remark: z.string().max(200, "Remark cannot exceed 200 characters").optional(),
     }).superRefine((personnel, ctx) => {
       if (personnel.formDate && personnel.toDate && personnel.formTime && personnel.toTime) {
-        const from = dayjs(`${personnel.formDate} ${personnel.formTime}`, "YYYY-MM-DD HH:mm");
-        const to = dayjs(`${personnel.toDate} ${personnel.toTime}`, "YYYY-MM-DD HH:mm");
+
+        const from = dayjs(`${convertDateToBackend(personnel.formDate)} ${personnel.formTime}`, "YYYY-MM-DD HH:mm");
+        const to = dayjs(`${convertDateToBackend(personnel.toDate)} ${personnel.toTime}`, "YYYY-MM-DD HH:mm");
 
         if (!to.isAfter(from)) {
           ctx.addIssue({
@@ -122,22 +126,23 @@ export const servicesFormSchema = z.object({
     offDate: dateSchema.refine((date) => date !== "", { message: "Date is required" }),
     onTime: timeSchema.refine((time) => time !== "", { message: "Time on is required" }),
     offTime: timeSchema.refine((time) => time !== "", { message: "Time off is required" }),
-    bayForm: z.string().min(1, "Bay From is required").max(10, "Bay From cannot exceed 10 characters"),
+    bayFrom: z.string().min(1, "Bay From is required").max(10, "Bay From cannot exceed 10 characters"),
     bayTo: z.string().min(1, "Bay To is required").max(10, "Bay To cannot exceed 10 characters"),
   }).refine((info) => {
     // Validate that 'offTime' is after 'onTime' using Day.js
     if (info.onTime && info.offTime) {
-      const onDateTime = `${info.onDate} ${info.onTime}`;
-      const offDateTime = `${info.offDate} ${info.offTime}`;
-      return dateTimeUtils.isAfter(offDateTime, onDateTime);
+      const onDateTime = dayjs(`${convertDateToBackend(info.onDate)} ${info.onTime}`, "YYYY-MM-DD HH:mm");
+      const offDateTime = dayjs(`${convertDateToBackend(info.offDate)} ${info.offTime}`, "YYYY-MM-DD HH:mm");
+      // return dateTimeUtils.isAfter(offDateTime, onDateTime);
+      return offDateTime.isAfter(onDateTime);
     }
     return true;
   }, {
     message: "Time off must be after time on",
     path: ["timeOf"]
   }).refine((info) => {
-    // Validate that bayForm and bayTo are different
-    return info.bayForm !== info.bayTo;
+    // Validate that bayFrom and bayTo are different
+    return info.bayFrom !== info.bayTo;
   }, {
     message: "Bay From and Bay To must be different",
     path: ["bayTo"]

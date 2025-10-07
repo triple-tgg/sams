@@ -73,7 +73,9 @@ export const usePutPartsToolsWithCallbacks = (
       queryClient.invalidateQueries({
         queryKey: ['lineMaintenances', variables.lineMaintenancesId]
       })
-
+      queryClient.invalidateQueries({
+        queryKey: ["lineMaintenancesThf"]
+      });
       // Custom success callback
       options.onSuccess?.(data, variables)
     },
@@ -100,7 +102,7 @@ export const usePutPartsToolsWithCallbacks = (
  */
 export const usePutPartsToolsState = () => {
   const mutation = usePutPartsTools()
-  
+
   return {
     isLoading: mutation.isPending,
     isSuccess: mutation.isSuccess,

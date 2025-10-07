@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/ui/use-toast";
 import {
   putService,
@@ -43,6 +43,7 @@ export const usePutService = () => {
  * @returns Mutation object for service update with form data transformation
  */
 export const usePutServiceFromForm = () => {
+  const queryClient = useQueryClient();
   return useMutation<
     ServiceResponse,
     Error,
@@ -75,7 +76,9 @@ export const usePutServiceFromForm = () => {
         title: "Service Saved",
         description: `Service data has been saved successfully for line maintenance ${variables.lineMaintenanceId}.`,
       });
-      console.log("Service form update successful:", data);
+      queryClient.invalidateQueries({
+        queryKey: ["lineMaintenancesThf"]
+      });
     },
     onError: (error, variables) => {
       toast({

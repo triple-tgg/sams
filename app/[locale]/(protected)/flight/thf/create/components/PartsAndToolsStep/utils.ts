@@ -1,3 +1,4 @@
+import { convertDateToBackend, formatFromPicker } from '@/lib/utils/formatPicker'
 import { PartsToolsFormInputs, PartToolItem, defaultPartToolItem } from './types'
 import { LineMaintenanceThfResponse } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
 
@@ -6,7 +7,8 @@ import { LineMaintenanceThfResponse } from '@/lib/api/lineMaintenances/flight/ge
  */
 export const getDefaultValues = (): PartsToolsFormInputs => {
   return {
-    partsTools: [defaultPartToolItem]
+    partsTools: []
+    // partsTools: [defaultPartToolItem]
   }
 }
 
@@ -24,6 +26,7 @@ export const mapDataThfToPartsToolsStep = (data: LineMaintenanceThfResponse): Pa
   const transformedPartsTools: PartToolItem[] = apiPartsTools.map((item: any) => ({
     isSamsTool: item.isSamsTool || true,
     isLoan: item.isLoan || false,
+    loanRemark: item.loanRemark || '',
     pathToolName: item.pathToolName || '',
     pathToolNo: item.pathToolNo || '',
     serialNoIn: item.serialNoIn || '',
@@ -31,8 +34,8 @@ export const mapDataThfToPartsToolsStep = (data: LineMaintenanceThfResponse): Pa
     qty: item.qty || 0,
     equipmentNo: item.equipmentNo || '',
     hrs: item.hrs || 0,
-    formDate: item.formDate || null,
-    toDate: item.toDate || null,
+    formDate: item.formDate ? formatFromPicker(item.formDate) : null,
+    toDate: item.toDate ? formatFromPicker(item.toDate) : null,
     formTime: item.formTime || null,
     toTime: item.toTime || null,
   }))
@@ -49,6 +52,7 @@ export const transformPartsToolsForApi = (formData: PartsToolsFormInputs): PartT
   return formData.partsTools.map(item => ({
     isSamsTool: item.isSamsTool,
     isLoan: item.isLoan,
+    loanRemark: item.loanRemark.trim(),
     pathToolName: item.pathToolName.trim(),
     pathToolNo: item.pathToolNo.trim(),
     serialNoIn: item.serialNoIn.trim(),
@@ -56,8 +60,8 @@ export const transformPartsToolsForApi = (formData: PartsToolsFormInputs): PartT
     qty: item.qty,
     equipmentNo: item.equipmentNo.trim(),
     hrs: item.hrs,
-    formDate: item.formDate,
-    toDate: item.toDate,
+    formDate: item.formDate ? convertDateToBackend(item.formDate) : null,
+    toDate: item.toDate ? convertDateToBackend(item.toDate) : null,
     formTime: item.formTime,
     toTime: item.toTime,
   }))

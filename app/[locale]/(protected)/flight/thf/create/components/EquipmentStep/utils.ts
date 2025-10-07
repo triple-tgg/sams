@@ -2,6 +2,7 @@ import dayjs from 'dayjs'
 import { EquipmentFormData, defaultEquipment } from './types'
 import { dateTimeUtils } from '@/lib/dayjs'
 import { Equipment } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
+import { formatFromPicker } from '@/lib/utils/formatPicker'
 
 /**
  * Get default values for the equipment form with current date/time
@@ -11,17 +12,19 @@ export const getDefaultValues = (): EquipmentFormData => {
   const currentTime = dayjs().format('HH:mm')
 
   return {
-    equipments: [{
-      equipmentName: '',
-      hrs: '',
-      svc: '',
-      fromDate: currentDate,
-      fromTime: currentTime,
-      toDate: currentDate,
-      toTime: currentTime,
-      isLoan: false,
-      isSamsTool: false,
-    }]
+    equipments: [
+      //   {
+      //   equipmentName: '',
+      //   hrs: '',
+      //   svc: '',
+      //   fromDate: currentDate,
+      //   fromTime: currentTime,
+      //   toDate: currentDate,
+      //   toTime: currentTime,
+      //   isLoan: false,
+      //   isSamsTool: false,
+
+    ]
   }
 }
 
@@ -60,11 +63,12 @@ export const mapApiDataToEquipmentForm = (equipments: Equipment[]): EquipmentFor
       equipmentName: equipment.equipmentName || '',
       hrs: equipment.hrs?.toString() || '',
       svc: equipment.svc?.toString() || '',
-      fromDate: equipment.fromDate || currentDate,
+      fromDate: equipment.fromDate ? formatFromPicker(equipment.fromDate) : formatFromPicker(currentDate),
       fromTime: equipment.fromTime || currentTime,
-      toDate: equipment.toDate || currentDate,
+      toDate: equipment.toDate ? formatFromPicker(equipment.toDate) : formatFromPicker(currentDate),
       toTime: equipment.toTime || currentTime,
       isLoan: equipment.isLoan ?? false,
+      loanRemark: equipment.loanRemark || '',
       isSamsTool: equipment.isSamsTool ?? true,
     }))
   }

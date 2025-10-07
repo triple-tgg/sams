@@ -1,6 +1,7 @@
 import { LineMaintenanceThfResponse } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
 import { ServicesFormInputs } from './types'
 import { AircraftCheckType } from '@/lib/api/master/aircraft-check-types/airlines.interface'
+import { convertDateToBackend, formatFromPicker } from '@/lib/utils/formatPicker'
 
 type FluidFormData = ServicesFormInputs['fluid']
 
@@ -122,8 +123,8 @@ export const transformServicesDataToAPI = (data: ServicesFormInputs) => {
       staffCode: p.staffCode,
       name: p.name,
       type: p.type,
-      formDate: p.formDate,
-      toDate: p.toDate,
+      formDate: convertDateToBackend(p.formDate),
+      toDate: convertDateToBackend(p.toDate),
       formTime: p.formTime,
       toTime: p.toTime,
       remark: p.remark || "",
@@ -131,11 +132,11 @@ export const transformServicesDataToAPI = (data: ServicesFormInputs) => {
 
   const aircraftTowingInfo = data.aircraftTowing ?
     (data.aircraftTowingInfo || []).map(info => ({
-      onDate: info.onDate,
-      offDate: info.offDate,
+      onDate: convertDateToBackend(info.onDate),
+      offDate: convertDateToBackend(info.offDate),
       onTime: info.onTime,
       offTime: info.offTime,
-      bayForm: info.bayForm, // Transform bayForm to bayForm for API
+      bayFrom: info.bayFrom, // Transform bayFrom to bayFrom for API
       bayTo: info.bayTo,
     })) : []
 
@@ -240,8 +241,8 @@ export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse |
     staffCode: person.staff?.code || "",
     name: person.staff?.name || "",
     type: person.staff?.staffsType || "",
-    formDate: person.formDate || "",
-    toDate: person.toDate || "",
+    formDate: person.formDate ? formatFromPicker(person.formDate) : "",
+    toDate: person.toDate ? formatFromPicker(person.toDate) : "",
     formTime: person.formTime || "",
     toTime: person.toTime || "",
     remark: person.note || "",
@@ -249,11 +250,11 @@ export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse |
 
 
   const aircraftTowingInfo = aircraft?.aircraftTowing?.map(towing => ({
-    onDate: towing.onDate || "",
-    offDate: towing.offDate || "",
+    onDate: formatFromPicker(towing.onDate) || "",
+    offDate: formatFromPicker(towing.offDate) || "",
     onTime: towing.onTime || "",
     offTime: towing.offTime || "",
-    bayForm: towing.bayForm || "", // API field is bayForm, mapping to bayForm
+    bayFrom: towing.bayFrom || "", // API field is bayFrom, mapping to bayFrom
     bayTo: towing.bayTo || "", // Add bay to field
   })) || [];
 

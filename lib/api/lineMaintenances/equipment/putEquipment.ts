@@ -1,3 +1,4 @@
+import { convertDateToBackend } from '@/lib/utils/formatPicker'
 import apiClient from '../../../axios.config'
 
 // Interface สำหรับ Equipment data ที่จะส่งไป
@@ -68,10 +69,11 @@ export const transformEquipmentDataForAPI = (
     ...(index > 0 && { lineMaintenancesId }), // Add lineMaintenancesId for items after first
     isSamsTool: equipment.isSamsTool || false,
     isLoan: equipment.isLoan || false,
+    loanRemark: equipment.loanRemark || '',
     equipmentName: equipment.equipmentName || '',
     svc: equipment.svc || 0,
-    formDate: equipment.fromDate || '',
-    toDate: equipment.toDate || null,
+    formDate: equipment.fromDate ? convertDateToBackend(equipment.fromDate) : '',
+    toDate: equipment.toDate ? convertDateToBackend(equipment.toDate) : "",
     formTime: equipment.fromTime || '',
     toTime: equipment.toTime || null,
     hrs: equipment.hrs || 0

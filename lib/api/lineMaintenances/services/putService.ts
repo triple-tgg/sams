@@ -52,7 +52,7 @@ export interface AircraftTowing {
   aircraftDate: string;
   onTime: string;
   offTime: string;
-  bayForm?: string;
+  bayFrom?: string;
   bayTo?: string;
 }
 
@@ -283,7 +283,7 @@ export const createServiceRequestFromForm = (
           onTime: towing.onTime || "",
           offDate: towing.offDate || "",
           offTime: towing.offTime || "",
-          ...(towing.bayForm && { bayForm: towing.bayForm }),
+          ...(towing.bayFrom && { bayFrom: towing.bayFrom }),
           ...(towing.bayTo && { bayTo: towing.bayTo })
         }))
       })

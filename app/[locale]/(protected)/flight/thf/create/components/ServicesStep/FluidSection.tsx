@@ -1,5 +1,5 @@
 import React from 'react'
-import { UseFormReturn } from 'react-hook-form'
+import { Controller, UseFormReturn } from 'react-hook-form'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
@@ -8,6 +8,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PlusIcon, TrashIcon } from 'lucide-react'
 import { ServicesFormInputs, fluidOptions } from './types'
+import { CustomDateInput } from '@/components/ui/input-date/CustomDateInput'
+import { FieldError } from '@/components/ui/field-error'
 
 interface FluidSectionProps {
   form: UseFormReturn<ServicesFormInputs>
@@ -586,7 +588,7 @@ export const OperationalSections: React.FC<OperationalSectionsProps> = ({
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                    <FormField
+                    {/* <FormField
                       control={form.control}
                       name={`aircraftTowingInfo.${index}.onDate`}
                       render={({ field }) => (
@@ -599,7 +601,6 @@ export const OperationalSections: React.FC<OperationalSectionsProps> = ({
                         </FormItem>
                       )}
                     />
-
                     <FormField
                       control={form.control}
                       name={`aircraftTowingInfo.${index}.onTime`}
@@ -638,11 +639,82 @@ export const OperationalSections: React.FC<OperationalSectionsProps> = ({
                           <FormMessage />
                         </FormItem>
                       )}
-                    />
-
+                    /> */}
+                    <div className='col-span-12 grid grid-cols-1 md:grid-cols-12 gap-4'>
+                      <div className='col-span-6 flex flex-col'>
+                        <div className=''>
+                          <FormLabel>From *</FormLabel>
+                        </div>
+                        <div className='grid grid-cols-1 md:grid-cols-12 gap-4'>
+                          <div className='col-span-6'>
+                            <Controller
+                              name={`aircraftTowingInfo.${index}.onDate`}
+                              control={form.control}
+                              render={({ field, fieldState }) => (
+                                <>
+                                  <CustomDateInput
+                                    value={field.value}
+                                    onChange={field.onChange}
+                                    placeholder="DD-MMM-YYYY"
+                                  />
+                                  <FieldError msg={fieldState.error?.message} />
+                                </>
+                              )}
+                            />
+                          </div>
+                          <FormField
+                            control={form.control}
+                            name={`aircraftTowingInfo.${index}.onTime`}
+                            render={({ field }) => (
+                              <FormItem className='col-span-6'>
+                                <FormControl>
+                                  <Input type="time" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+                      <div className='col-span-6 flex flex-col'>
+                        <div className=''>
+                          <FormLabel>To *</FormLabel>
+                        </div>
+                        <div className='grid grid-cols-1 md:grid-cols-12 gap-4'>
+                          <div className='col-span-6'>
+                            <Controller
+                              name={`aircraftTowingInfo.${index}.offDate`}
+                              control={form.control}
+                              render={({ field, fieldState, formState }) => (
+                                <>
+                                  <CustomDateInput
+                                    value={field.value}
+                                    onChange={field.onChange}
+                                    placeholder="DD-MMM-YYYY"
+                                  />
+                                  <FieldError msg={fieldState.error?.message} />
+                                </>
+                              )}
+                            />
+                          </div>
+                          <FormField
+                            control={form.control}
+                            name={`aircraftTowingInfo.${index}.offTime`}
+                            render={({ field }) => (
+                              <FormItem className='col-span-6'>
+                                <FormControl >
+                                  <Input type="time" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+                    </div>
                     <FormField
                       control={form.control}
-                      name={`aircraftTowingInfo.${index}.bayForm`}
+                      name={`aircraftTowingInfo.${index}.bayFrom`}
                       render={({ field }) => (
                         <FormItem className='col-span-3'>
                           <FormLabel>Bay From *</FormLabel>

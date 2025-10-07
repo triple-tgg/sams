@@ -105,6 +105,7 @@ const AttachFileStep: React.FC<Props> = ({ lineMaintenanceId, flightInfosId, ini
   // Handle form submission with file data
   const onSubmit = (formData: AttachFileFormInputs) => {
     // Add completed file data to form before submission
+    console.log("onSubmit called with formData:", formData)
     const completedFiles = getCompletedFilesData()
 
     // Merge uploaded files with form data
@@ -221,7 +222,7 @@ const AttachFileStep: React.FC<Props> = ({ lineMaintenanceId, flightInfosId, ini
             {/* Form Actions */}
             <FormActions
               onBack={handleOnBackStep}
-              onSubmit={() => form.handleSubmit(onSubmit)()}
+              onSubmit={form.handleSubmit(onSubmit)}
               backText="← Back to Parts & Tools"
               submitText={isSubmitting ? 'Saving...' : 'Save'}
               isSubmitting={isSubmitting}

@@ -10,6 +10,7 @@ import { FlightFormData } from "@/lib/api/hooks/uselineMaintenancesQueryThfByFli
 import { useAircraftCheckMasterData } from '@/lib/api/hooks/useAircraftCheckMasterData'
 import CardContentStep from "../CardContentStep"
 import CardFormServicesStep from "./CardFormServicesStep"
+import { useStaffsTypesOptions } from "@/lib/api/hooks/useStaffsTypes"
 
 /**
  * Props for ServicesStep component
@@ -29,15 +30,17 @@ const ServicesStep = (props: ServicesStepProps) => {
 
   // Get aircraft check master data
   const { checkTypes, checkSubTypes, isLoadingCheckTypes, checkSubTypesError, checkTypesError, isLoadingCheckSubTypes } = useAircraftCheckMasterData()
+  const { options: staffsTypesOptions, isLoading: isLoadingStaffsTypes, hasOptions: hasOptionsStaffsTypes, error: staffsTypesError } = useStaffsTypesOptions()
 
   const checkTypesValuesOption = useMemo(() => { return { checkTypes, isLoadingCheckTypes, checkTypesError } }, [checkTypes, checkTypesError, isLoadingCheckTypes])
   const checkSubTypesValuesOption = useMemo(() => { return { checkSubTypes, isLoadingCheckSubTypes, checkSubTypesError } }, [checkSubTypes, checkSubTypesError, isLoadingCheckSubTypes])
+  const staffsTypesValuesOptions = useMemo(() => { return { staffsTypesOptions, isLoadingStaffsTypes, hasOptionsStaffsTypes, staffsTypesError } }, [staffsTypesOptions, isLoadingStaffsTypes, hasOptionsStaffsTypes, staffsTypesError])
 
 
-  const memoizedDefaultValues = useMemo(() => {
-    return getDefaultValues(checkTypes)
-  }, [checkTypes])
-  console.log("getDefaultValues(checkTypes)", memoizedDefaultValues)
+  // const memoizedDefaultValues = useMemo(() => {
+  //   return getDefaultValues(checkTypes)
+  // }, [checkTypes])
+
 
   // Don't render form until we have aircraft check types data
   const isDataReady = !isLoadingCheckTypes && !checkTypesError
@@ -80,6 +83,7 @@ const ServicesStep = (props: ServicesStepProps) => {
         acType={props.acType}
         lineMaintenanceId={props.lineMaintenanceId}
         checkTypesValuesOption={checkTypesValuesOption}
+        staffsTypesValuesOptions={staffsTypesValuesOptions}
         checkSubTypesValuesOption={checkSubTypesValuesOption}
       />
     </CardContentStep>

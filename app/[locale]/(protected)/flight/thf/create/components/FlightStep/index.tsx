@@ -58,8 +58,6 @@ interface Option {
 const FlightStep = (props: FlightStepProps) => {
 
   const { goNext, onSave } = useStep()
-  const searchParams = useSearchParams()
-  const hasLoadedData = useRef(false)
   // Form setup
   const {
     handleSubmit,
@@ -76,17 +74,6 @@ const FlightStep = (props: FlightStepProps) => {
 
   // Submission handler
   const { onSubmit, isPending } = useFlightSubmission(props.flightData, onSave, goNext);
-  // useEffect(() => {
-
-  // }, [props.formData])
-  // // Load existing flight data into form when available (only once)
-  // useEffect(() => {
-  //   if (existingFlightData && !loadingFlight && !hasLoadedData.current && !loadingAirlines && !loadingStatus && !loadingStations && !isLoadingAircraft) {
-  //     const sanitizedData = sanitizeFormData(existingFlightData);
-  //     reset(sanitizedData)
-  //     hasLoadedData.current = true
-  //   }
-  // }, [existingFlightData, loadingFlight, loadingStatus, loadingStations, isLoadingAircraft, loadingAirlines, reset])
 
   return (
     <CardContentStep

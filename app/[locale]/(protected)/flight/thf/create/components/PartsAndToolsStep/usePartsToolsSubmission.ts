@@ -51,14 +51,14 @@ export const usePartsToolsSubmission = ({
     const apiData = transformPartsToolsForApi(data)
 
     // Validate that we have at least one part/tool with required data
-    const hasValidItems = apiData.some(item => item.pathToolName.trim() !== '')
-    if (!hasValidItems) {
-      form.setError('partsTools.0.pathToolName', {
-        type: 'manual',
-        message: 'At least one part/tool name is required'
-      })
-      return
-    }
+    // const hasValidItems = apiData.some(item => item.pathToolName.trim() !== '')
+    // if (!hasValidItems) {
+    //   form.setError('partsTools.0.pathToolName', {
+    //     type: 'manual',
+    //     message: 'At least one part/tool name is required'
+    //   })
+    //   return
+    // }
 
     // Submit to API
     putPartsToolsMutation.mutate({

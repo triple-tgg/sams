@@ -4,6 +4,7 @@ import { z } from 'zod'
 export const partToolItemSchema = z.object({
   isSamsTool: z.boolean().default(false),
   isLoan: z.boolean().default(false),
+  loanRemark: z.string().max(200, "Loan remark cannot exceed 200 characters").optional().default(''),
   pathToolName: z.string().min(1, "Part/Tool name is required"),
   pathToolNo: z.string().optional().default(""),
   serialNoIn: z.string().optional().default(""),
@@ -19,7 +20,7 @@ export const partToolItemSchema = z.object({
 
 // Main form validation schema
 export const partsToolsFormSchema = z.object({
-  partsTools: z.array(partToolItemSchema).min(1, "At least one part/tool is required"),
+  partsTools: z.array(partToolItemSchema).max(20, "Maximum 20 part tool entries allowed").nullable().optional().default([]),
 })
 
 export type PartsToolsFormSchema = z.infer<typeof partsToolsFormSchema>

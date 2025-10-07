@@ -23,6 +23,7 @@ import { useAircraftCheckMasterData } from '@/lib/api/hooks/useAircraftCheckMast
 import { useSearchParams } from "next/navigation"
 import { getDefaultValues } from "./utils"
 import { AircraftCheckSubType, AircraftCheckType } from "@/lib/api/master/aircraft-check-types/airlines.interface"
+import { StaffTypeOption } from "@/lib/api/hooks/useStaffsTypes"
 
 // Determine if all required data is loaded
 const isDataReady = (loading: boolean, error: Error | null, checkTypesLoading: boolean, checkTypesError: Error | null) => {
@@ -51,6 +52,12 @@ interface Props {
     isLoadingCheckTypes: boolean;
     checkTypesError: Error | null;
   };
+  staffsTypesValuesOptions: {
+    staffsTypesOptions: StaffTypeOption[];
+    isLoadingStaffsTypes: boolean;
+    staffsTypesError: Error | null;
+    hasOptionsStaffsTypes: boolean;
+  };
 }
 
 const CardFormServicesStep = (props: Props) => {
@@ -66,19 +73,26 @@ const CardFormServicesStep = (props: Props) => {
     defaultValues: props.initialData || getDefaultValues([]),
     mode: "onChange",
   })
-
-
   useEffect(() => {
     if (props.initialData) {
       // console.log('ServicesStep: Using transformed data', transformedData)
       form.reset(props.initialData)
       console.log('ServicesStep: Form reset completed')
 
-    } else if (!props.loading && !props.flightError) {
-      console.log('ServicesStep: No data available, using default values')
-      form.reset(getDefaultValues([]))
     }
-  }, [form, props.flightError, props.initialData, props.loading])
+  }, [form, props.initialData])
+
+  // useEffect(() => {
+  //   if (props.initialData) {
+  //     // console.log('ServicesStep: Using transformed data', transformedData)
+  //     form.reset(props.initialData)
+  //     console.log('ServicesStep: Form reset completed')
+
+  //   } else if (!props.loading && !props.flightError) {
+  //     console.log('ServicesStep: No data available, using default values')
+  //     form.reset(getDefaultValues([]))
+  //   }
+  // }, [form, props.flightError, props.initialData, props.loading])
 
 
   // Console log form errors for debugging
@@ -185,6 +199,7 @@ const CardFormServicesStep = (props: Props) => {
           form={form}
           onAdd={handleAddPersonnel}
           onRemove={handleRemovePersonnel}
+          staffsTypesValuesOptions={props.staffsTypesValuesOptions}
         />
 
         <Separator />

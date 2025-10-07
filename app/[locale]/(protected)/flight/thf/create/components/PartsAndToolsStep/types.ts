@@ -1,5 +1,8 @@
 // Types for PartsAndTools Step
 
+import { dateTimeUtils } from "@/lib/dayjs"
+import { formatFromPicker } from "@/lib/utils/formatPicker"
+
 export interface PartsToolsFormInputs {
   partsTools: PartToolItem[]
 }
@@ -7,6 +10,7 @@ export interface PartsToolsFormInputs {
 export interface PartToolItem {
   isSamsTool: boolean
   isLoan: boolean
+  loanRemark: string
   pathToolName: string
   pathToolNo: string
   serialNoIn: string
@@ -27,8 +31,9 @@ export interface DropdownOption {
 
 // Default item for adding new parts/tools
 export const defaultPartToolItem: PartToolItem = {
-  isSamsTool: false,
+  isSamsTool: true,
   isLoan: false,
+  loanRemark: '',
   pathToolName: '',
   pathToolNo: '',
   serialNoIn: '',
@@ -36,8 +41,8 @@ export const defaultPartToolItem: PartToolItem = {
   qty: 0,
   equipmentNo: '',
   hrs: 0,
-  formDate: null,
-  toDate: null,
+  formDate: formatFromPicker(dateTimeUtils.getCurrentDate()),
+  toDate: formatFromPicker(dateTimeUtils.getCurrentDate()),
   formTime: null,
   toTime: null,
 }

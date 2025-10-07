@@ -4,6 +4,7 @@ import { ServicesFormInputs } from './types'
 import { transformServicesDataToAPI } from './utils'
 import { usePutServiceFromForm } from '@/lib/api/hooks/usePutService'
 import { dateTimeUtils } from '@/lib/dayjs'
+import { formatFromPicker } from '@/lib/utils/formatPicker'
 
 interface UseServicesSubmissionProps {
   form: UseFormReturn<ServicesFormInputs>
@@ -69,7 +70,7 @@ export const useServicesSubmission = ({
       })
 
       // Show success message (additional to hook's toast)
-      toast.success("Services data saved and submitted successfully")
+      // toast.success("Services data saved and submitted successfully")
 
       // Proceed to next step
       onNextStep()
@@ -192,11 +193,11 @@ export const useServicesSubmission = ({
     form.setValue('aircraftTowingInfo', [
       ...currentInfo,
       {
-        onDate: dateTimeUtils.getCurrentDate(),
-        offDate: dateTimeUtils.getCurrentDate(),
+        onDate: formatFromPicker(dateTimeUtils.getCurrentDate()),
+        offDate: formatFromPicker(dateTimeUtils.getCurrentDate()),
         onTime: "",
         offTime: "",
-        bayForm: "",
+        bayFrom: "",
         bayTo: "",
       }
     ])

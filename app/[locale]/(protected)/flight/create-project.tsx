@@ -37,6 +37,12 @@ import { useAirlineOptions } from "@/lib/api/hooks/useAirlines";
 import { useStationsOptions } from "@/lib/api/hooks/useStations";
 import { useStatusOptions } from "@/lib/api/hooks/useStatus";
 import { FieldError } from "@/components/ui/field-error";
+import { convertDateToBackend } from "@/lib/utils/formatPicker";
+import { CustomDateInput } from "@/components/ui/input-date/CustomDateInput";
+import { SearchableSelectField } from "@/components/ui/search-select";
+import { useAircraftTypes } from "@/lib/api/hooks/useAircraftTypes";
+
+
 
 // ------------------------------------------------------
 // Types
@@ -53,13 +59,13 @@ const FormSchema = z
     acType: z.string().trim().optional().default(""),
 
     flightArrival: z.string().trim().min(2, "Required"),
-    arrivalDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/g, "YYYY-MM-DD"),
+    arrivalDate: z.string().regex(/^\d{2}\/\d{2}\/\d{4}$/g, "DD/MMM/YYYY"),
     sta: z.string().regex(/^\d{2}:\d{2}$/g, "HH:mm"),
     ata: z.string().regex(/^\d{2}:\d{2}$/g, "HH:mm").optional().or(z.literal("")),
     routeFrom: z.object({ value: z.string(), label: z.string() }).nullable().optional(),
 
     flightDeparture: z.string().trim().optional().default(""),
-    departureDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/g, "YYYY-MM-DD").optional().or(z.literal("")),
+    departureDate: z.string().regex(/^\d{2}\/\d{2}\/\d{4}$/g, "DD/MMM/YYYY").optional().or(z.literal("")),
     std: z.string().regex(/^\d{2}:\d{2}$/g, "HH:mm").optional().or(z.literal("")),
     atd: z.string().regex(/^\d{2}:\d{2}$/g, "HH:mm").optional().or(z.literal("")),
     routeTo: z.object({ value: z.string(), label: z.string() }).nullable().optional(),
@@ -173,11 +179,11 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
       acReg: (values.acReg ?? "").trim(),
       acType: (values.acType ?? "").trim(),
       arrivalFlightNo: values.flightArrival.trim(),
-      arrivalDate: values.arrivalDate,
+      arrivalDate: convertDateToBackend(values.arrivalDate),
       arrivalStaTime: sendTime(values.sta),
       arrivalAtaTime: sendTime(values.ata),
       departureFlightNo: (values.flightDeparture ?? "").trim(),
-      departureDate: values.departureDate ?? "",
+      departureDate: convertDateToBackend(values.departureDate ?? ""),
       departureStdTime: sendTime(values.std),
       departureAtdTime: sendTime(values.atd),
       bayNo: (values.bay ?? "").trim(),
@@ -204,7 +210,12 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
       }
     );
   };
-
+  const {
+    options: aircraftOptions,
+    isLoading: isLoadingAircraft,
+    usingFallback: acTypeCodeUsingFallback,
+    error: acTypeCodeError
+  } = useAircraftTypes();
   return (
     <Dialog
       open={open}
@@ -223,7 +234,7 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
         }}
       >
         <DialogHeader>
-          <DialogTitle>Create Project</DialogTitle>
+          <DialogTitle>Add Flight</DialogTitle>
         </DialogHeader>
         <DialogDescription className="hidden" />
         <Separator className="mb-4" />
@@ -319,9 +330,16 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                 <FieldError msg={errors.acReg?.message} />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="acType">A/C Type</Label>
-                <Input {...register("acType")} placeholder="A/C Type" autoComplete="off" />
-                <FieldError msg={errors.acType?.message} />
+                <SearchableSelectField
+                  name="aircraftType"
+                  control={control}
+                  label="A/C Type"
+                  placeholder="Select A/C Type"
+                  options={aircraftOptions}
+                  isLoading={isLoadingAircraft}
+                  errorMessage={acTypeCodeError?.message}
+                  usingFallback={acTypeCodeUsingFallback}
+                />
               </div>
             </div>
 
@@ -340,7 +358,17 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="arrivalDate">Date</Label>
-                    <Input type="date" {...register("arrivalDate")} />
+                    <Controller
+                      name="arrivalDate"
+                      control={control}
+                      render={({ field }) => (
+                        <CustomDateInput
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="DD-MMM-YYYY (click to pick)"
+                        />
+                      )}
+                    />
                     <FieldError msg={errors.arrivalDate?.message} />
                   </div>
                   <div className="space-y-1">
@@ -353,7 +381,7 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                     <Input type="time" {...register("ata")} />
                     <FieldError msg={errors.ata?.message} />
                   </div>
-                  <div className="space-y-2 col-span-2">
+                  {/* <div className="space-y-2 col-span-2">
                     <Label htmlFor="routeFrom">Route From</Label>
                     <Controller
                       name="routeFrom"
@@ -391,7 +419,7 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                         ⚠️ Using offline station data due to API connection issue
                       </p>
                     )}
-                  </div>
+                  </div> */}
                 </div>
               </div>
 
@@ -406,7 +434,17 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="departureDate">Date</Label>
-                    <Input type="date" {...register("departureDate")} />
+                    <Controller
+                      name="departureDate"
+                      control={control}
+                      render={({ field }) => (
+                        <CustomDateInput
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="DD-MMM-YYYY (click to pick)"
+                        />
+                      )}
+                    />
                     <FieldError msg={errors.departureDate?.message} />
                   </div>
                   <div className="space-y-1">
@@ -419,7 +457,7 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                     <Input type="time" {...register("atd")} />
                     <FieldError msg={errors.atd?.message} />
                   </div>
-                  <div className="space-y-2 col-span-2">
+                  {/* <div className="space-y-2 col-span-2">
                     <Label htmlFor="routeTo">Route To</Label>
                     <Controller
                       name="routeTo"
@@ -457,7 +495,7 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                         ⚠️ Using offline station data due to API connection issue
                       </p>
                     )}
-                  </div>
+                  </div> */}
                 </div>
               </div>
             </div>

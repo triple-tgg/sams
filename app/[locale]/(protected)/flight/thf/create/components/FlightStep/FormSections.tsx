@@ -1,5 +1,10 @@
-import { SelectField, InputField, StringSelectField } from './FormFields'
+import { Label } from '@/components/ui/label';
+import { SelectField, InputField, StringSelectField, InputFieldDate } from './FormFields'
 import type { Option } from './types'
+import { Controller } from 'react-hook-form';
+import { CustomDateInput } from '@/components/ui/input-date/CustomDateInput';
+import { FieldError } from '@/components/ui/field-error';
+import { SearchableSelectField } from '@/components/ui/search-select';
 
 interface CustomerStationSectionProps {
   control: any;
@@ -15,7 +20,7 @@ interface CustomerStationSectionProps {
   stationsUsingFallback: boolean;
   aircraftOptions: Option[];
   isLoadingAircraft: boolean;
-  acTypeCodeUsingFallback: boolean;
+  acTypeCodeUsingFallback: boolean | "" | undefined;
 }
 
 export const CustomerStationSection = ({
@@ -66,17 +71,16 @@ export const CustomerStationSection = ({
       placeholder="A/C Reg"
       errorMessage={errors.acReg?.message}
     />
-
-    <SelectField
-      name="acTypeCode"
+    <SearchableSelectField
+      name="aircraftType"
       control={control}
       label="A/C Type"
       placeholder="Select A/C Type"
       options={aircraftOptions}
       isLoading={isLoadingAircraft}
-      usingFallback={acTypeCodeUsingFallback}
-      errorMessage={errors.acTypeCode?.message}
       error={acTypeCodeError}
+      errorMessage={errors.acTypeCode?.message}
+      usingFallback={acTypeCodeUsingFallback}
     />
   </div>
 );
@@ -126,14 +130,20 @@ export const FlightSection = ({
         placeholder="Flight No"
         errorMessage={errors[flightField]?.message}
       />
-
-      <InputField
+      <InputFieldDate
+        name={dateField}
+        control={control}
+        label="Date"
+        placeholder="DD-MMM-YYYY (click to pick)"
+        errorMessage={errors[dateField]?.message}
+      />
+      {/* <InputField
         name={dateField}
         control={control}
         label="Date"
         type="date"
         errorMessage={errors[dateField]?.message}
-      />
+      /> */}
 
       <InputField
         name={stdField}
@@ -151,7 +161,7 @@ export const FlightSection = ({
         errorMessage={errors[atdField]?.message}
       />
 
-      <div className="col-span-2">
+      {/* <div className="col-span-2">
         <StringSelectField
           name={routeField}
           control={control}
@@ -163,7 +173,7 @@ export const FlightSection = ({
           usingFallback={stationsUsingFallback}
           errorMessage={errors[routeField]?.message}
         />
-      </div>
+      </div> */}
     </div>
   </div>
 );

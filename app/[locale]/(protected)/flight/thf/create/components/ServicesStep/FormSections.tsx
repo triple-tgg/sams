@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { UseFormReturn } from 'react-hook-form'
+import { Controller, UseFormReturn } from 'react-hook-form'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
@@ -14,6 +14,8 @@ import { useUploadFile } from '@/lib/api/hooks/useFileUpload'
 import { AircraftCheckSubType, AircraftCheckType } from '@/lib/api/master/aircraft-check-types/airlines.interface'
 import { AdditionalDefectAttachFile } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { StaffTypeOption } from '@/lib/api/hooks/useStaffsTypes'
+import { CustomDateInput } from '@/components/ui/input-date/CustomDateInput'
 
 
 
@@ -966,7 +968,14 @@ export const PersonnelSection: React.FC<{
   form: UseFormReturn<ServicesFormInputs>
   onAdd: () => void
   onRemove: (index: number) => void
-}> = ({ form, onAdd, onRemove }) => {
+  staffsTypesValuesOptions: {
+    staffsTypesOptions: StaffTypeOption[];
+    isLoadingStaffsTypes: boolean;
+    staffsTypesError: Error | null;
+    hasOptionsStaffsTypes: boolean;
+  }
+}> = ({ form, onAdd, onRemove, staffsTypesValuesOptions }) => {
+
   const addPersonnels = form.watch('addPersonnels')
   const personnel = form.watch('personnel') || []
 
@@ -1099,62 +1108,158 @@ export const PersonnelSection: React.FC<{
                         <FormItem>
                           <FormLabel>Type *</FormLabel>
                           <FormControl>
-                            <Input
-                              placeholder="Staff position/type"
-                              {...field}
-                              readOnly
-                              className="bg-gray-50"
-                            />
+                            <Select
+                              onValueChange={(value) => {
+                                console.log("field.value:", field.value)
+                                field.onChange(value)
+                                // Clear sub types if TR is selected
+                                if (value !== "TR") {
+                                  form.setValue(`aircraftChecks.${index}.maintenanceSubTypes`, [])
+                                }
+                              }}
+                              value={field.value || ""}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select maintenance type" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {staffsTypesValuesOptions.staffsTypesOptions && !!staffsTypesValuesOptions.hasOptionsStaffsTypes ? (
+                                  staffsTypesValuesOptions.staffsTypesOptions.map((option) => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                      {option.label}
+                                    </SelectItem>
+                                  ))
+                                ) : (
+                                  <SelectItem value="-" disabled>
+                                    No staffs types available
+                                  </SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
+                  <div className='col-span-12 grid grid-cols-1 md:grid-cols-12 gap-4'>
+                    <div className='col-span-6 flex flex-col'>
+                      <div className=''>
+                        <FormLabel>From *</FormLabel>
+                      </div>
+                      <div className='grid grid-cols-1 md:grid-cols-12 gap-4'>
+                        <div className='col-span-6'>
+                          <Controller
+                            name={`personnel.${index}.formDate`}
+                            control={form.control}
+                            render={({ field }) => (
+                              <CustomDateInput
+                                value={field.value}
+                                onChange={field.onChange}
+                                placeholder="DD-MMM-YYYY"
+                              />
+                            )}
+                          />
+                        </div>
+                        <FormField
+                          control={form.control}
+                          name={`personnel.${index}.formTime`}
+                          render={({ field }) => (
+                            <FormItem className='col-span-6'>
+                              <FormControl>
+                                <Input type="time" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+                    <div className='col-span-6 flex flex-col'>
+                      <div className=''>
+                        <FormLabel>To *</FormLabel>
+                      </div>
+                      <div className='grid grid-cols-1 md:grid-cols-12 gap-4'>
+                        <div className='col-span-6'>
+                          <Controller
+                            name={`personnel.${index}.toDate`}
+                            control={form.control}
+                            render={({ field }) => (
+                              <CustomDateInput
+                                value={field.value}
+                                onChange={field.onChange}
+                                placeholder="DD-MMM-YYYY"
+                              />
+                            )}
+                          />
+                        </div>
+                        <FormField
+                          control={form.control}
+                          name={`personnel.${index}.toTime`}
+                          render={({ field }) => (
+                            <FormItem className='col-span-6'>
+                              <FormControl >
+                                <Input type="time" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+                  </div>
 
-                  <div className='col-span-6  grid grid-cols-1 md:grid-cols-12 gap-4'>
-                    <div className='col-span-12'> <FormLabel>From *</FormLabel> </div>
-                    <FormField
-                      control={form.control}
-                      name={`personnel.${index}.formDate`}
-                      render={({ field }) => (
-                        <FormItem className='col-span-6'>
-                          <FormControl>
-                            <Input type="date" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name={`personnel.${index}.formTime`}
-                      render={({ field }) => (
-                        <FormItem className='col-span-6'>
-                          <FormControl>
-                            <Input type="time" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  {/* <div className='col-span-6  grid grid-cols-1 md:grid-cols-12 gap-4'>
+                    <div className='col-span-12'> <FormLabel>From *</FormLabel></div>
+                    <div className='col-span-12 flex w-full'>
+                      <div className='w-1/2'>
+                        <Controller
+                          name={`personnel.${index}.formDate`}
+                          control={form.control}
+                          render={({ field }) => (
+                            <CustomDateInput
+                              value={field.value}
+                              onChange={field.onChange}
+                              placeholder="DD-MMM-YYYY"
+                              className='col-span-6'
+                            />
+                          )}
+                        />
+                      </div>
+                      <FormField
+                        control={form.control}
+                        name={`personnel.${index}.formTime`}
+                        render={({ field }) => (
+                          <FormItem className='w-1/2'>
+                            <FormControl>
+                              <Input type="time" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </div>
                   <div className='col-span-6 grid grid-cols-1 md:grid-cols-12 gap-4'>
                     <div className='col-span-12'>
                       <FormLabel>To *</FormLabel>
                     </div>
-                    <FormField
-                      control={form.control}
-                      name={`personnel.${index}.toDate`}
-                      render={({ field }) => (
-                        <FormItem className='col-span-6'>
-                          <FormControl>
-                            <Input type="date" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <div className='col-span-6'>
+                      <Controller
+                        name={`personnel.${index}.toDate`}
+                        control={form.control}
+                        render={({ field }) => (
+                          <CustomDateInput
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="DD-MMM-YYYY"
+                            className='col-span-6'
+                          />
+                        )}
+                      />
+                    </div>
                     <FormField
                       control={form.control}
                       name={`personnel.${index}.toTime`}
@@ -1167,7 +1272,7 @@ export const PersonnelSection: React.FC<{
                         </FormItem>
                       )}
                     />
-                  </div>
+                  </div> */}
 
                   <FormField
                     control={form.control}

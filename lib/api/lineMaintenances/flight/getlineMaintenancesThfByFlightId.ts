@@ -51,7 +51,7 @@ export interface FluidServicing {
 }
 
 export interface AircraftTowing {
-  bayForm: string | null; // Changed from optional to explicit null
+  bayFrom: string | null; // Changed from optional to explicit null
   bayTo: string | null; // Changed from optional to explicit null
   onDate: string;
   offDate: string;

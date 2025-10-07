@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
@@ -18,10 +18,11 @@ import { useEquipmentSubmission } from './useEquipmentSubmission'
 import { usePutEquipmentWithLoading } from '@/lib/api/hooks/usePutEquipment'
 import { toast } from '@/components/ui/use-toast'
 import CardContentStep from '../CardContentStep'
+import { Switch } from '@/components/ui/switch'
 
 export default function EquipmentStep(props: EquipmentStepProps) {
   const { goNext, goBack, onSave } = useStep()
-
+  const [isEquipment, setIsEquipment] = useState(false)
   // Initialize form with validation
   const form = useForm<EquipmentFormData>({
     resolver: zodResolver(equipmentFormSchema),
@@ -87,6 +88,11 @@ export default function EquipmentStep(props: EquipmentStepProps) {
   }, [form.formState.errors])
 
   const equipments = form.watch('equipments')
+  useEffect(() => {
+    if (equipments && equipments.length === 1) {
+      setIsEquipment(true)
+    }
+  }, [equipments])
 
   return (
     <CardContentStep
@@ -110,59 +116,75 @@ export default function EquipmentStep(props: EquipmentStepProps) {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                  {equipments?.length || 0}/20
-                </div>
+              <div className="flex items-center gap-2 pr-10">
+                {/* <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium"> */}
+                {/* {equipments?.length || 0}/20 */}
+                <Switch
+                  checked={isEquipment}
+                  onCheckedChange={(checked) => {
+                    if (!checked) {
+                      form.setValue('equipments', [])
+                    }
+                    if (checked) {
+                      handleAddEquipment()
+                    }
+                    setIsEquipment(checked)
+                  }}
+                />
+                {/* </div> */}
               </div>
             </div>
           </div>
 
           {/* Equipment Cards */}
-          <div className="space-y-6">
-            {equipments?.map((_, index) => {
-              const hasEquipmentErrors = form.formState.errors.equipments?.[index]
-              return (
-                <div key={index} className="relative">
-                  <div className={`absolute left-2 -top-2 w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold shadow-lg z-10 text-white ${hasEquipmentErrors ? 'bg-red-600' : 'bg-blue-600'
-                    }`}>
-                    {hasEquipmentErrors ? '!' : index + 1}
-                  </div>
-                  <EquipmentCard
-                    index={index}
-                    control={form.control}
-                    register={form.register}
-                    watch={form.watch}
-                    setValue={form.setValue}
-                    onRemove={handleRemoveEquipment}
-                    canRemove={equipments.length > 1}
-                    errors={form.formState.errors}
-                  />
-                </div>
-              )
-            })}
-          </div>
+          {!!isEquipment && (
+            <>
+              <div className="space-y-6">
+                {equipments?.map((_, index) => {
+                  const hasEquipmentErrors = form.formState.errors.equipments?.[index]
+                  return (
+                    <div key={index} className="relative">
+                      <div className={`absolute left-2 -top-2 w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold shadow-lg z-10 text-white ${hasEquipmentErrors ? 'bg-red-600' : 'bg-blue-600'
+                        }`}>
+                        {hasEquipmentErrors ? '!' : index + 1}
+                      </div>
+                      <EquipmentCard
+                        index={index}
+                        control={form.control}
+                        register={form.register}
+                        watch={form.watch}
+                        setValue={form.setValue}
+                        onRemove={handleRemoveEquipment}
+                        canRemove={equipments.length > 1}
+                        errors={form.formState.errors}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
 
-          {/* Add Equipment Button */}
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 hover:bg-blue-50/50 transition-all duration-200">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleAddEquipment}
-              disabled={isLoading || equipments?.length >= 20}
-              className="px-8 py-3 h-auto border-blue-300 text-blue-700 hover:bg-blue-100 hover:border-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Plus className="mr-2 h-5 w-5" />
-              Add New Equipment
-              <span className="ml-2 text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">
-                {equipments?.length || 0}/20
-              </span>
-            </Button>
-            {equipments?.length >= 20 && (
-              <p className="text-sm text-gray-500 mt-2">Maximum equipment entries reached</p>
-            )}
-          </div>
 
+              {/* Add Equipment Button */}
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 hover:bg-blue-50/50 transition-all duration-200">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleAddEquipment}
+                  disabled={isLoading || equipments?.length >= 20}
+                  className="px-8 py-3 h-auto border-blue-300 text-blue-700 hover:bg-blue-100 hover:border-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Plus className="mr-2 h-5 w-5" />
+                  Add New Equipment
+                  <span className="ml-2 text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">
+                    {equipments?.length || 0}/20
+                  </span>
+                </Button>
+                {equipments?.length >= 20 && (
+                  <p className="text-sm text-gray-500 mt-2">Maximum equipment entries reached</p>
+                )}
+              </div>
+            </>
+          )}
           {/* Form Actions */}
           <FormActions
             onBack={handleOnBackStep}

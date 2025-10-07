@@ -9,6 +9,9 @@ import { EquipmentFormData } from './types'
 import { useEquipmentSearch } from '@/lib/api/hooks/useEquipment'
 import { dateTimeUtils } from '@/lib/dayjs'
 import dayjs from 'dayjs'
+import { CustomDateInput } from '@/components/ui/input-date/CustomDateInput'
+import { convertDateToBackend } from '@/lib/utils/formatPicker'
+import { Textarea } from '@/components/ui/textarea'
 
 interface EquipmentCardProps {
   index: number
@@ -211,6 +214,7 @@ export const EquipmentCard: React.FC<EquipmentCardProps> = ({
   const fromTime = watch(`equipments.${index}.fromTime`)
   const toDate = watch(`equipments.${index}.toDate`)
   const toTime = watch(`equipments.${index}.toTime`)
+  const isLoan = watch(`equipments.${index}.isLoan`)
 
   // Function to calculate hours between two UTC date/time combinations
   const calculateHours = (fromDate: string, fromTime: string, toDate: string, toTime: string): string => {
@@ -254,7 +258,7 @@ export const EquipmentCard: React.FC<EquipmentCardProps> = ({
 
   // Auto-calculate hours when date/time fields change
   useEffect(() => {
-    const calculatedHours = calculateHours(fromDate, fromTime, toDate, toTime)
+    const calculatedHours = calculateHours(convertDateToBackend(fromDate), fromTime, convertDateToBackend(toDate), toTime)
     if (calculatedHours !== '') {
       setValue(`equipments.${index}.hrs`, calculatedHours)
     }
@@ -335,7 +339,21 @@ export const EquipmentCard: React.FC<EquipmentCardProps> = ({
               )}
             />
           </div>
-
+          {isLoan && (
+            <div className="col-span-2">
+              <Label htmlFor={`equipments.${index}.svc`} className="text-sm font-medium text-gray-700 mb-2 block">
+                Loan Remark
+              </Label>
+              <Textarea
+                id={`equipments.${index}.loanRemark`}
+                {...register(`equipments.${index}.loanRemark` as const)}
+                placeholder="Enter loan remark"
+                className={`focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${equipmentErrors?.loanRemark ? 'border-red-500 bg-red-50' : ''
+                  }`}
+              />
+              <FieldError message={equipmentErrors?.loanRemark?.message} />
+            </div>
+          )}
         </div>
       </div>
 
@@ -403,12 +421,10 @@ export const EquipmentCard: React.FC<EquipmentCardProps> = ({
                   control={control}
                   name={`equipments.${index}.fromDate` as const}
                   render={({ field }) => (
-                    <Input
-                      type="date"
-                      {...field}
-                      id={`equipments.${index}.fromDate`}
-                      className={`focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${equipmentErrors?.fromDate ? 'border-red-500 bg-red-50' : ''
-                        }`}
+                    <CustomDateInput
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder={"DD/MMM/YYYY"}
                     />
                   )}
                 />
@@ -439,12 +455,10 @@ export const EquipmentCard: React.FC<EquipmentCardProps> = ({
                   control={control}
                   name={`equipments.${index}.toDate` as const}
                   render={({ field }) => (
-                    <Input
-                      type="date"
-                      {...field}
-                      id={`equipments.${index}.toDate`}
-                      className={`focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${equipmentErrors?.toDate ? 'border-red-500 bg-red-50' : ''
-                        }`}
+                    <CustomDateInput
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder={"DD/MMM/YYYY"}
                     />
                   )}
                 />

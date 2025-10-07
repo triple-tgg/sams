@@ -39,7 +39,6 @@ const StepForm = () => {
     equipmentData,
     data
   } = useLineMaintenancesQueryThfByFlightId({ flightInfosId });
-  console.log("useLineMaintenancesQueryThfByFlightId:", { equipmentData, flightInfosId, loadingFlight, flightError, existingFlightData, flightData })
 
   const {
     options: customerOptions,

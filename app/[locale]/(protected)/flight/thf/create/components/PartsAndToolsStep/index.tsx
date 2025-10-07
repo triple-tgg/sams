@@ -116,7 +116,6 @@ const PartsAndToolsStep: React.FC<PartsAndToolsStepProps> = (props) => {
       {!props.loading && !props.flightError && (
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-
             {/* Form Validation Debug Info */}
             {process.env.NODE_ENV === 'development' && Object.keys(form.formState.errors).length > 0 && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 mb-4">
@@ -135,7 +134,7 @@ const PartsAndToolsStep: React.FC<PartsAndToolsStepProps> = (props) => {
               onReset={() => {
                 form.reset(memoizedDefaultValues)
               }}
-              onSubmit={form.handleSubmit(handleSubmit)}
+              onSubmit={() => form.handleSubmit(handleSubmit)()}
               backText="← Back to Equipment"
               submitText={isSubmitting ? 'Saving...' : 'Next Step →'}
               resetText="Reset"

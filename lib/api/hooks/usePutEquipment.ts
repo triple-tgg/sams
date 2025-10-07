@@ -55,6 +55,9 @@ export const usePutEquipment = (options: UsePutEquipmentOptions = {}) => {
         queryKey: ['lineMaintenances', variables.lineMaintenancesId]
       })
       queryClient.invalidateQueries({
+        queryKey: ["lineMaintenancesThf"]
+      });
+      queryClient.invalidateQueries({
         queryKey: ['equipment']
       })
 

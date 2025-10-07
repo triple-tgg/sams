@@ -2,13 +2,12 @@ import { toast } from '@/components/ui/use-toast'
 import { usePushThf } from '@/lib/api/hooks/usePushThf'
 import type { Step1FormInputs } from './types'
 import { sendTime } from './utils'
+import { convertDateToBackend } from '@/lib/utils/formatPicker';
 
 export const useFlightSubmission = (flightData: any, onSave: (data: any) => void, goNext: () => void) => {
   const { mutate, isPending, error: mError } = usePushThf();
 
   const onSubmit = (data: Step1FormInputs) => {
-    // Prepare data for push THF API
-    console.log("onSubmit", flightData)
     const pushThfData = {
       flightsId: flightData?.flightsId || 0,
       flightInfosId: flightData?.flightInfosId || 0,
@@ -17,11 +16,11 @@ export const useFlightSubmission = (flightData: any, onSave: (data: any) => void
       acReg: data.acReg || "",
       acTypeCode: data.acTypeCode?.value || "",
       arrivalFlightNo: data.flightArrival || "",
-      arrivalDate: data.arrivalDate || "",
+      arrivalDate: data.arrivalDate ? convertDateToBackend(data.arrivalDate) : "",
       arrivalStaTime: sendTime(data.sta),
       arrivalAtaTime: sendTime(data.ata),
       departureFlightNo: data.flightDeparture || "",
-      departureDate: data.departureDate || "",
+      departureDate: data.departureDate ? convertDateToBackend(data.departureDate) : "",
       departureStdTime: sendTime(data.std),
       departureAtdTime: sendTime(data.atd),
       bayNo: data.bay || "",
@@ -32,15 +31,13 @@ export const useFlightSubmission = (flightData: any, onSave: (data: any) => void
       routeTo: data.routeTo || "",
     };
 
-    console.log("Submitting THF data:", pushThfData);
-
     // Call push THF API
     mutate(pushThfData, {
       onSuccess: (response) => {
-        toast({
-          title: "Success",
-          description: `THF ${data.thfNumber} has been saved successfully.`,
-        });
+        // toast({
+        //   title: "Success",
+        //   description: `THF ${data.thfNumber} has been saved successfully.`,
+        // });
 
         // console.log("Push THF success:", response);
 
@@ -56,8 +53,6 @@ export const useFlightSubmission = (flightData: any, onSave: (data: any) => void
           title: "Failed to save THF",
           description: error?.message || "An error occurred while saving THF data.",
         });
-
-        console.error("Push THF error:", error);
       },
     });
   };

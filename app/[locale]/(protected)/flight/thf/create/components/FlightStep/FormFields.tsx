@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select"
 import { FieldError } from '@/components/ui/field-error'
 import type { Option } from './types'
+import { CustomDateInput } from '@/components/ui/input-date/CustomDateInput'
 
 interface SelectFieldProps {
   name: string;
@@ -199,3 +200,32 @@ export const TextareaField = ({
     <FieldError msg={errorMessage} />
   </div>
 );
+
+interface InputFieldDateProps {
+  name: string;
+  control: any;
+  label: string;
+  placeholder: string;
+  error?: string;
+  usingFallback?: boolean;
+  errorMessage?: string;
+}
+export const InputFieldDate = (props: InputFieldDateProps) => {
+  return (
+    <div className="space-y-1">
+      <Label htmlFor={props.name}>Date</Label>
+      <Controller
+        name={props.name}
+        control={props.control}
+        render={({ field }) => (
+          <CustomDateInput
+            value={field.value}
+            onChange={field.onChange}
+            placeholder={props.placeholder}
+          />
+        )}
+      />
+      <FieldError msg={props.errorMessage} />
+    </div>
+  )
+}
