@@ -77,23 +77,8 @@ const CardFormServicesStep = (props: Props) => {
     if (props.initialData) {
       // console.log('ServicesStep: Using transformed data', transformedData)
       form.reset(props.initialData)
-      console.log('ServicesStep: Form reset completed')
-
     }
   }, [form, props.initialData])
-
-  // useEffect(() => {
-  //   if (props.initialData) {
-  //     // console.log('ServicesStep: Using transformed data', transformedData)
-  //     form.reset(props.initialData)
-  //     console.log('ServicesStep: Form reset completed')
-
-  //   } else if (!props.loading && !props.flightError) {
-  //     console.log('ServicesStep: No data available, using default values')
-  //     form.reset(getDefaultValues([]))
-  //   }
-  // }, [form, props.flightError, props.initialData, props.loading])
-
 
   // Console log form errors for debugging
   useEffect(() => {
@@ -107,7 +92,6 @@ const CardFormServicesStep = (props: Props) => {
     const subscription = form.watch((value, { name, type }) => {
       if (type === 'change') {
         console.log("value", value)
-        console.log('📝 Form field changed:', value, { name, value: value[name as keyof ServicesFormInputs] })
       }
     })
     return () => subscription.unsubscribe()

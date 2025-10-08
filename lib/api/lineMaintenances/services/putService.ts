@@ -219,17 +219,12 @@ export const createServiceRequestFromForm = (
   } = {}
 ): ServiceRequest => {
   // Pre-calculate boolean flags for better performance
+  console.log("createServiceRequestFromForm", { options, formData });
   const shouldIncludePersonnels = formData.addPersonnels && formData.personnel?.length > 0;
   const shouldIncludeDefects = formData.additionalDefectRectification && formData.additionalDefects?.length > 0;
   const shouldIncludeFluid = !!formData.servicingPerformed && formData.fluid;
   const shouldIncludeTowing = formData.aircraftTowing && formData.aircraftTowingInfo?.length > 0;
 
-  console.log("createServiceRequestFromForm options:", {
-    shouldIncludePersonnels,
-    shouldIncludeDefects,
-    shouldIncludeFluid,
-    shouldIncludeTowing
-  });
   return {
     isPersonnels: options.enablePersonnels ?? formData.addPersonnels ?? false,
     isAdditionalDefect: options.enableAdditionalDefect ?? formData.additionalDefectRectification ?? false,
@@ -262,10 +257,10 @@ export const createServiceRequestFromForm = (
           ataChapter: defect.ataChapter || "",
           lae: safeParseFloat(defect.laeMH),
           mech: safeParseFloat(defect.mechMH),
-          ...(defect.attachFiles?.length > 0 && {
+          ...((defect.attachFiles?.length > 0 || defect?.attachFiles?.storagePath) && {
             attachFiles: {
-              storagePath: defect.attachFiles[0],
-              realName: defect.attachFiles[0].split('/').pop() || "",
+              storagePath: defect.attachFiles.storagePath || defect?.attachFiles,
+              realName: (defect?.attachFiles?.storagePath || defect.attachFiles) ? defect.attachFiles.storagePath ? defect?.attachFiles?.storagePath?.split('/').pop() : defect.attachFiles.split('/').pop() : "",
               fileType: "service"
             }
           })

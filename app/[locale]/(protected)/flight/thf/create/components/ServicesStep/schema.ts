@@ -46,6 +46,14 @@ export const servicesFormSchema = z.object({
     attachFiles: z.union([
       z.string().min(1, "File path cannot be empty"),  // Single file as string
       z.array(z.string().min(1, "File path cannot be empty")),  // Multiple files as array
+      z.object({   // File object
+        realName: z.string().min(1, "File name cannot be empty"),
+        storagePath: z.string().min(1, "File path cannot be empty"),
+      }),
+      z.array(z.object({   // Array of file objects
+        realName: z.string().min(1, "File name cannot be empty"),
+        storagePath: z.string().min(1, "File path cannot be empty"),
+      })),
       z.literal(""),  // Empty string
       z.null(),  // Null
       z.undefined()  // Undefined

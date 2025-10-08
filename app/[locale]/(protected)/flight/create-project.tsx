@@ -234,7 +234,7 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
         }}
       >
         <DialogHeader>
-          <DialogTitle>Add Flight</DialogTitle>
+          <DialogTitle>Add Flight Information</DialogTitle>
         </DialogHeader>
         <DialogDescription className="hidden" />
         <Separator className="mb-4" />

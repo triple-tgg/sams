@@ -28,7 +28,11 @@ export default function FlightList() {
     // Combine filters with pagination for API call
     const params: GetFlightListParams = {
         flightNo: filters.flightNo,
-        stationCodeList: filters.stationCodeList,
+        // stationCodeList: filters?.stationCodeList?.length ? filters?.stationCodeList : undefined,
+        // stationCodeList: filters?.stationCodeList || filters.stationCode ? [filters.stationCode] : [],
+        stationCodeList: filters.stationCode ? [filters.stationCode] : [],
+
+        stationCode: filters.stationCode || undefined,
         dateStart: filters.dateStart,
         dateEnd: filters.dateEnd,
         page: pagination.page,

@@ -14,6 +14,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { ExcelImportButton } from "@/components/excel-import-button";
 import { useTemplateDownload } from "@/hooks/use-template-download";
 import { useDashboardFlight } from "@/lib/api/hooks/useDashboardFlight";
+import EditFlight from "./edit-project";
 
 const ProjectWrapper = ({ children }: { children: React.ReactNode }) => {
     const [open, setOpen] = useState<boolean>(false);

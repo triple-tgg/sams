@@ -21,6 +21,9 @@ import { useCancelFlightMutation } from "@/lib/api/hooks/useCancelFlightMutation
 import clsx from "clsx"
 import FilterRange from "./FilterRange"
 import DateRangeFilter from "./DateRange"
+import EditFlight from "../../edit-project"
+import { useStationsOptions } from "@/lib/api/hooks/useStations"
+import useDebounce from "@/hooks/useDebounce"
 
 interface Option {
     value: string; label: string; image?: string;
@@ -55,13 +58,6 @@ interface ListTableProps {
     initialFilters?: FilterParams
 }
 
-const assigneeOptions: Option[] = [
-    { value: "BKK", label: "BKK" }, { value: "DMK", label: "DMK" },
-    { value: "HKT", label: "HKT" }, { value: "HDY", label: "HDY" },
-    { value: "CNX", label: "CNX" }, { value: "CEI", label: "CEI" },
-    { value: "UTH", label: "UTH" },
-]
-
 // ถ้าจะใช้กรองฝั่ง client ต่อ ก็เก็บไว้ได้
 const stationInList = (row: any, _columnId: string, filterValue: string[] | undefined) => {
     if (!filterValue || filterValue.length === 0) return true
@@ -78,6 +74,8 @@ const ListTable = ({
     const router = useRouter()
     const { locale } = useParams()
     const { page, perPage, total, onPageChange, onPerPageChange } = pagination
+    const [openEditFlight, setOpenEditFlight] = React.useState<boolean>(false);
+    const [editFlightId, setEditFlightId] = React.useState<number | null>(null);
 
     const [sorting, setSorting] = React.useState<SortingState>([])
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
@@ -99,7 +97,7 @@ const ListTable = ({
     }, [initialFilters])
 
     const initialStationCode = React.useMemo(() => {
-        return initialFilters?.stationCode || undefined
+        return initialFilters?.stationCode || "all"
     }, [initialFilters])
 
     const { register, handleSubmit, control, watch, setValue, getValues, ...props } = useForm<Inputs>({
@@ -118,6 +116,10 @@ const ListTable = ({
         onCreateTHF: (flight) => {
             const q = new URLSearchParams({ flightInfosId: String(flight.flightInfosId ?? "") })
             router.push(`/${locale}/flight/thf/create?${q.toString()}`)
+        },
+        onEditFlight: (flight) => {
+            setEditFlightId(flight.flightInfosId || null);
+            setOpenEditFlight(true);
         },
         onAttach: (flight) => console.log("Attach for flight:", flight),
         onCancel: (flight) => {
@@ -169,20 +171,21 @@ const ListTable = ({
     })
 
     // ✅ ใช้ id คอลัมน์ให้ตรงกับ accessor จริง (มักเป็น "arrivalFlightNo")
-    React.useEffect(() => {
-        table.getColumn("arrivalFlightNo")?.setFilterValue(searchValue ?? "")
-    }, [searchValue, table])
+    // React.useEffect(() => {
+    //     table.getColumn("arrivalFlightNo")?.setFilterValue(searchValue ?? "")
+    // }, [searchValue, table])
 
-    React.useEffect(() => {
-        const filterValue = stationCodeValue ? [stationCodeValue] : []
-        table.getColumn("station")?.setFilterValue(filterValue)
-    }, [stationCodeValue, table])
+    // React.useEffect(() => {
+    //     const filterValue = stationCodeValue ? [stationCodeValue] : []
+    //     table.getColumn("station")?.setFilterValue(filterValue)
+    // }, [stationCodeValue, table])
+
 
     const onSubmit: SubmitHandler<Inputs> = (data) => {
-        // Convert form data to API params
+        // Convert form data to API params 
         const filters: FilterParams = {
             flightNo: data.search || "",
-            stationCode: data.stationCode || "",
+            stationCode: data.stationCode !== "all" ? (data.stationCode || "") : "",
             dateStart: data.dateRange?.from ?
                 dayjs(data.dateRange.from).format('YYYY-MM-DD') : "",
             dateEnd: data.dateRange?.to ?
@@ -196,8 +199,25 @@ const ListTable = ({
         onPageChange(1)
     }
 
+    const {
+        options: stationOptions,
+        isLoading: loadingStations,
+        error: stationsError,
+        usingFallback: stationsUsingFallback
+    } = useStationsOptions();
+
+    const stationOptionsWithAll = React.useMemo(() => {
+        const allOption = { value: "all", label: "All Stations" }
+        return [allOption, ...stationOptions]
+    }, [stationOptions])
+
+    const onEditFlightClose = () => {
+        setOpenEditFlight(false);
+        setEditFlightId(null);
+    }
     return (
         <Card>
+            <EditFlight open={openEditFlight} setOpen={setOpenEditFlight} flightId={editFlightId} onClose={onEditFlightClose} />
             <FormProvider {...{ register, handleSubmit, control, watch, setValue, getValues, ...props }}>
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <CardHeader className="flex flex-row items-center space-x-2 justify-between">
@@ -219,12 +239,16 @@ const ListTable = ({
                                     name="stationCode"
                                     control={control}
                                     render={({ field }) => (
-                                        <Select value={field.value} onValueChange={field.onChange}>
+                                        <Select value={field.value} onValueChange={(value) => {
+                                            field.onChange(value);
+                                            handleSubmit(onSubmit)();
+                                            // Auto-submit when station changes
+                                        }}>
                                             <SelectTrigger>
                                                 <SelectValue placeholder="Select Station Code" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {assigneeOptions.map((option) => (
+                                                {stationOptionsWithAll.map((option) => (
                                                     <SelectItem key={option.value} value={option.value}>
                                                         {option.label}
                                                     </SelectItem>

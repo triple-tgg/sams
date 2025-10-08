@@ -29,10 +29,7 @@ export const useServicesSubmission = ({
 
 
   const handleSubmit = async (data: ServicesFormInputs) => {
-    console.log("Submitting services data:handleSubmit", {
-      lineMaintenanceId: lineMaintenanceId,
-      formData: data
-    })
+
     try {
       // Validate form data
       const isValid = await form.trigger()
@@ -48,10 +45,10 @@ export const useServicesSubmission = ({
         return
       }
       // Transform data for local state
-      const transformedData = transformServicesDataToAPI(data)
+      // const transformedData = transformServicesDataToAPI(data)
 
       // Update parent component data immediately
-      onUpdateData(transformedData)
+      // onUpdateData(transformedData)
 
       // Prepare options based on form data
       const serviceOptions = {

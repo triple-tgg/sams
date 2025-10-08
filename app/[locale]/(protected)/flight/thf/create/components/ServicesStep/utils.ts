@@ -108,8 +108,6 @@ export const transformFluidDataToAPI = (fluidData: FluidFormData) => {
   }
 }
 export const transformServicesDataToAPI = (data: ServicesFormInputs) => {
-  console.log("transformServicesDataToAPI called with data:", data);
-
   const aircraftChecks = data.aircraftChecks.map(check => ({
     maintenanceTypes: check.maintenanceTypes,
     maintenanceSubTypes: check.maintenanceSubTypes.join(','),
@@ -210,7 +208,6 @@ export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse |
     attachFiles: defect.attachFiles ? defect.attachFiles : null,
     // Note: photo files would need special handling for FileList
   })) || [];
-
   // Map fluid data
   const fluidServicing = aircraft?.fluidServicing;
   const engOilSets = fluidServicing?.engOil?.map(oil => ({

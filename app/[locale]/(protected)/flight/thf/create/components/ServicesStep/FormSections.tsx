@@ -37,12 +37,12 @@ const PhotoUploadField: React.FC<{
   maxSizeInMB = 10,
   single = true
 }) => {
+    console.log("uploadedFiles value prop:", value)
     const [uploadedFiles, setUploadedFiles] = useState<Array<{ fileName: string; filePath: string; originalName?: string; size?: number; uploadedAt?: Date }>>(
       value?.storagePath ? [{
         fileName: value.realName,
         filePath: value.storagePath,
         originalName: value.realName,
-        uploadedAt: new Date()
       }] : []
     )
     const [isUploading, setIsUploading] = useState(false)
@@ -54,8 +54,6 @@ const PhotoUploadField: React.FC<{
     // Sync with form field value on mount and when value changes
     useEffect(() => {
       const fieldValue = form.getValues(fieldName as any)
-      console.log("fieldName", fieldName)
-      console.log("value", fieldValue)
       // If there's a field value but no uploaded files state, sync it
       if (fieldValue && Array.isArray(fieldValue) && fieldValue.length > 0 && uploadedFiles.length === 0) {
         const syncedFiles = fieldValue.map((filePath: string, index: number) => ({
@@ -389,11 +387,11 @@ const PhotoUploadField: React.FC<{
                               <span className="font-mono truncate">{file.filePath}</span>
                               {file.size && (<span className="text-gray-500">({formatFileSize(file.size)})</span>)}
                             </div>
-                            {file.uploadedAt && (
+                            {/* {file.uploadedAt && (
                               <div className="text-xs text-gray-500">
                                 Uploaded: {file.uploadedAt.toLocaleString()}
                               </div>
-                            )}
+                            )} */}
                           </div>
                         </div>
 
@@ -845,16 +843,6 @@ export const AdditionalDefectsSection: React.FC<{
 
         {additionalDefectRectification && (
           <>
-            {/* <div className="flex justify-between items-center">
-              <h4 className="font-medium">Defects List</h4>
-              {additionalDefects.length < 6 && (
-                <Button type="button" onClick={onAdd} size="sm" color='primary'>
-                  <PlusIcon className="h-4 w-4 mr-1" />
-                  Add Defect
-                </Button>
-              )}
-            </div> */}
-
             {additionalDefects.length >= 6 && (
               <div className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-md p-3">
                 <div className="flex items-center gap-2">

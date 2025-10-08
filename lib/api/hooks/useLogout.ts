@@ -1,7 +1,8 @@
-import { useSelector } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { RootState } from '@/store/rootReducer'
+import { handleLogout as logout } from '@/components/partials/auth/store'
 
 /**
  * Custom hook for logout functionality - Redux only
@@ -9,6 +10,7 @@ import { RootState } from '@/store/rootReducer'
  */
 export const useLogout = () => {
   const router = useRouter()
+  const dispatch = useDispatch()
   // const dispatch = useDispatch()
   const { isAuth } = useSelector((state: RootState) => state.auth)
 
@@ -16,14 +18,15 @@ export const useLogout = () => {
     try {
       // Clear localStorage
       localStorage.removeItem('user')
+      localStorage.removeItem('users')
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
 
       // Clear Redux state - you'll need to implement logout action
       // dispatch(handleLogout()) // Uncomment when you have logout action
-
+      dispatch(logout())
       // Redirect to login
-      router.push('/auth/login')
+      router.push('/')
 
       toast.success('Logged out successfully')
     } catch (error) {
@@ -34,6 +37,6 @@ export const useLogout = () => {
 
   return {
     handleLogout,
-    // isAuthenticated: isAuth
+    isAuthenticated: isAuth
   }
 }

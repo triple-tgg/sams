@@ -1,11 +1,12 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "@/components/ui/use-toast";
+// import { toast } from "@/components/ui/use-toast";
 import {
   putService,
   createServiceRequestFromForm,
   type ServiceRequest,
   type ServiceResponse
 } from "../lineMaintenances/services/putService";
+import { toast } from "sonner";
 
 /**
  * Hook for updating service data using PUT API
@@ -21,18 +22,20 @@ export const usePutService = () => {
       return await putService(lineMaintenanceId, serviceData);
     },
     onSuccess: (data, variables) => {
-      toast({
-        title: "Service Updated",
-        description: `Service data for line maintenance ${variables.lineMaintenanceId} has been updated successfully.`,
-      });
+      toast.success(`Service data for line maintenance ${variables.lineMaintenanceId} has been updated successfully.`)
+      // toast({
+      //   title: "Service Updated",
+      //   description: `Service data for line maintenance ${variables.lineMaintenanceId} has been updated successfully.`,
+      // });
       console.log("Service update successful:", data);
     },
     onError: (error, variables) => {
-      toast({
-        variant: "destructive",
-        title: "Update Failed",
-        description: error.message || `Failed to update service data for line maintenance ${variables.lineMaintenanceId}. Please try again.`,
-      });
+      toast.error(error.message || `Failed to update service data for line maintenance ${variables.lineMaintenanceId}. Please try again.`)
+      // toast({
+      //   variant: "destructive",
+      //   title: "Update Failed",
+      //   description: error.message || `Failed to update service data for line maintenance ${variables.lineMaintenanceId}. Please try again.`,
+      // });
       console.error("Service update failed:", error);
     },
   });
@@ -62,30 +65,25 @@ export const usePutServiceFromForm = () => {
     mutationFn: async ({ lineMaintenanceId, formData, options = {} }) => {
       // Transform form data to service request format
       const serviceRequest = createServiceRequestFromForm(formData, options);
-
-      console.log("Transformed service request:", {
-        lineMaintenanceId,
-        serviceRequest,
-        originalFormData: formData
-      });
-
       return await putService(lineMaintenanceId, serviceRequest);
     },
     onSuccess: (data, variables) => {
-      toast({
-        title: "Service Saved",
-        description: `Service data has been saved successfully for line maintenance ${variables.lineMaintenanceId}.`,
-      });
+      // toast({
+      //   title: "Service Saved",
+      //   description: `Service data has been saved successfully for line maintenance ${variables.lineMaintenanceId}.`,
+      // });
+      toast.success(`Service data has been saved successfully.`)
       queryClient.invalidateQueries({
         queryKey: ["lineMaintenancesThf"]
       });
     },
     onError: (error, variables) => {
-      toast({
-        variant: "destructive",
-        title: "Save Failed",
-        description: error.message || `Failed to save service data for line maintenance ${variables.lineMaintenanceId}. Please try again.`,
-      });
+      toast.error(error.message || `Failed to save service data for line maintenance ${variables.lineMaintenanceId}. Please try again.` || 'Save Failed!')
+      // toast({
+      //   variant: "destructive",
+      //   title: "Save Failed",
+      //   description: error.message || `Failed to save service data for line maintenance ${variables.lineMaintenanceId}. Please try again.`,
+      // });
       console.error("Service form update failed:", error);
     },
   });
@@ -133,11 +131,11 @@ export const usePutServiceSection = () => {
         flightdeck: 'Flight Deck',
         aircraftTowing: 'Aircraft Towing'
       };
-
-      toast({
-        title: "Section Updated",
-        description: `${sectionNames[variables.section]} section has been updated successfully.`,
-      });
+      toast.success(`${sectionNames[variables.section]} section has been updated successfully.`)
+      // toast({
+      //   title: "Section Updated",
+      //   description: `${sectionNames[variables.section]} section has been updated successfully.`,
+      // });
       console.log(`${variables.section} section update successful:`, data);
     },
     onError: (error, variables) => {
@@ -148,12 +146,13 @@ export const usePutServiceSection = () => {
         flightdeck: 'Flight Deck',
         aircraftTowing: 'Aircraft Towing'
       };
+      toast.error(error.message || `Failed to update ${sectionNames[variables.section]} section. Please try again.`)
 
-      toast({
-        variant: "destructive",
-        title: "Section Update Failed",
-        description: error.message || `Failed to update ${sectionNames[variables.section]} section. Please try again.`,
-      });
+      // toast({
+      //   variant: "destructive",
+      //   title: "Section Update Failed",
+      //   description: error.message || `Failed to update ${sectionNames[variables.section]} section. Please try again.`,
+      // });
       console.error(`${variables.section} section update failed:`, error);
     },
   });

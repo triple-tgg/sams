@@ -3,7 +3,8 @@ import axios from "@/lib/axios.config";
 
 export type GetFlightListParams = {
   flightNo?: string;
-  stationCodeList?: string[];
+  stationCodeList?: string[] | null;
+  stationCode?: string | null;
   dateStart: string;
   dateEnd: string;
   page?: number;

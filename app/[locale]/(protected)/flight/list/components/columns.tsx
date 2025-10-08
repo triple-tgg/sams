@@ -3,17 +3,19 @@ import { ColumnDef } from "@tanstack/react-table";
 import type { FlightItem } from "@/lib/api/flight/filghtlist.interface";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { CircleOff, EllipsisVertical, Paperclip, SquarePen } from "lucide-react";
+import { CircleOff, EllipsisVertical, FilePenLine, Paperclip, SquarePen } from "lucide-react";
 import clsx from "clsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export function getFlightColumns({
   onCreateTHF,
+  onEditFlight,
   onAttach,
   onCancel,
   isCancelLoading = false,
 }: {
   onCreateTHF?: (flight: FlightItem) => void;
+  onEditFlight?: (flight: FlightItem) => void;
   onAttach?: (flight: FlightItem) => void;
   onCancel?: (flight: FlightItem) => void;
   isCancelLoading?: boolean;
@@ -120,11 +122,12 @@ export function getFlightColumns({
               </Tooltip>
             </TooltipProvider> */}
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+              <DropdownMenuTrigger asChild disabled={flight.statusObj.code === "Cancel" || isCancelLoading}>
                 <Button
                   variant="outline"
                   size="icon"
                   className="w-7 h-7 ring-offset-transparent border-default-300 text-default-500"
+                  disabled={flight.statusObj.code === "Cancel" || isCancelLoading}
                 >
                   <EllipsisVertical className="w-4" />
                 </Button>
@@ -134,10 +137,18 @@ export function getFlightColumns({
                 <DropdownMenuItem
                   disabled={flight.statusObj.code === "Cancel"}
                   onClick={() => {
+                    onEditFlight?.(flight)
+                  }}
+                >
+                  <SquarePen className="w-4 h-4 me-4" /> <p>Edit Flight</p>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={flight.statusObj.code === "Cancel"}
+                  onClick={() => {
                     onCreateTHF?.(flight)
                   }}
                 >
-                  <SquarePen className="w-4 h-4 me-4" /> <p>Create THF</p>
+                  <FilePenLine className="w-4 h-4 me-4" /> <p>Create THF</p>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="bg-red-700 text-white hover:bg-red-800 focus:bg-red-800 hover:text-white focus:text-white"

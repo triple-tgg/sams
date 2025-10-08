@@ -24,8 +24,6 @@ export const usePartsToolsSubmission = ({
 
   const putPartsToolsMutation = usePutPartsToolsWithCallbacks({
     onSuccess: (data, variables) => {
-      console.log('Parts/Tools saved successfully:', data)
-      // onUpdateData()
       onNextStep()
     },
     onError: (error, variables) => {
@@ -35,11 +33,8 @@ export const usePartsToolsSubmission = ({
   })
 
   const handleSubmit = (data: PartsToolsFormInputs) => {
-    console.log('Submitting parts/tools data:', data)
-
     // Validate that we have a line maintenance ID
     if (!lineMaintenanceId) {
-      console.error('No line maintenance ID available')
       form.setError('root', {
         type: 'manual',
         message: 'Line maintenance information not found. Please try again.'
@@ -50,16 +45,6 @@ export const usePartsToolsSubmission = ({
     // Transform form data to API format
     const apiData = transformPartsToolsForApi(data)
 
-    // Validate that we have at least one part/tool with required data
-    // const hasValidItems = apiData.some(item => item.pathToolName.trim() !== '')
-    // if (!hasValidItems) {
-    //   form.setError('partsTools.0.pathToolName', {
-    //     type: 'manual',
-    //     message: 'At least one part/tool name is required'
-    //   })
-    //   return
-    // }
-
     // Submit to API
     putPartsToolsMutation.mutate({
       lineMaintenancesId: lineMaintenanceId,
@@ -68,8 +53,6 @@ export const usePartsToolsSubmission = ({
   }
 
   const handleSaveDraft = (data: PartsToolsFormInputs) => {
-    console.log('Saving parts/tools draft:', data)
-
     if (!lineMaintenanceId) {
       console.error('No line maintenance ID available for draft save')
       return
@@ -85,12 +68,6 @@ export const usePartsToolsSubmission = ({
   }
 
   const handleOnBackStep = () => {
-    // Optional: Save as draft before going back
-    // const currentData = form.getValues()
-    // if (lineMaintenanceId && currentData.partsTools.some(item => item.pathToolName.trim() !== '')) {
-    //   // handleSaveDraft(currentData)
-    //   console.log("handleOnBackStep:PartsAndToolsStepProps")
-    // }
     onBackStep()
   }
 

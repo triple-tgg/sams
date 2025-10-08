@@ -1,7 +1,10 @@
 "use client";
-import BasicCombobox from "@/components/basic-combobox";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+
+import * as React from "react";
+import { useForm, SubmitHandler, Controller } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+
 import {
   Dialog,
   DialogContent,
@@ -9,411 +12,559 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
-import Image from "next/image";
-import { useState } from "react";
-import { useForm, SubmitHandler, Controller } from "react-hook-form";
-import Select, { MultiValue } from "react-select";
+import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useParams } from "next/navigation";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
 import { getLangDir } from "rtl-detect";
-interface CreateTaskProps {
-  open: boolean;
-  setOpen: React.Dispatch<React.SetStateAction<boolean>>;
-}
-interface Option {
-  value: string;
-  label: string;
-  image?: string;
-}
-type Inputs = {
-  title: string;
-  description: string;
-  tags: MultiValue<Option>;
-  assignee: MultiValue<Option>;
-  startDate: Date;
-  endDate: Date;
+import { useParams } from "next/navigation";
+
+import { useAddFlight } from "@/lib/api/hooks/useAddFlight";
+import type { FlightData } from "@/lib/api/flight/addFlight";
+import { useAirlineOptions } from "@/lib/api/hooks/useAirlines";
+import { useStationsOptions } from "@/lib/api/hooks/useStations";
+import { useStatusOptions } from "@/lib/api/hooks/useStatus";
+import { FieldError } from "@/components/ui/field-error";
+import { convertDateToBackend } from "@/lib/utils/formatPicker";
+import { CustomDateInput } from "@/components/ui/input-date/CustomDateInput";
+import { SearchableSelectField } from "@/components/ui/search-select";
+import { useAircraftTypes } from "@/lib/api/hooks/useAircraftTypes";
+import { toast } from "sonner";
+import { useFlightQueryById } from "@/lib/api/hooks/useFlightQueryById";
+import { useMemo, useEffect } from "react";
+
+
+
+// ------------------------------------------------------
+// Types
+// ------------------------------------------------------
+type Option = { value: string; label: string };
+
+// RHF form values (before transform -> API payload)
+const FormSchema = z
+  .object({
+    customer: z.object({ value: z.string(), label: z.string() }).nullable().refine(Boolean, "Required"),
+    station: z.object({ value: z.string(), label: z.string() }).nullable().refine(Boolean, "Required"),
+
+    acReg: z.string().trim().optional().default(""),
+    acType: z.string().trim().optional().default(""),
+
+    flightArrival: z.string().trim().min(2, "Required"),
+    arrivalDate: z.string().regex(/^\d{2}\/\d{2}\/\d{4}$/g, "DD/MMM/YYYY"),
+    sta: z.string().regex(/^\d{2}:\d{2}$/g, "HH:mm"),
+    ata: z.string().regex(/^\d{2}:\d{2}$/g, "HH:mm").optional().or(z.literal("")),
+    routeFrom: z.object({ value: z.string(), label: z.string() }).nullable().optional(),
+
+    flightDeparture: z.string().trim().optional().default(""),
+    departureDate: z.string().regex(/^\d{2}\/\d{2}\/\d{4}$/g, "DD/MMM/YYYY").optional().or(z.literal("")),
+    std: z.string().regex(/^\d{2}:\d{2}$/g, "HH:mm").optional().or(z.literal("")),
+    atd: z.string().regex(/^\d{2}:\d{2}$/g, "HH:mm").optional().or(z.literal("")),
+    routeTo: z.object({ value: z.string(), label: z.string() }).nullable().optional(),
+
+    bay: z.string().trim().optional().default(""),
+    thfNumber: z.string().trim().optional().default(""),
+    status: z.object({ value: z.string(), label: z.string() }).nullable().default({ value: "Normal", label: "Normal" }),
+    note: z.string().trim().optional().default("")
+  })
+  // ถ้าใส่ departure อย่างใดอย่างหนึ่ง ต้องใส่ให้ครบ (date + std อย่างน้อย)
+  .refine(
+    (v) => {
+      const anyDep = !!(v.flightDeparture || v.departureDate || v.std || v.atd);
+      const depOk = !anyDep || (!!v.departureDate && !!v.std);
+      return depOk;
+    },
+    { path: ["departureDate"], message: "If departure provided, Date & STD are required" }
+  );
+
+export type Inputs = z.infer<typeof FormSchema>;
+
+// ------------------------------------------------------
+// Options (static)
+// ------------------------------------------------------
+// Dynamic stationOptions will be loaded from API
+// Dynamic customerOptions will be loaded from API
+// Dynamic statusOptions will be loaded from API
+
+// ------------------------------------------------------
+// Helpers
+// ------------------------------------------------------
+// ถ้าหลังบ้านต้องการเวลาเป็น HHmm ให้ตั้งค่านี้เป็น true
+const SEND_HHMM = false;
+const toHHmm = (t?: string) => (t ? (t.includes(":") ? t.replace(":", "") : t) : "");
+const sendTime = (t?: string) => (SEND_HHMM ? toHHmm(t) : (t ?? ""));
+
+// Convert YYYY-MM-DD to DD/MM/YYYY for form
+const convertDateFromBackend = (dateStr: string | null): string => {
+  if (!dateStr) return "";
+  const parts = dateStr.split("-");
+  if (parts.length !== 3) return "";
+  const [year, month, day] = parts;
+  return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
 };
 
-const assigneeOptions: Option[] = [
-  { value: "BKK", label: "BKK", image: "/images/avatar/av-1.svg" },
-  { value: "DMK", label: "DMK", image: "/images/avatar/av-2.svg" },
-  {
-    value: "HKT", label: "HKT", image: "/images/avatar/av-3.svg",
-  },
-  { value: "HDY", label: "HDY", image: "/images/avatar/av-4.svg" },
-  { value: "CNX", label: "CNX", image: "/images/avatar/av-4.svg" },
-  { value: "CEI", label: "CEI", image: "/images/avatar/av-4.svg" },
-  { value: "UTH", label: "UTH", image: "/images/avatar/av-4.svg" },
-];
-const statusOptions: Option[] = [
-  { value: "normal", label: "Normal" },
-  { value: "divertReroute", label: "Divert/Reroute" },
-  { value: "eob", label: "EOB" },
-  { value: "aog", label: "AOG" },
-  { value: "cancel", label: "Cancel" },
-];
+// Create default values from flight data
+const createDefaultValues = (flightData: any): Inputs => {
+  const responseData = flightData?.responseData?.[0];
+  
+  if (!responseData) {
+    return {
+      customer: null,
+      station: null,
+      acReg: "",
+      acType: "",
+      flightArrival: "",
+      arrivalDate: "",
+      sta: "",
+      ata: "",
+      routeFrom: null,
+      flightDeparture: "",
+      departureDate: "",
+      std: "",
+      atd: "",
+      routeTo: null,
+      bay: "",
+      thfNumber: "",
+      status: { value: "Normal", label: "Normal" },
+      note: "",
+    };
+  }
 
-const CreateProject = ({ open, setOpen }: CreateTaskProps) => {
-  const params = useParams<{ locale: string; }>();
-  const direction = getLangDir(params?.locale ?? '');
+  return {
+    customer: responseData.airlineObj ? {
+      value: responseData.airlineObj.code,
+      label: responseData.airlineObj.name || responseData.airlineObj.code
+    } : null,
+    station: responseData.stationObj ? {
+      value: responseData.stationObj.code,
+      label: responseData.stationObj.name || responseData.stationObj.code
+    } : null,
+    acReg: responseData.acReg || "",
+    acType: responseData.acTypeObj?.code || "",
+    flightArrival: responseData.arrivalFlightNo || "",
+    arrivalDate: convertDateFromBackend(responseData.arrivalDate),
+    sta: responseData.arrivalStatime || "",
+    ata: responseData.arrivalAtaTime || "",
+    routeFrom: responseData.routeForm ? {
+      value: responseData.routeForm,
+      label: responseData.routeForm
+    } : null,
+    flightDeparture: responseData.departureFlightNo || "",
+    departureDate: convertDateFromBackend(responseData.departureDate),
+    std: responseData.departureStdTime || "",
+    atd: responseData.departureAtdtime || "",
+    routeTo: responseData.routeTo ? {
+      value: responseData.routeTo,
+      label: responseData.routeTo
+    } : null,
+    bay: responseData.bayNo || "",
+    thfNumber: "", // Not available in the response data
+    status: responseData.statusObj ? {
+      value: responseData.statusObj.code,
+      label: responseData.statusObj.name || responseData.statusObj.code
+    } : { value: "Normal", label: "Normal" },
+    note: responseData.note || "",
+  };
+};
 
-  const [startDate, setStartDate] = useState<Date>(new Date());
-  const [endDate, setEndtDate] = useState<Date>(new Date());
+// ------------------------------------------------------
+// Component
+// ------------------------------------------------------
+interface CreateTaskProps {
+  flightId: number | null;
+  open: boolean;
+  onClose: () => void;
+  setOpen: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+export default function EditFlight({ open, setOpen, flightId, onClose }: CreateTaskProps) {
+  const params = useParams<{ locale: string }>();
+  const direction = getLangDir(params?.locale ?? "");
+
+  const { data: flightData } = useFlightQueryById(flightId);
+  // Use airline options hook
+  const {
+    options: customerOptions,
+    isLoading: loadingAirlines,
+    error: airlinesError,
+    usingFallback
+  } = useAirlineOptions();
+
+  // Use stations options hook
+  const {
+    options: stationOptions,
+    isLoading: loadingStations,
+    error: stationsError,
+    usingFallback: stationsUsingFallback
+  } = useStationsOptions();
+
+  // Use status options hook
+  const {
+    options: statusOptions,
+    isLoading: loadingStatus,
+    error: statusError,
+    usingFallback: statusUsingFallback
+  } = useStatusOptions();
+
+  // Memoize default values based on flight data
+  const defaultValues = useMemo(() => createDefaultValues(flightData), [flightData]);
+
+  console.log("flightData:", flightData)
   const {
     register,
     handleSubmit,
     control,
     formState: { errors },
-  } = useForm<Inputs>();
-  const onSubmit: SubmitHandler<Inputs> = (data) => {
-    console.log(data);
-    setOpen(false);
+    reset,
+  } = useForm<Inputs>({
+    resolver: zodResolver(FormSchema),
+    defaultValues,
+  });
+
+  // Reset form when flight data changes
+  useEffect(() => {
+    if (flightData) {
+      const newValues = createDefaultValues(flightData);
+      reset(newValues);
+    }
+  }, [flightData, reset]);
+
+  const { mutate, isPending, error: mError } = useAddFlight();
+
+  const onSubmit: SubmitHandler<Inputs> = (values) => {
+    const payload: FlightData = {
+      id: 0,
+      airlinesCode: values.customer!.value.trim(),
+      stationsCode: values.station!.value.trim(),
+      acReg: (values.acReg ?? "").trim(),
+      acType: (values.acType ?? "").trim(),
+      arrivalFlightNo: values.flightArrival.trim(),
+      arrivalDate: convertDateToBackend(values.arrivalDate),
+      arrivalStaTime: sendTime(values.sta),
+      arrivalAtaTime: sendTime(values.ata),
+      departureFlightNo: (values.flightDeparture ?? "").trim(),
+      departureDate: convertDateToBackend(values.departureDate ?? ""),
+      departureStdTime: sendTime(values.std),
+      departureAtdTime: sendTime(values.atd),
+      bayNo: (values.bay ?? "").trim(),
+      thfNo: (values.thfNumber ?? "").trim(),
+      statusCode: values.status?.value ?? "Normal",
+      note: (values.note ?? "").trim(),
+    };
+
+    mutate(
+      { payload },
+      {
+        onSuccess: () => {
+          toast.success("Flight was added successfully.")
+          reset();
+          // setOpen(false);
+          onClose();
+        },
+        onError: (err) => {
+          toast.error(err?.message ?? "Submit failed")
+        },
+      }
+    );
   };
+  const {
+    options: aircraftOptions,
+    isLoading: isLoadingAircraft,
+    usingFallback: acTypeCodeUsingFallback,
+    error: acTypeCodeError
+  } = useAircraftTypes();
   return (
-    <Dialog open={open} onOpenChange={setOpen}  >
-      <DialogContent size="md"  >
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!isPending) setOpen(o);
+      }}
+    >
+      <DialogContent
+        size="md"
+        className="h-full max-h-10/12"
+        onInteractOutside={(e) => {
+          if (isPending) e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          if (isPending) e.preventDefault();
+        }}
+      >
         <DialogHeader>
-          <DialogTitle>Create Project</DialogTitle>
+          <DialogTitle>Edit Flight Information</DialogTitle>
         </DialogHeader>
-        <DialogDescription className="hidden"></DialogDescription>
+        <DialogDescription className="hidden" />
         <Separator className="mb-4" />
-        <form onSubmit={handleSubmit(onSubmit)} >
-          <div className="h-full max-h-[500px] overflow-hidden">
-            <ScrollArea className="h-full">
-              <div >
-                <div className="grid lg:grid-cols-2 grid-cols-1 gap-5">
+
+        <ScrollArea className="[&>div>div[style]]:block!" dir={direction}>
+          <form id="create-flight-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            {/* Customer / Station */}
+            <div className="grid lg:grid-cols-2 gap-6">
+              <div className="space-y-1">
+                <Label htmlFor="customer">Customer / Airlines</Label>
+                <Controller
+                  name="customer"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      value={field.value?.value}
+                      onValueChange={(value) => {
+                        const option = customerOptions.find(opt => opt.value === value);
+                        field.onChange(option || null);
+                      }}
+                      disabled={loadingAirlines || customerOptions.length === 0}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={
+                          loadingAirlines ? "Loading airlines..." :
+                            airlinesError ? "Failed to load airlines" :
+                              customerOptions.length === 0 ? "No airlines found" :
+                                "Select customer"
+                        } />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {customerOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                <FieldError msg={errors.customer?.message as string | undefined} />
+                {usingFallback && (
+                  <p className="text-sm text-amber-600">
+                    ⚠️ Using offline airline data due to API connection issue
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="station">Station</Label>
+                <Controller
+                  name="station"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      value={field.value?.value}
+                      onValueChange={(value) => {
+                        const option = stationOptions.find(opt => opt.value === value);
+                        field.onChange(option || null);
+                      }}
+                      disabled={loadingStations || stationOptions.length === 0}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={
+                          loadingStations ? "Loading stations..." :
+                            stationsError ? "Failed to load stations" :
+                              stationOptions.length === 0 ? "No stations found" :
+                                "Select station"
+                        } />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {stationOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                <FieldError msg={errors.station?.message as string | undefined} />
+                {stationsUsingFallback && (
+                  <p className="text-sm text-amber-600">
+                    ⚠️ Using offline station data due to API connection issue
+                  </p>
+                )}
+              </div>
+
+              {/* A/C Reg / A/C Type */}
+              <div className="space-y-1">
+                <Label htmlFor="acReg">A/C Reg</Label>
+                <Input {...register("acReg")} placeholder="A/C Reg" autoComplete="off" />
+                <FieldError msg={errors.acReg?.message} />
+              </div>
+              <div className="space-y-1">
+                <SearchableSelectField
+                  name="aircraftType"
+                  control={control}
+                  label="A/C Type"
+                  placeholder="Select A/C Type"
+                  options={aircraftOptions}
+                  isLoading={isLoadingAircraft}
+                  errorMessage={acTypeCodeError?.message}
+                  usingFallback={acTypeCodeUsingFallback}
+                />
+              </div>
+            </div>
+
+            <Separator className="mb-8 mt-10" />
+
+            {/* ARRIVAL + DEPARTURE */}
+            <div className="grid lg:grid-cols-2 gap-6">
+              {/* ARRIVAL */}
+              <div>
+                <h4 className="text-sm font-medium mb-2">Arrival (UTC Time)</h4>
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <Label htmlFor="customer">Customer</Label>
-                    <Input
-                      id="customer"
-                      placeholder="Customer"
-                      {...register("title", { required: "Title is required." })}
-                      color={errors.title ? "destructive" : "default"}
-                    />
-                    {errors.title && (
-                      <p className="text-destructive  text-sm font-medium">
-                        {errors.title.message}
-                      </p>
-                    )}
-                    {/* <Label htmlFor="customer">Customer</Label>
-            <BasicCombobox option={customerOption} /> */}
+                    <Label htmlFor="flightArrival">Flight No</Label>
+                    <Input {...register("flightArrival")} placeholder="Flight No" autoComplete="off" />
+                    <FieldError msg={errors.flightArrival?.message} />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="assignee">Station</Label>
+                    <Label htmlFor="arrivalDate">Date</Label>
                     <Controller
-                      name="assignee"
+                      name="arrivalDate"
                       control={control}
-                      defaultValue={[]}
                       render={({ field }) => (
-                        <Select
-                          {...field}
-                          options={assigneeOptions}
-                          isMulti
-                          onChange={(selectedOption) => field.onChange(selectedOption)}
-                          getOptionLabel={(option) =>
-                            (
-                              <div className="flex items-center">
-                                {/* <Image
-                        width={40}
-                        height={40}
-                        src={option.image as string}
-                        alt={option.label}
-                        className="w-8 h-8 rounded-full me-2"
-                      /> */}
-                                <span className="text-sm text-default-600 font-medium">
-                                  {option.label}
-                                </span>
-                              </div>
-                            ) as unknown as string
-                          }
-                          placeholder="Select assignee"
+                        <CustomDateInput
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="DD-MMM-YYYY (click to pick)"
                         />
                       )}
                     />
+                    <FieldError msg={errors.arrivalDate?.message} />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="acReg">A/C Reg</Label>
-                    <Input
-                      id="acReg"
-                      placeholder="A/C Reg"
-                      {...register("title", { required: "Title is required." })}
-                      color={errors.title ? "destructive" : "default"}
-                    />
-                    {errors.title && (
-                      <p className="text-destructive  text-sm font-medium">
-                        {errors.title.message}
-                      </p>
-                    )}
+                    <Label htmlFor="sta">STA (UTC)</Label>
+                    <Input type="time" {...register("sta")} />
+                    <FieldError msg={errors.sta?.message} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="ata">ATA (UTC)</Label>
+                    <Input type="time" {...register("ata")} />
+                    <FieldError msg={errors.ata?.message} />
                   </div>
 
-                  <div className="space-y-1">
-                    <Label htmlFor="acType">A/C Type</Label>
-                    <Input
-                      id="acType"
-                      placeholder="A/C Type"
-                      {...register("title", { required: "Title is required." })}
-                      color={errors.title ? "destructive" : "default"}
-                    />
-                    {errors.title && (
-                      <p className="text-destructive  text-sm font-medium">
-                        {errors.title.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <Separator className="mb-6 mt-6" />
-                <div className="grid lg:grid-cols-2 grid-cols-1 gap-5">
-                  <div className="space-y-1">
-                    <Label htmlFor="tag">Bay</Label>
-                    <Input
-                      id="Bay"
-                      placeholder="Bay"
-                      {...register("title", { required: "Title is required." })}
-                      color={errors.title ? "destructive" : "default"}
-                    />
-                    {errors.title && (
-                      <p className="text-destructive  text-sm font-medium">
-                        {errors.title.message}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="assignee">Status</Label>
-                    <Controller
-                      name="assignee"
-                      control={control}
-                      defaultValue={[]}
-                      render={({ field }) => (
-                        <Select
-                          {...field}
-                          options={statusOptions}
-                          isMulti
-                          onChange={(selectedOption) => field.onChange(selectedOption)}
-                          getOptionLabel={(option) =>
-                            (
-                              <div className="flex items-center">
-                                {/* <Image
-                        width={40}
-                        height={40}
-                        src={option.image as string}
-                        alt={option.label}
-                        className="w-8 h-8 rounded-full me-2"
-                      /> */}
-                                <span className="text-sm text-default-600 font-medium">
-                                  {option.label}
-                                </span>
-                              </div>
-                            ) as unknown as string
-                          }
-                          placeholder="Select assignee"
-                        />
-                      )}
-                    />
-                  </div>
-                </div>
-
-                <Separator className="mb-8 mt-8" />
-                <div className="grid lg:grid-cols-2 grid-cols-1 gap-5">
-                  <div className="space-y-1">
-                    <div className="mb-4">
-                      <span>Arrival (UTC Time)</span>
-                    </div>
-                    <div className="grid lg:grid-cols-2 grid-cols-1 gap-5">
-                      <div className="space-y-1 col-span-2">
-                        <Label htmlFor="flightNo">Flight No</Label>
-                        <Input
-                          id="flightNo"
-                          placeholder="Flight No"
-                          {...register("title", { required: "Title is required." })}
-                          color={errors.title ? "destructive" : "default"}
-                        />
-                        {errors.title && (
-                          <p className="text-destructive  text-sm font-medium">
-                            {errors.title.message}
-                          </p>
-                        )}
-                      </div>
-                      <div className="space-y-1 col-span-2">
-                        <Label htmlFor="arrivalDate">Date</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="w-full justify-start text-start font-normal border border-default-200 text-default-700 md:px-2.5 hover:bg-transparent hover:text-default-700"
-                              size="md"
-                            >
-                              <CalendarIcon className="me-2 h-3.5 w-3.5 text-default-500" />
-                              {format(startDate, "PPP")}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0">
-                            <Controller
-                              name="startDate"
-                              control={control}
-                              render={({ field }) => (
-                                <Calendar
-                                  mode="single"
-                                  selected={startDate}
-                                  onSelect={(date) => {
-                                    field.onChange(date);
-                                    setStartDate(date as Date);
-                                  }}
-                                  initialFocus
-                                />
-                              )}
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="sta">STA(UTC)</Label>
-                        <Input
-                          id="sta"
-                          placeholder="STA(UTC)"
-                          type="time"
-                          {...register("title", { required: "Title is required." })}
-                          color={errors.title ? "destructive" : "default"}
-                        />
-                        {errors.title && (
-                          <p className="text-destructive  text-sm font-medium">
-                            {errors.title.message}
-                          </p>
-                        )}
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="ata">ATA(UTC)</Label>
-                        <Input
-                          id="ata"
-                          placeholder="ATA(UTC)"
-                          type="time"
-                          {...register("title", { required: "Title is required." })}
-                          color={errors.title ? "destructive" : "default"}
-                        />
-                        {errors.title && (
-                          <p className="text-destructive  text-sm font-medium">
-                            {errors.title.message}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="mb-4">
-                      <span>Departure (UTC Time)</span>
-                    </div>
-                    <div className="grid lg:grid-cols-2 grid-cols-1 gap-5">
-                      <div className="space-y-1 col-span-2">
-                        <Label htmlFor="flightNo">Flight No</Label>
-                        <Input
-                          id="flightNo"
-                          placeholder="Flight No"
-                          {...register("title", { required: "Title is required." })}
-                          color={errors.title ? "destructive" : "default"}
-                        />
-                        {errors.title && (
-                          <p className="text-destructive  text-sm font-medium">
-                            {errors.title.message}
-                          </p>
-                        )}
-                      </div>
-                      <div className="space-y-1 col-span-2">
-                        <Label htmlFor="departureDate">Date</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="w-full justify-start text-start font-normal border border-default-200 text-default-700 md:px-2.5 hover:bg-transparent hover:text-default-700"
-                              size="md"
-                            >
-                              <CalendarIcon className="me-2 h-3.5 w-3.5 text-default-500" />
-                              {format(startDate, "PPP")}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0">
-                            <Controller
-                              name="startDate"
-                              control={control}
-                              render={({ field }) => (
-                                <Calendar
-                                  mode="single"
-                                  selected={startDate}
-                                  onSelect={(date) => {
-                                    field.onChange(date);
-                                    setStartDate(date as Date);
-                                  }}
-                                  initialFocus
-                                />
-                              )}
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="sta">STA(UTC)</Label>
-                        <Input
-                          id="sta"
-                          placeholder="STA(UTC)"
-                          type="time"
-                          {...register("title", { required: "Title is required." })}
-                          color={errors.title ? "destructive" : "default"}
-                        />
-                        {errors.title && (
-                          <p className="text-destructive  text-sm font-medium">
-                            {errors.title.message}
-                          </p>
-                        )}
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="ata">ATA(UTC)</Label>
-                        <Input
-                          id="ata"
-                          placeholder="ATA(UTC)"
-                          type="time"
-                          {...register("title", { required: "Title is required." })}
-                          color={errors.title ? "destructive" : "default"}
-                        />
-                        {errors.title && (
-                          <p className="text-destructive  text-sm font-medium">
-                            {errors.title.message}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <Separator className="mb-8 mt-8" />
-                <div className="space-y-1">
-                  <Label htmlFor="description">Note.</Label>
-                  <Textarea
-                    id="description"
-                    placeholder="Note."
-                    {...register("description")}
-                  />
                 </div>
               </div>
-            </ScrollArea>
-          </div>
-          <Separator className="mb-2 mt-8" />
-          <div className="flex justify-end">
-            <Button type="submit" >Add</Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog >
-  );
-};
 
-export default CreateProject;
+              {/* DEPARTURE */}
+              <div>
+                <h4 className="text-sm font-medium mb-2">Departure (UTC Time)</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="flightDeparture">Flight No</Label>
+                    <Input {...register("flightDeparture")} placeholder="Flight No" autoComplete="off" />
+                    <FieldError msg={errors.flightDeparture?.message} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="departureDate">Date</Label>
+                    <Controller
+                      name="departureDate"
+                      control={control}
+                      render={({ field }) => (
+                        <CustomDateInput
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="DD-MMM-YYYY (click to pick)"
+                        />
+                      )}
+                    />
+                    <FieldError msg={errors.departureDate?.message} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="std">STD (UTC)</Label>
+                    <Input type="time" {...register("std")} />
+                    <FieldError msg={errors.std?.message} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="atd">ATD (UTC)</Label>
+                    <Input type="time" {...register("atd")} />
+                    <FieldError msg={errors.atd?.message} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <Separator className="mb-8 mt-10" />
+
+            <div className="grid lg:grid-cols-2 gap-6">
+              <div className="space-y-1 ">
+                <div className="space-y-1">
+                  <Label htmlFor="bay">Bay</Label>
+                  <Input {...register("bay")} placeholder="Bay" autoComplete="off" />
+                  <FieldError msg={errors.bay?.message} />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="status">Status</Label>
+                  <Controller
+                    name="status"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value?.value}
+                        onValueChange={(value) => {
+                          const option = statusOptions.find(opt => opt.value === value);
+                          field.onChange(option || null);
+                        }}
+                        disabled={loadingStatus || statusOptions.length === 0}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={
+                            loadingStatus ? "Loading status..." :
+                              statusError ? "Failed to load status" :
+                                statusOptions.length === 0 ? "No status found" :
+                                  "Select status"
+                          } />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {statusOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  <FieldError msg={errors.status?.message as string | undefined} />
+                  {statusUsingFallback && (
+                    <p className="text-sm text-amber-600">
+                      ⚠️ Using offline status data due to API connection issue
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <div className="space-y-1">
+                  <Label htmlFor="note">Note</Label>
+                  <Textarea {...register("note")} placeholder="Note..." />
+                  <FieldError msg={errors.note?.message} />
+                </div>
+              </div>
+            </div>
+
+            {mError && (
+              <p className="text-sm text-red-600">
+                {(mError as Error).message || "Submit failed"}
+              </p>
+            )}
+          </form>
+        </ScrollArea>
+
+        <Separator className="mb-2 mt-0" />
+        <div className="flex justify-end gap-2 py-2 px-2">
+          <Button type="button" variant="outline" color="primary" onClick={() => onClose()} disabled={isPending}>
+            Cancel
+          </Button>
+          <Button type="submit" color="primary" form="create-flight-form" disabled={isPending}>
+            {isPending ? "Updating..." : "Update"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

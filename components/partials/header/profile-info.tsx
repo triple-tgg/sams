@@ -1,3 +1,4 @@
+"use client";
 
 import {
   DropdownMenu,
@@ -15,8 +16,13 @@ import {
 import { Icon } from "@/components/ui/icon"
 import Image from "next/image";
 import { Link } from '@/i18n/routing';
+import { useLogout } from "@/lib/api/hooks/useLogout";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/rootReducer";
 
-const ProfileInfo = async () => {
+const ProfileInfo = () => {
+  const { handleLogout } = useLogout();
+  const { users } = useSelector((state: RootState) => state.auth)
   return (
     <div className="md:block hidden">
       <DropdownMenu>
@@ -31,7 +37,7 @@ const ProfileInfo = async () => {
             />
 
             <div className="text-sm font-medium  capitalize lg:block hidden  ">
-              Jhon Doe
+              {users?.fullName}
             </div>
             <span className="text-base  me-2.5 lg:inline-block hidden">
               <Icon icon="heroicons-outline:chevron-down"></Icon>
@@ -41,23 +47,23 @@ const ProfileInfo = async () => {
         <DropdownMenuContent className="w-56 p-0" align="end">
           <DropdownMenuLabel className="flex gap-2 items-center mb-1 p-3">
 
-            <Image
+            {/* <Image
               src="/images/avatar/av-1.jpg"
               alt="dashcode"
               width={36}
               height={36}
               className="rounded-full"
-            />
+            /> */}
 
             <div>
               <div className="text-sm font-medium text-default-800 capitalize ">
-                Jhon Doe
+                {users?.fullName}
               </div>
               <Link
                 href="/dashboard"
                 className="text-xs text-default-600 hover:text-primary"
               >
-                info@codeshaper.net
+                {users?.email}
               </Link>
             </div>
           </DropdownMenuLabel>
@@ -177,14 +183,10 @@ const ProfileInfo = async () => {
           >
 
             <div>
-              <form
-
-              >
-                <button type="submit" className=" w-full  flex  items-center gap-2" >
-                  <Icon icon="heroicons:power" className="w-4 h-4" />
-                  Log out
-                </button>
-              </form>
+              <button type="submit" className=" w-full  flex  items-center gap-2" onClick={handleLogout}>
+                <Icon icon="heroicons:power" className="w-4 h-4" />
+                Log out
+              </button>
             </div>
           </DropdownMenuItem>
         </DropdownMenuContent>

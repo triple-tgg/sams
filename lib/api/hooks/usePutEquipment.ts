@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { putEquipment, transformEquipmentDataForAPI, PutEquipmentRequest, PutEquipmentResponse } from '../lineMaintenances/equipment/putEquipment'
-import { useToast } from '@/components/ui/use-toast'
+import { toast } from 'sonner'
+// import { useToast } from '@/components/ui/use-toast'
 
 // Interface สำหรับ mutation parameters
 interface PutEquipmentParams {
@@ -23,7 +24,7 @@ interface UsePutEquipmentOptions {
  */
 export const usePutEquipment = (options: UsePutEquipmentOptions = {}) => {
   const queryClient = useQueryClient()
-  const { toast } = useToast()
+  // const { toast } = useToast()
   const {
     onSuccess,
     onError,
@@ -43,11 +44,12 @@ export const usePutEquipment = (options: UsePutEquipmentOptions = {}) => {
     onSuccess: (data, variables) => {
       // Show success toast
       if (showToast) {
-        toast({
-          variant: "success",
-          title: "Success",
-          description: `${variables.equipmentData.length} equipment(s) have been updated successfully.`
-        })
+        toast.success('Save successfully')
+        // toast({
+        //   variant: "success",
+        //   title: "Success",
+        //   description: `${variables.equipmentData.length} equipment(s) have been updated successfully.`
+        // })
       }
 
       // Invalidate related queries to refresh data
@@ -68,11 +70,13 @@ export const usePutEquipment = (options: UsePutEquipmentOptions = {}) => {
     onError: (error, variables) => {
       // Show error toast
       if (showToast) {
-        toast({
-          variant: "destructive",
-          title: "Failed to update equipment",
-          description: error.message || 'An unexpected error occurred'
-        })
+        toast.error(error.message || 'An unexpected error occurred')
+
+        // toast({
+        //   variant: "destructive",
+        //   title: "Failed to update equipment",
+        //   description: error.message || 'An unexpected error occurred'
+        // })
       }
 
       // Call custom onError callback
@@ -124,7 +128,7 @@ export const usePutEquipmentWithLoading = (options: UsePutEquipmentOptions = {})
  */
 export const useBatchPutEquipment = (options: UsePutEquipmentOptions = {}) => {
   const queryClient = useQueryClient()
-  const { toast } = useToast()
+  // const { toast } = useToast()
   const { onSuccess, onError, onSettled, showToast = true } = options
 
   return useMutation<PutEquipmentResponse[], Error, PutEquipmentParams[]>({
@@ -140,11 +144,12 @@ export const useBatchPutEquipment = (options: UsePutEquipmentOptions = {}) => {
 
     onSuccess: (data, variables) => {
       if (showToast) {
-        toast({
-          variant: "success",
-          title: "Batch Update Success",
-          description: `Updated equipment for ${variables.length} line maintenance(s) successfully.`
-        })
+        toast.success('successfully')
+        // toast({
+        //   variant: "success",
+        //   title: "Batch Update Success",
+        //   description: `Updated equipment for ${variables.length} line maintenance(s) successfully.`
+        // })
       }
 
       // Invalidate queries for all affected line maintenances
@@ -162,11 +167,12 @@ export const useBatchPutEquipment = (options: UsePutEquipmentOptions = {}) => {
 
     onError: (error) => {
       if (showToast) {
-        toast({
-          variant: "destructive",
-          title: "Batch Update Failed",
-          description: error.message || 'Some updates may have failed'
-        })
+        toast.error(error.message || 'Some updates may have failed')
+        // toast({
+        //   variant: "destructive",
+        //   title: "Batch Update Failed",
+        //   description: error.message || 'Some updates may have failed'
+        // })
       }
 
       onError?.(error)

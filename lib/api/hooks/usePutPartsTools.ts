@@ -1,25 +1,26 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { putPartsTools, PutPartsToolsParams, PutPartsToolsResponse } from '@/lib/api/lineMaintenances/parts-tools/putPartsTools'
-import { useToast } from '@/components/ui/use-toast'
+// import { useToast } from '@/components/ui/use-toast'
 import { PartToolItem } from '@/app/[locale]/(protected)/flight/thf/create/components/PartsAndToolsStep/types'
+import { toast } from 'sonner'
 
 /**
  * Hook for updating parts/tools data
  */
 export const usePutPartsTools = () => {
   const queryClient = useQueryClient()
-  const { toast } = useToast()
+  // const { toast } = useToast()
 
   return useMutation<PutPartsToolsResponse, Error, PutPartsToolsParams>({
     mutationFn: putPartsTools,
     onSuccess: (data, variables) => {
       // Show success toast
-      toast({
-        title: "Parts/Tools Updated",
-        description: "Parts and tools information has been saved successfully.",
-        variant: "default",
-      })
-
+      // toast({
+      //   title: "Parts/Tools Updated",
+      //   description: "Parts and tools information has been saved successfully.",
+      //   variant: "default",
+      // })
+      toast.success('Saved successfully.')
       // Invalidate related queries to refresh data
       queryClient.invalidateQueries({
         queryKey: ['lineMaintenances', 'flight', variables.lineMaintenancesId]
@@ -32,11 +33,12 @@ export const usePutPartsTools = () => {
     },
     onError: (error, variables) => {
       // Show error toast
-      toast({
-        title: "Error Updating Parts/Tools",
-        description: error.message || "Failed to save parts and tools information. Please try again.",
-        variant: "destructive",
-      })
+      toast.error(error.message || "Failed to save parts and tools information. Please try again.")
+      // toast({
+      //   title: "Error Updating Parts/Tools",
+      //   description: error.message || "Failed to save parts and tools information. Please try again.",
+      //   variant: "destructive",
+      // })
 
       console.error('Parts/Tools update failed:', error)
     },
@@ -54,17 +56,18 @@ export const usePutPartsToolsWithCallbacks = (
   } = {}
 ) => {
   const queryClient = useQueryClient()
-  const { toast } = useToast()
+  // const { toast } = useToast()
 
   return useMutation<PutPartsToolsResponse, Error, PutPartsToolsParams>({
     mutationFn: putPartsTools,
     onSuccess: (data, variables) => {
       // Default success behavior
-      toast({
-        title: "Parts/Tools Updated",
-        description: "Parts and tools information has been saved successfully.",
-        variant: "default",
-      })
+      toast.success('Saved successfully.')
+      // toast({
+      //   title: "Parts/Tools Updated",
+      //   description: "Parts and tools information has been saved successfully.",
+      //   variant: "default",
+      // })
 
       // Invalidate related queries
       queryClient.invalidateQueries({
@@ -81,11 +84,12 @@ export const usePutPartsToolsWithCallbacks = (
     },
     onError: (error, variables) => {
       // Default error behavior
-      toast({
-        title: "Error Updating Parts/Tools",
-        description: error.message || "Failed to save parts and tools information. Please try again.",
-        variant: "destructive",
-      })
+      toast.error(error.message || 'Failed to save parts and tools information. Please try again.')
+      // toast({
+      //   title: "Error Updating Parts/Tools",
+      //   description: error.message || "Failed to save parts and tools information. Please try again.",
+      //   variant: "destructive",
+      // })
 
       // Custom error callback
       options.onError?.(error, variables)

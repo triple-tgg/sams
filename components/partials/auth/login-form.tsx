@@ -28,8 +28,6 @@ const LoginForm = () => {
   // Use login mutation hook - Redux only
   const { mutate: loginUser, isPending } = useLogin({
     onSuccess: (data) => {
-      // Login hook will handle Redux update and navigation
-      // console.log('Login successful:', data);
       router.push('/dashboard')
     },
     onError: (error) => {

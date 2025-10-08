@@ -45,8 +45,8 @@ export default async function RootLayout({
                     {children}
                   </DirectionProvider>
                 </MountedProvider>
-                <Toaster />
-                <SonnerToaster />
+                {/* <Toaster /> */}
+                <SonnerToaster position="top-center" richColors />
               </ThemeProvider>
             </AuthProvider>
           </NextIntlClientProvider>
