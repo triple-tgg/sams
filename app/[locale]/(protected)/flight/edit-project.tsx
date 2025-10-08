@@ -57,19 +57,19 @@ const FormSchema = z
     station: z.object({ value: z.string(), label: z.string() }).nullable().refine(Boolean, "Required"),
 
     acReg: z.string().trim().optional().default(""),
-    acType: z.string().trim().optional().default(""),
+    acType: z.object({ value: z.string(), label: z.string() }).nullable().refine(Boolean, "Required"),
 
     flightArrival: z.string().trim().min(2, "Required"),
     arrivalDate: z.string().regex(/^\d{2}\/\d{2}\/\d{4}$/g, "DD/MMM/YYYY"),
     sta: z.string().regex(/^\d{2}:\d{2}$/g, "HH:mm"),
     ata: z.string().regex(/^\d{2}:\d{2}$/g, "HH:mm").optional().or(z.literal("")),
-    routeFrom: z.object({ value: z.string(), label: z.string() }).nullable().optional(),
+    // routeFrom: z.object({ value: z.string(), label: z.string() }).nullable().optional(),
 
     flightDeparture: z.string().trim().optional().default(""),
     departureDate: z.string().regex(/^\d{2}\/\d{2}\/\d{4}$/g, "DD/MMM/YYYY").optional().or(z.literal("")),
     std: z.string().regex(/^\d{2}:\d{2}$/g, "HH:mm").optional().or(z.literal("")),
     atd: z.string().regex(/^\d{2}:\d{2}$/g, "HH:mm").optional().or(z.literal("")),
-    routeTo: z.object({ value: z.string(), label: z.string() }).nullable().optional(),
+    // routeTo: z.object({ value: z.string(), label: z.string() }).nullable().optional(),
 
     bay: z.string().trim().optional().default(""),
     thfNumber: z.string().trim().optional().default(""),
@@ -115,23 +115,23 @@ const convertDateFromBackend = (dateStr: string | null): string => {
 // Create default values from flight data
 const createDefaultValues = (flightData: any): Inputs => {
   const responseData = flightData?.responseData?.[0];
-  
+
   if (!responseData) {
     return {
       customer: null,
       station: null,
       acReg: "",
-      acType: "",
+      acType: null,
       flightArrival: "",
       arrivalDate: "",
       sta: "",
       ata: "",
-      routeFrom: null,
+      // routeFrom: null,
       flightDeparture: "",
       departureDate: "",
       std: "",
       atd: "",
-      routeTo: null,
+      // routeTo: null,
       bay: "",
       thfNumber: "",
       status: { value: "Normal", label: "Normal" },
@@ -154,18 +154,18 @@ const createDefaultValues = (flightData: any): Inputs => {
     arrivalDate: convertDateFromBackend(responseData.arrivalDate),
     sta: responseData.arrivalStatime || "",
     ata: responseData.arrivalAtaTime || "",
-    routeFrom: responseData.routeForm ? {
-      value: responseData.routeForm,
-      label: responseData.routeForm
-    } : null,
+    // routeFrom: responseData.routeForm ? {
+    //   value: responseData.routeForm,
+    //   label: responseData.routeForm
+    // } : null,
     flightDeparture: responseData.departureFlightNo || "",
     departureDate: convertDateFromBackend(responseData.departureDate),
     std: responseData.departureStdTime || "",
     atd: responseData.departureAtdtime || "",
-    routeTo: responseData.routeTo ? {
-      value: responseData.routeTo,
-      label: responseData.routeTo
-    } : null,
+    // routeTo: responseData.routeTo ? {
+    //   value: responseData.routeTo,
+    //   label: responseData.routeTo
+    // } : null,
     bay: responseData.bayNo || "",
     thfNumber: "", // Not available in the response data
     status: responseData.statusObj ? {
@@ -246,7 +246,7 @@ export default function EditFlight({ open, setOpen, flightId, onClose }: CreateT
       airlinesCode: values.customer!.value.trim(),
       stationsCode: values.station!.value.trim(),
       acReg: (values.acReg ?? "").trim(),
-      acType: (values.acType ?? "").trim(),
+      acTypeCode: values.acType!.value.trim(),
       arrivalFlightNo: values.flightArrival.trim(),
       arrivalDate: convertDateToBackend(values.arrivalDate),
       arrivalStaTime: sendTime(values.sta),
@@ -397,13 +397,13 @@ export default function EditFlight({ open, setOpen, flightId, onClose }: CreateT
               </div>
               <div className="space-y-1">
                 <SearchableSelectField
-                  name="aircraftType"
+                  name="acType"
                   control={control}
                   label="A/C Type"
                   placeholder="Select A/C Type"
                   options={aircraftOptions}
                   isLoading={isLoadingAircraft}
-                  errorMessage={acTypeCodeError?.message}
+                  errorMessage={errors.acType?.message}
                   usingFallback={acTypeCodeUsingFallback}
                 />
               </div>

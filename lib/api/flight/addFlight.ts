@@ -7,7 +7,7 @@ export interface FlightData {
   airlinesCode: string;
   stationsCode: string;
   acReg: string;
-  acType: string;
+  acTypeCode: string;
   arrivalFlightNo: string;
   arrivalDate: string;       // "YYYY-MM-DD"
   arrivalStaTime: string;    // "HH:mm" (ถ้า API ต้อง HHmm ให้แปลงก่อน)
@@ -44,7 +44,7 @@ export async function addFlight(
     });
     return res.data;
   } catch (e) {
-    const err = e as AxiosError<{ message?: string }>;
+    const err = e as AxiosError<{ message?: string; error?: string }>;
     const msg = err.response?.data?.message ?? err.message ?? "Add flight failed";
     // โยน Error ที่อ่านง่ายให้ UI แสดงผล
     throw new Error(msg);

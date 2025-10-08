@@ -38,8 +38,8 @@ export const flightFormSchema = z.object({
   note: z.string().optional(),
   thfNumber: z.string().min(1, "THF Number is required"),
   delayCode: z.string().optional(),
-  routeFrom: z.string().min(1, "Route From is required"),
-  routeTo: z.string().min(1, "Route To is required"),
+  // routeFrom: z.string().min(1, "Route From is required"),
+  // routeTo: z.string().min(1, "Route To is required"),
 });
 
 export type FlightFormSchema = z.infer<typeof flightFormSchema>

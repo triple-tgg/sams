@@ -27,8 +27,8 @@ export const useFlightSubmission = (flightData: any, onSave: (data: any) => void
       statusCode: data.status?.value || "Normal",
       note: data.note || "",
       thfNo: data.thfNumber || "",
-      routeForm: data.routeFrom || "",
-      routeTo: data.routeTo || "",
+      // routeForm: data.routeFrom || "",
+      // routeTo: data.routeTo || "",
     };
 
     // Call push THF API

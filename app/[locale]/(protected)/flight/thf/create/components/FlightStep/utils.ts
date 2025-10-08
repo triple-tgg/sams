@@ -51,6 +51,6 @@ export const sanitizeFormData = (existingFlightData: FlightFormData) => ({
   note: existingFlightData.note || '',
   thfNumber: existingFlightData.thfNumber || '',
   delayCode: existingFlightData.delayCode || '',
-  routeFrom: existingFlightData.routeFrom || '',
-  routeTo: existingFlightData.routeTo || '',
+  // routeFrom: existingFlightData.routeFrom || '',
+  // routeTo: existingFlightData.routeTo || '',
 });

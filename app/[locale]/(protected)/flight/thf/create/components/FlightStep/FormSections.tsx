@@ -72,7 +72,7 @@ export const CustomerStationSection = ({
       errorMessage={errors.acReg?.message}
     />
     <SearchableSelectField
-      name="aircraftType"
+      name="acTypeCode"
       control={control}
       label="A/C Type"
       placeholder="Select A/C Type"

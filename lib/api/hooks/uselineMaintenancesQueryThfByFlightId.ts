@@ -26,8 +26,8 @@ export interface FlightFormData {
   status: { value: string; label: string } | null;
   note: string;
   delayCode: string;
-  routeFrom: string;
-  routeTo: string;
+  // routeFrom: string;
+  // routeTo: string;
 }
 
 // Mapping function to convert API flight data to form data
@@ -76,8 +76,8 @@ export const mapFlightToFormData = (flightItem: Flight | null): FlightFormData |
     // Note and additional fields
     note: flightItem.note || '',
     delayCode: '', // Default empty as it's not in API response
-    routeFrom: flightItem.routeForm || '',
-    routeTo: flightItem.routeTo || '',
+    // routeFrom: flightItem.routeForm || '',
+    // routeTo: flightItem.routeTo || '',
   };
 };
 

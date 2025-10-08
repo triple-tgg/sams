@@ -134,14 +134,14 @@ export function getFlightColumns({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="center">
                 {/* <DropdownMenuSeparator /> */}
-                {/* <DropdownMenuItem
+                <DropdownMenuItem
                   disabled={flight.statusObj.code === "Cancel"}
                   onClick={() => {
                     onEditFlight?.(flight)
                   }}
                 >
                   <SquarePen className="w-4 h-4 me-4" /> <p>Edit Flight</p>
-                </DropdownMenuItem> */}
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   disabled={flight.statusObj.code === "Cancel"}
                   onClick={() => {
