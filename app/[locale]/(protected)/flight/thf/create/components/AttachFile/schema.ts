@@ -22,12 +22,17 @@ const attachFileEntrySchema = z.object({
  */
 export const attachFileFormSchema = z.object({
   attachFiles: z.array(attachFileEntrySchema)
-    .min(1, 'At least one file is required')
     .max(10, 'Maximum 10 files allowed')
+    .optional()
+    .default([])
     .refine(
-      (files) => files.some(file => file.status === 'completed' || file.file !== null),
+      (files) => {
+        // If files exist, at least one must be completed or have a file
+        if (!files || files.length === 0) return true // Allow empty files array
+        return files.some(file => file.status === 'completed' || file.file !== null)
+      },
       {
-        message: 'At least one file must be selected or uploaded'
+        message: 'If files are added, at least one must be selected or uploaded'
       }
     )
 })

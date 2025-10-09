@@ -105,14 +105,21 @@ const AttachFileStep: React.FC<Props> = ({ lineMaintenanceId, flightInfosId, ini
   // Handle form submission with file data
   const onSubmit = (formData: AttachFileFormInputs) => {
     // Add completed file data to form before submission
-    console.log("onSubmit called with formData:", formData)
+    console.log("🚀 AttachFileStep onSubmit called with formData:", formData)
+    console.log("📋 Form validation state:", {
+      isValid: form.formState.isValid,
+      errors: form.formState.errors,
+      isDirty: form.formState.isDirty
+    })
+    
     const completedFiles = getCompletedFilesData()
+    console.log("📁 Completed files from upload manager:", completedFiles)
 
     // Merge uploaded files with form data
     const updatedFormData: AttachFileFormInputs = {
       ...formData,
       attachFiles: [
-        ...formData.attachFiles,
+        ...(formData.attachFiles || []), // Handle undefined attachFiles
         ...completedFiles.map((file, index) => ({
           id: `uploaded-${index}`,
           name: file.realName.split('.')[0],
@@ -126,6 +133,9 @@ const AttachFileStep: React.FC<Props> = ({ lineMaintenanceId, flightInfosId, ini
       ]
     }
 
+    console.log("✨ Final form data before submission:", updatedFormData)
+    console.log("🔗 Calling handleSubmit with lineMaintenanceId:", lineMaintenanceId)
+    
     handleSubmit(updatedFormData)
   }
 
@@ -160,7 +170,7 @@ const AttachFileStep: React.FC<Props> = ({ lineMaintenanceId, flightInfosId, ini
 
       {!loading && !flightError && (
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form className="space-y-6">
 
             {/* File Upload Section */}
             <div className="space-y-4">
@@ -219,15 +229,49 @@ const AttachFileStep: React.FC<Props> = ({ lineMaintenanceId, flightInfosId, ini
               </div>
             )}
 
+            {/* Form Validation Errors */}
+            {Object.keys(form.formState.errors).length > 0 && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  <span className="text-sm font-medium text-red-800">
+                    Please fix the following errors:
+                  </span>
+                </div>
+                <ul className="text-sm text-red-700 list-disc list-inside space-y-1">
+                  {form.formState.errors.attachFiles?.message && (
+                    <li>{form.formState.errors.attachFiles.message}</li>
+                  )}
+                  {form.formState.errors.root?.message && (
+                    <li>{form.formState.errors.root.message}</li>
+                  )}
+                </ul>
+              </div>
+            )}
+
+            {/* Debug Information */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="bg-gray-100 border border-gray-300 rounded-lg p-4 text-xs">
+                <div className="font-semibold mb-2">Debug Info:</div>
+                <div>Line Maintenance ID: {lineMaintenanceId}</div>
+                <div>Has Line Maintenance ID: {hasLineMaintenanceId ? 'Yes' : 'No'}</div>
+                <div>Form Valid: {form.formState.isValid ? 'Yes' : 'No'}</div>
+                <div>Is Submitting: {isSubmitting ? 'Yes' : 'No'}</div>
+                <div>Files Count: {files.length}</div>
+                <div>Completed Files: {hasCompletedFiles ? getCompletedFilesData().length : 0}</div>
+                <div>Submit Disabled: {isSubmitting || !hasLineMaintenanceId || !form.formState.isValid ? 'Yes' : 'No'}</div>
+              </div>
+            )}
+
             {/* Form Actions */}
             <FormActions
               onBack={handleOnBackStep}
               onSubmit={form.handleSubmit(onSubmit)}
               backText="← Back to Parts & Tools"
-              submitText={isSubmitting ? 'Saving...' : 'Save'}
+              submitText={isSubmitting ? 'Saving...' : 'Save & Complete'}
               isSubmitting={isSubmitting}
               disableBack={isSubmitting}
-              disableSubmit={isSubmitting || !hasLineMaintenanceId}
+              disableSubmit={isSubmitting || !hasLineMaintenanceId || !form.formState.isValid}
               showReset={false}
             />
 

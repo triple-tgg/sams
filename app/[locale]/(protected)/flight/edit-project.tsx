@@ -42,6 +42,7 @@ import { useAircraftTypes } from "@/lib/api/hooks/useAircraftTypes";
 import { toast } from "sonner";
 import { useFlightQueryById } from "@/lib/api/hooks/useFlightQueryById";
 import { useMemo, useEffect } from "react";
+import useUpdateFlight from "@/lib/api/hooks/useUpdateFlight";
 
 
 
@@ -149,7 +150,10 @@ const createDefaultValues = (flightData: any): Inputs => {
       label: responseData.stationObj.name || responseData.stationObj.code
     } : null,
     acReg: responseData.acReg || "",
-    acType: responseData.acTypeObj?.code || "",
+    acType: responseData.acTypeObj ? {
+      value: responseData.acTypeObj.code,
+      label: responseData.acTypeObj.name || responseData.acTypeObj.code
+    } : null,
     flightArrival: responseData.arrivalFlightNo || "",
     arrivalDate: convertDateFromBackend(responseData.arrivalDate),
     sta: responseData.arrivalStatime || "",
@@ -179,14 +183,14 @@ const createDefaultValues = (flightData: any): Inputs => {
 // ------------------------------------------------------
 // Component
 // ------------------------------------------------------
-interface CreateTaskProps {
+interface EditFlightProps {
   flightId: number | null;
   open: boolean;
   onClose: () => void;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export default function EditFlight({ open, setOpen, flightId, onClose }: CreateTaskProps) {
+export default function EditFlight({ open, setOpen, flightId, onClose }: EditFlightProps) {
   const params = useParams<{ locale: string }>();
   const direction = getLangDir(params?.locale ?? "");
 
@@ -238,11 +242,13 @@ export default function EditFlight({ open, setOpen, flightId, onClose }: CreateT
     }
   }, [flightData, reset]);
 
-  const { mutate, isPending, error: mError } = useAddFlight();
 
+  const { mutate: updateFlight, isPending, error: mError } = useUpdateFlight();
   const onSubmit: SubmitHandler<Inputs> = (values) => {
-    const payload: FlightData = {
-      id: 0,
+    if (!flightId) return;
+
+    const payload = {
+      id: flightId as number,
       airlinesCode: values.customer!.value.trim(),
       stationsCode: values.station!.value.trim(),
       acReg: (values.acReg ?? "").trim(),
@@ -261,11 +267,11 @@ export default function EditFlight({ open, setOpen, flightId, onClose }: CreateT
       note: (values.note ?? "").trim(),
     };
 
-    mutate(
+    updateFlight(
       { payload },
       {
         onSuccess: () => {
-          toast.success("Flight was added successfully.")
+          toast.success("Flight updated successfully.")
           reset();
           // setOpen(false);
           onClose();
@@ -431,7 +437,7 @@ export default function EditFlight({ open, setOpen, flightId, onClose }: CreateT
                         <CustomDateInput
                           value={field.value}
                           onChange={field.onChange}
-                          placeholder="DD-MMM-YYYY (click to pick)"
+                          placeholder="DD-MMM-YYYY"
                         />
                       )}
                     />
@@ -447,7 +453,45 @@ export default function EditFlight({ open, setOpen, flightId, onClose }: CreateT
                     <Input type="time" {...register("ata")} />
                     <FieldError msg={errors.ata?.message} />
                   </div>
-
+                  {/* <div className="space-y-2 col-span-2">
+                            <Label htmlFor="routeFrom">Route From</Label>
+                            <Controller
+                              name="routeFrom"
+                              control={control}
+                              render={({ field }) => (
+                                <Select
+                                  value={field.value?.value}
+                                  onValueChange={(value) => {
+                                    const option = stationOptions.find(opt => opt.value === value);
+                                    field.onChange(option || null);
+                                  }}
+                                  disabled={loadingStations}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder={
+                                      loadingStations ? "Loading stations..." :
+                                        stationsError ? "Failed to load stations" :
+                                          stationOptions.length === 0 ? "No stations found" :
+                                            "Select station"
+                                    } />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {stationOptions.map((option) => (
+                                      <SelectItem key={option.value} value={option.value}>
+                                        {option.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+                            />
+                            <FieldError msg={errors.station?.message as string | undefined} />
+                            {stationsUsingFallback && (
+                              <p className="text-sm text-amber-600">
+                                ⚠️ Using offline station data due to API connection issue
+                              </p>
+                            )}
+                          </div> */}
                 </div>
               </div>
 
@@ -469,7 +513,7 @@ export default function EditFlight({ open, setOpen, flightId, onClose }: CreateT
                         <CustomDateInput
                           value={field.value}
                           onChange={field.onChange}
-                          placeholder="DD-MMM-YYYY (click to pick)"
+                          placeholder="DD-MMM-YYYY"
                         />
                       )}
                     />
@@ -485,6 +529,45 @@ export default function EditFlight({ open, setOpen, flightId, onClose }: CreateT
                     <Input type="time" {...register("atd")} />
                     <FieldError msg={errors.atd?.message} />
                   </div>
+                  {/* <div className="space-y-2 col-span-2">
+                            <Label htmlFor="routeTo">Route To</Label>
+                            <Controller
+                              name="routeTo"
+                              control={control}
+                              render={({ field }) => (
+                                <Select
+                                  value={field.value?.value}
+                                  onValueChange={(value) => {
+                                    const option = stationOptions.find(opt => opt.value === value);
+                                    field.onChange(option || null);
+                                  }}
+                                  disabled={loadingStations}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder={
+                                      loadingStations ? "Loading stations..." :
+                                        stationsError ? "Failed to load stations" :
+                                          stationOptions.length === 0 ? "No stations found" :
+                                            "Select station"
+                                    } />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {stationOptions.map((option) => (
+                                      <SelectItem key={option.value} value={option.value}>
+                                        {option.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+                            />
+                            <FieldError msg={errors.station?.message as string | undefined} />
+                            {stationsUsingFallback && (
+                              <p className="text-sm text-amber-600">
+                                ⚠️ Using offline station data due to API connection issue
+                              </p>
+                            )}
+                          </div> */}
                 </div>
               </div>
             </div>
@@ -549,7 +632,7 @@ export default function EditFlight({ open, setOpen, flightId, onClose }: CreateT
 
             {mError && (
               <p className="text-sm text-red-600">
-                {(mError as Error).message || "Submit failed"}
+                {(mError as { error?: string; message?: string })?.error || "Submit failed"}
               </p>
             )}
           </form>

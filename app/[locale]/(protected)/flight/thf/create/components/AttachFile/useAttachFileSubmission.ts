@@ -1,11 +1,12 @@
 import { useCallback } from 'react'
 import { UseFormReturn } from 'react-hook-form'
-import { useRouter } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { AttachFileFormInputs } from './types'
 import { prepareAttachFileDataForApi } from './utils'
 import { usePutAttachFileOtherWithLoading } from '@/lib/api/hooks/usePutAttachfileOther'
 import { LineMaintenanceThfResponse } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
 import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 
 export interface UseAttachFileSubmissionParams {
   form: UseFormReturn<AttachFileFormInputs>
@@ -39,7 +40,7 @@ export const useAttachFileSubmission = ({
   onUpdateData,
   lineMaintenanceId
 }: UseAttachFileSubmissionParams): UseAttachFileSubmissionReturn => {
-
+  const { locale } = useParams()
   // Get line maintenance ID from existing data
   const hasLineMaintenanceId = lineMaintenanceId !== null
   const queryClient = useQueryClient()
@@ -59,9 +60,10 @@ export const useAttachFileSubmission = ({
       console.log('✅ Attach files updated successfully')
       await queryClient.invalidateQueries({ queryKey: ['flightList'] })
       onUpdateData?.()
+      toast.success(`Attach file data prepared successfully`)
 
       // Navigate to flight list page
-      router.push('/flight/list')
+      router.push(`/${locale}/flight/list`)
     },
     onError: (error) => {
       console.error('❌ Failed to update attach files:', error)
@@ -81,21 +83,26 @@ export const useAttachFileSubmission = ({
       // Prepare data for API
       const apiData = prepareAttachFileDataForApi(data)
 
+      console.log('📦 Prepared API data:', apiData)
+
       if (apiData.length === 0) {
-        console.warn('⚠️ No completed files to submit')
-        // Still proceed to next step if no files are required
-        onNextStep()
+        console.warn('⚠️ No completed files to submit - proceeding without files')
+        // Files are optional, proceed to completion
+        queryClient.invalidateQueries({ queryKey: ['flightList'] })
+        onUpdateData?.()
+        toast.success('THF process completed successfully (no files attached)')
+        router.push(`/${locale}/flight/list`)
         return
       }
-
-      console.log('📦 Prepared API data:', apiData)
 
       // Submit to API
       updateAttachFileOther(apiData)
     } catch (error) {
       console.error('❌ Error preparing attach file data:', error)
+      toast.error(`Error preparing attach file data: ${error}`)
+
     }
-  }, [hasLineMaintenanceId, updateAttachFileOther, onNextStep])
+  }, [hasLineMaintenanceId, updateAttachFileOther, queryClient, onUpdateData, router, locale])
 
   // Handle back navigation
   const handleOnBackStep = useCallback(() => {

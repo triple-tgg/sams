@@ -33,16 +33,7 @@ export interface AttachFileStepProps {
  * Default values for the attach file form
  */
 export const getDefaultAttachFileValues = (): AttachFileFormInputs => ({
-  attachFiles: [
-    {
-      id: Math.random().toString(36).substr(2, 9),
-      name: '',
-      file: null,
-      fileType: 'other',
-      status: 'pending',
-      progress: 0
-    }
-  ]
+  attachFiles: [] // Start with empty array - files are optional
 })
 
 /**
