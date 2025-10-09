@@ -42,7 +42,7 @@ export function useAirlineOptions() {
 
   const apiOptions = data?.responseData?.map((airline: AirlineItem) => ({
     value: airline.code,
-    label: airline.code,
+    label: airline.name || "-",
   })).filter(item => item.value && item.label) ?? [];
 
   // ใช้ API options ถ้ามีข้อมูล ไม่งั้นใช้ fallback

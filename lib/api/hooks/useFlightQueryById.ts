@@ -42,8 +42,8 @@ export function useFlightQueryById(id: number | null) {
       return getFlightById(id);
     },
     enabled: !!id && id > 0, // Only run query if ID exists and is valid
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
+    // staleTime: 5 * 60 * 1000, // 5 minutes
+    // gcTime: 10 * 60 * 1000, // 10 minutes
     retry: 2,
     refetchOnWindowFocus: false,
   });
@@ -60,51 +60,51 @@ export function useFlightFormData(id: number | null): {
   flightInfo: FlightBasicInfo | null;
 } {
   const { data, isLoading, error } = useFlightQueryById(id);
-  
+
   // แสดงข้อมูลการดึงข้อมูลสำหรับ debug
   console.log("Flight data loading:", { id, isLoading, hasData: !!data, error });
-  
+
   // ตรวจสอบว่ามีข้อมูลและมี responseData
   const hasValidData = data?.responseData && Array.isArray(data.responseData) && data.responseData.length > 0;
   const flightItem = hasValidData ? data.responseData[0] : null;
-  
+
   // แปลงข้อมูลเป็นรูปแบบที่ใช้ในฟอร์ม
   const formData = flightItem ? {
     // Customer dropdown - ใช้ airlines data
-    customer: flightItem.airlineObj?.code ? 
-      { value: flightItem.airlineObj.code, label: flightItem.airlineObj.code } : 
+    customer: flightItem.airlineObj?.code ?
+      { value: flightItem.airlineObj.code, label: flightItem.airlineObj.code } :
       null,
-    
+
     // Station dropdown
-    station: flightItem.stationObj?.code ? 
-      { value: flightItem.stationObj.code, label: flightItem.stationObj.code } : 
+    station: flightItem.stationObj?.code ?
+      { value: flightItem.stationObj.code, label: flightItem.stationObj.code } :
       null,
-    
+
     // Aircraft information
     acReg: flightItem.acReg || '',
     acType: flightItem.acType || '',
-    
+
     // Arrival information
     flightArrival: flightItem.arrivalFlightNo || '',
     arrivalDate: flightItem.arrivalDate || '',
     sta: flightItem.arrivalStatime || '',
     ata: flightItem.arrivalAtaTime || '',
-    
+
     // Departure information
     flightDeparture: flightItem.departureFlightNo || '',
     departureDate: flightItem.departureDate || '',
     std: flightItem.departureStdTime || '',
     atd: flightItem.departureAtdtime || '',
-    
+
     // Other fields
     bay: flightItem.bayNo || '',
     thfNumber: flightItem.thfNo || '',
-    
+
     // Status dropdown
-    status: flightItem.statusObj?.code ? 
-      { value: flightItem.statusObj.code, label: flightItem.statusObj.code } : 
+    status: flightItem.statusObj?.code ?
+      { value: flightItem.statusObj.code, label: flightItem.statusObj.code } :
       null,
-    
+
     // Note and additional fields
     note: flightItem.note || '',
     delayCode: '', // Default empty as it's not in API response
@@ -113,18 +113,18 @@ export function useFlightFormData(id: number | null): {
   return {
     // Raw API data
     data,
-    
+
     // Transformed form data
     formData,
-    
+
     // Loading and error states
     isLoading,
     error,
-    
+
     // Status flags
     isFound: !!hasValidData,
     isEmpty: !isLoading && !hasValidData && !error,
-    
+
     // Flight basic info for display
     flightInfo: flightItem ? {
       id: flightItem.id,
