@@ -4,7 +4,7 @@ import { getStaffsTypes, StaffType, StaffsTypesResponse } from "../master/staff/
 
 // For dropdown/select components
 export interface StaffTypeOption {
-  value: string;
+  value: number;
   label: string;
   id: number;
 }
@@ -34,7 +34,7 @@ export const useStaffsTypes = () => {
     if (!query.data?.responseData) return [];
 
     return query.data.responseData.map((staffType): StaffTypeOption => ({
-      value: staffType.code,
+      value: staffType.id,
       label: staffType.code,
       id: staffType.id,
     }));
@@ -56,7 +56,7 @@ export const useStaffsTypes = () => {
   const getStaffTypeById = (id: number) => staffTypeMap.get(id);
   const getStaffTypeByCode = (code: string) => staffTypeMap.get(code);
 
-  const findOption = (value: string) => options.find(option => option.value === value);
+  const findOption = (value: number) => options.find(option => option.value === value);
 
   return {
     ...query,

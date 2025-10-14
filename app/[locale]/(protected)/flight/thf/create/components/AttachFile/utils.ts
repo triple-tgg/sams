@@ -27,7 +27,7 @@ export const mapDataThfToAttachFileStep = (
     realName: file.realName,
     fileType: file.fileType
   }))
-
+  console.log("mapApiDataToAttachFileForm(attachFileOtherData)", mapApiDataToAttachFileForm(attachFileOtherData))
   return mapApiDataToAttachFileForm(attachFileOtherData)
 }
 
@@ -43,7 +43,7 @@ export const prepareAttachFileDataForApi = (
   if (!formData.attachFiles || formData.attachFiles.length === 0) {
     return []
   }
-  
+
   return formData.attachFiles
     .filter(file => file.status === 'completed' && file.storagePath && file.realName)
     .map(file => ({

@@ -3,7 +3,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import type { FlightItem } from "@/lib/api/flight/filghtlist.interface";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { CircleOff, EllipsisVertical, FilePenLine, Paperclip, SquarePen } from "lucide-react";
+import { CircleOff, EllipsisVertical, FileCheck, FilePenLine, Paperclip, SquarePen } from "lucide-react";
 import clsx from "clsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -21,6 +21,10 @@ export function getFlightColumns({
   isCancelLoading?: boolean;
 }): ColumnDef<FlightItem>[] {
   return [
+    {
+      accessorKey: "status", header: "-",
+      cell: ({ row }) => <div className="bg-primary/10 border-l-4 border-l-red-600 px-6 h-20"></div>
+    },
     {
       accessorKey: "arrivalFlightNo", header: "Flight No",
       cell: ({ row }) => <div className="font-medium text-sm whitespace-nowrap">{row.getValue("arrivalFlightNo")}</div>
@@ -66,7 +70,7 @@ export function getFlightColumns({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    disabled
+                    disabled={flight.isFiles}
                     variant="outline"
                     size="icon"
                     className="w-7 h-7 ring-offset-transparent border-default-300 text-default-500"
@@ -81,6 +85,27 @@ export function getFlightColumns({
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+            {flight.state !== "plan" && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      disabled={flight.state === "draft save"}
+                      variant="outline"
+                      size="icon"
+                      className="w-7 h-7 ring-offset-transparent border-default-300 text-default-500"
+                      color="secondary"
+                      onClick={() => onAttach?.(flight)}
+                    >
+                      <FileCheck className="w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    {flight.state === "save done" ? <p>Save done</p> : <p>Draft Thf</p>}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
 
             {/* <TooltipProvider>
               <Tooltip>
@@ -148,7 +173,7 @@ export function getFlightColumns({
                     onCreateTHF?.(flight)
                   }}
                 >
-                  <FilePenLine className="w-4 h-4 me-4" /> <p>Create THF</p>
+                  <FilePenLine className="w-4 h-4 me-4" /> {flight.state === "draft save " ? <p>Plan THF</p> : <p>Edit THF</p>}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="bg-red-700 text-white hover:bg-red-800 focus:bg-red-800 hover:text-white focus:text-white"

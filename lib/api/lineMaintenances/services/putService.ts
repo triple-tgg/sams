@@ -247,6 +247,7 @@ export const createServiceRequestFromForm = (
           formDate: person.formDate ? convertDateToBackend(person.formDate) : "",
           toDate: person.toDate ? convertDateToBackend(person.toDate) : "",
           toTime: person.toTime || "",
+          staffTypeId: person.type ? Number(person.type) : undefined,
           note: person.remark || ""
         }))
       }),

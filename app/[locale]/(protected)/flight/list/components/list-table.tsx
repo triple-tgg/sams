@@ -301,7 +301,7 @@ const ListTable = ({
                             table.getRowModel().rows.map((row) => {
                                 const flight = row.original;
                                 const isCancelled = flight.statusObj?.code === "Cancel";
-
+                                console.log("isCancelled", isCancelled);
                                 return (
                                     <TableRow
                                         key={row.id}
@@ -309,7 +309,7 @@ const ListTable = ({
                                         className={clsx(
                                             "even:bg-default-100 px-6 h-20",
                                             row.getIsSelected() && "bg-primary/10",
-                                            isCancelled && "bg-primary/10 border-l-4 border-l-red-600"
+                                            isCancelled ? "bg-primary/10 border-l-4 border-l-red-600" : ""
                                         )}
                                     >
                                         {row.getVisibleCells().map((cell) => (

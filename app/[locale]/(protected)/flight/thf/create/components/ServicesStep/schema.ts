@@ -92,7 +92,7 @@ export const servicesFormSchema = z.object({
   addPersonnels: z.boolean().default(false),
   personnel: z.array(
     z.object({
-      staffId: z.number().min(1, "Staff ID is required").max(20, "Staff ID cannot exceed 20 characters"),
+      staffId: z.number().min(1, "Staff ID is required").max(200, "Staff ID cannot exceed 200 characters"),
       name: z.string().min(1, "Name is required").max(100, "Name cannot exceed 100 characters"),
       type: z.string().min(1, "Type is required").max(50, "Type cannot exceed 50 characters"),
       // formDate: z.string().min(1, "Form date is required"),

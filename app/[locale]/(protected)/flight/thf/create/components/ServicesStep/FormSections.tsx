@@ -1100,10 +1100,6 @@ export const PersonnelSection: React.FC<{
                               onValueChange={(value) => {
                                 console.log("field.value:", field.value)
                                 field.onChange(value)
-                                // Clear sub types if TR is selected
-                                if (value !== "TR") {
-                                  form.setValue(`aircraftChecks.${index}.maintenanceSubTypes`, [])
-                                }
                               }}
                               value={field.value || ""}
                             >
@@ -1115,7 +1111,7 @@ export const PersonnelSection: React.FC<{
                               <SelectContent>
                                 {staffsTypesValuesOptions.staffsTypesOptions && !!staffsTypesValuesOptions.hasOptionsStaffsTypes ? (
                                   staffsTypesValuesOptions.staffsTypesOptions.map((option) => (
-                                    <SelectItem key={option.value} value={option.value}>
+                                    <SelectItem key={option.value} value={String(option.value)}>
                                       {option.label}
                                     </SelectItem>
                                   ))

@@ -129,7 +129,7 @@ const StepForm = () => {
           flightInfosId={flightInfosId}
           flightError={flightError}
           loading={loadingFlight}
-
+          initialData={data}
         />
       </StepWrapper>
     </div>

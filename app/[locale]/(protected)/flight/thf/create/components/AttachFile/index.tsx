@@ -18,6 +18,7 @@ import { useAttachFileUpload } from '@/lib/api/hooks/useAttachFileUpload'
 import { FileUploadCard, FileDropZone } from './FileUploadComponents'
 import { useLineMaintenancesQueryThfByFlightId } from '@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId'
 import CardContentStep from '../CardContentStep'
+import { LineMaintenanceThfResponse } from "@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId"
 
 /**
  * AttachFile Step component for THF form
@@ -26,26 +27,13 @@ import CardContentStep from '../CardContentStep'
 type Props = {
   lineMaintenanceId?: number | null;
   flightInfosId?: number | null;
-  initialData?: any; // Replace 'any' with actual type if available
+  initialData?: LineMaintenanceThfResponse | null; // Replace 'any' with actual type if available
   loading?: boolean;
   flightError?: Error | null;
 }
 const AttachFileStep: React.FC<Props> = ({ lineMaintenanceId, flightInfosId, initialData, loading, flightError }) => {
   const { goNext, onSave, goBack } = useStep()
 
-  // File upload management
-  const {
-    files,
-    addFiles,
-    removeFile,
-    updateFileName,
-    uploadFile,
-    uploadAllFiles,
-    getCompletedFilesData,
-    hasFiles,
-    hasCompletedFiles,
-    isUploading
-  } = useAttachFileUpload()
 
   // Memoize default values to prevent unnecessary re-calculations
   const memoizedDefaultValues = useMemo(() => {
@@ -63,9 +51,22 @@ const AttachFileStep: React.FC<Props> = ({ lineMaintenanceId, flightInfosId, ini
   // Initialize form with validation
   const form = useForm<AttachFileFormInputs>({
     resolver: zodResolver(attachFileFormSchema),
-    defaultValues: memoizedDefaultValues,
+    defaultValues: initialData ? mapDataThfToAttachFileStep(initialData) : memoizedDefaultValues,
     mode: "onChange",
   })
+  // File upload management
+  const {
+    files,
+    addFiles,
+    removeFile,
+    updateFileName,
+    uploadFile,
+    uploadAllFiles,
+    getCompletedFilesData,
+    hasFiles,
+    hasCompletedFiles,
+    isUploading
+  } = useAttachFileUpload(mapDataThfToAttachFileStep(initialData))
 
   // Submission hook
   const {
@@ -111,7 +112,7 @@ const AttachFileStep: React.FC<Props> = ({ lineMaintenanceId, flightInfosId, ini
       errors: form.formState.errors,
       isDirty: form.formState.isDirty
     })
-    
+
     const completedFiles = getCompletedFilesData()
     console.log("📁 Completed files from upload manager:", completedFiles)
 
@@ -135,7 +136,7 @@ const AttachFileStep: React.FC<Props> = ({ lineMaintenanceId, flightInfosId, ini
 
     console.log("✨ Final form data before submission:", updatedFormData)
     console.log("🔗 Calling handleSubmit with lineMaintenanceId:", lineMaintenanceId)
-    
+
     handleSubmit(updatedFormData)
   }
 

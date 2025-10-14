@@ -1,10 +1,11 @@
 import { useState, useCallback } from 'react'
 import { AttachFileOtherData } from '../lineMaintenances/attachfile-other/putAttachfileOther'
 import { useUploadFile } from './useFileUpload'
+import { AttachFileFormInputs } from '@/app/[locale]/(protected)/flight/thf/create/components/AttachFile/types'
 
 export interface AttachFileData {
   id: string
-  file: File
+  file: File | null
   name: string
   progress: number
   status: 'pending' | 'uploading' | 'completed' | 'error'
@@ -32,8 +33,8 @@ export interface UseAttachFileUploadReturn {
  * Hook for managing file uploads in the AttachFile step
  * Handles file selection, upload progress, and data preparation for API calls
  */
-export const useAttachFileUpload = (): UseAttachFileUploadReturn => {
-  const [files, setFiles] = useState<AttachFileData[]>([])
+export const useAttachFileUpload = (initialData: AttachFileFormInputs): UseAttachFileUploadReturn => {
+  const [files, setFiles] = useState<AttachFileData[]>(initialData.attachFiles)
   const uploadFileMutation = useUploadFile()
 
   // Generate unique ID for files
@@ -61,7 +62,7 @@ export const useAttachFileUpload = (): UseAttachFileUploadReturn => {
 
   // Update file name
   const updateFileName = useCallback((id: string, name: string) => {
-    setFiles(prev => prev.map(file => 
+    setFiles(prev => prev.map(file =>
       file.id === id ? { ...file, name } : file
     ))
   }, [])
@@ -79,14 +80,17 @@ export const useAttachFileUpload = (): UseAttachFileUploadReturn => {
     const fileData = files[fileIndex]
 
     // Update status to uploading
-    setFiles(prev => prev.map(file => 
-      file.id === id 
+    setFiles(prev => prev.map(file =>
+      file.id === id
         ? { ...file, status: 'uploading', progress: 0 }
         : file
     ))
 
     try {
       // Use the existing upload hook
+      if (fileData.file === null) {
+        throw new Error("File is null");
+      }
       const response = await uploadFileMutation.mutateAsync({
         file: fileData.file,
         fileType: 'other'
@@ -94,27 +98,27 @@ export const useAttachFileUpload = (): UseAttachFileUploadReturn => {
 
       if (response.responseData && response.responseData.length > 0) {
         const uploadedFile = response.responseData[0]
-        
-        setFiles(prev => prev.map(file => 
-          file.id === id 
-            ? { 
-                ...file, 
-                status: 'completed', 
-                progress: 100,
-                storagePath: uploadedFile.filePath,
-                realName: uploadedFile.fileName
-              }
+
+        setFiles(prev => prev.map(file =>
+          file.id === id
+            ? {
+              ...file,
+              status: 'completed',
+              progress: 100,
+              storagePath: uploadedFile.filePath,
+              realName: uploadedFile.fileName
+            }
             : file
         ))
       }
     } catch (error) {
-      setFiles(prev => prev.map(file => 
-        file.id === id 
-          ? { 
-              ...file, 
-              status: 'error', 
-              error: error instanceof Error ? error.message : 'Upload failed'
-            }
+      setFiles(prev => prev.map(file =>
+        file.id === id
+          ? {
+            ...file,
+            status: 'error',
+            error: error instanceof Error ? error.message : 'Upload failed'
+          }
           : file
       ))
     }
@@ -123,7 +127,7 @@ export const useAttachFileUpload = (): UseAttachFileUploadReturn => {
   // Upload all pending files
   const uploadAllFiles = useCallback(async () => {
     const pendingFiles = files.filter(f => f.status === 'pending')
-    
+
     for (const file of pendingFiles) {
       await uploadFile(file.id)
     }
