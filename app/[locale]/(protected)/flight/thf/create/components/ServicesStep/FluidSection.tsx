@@ -61,7 +61,7 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
             </FormItem>
           )}
         />
-        <NumberInputExamples />
+        {/* <NumberInputExamples /> */}
         {servicingPerformed && (
           <div className="space-y-6">
             {/* Fluid Type */}
