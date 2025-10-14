@@ -44,15 +44,15 @@ export const servicesFormSchema = z.object({
     defect: z.string().min(5, "Defect details must be at least 5 characters").max(500, "Defect details cannot exceed 500 characters"),
     ataChapter: ataChapterSchema,
     attachFiles: z.union([
-      z.string().min(1, "File path cannot be empty"),  // Single file as string
-      z.array(z.string().min(1, "File path cannot be empty")),  // Multiple files as array
+      z.string(),  // Single file as string
+      z.array(z.string()),  // Multiple files as array
       z.object({   // File object
-        realName: z.string().min(1, "File name cannot be empty"),
-        storagePath: z.string().min(1, "File path cannot be empty"),
+        realName: z.string(),
+        storagePath: z.string(),
       }),
       z.array(z.object({   // Array of file objects
-        realName: z.string().min(1, "File name cannot be empty"),
-        storagePath: z.string().min(1, "File path cannot be empty"),
+        realName: z.string(),
+        storagePath: z.string(),
       })),
       z.literal(""),  // Empty string
       z.null(),  // Null
