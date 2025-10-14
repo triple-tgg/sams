@@ -93,7 +93,7 @@ export function getFlightColumns({
                     onCreateTHF?.(flight)
                   }}
                 >
-                  <FilePenLine className="w-4 h-4 me-4" /> {flight.state === "draft save " ? <p>Plan THF</p> : <p>Edit THF</p>}
+                  <FilePenLine className="w-4 h-4 me-4" /> {flight.state === "plan " ? <p>Create THF</p> : <p>Edit THF</p>}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="bg-red-700 text-white hover:bg-red-800 focus:bg-red-800 hover:text-white focus:text-white"
