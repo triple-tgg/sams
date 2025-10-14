@@ -10,7 +10,7 @@ export function useFlightListQuery(params: GetFlightListParams) {
     queryFn: () => getFlightList(params),     // ใช้ axios.post ตามเดิม
     enabled: Boolean(params.dateStart && params.dateEnd),
     placeholderData: keepPreviousData,        // v5: แทน keepPreviousData: true แบบเดิม
-    staleTime: 30_000,                        // ปรับได้ตามความสดของข้อมูล
+    // staleTime: 30_000,                        // ปรับได้ตามความสดของข้อมูล
     refetchOnWindowFocus: false,
     // Prevent concurrent queries
     refetchOnMount: false,

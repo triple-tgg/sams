@@ -4,7 +4,7 @@ import {
     getCoreRowModel, getFilteredRowModel, getSortedRowModel, useReactTable,
 } from "@tanstack/react-table"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, ChevronRight, Filter as FilterIcon } from "lucide-react"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -13,8 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { FlightItem } from "@/lib/api/flight/filghtlist.interface"
 import { getFlightColumns } from "./columns"
 import { useParams, useRouter } from "next/navigation"
-import DateRangePicker from "@/components/date-range-picker"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { DateRange } from "react-day-picker"
 import dayjs from "dayjs"
 import { useCancelFlightMutation } from "@/lib/api/hooks/useCancelFlightMutation"
@@ -23,7 +21,6 @@ import FilterRange from "./FilterRange"
 import DateRangeFilter from "./DateRange"
 import EditFlight from "../../edit-project"
 import { useStationsOptions } from "@/lib/api/hooks/useStations"
-import useDebounce from "@/hooks/useDebounce"
 
 interface Option {
     value: string; label: string; image?: string;
@@ -108,10 +105,9 @@ const ListTable = ({
         },
     })
 
-    const searchValue = watch("search")
-    const stationCodeValue = watch("stationCode")
+    // const searchValue = watch("search")
+    // const stationCodeValue = watch("stationCode")
     const dateRangeValue = watch("dateRange")
-
     const columns = getFlightColumns({
         onCreateTHF: (flight) => {
             const q = new URLSearchParams({ flightInfosId: String(flight.flightInfosId ?? "") })

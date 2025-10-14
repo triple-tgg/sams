@@ -4,7 +4,7 @@ export interface FlightItem {
   airlinesCode: string;
   stationsCode: string;
   acReg: string;
-  acType: string;
+  acTypeCode: string;
   arrivalFlightNo: string;
   arrivalDate: string;
   arrivalStaTime: string;

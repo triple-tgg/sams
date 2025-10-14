@@ -2,7 +2,7 @@
 
 import { useForm } from 'react-hook-form'
 import { useEffect, useRef } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { zodResolver } from '@hookform/resolvers/zod'
 
 import { useStep } from '../step-context'
@@ -56,7 +56,7 @@ interface Option {
   label: string;
 }
 const FlightStep = (props: FlightStepProps) => {
-
+  const router = useRouter()
   const { goNext, onSave } = useStep()
   // Form setup
   const {
@@ -226,12 +226,11 @@ const FlightStep = (props: FlightStepProps) => {
 
         {/* Form Actions */}
         <FormActions
-          onBack={() => { }} // No back action for first step
+          onBack={() => { router.back() }} // No back action for first step
           onSubmit={() => handleSubmit(onSubmit)()}
           submitText={isPending ? 'Saving...' : 'Next Step →'}
           backText="Cancel"
           isSubmitting={isPending}
-          disableBack={true} // First step doesn't go back
           disableSubmit={isPending}
           showReset={false}
         />

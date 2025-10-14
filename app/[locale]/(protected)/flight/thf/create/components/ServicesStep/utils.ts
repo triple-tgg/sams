@@ -25,7 +25,7 @@ export const getDefaultValues = (checkTypes?: AircraftCheckType[]): ServicesForm
     servicingPerformed: false,
     fluid: {
       fluidName: null,
-      engOilSets: [{ left: 0, right: 0 }],
+      engOilSets: [],
       hydOilBlue: 0,
       hydOilGreen: 0,
       hydOilYellow: 0,
@@ -71,40 +71,40 @@ export const transformFluidData = (fluidData: FluidFormData) => {
 
   return {
     fluidName: fluidData.fluidName?.value || "",
-    engOil1L: engOilSets[0]?.left || 0,
-    engOil1R: engOilSets[0]?.right || 0,
-    engOil2L: engOilSets[1]?.left || 0,
-    engOil2R: engOilSets[1]?.right || 0,
-    engOil3L: engOilSets[2]?.left || 0,
-    engOil3R: engOilSets[2]?.right || 0,
-    engOil4L: engOilSets[3]?.left || 0,
-    engOil4R: engOilSets[3]?.right || 0,
+    engOil1L: engOilSets[0]?.left || null,
+    engOil1R: engOilSets[0]?.right || null,
+    engOil2L: engOilSets[1]?.left || null,
+    engOil2R: engOilSets[1]?.right || null,
+    engOil3L: engOilSets[2]?.left || null,
+    engOil3R: engOilSets[2]?.right || null,
+    engOil4L: engOilSets[3]?.left || null,
+    engOil4R: engOilSets[3]?.right || null,
 
-    hydOilBlue: fluidData.hydOilBlue || 0,
-    hydOilGreen: fluidData.hydOilGreen || 0,
-    hydOilYellow: fluidData.hydOilYellow || 0,
+    hydOilBlue: fluidData.hydOilBlue || null,
+    hydOilGreen: fluidData.hydOilGreen || null,
+    hydOilYellow: fluidData.hydOilYellow || null,
 
-    hydOilA: fluidData.hydOilA || fluidData.hydOilBlue || 0,
-    hydOilB: fluidData.hydOilB || fluidData.hydOilGreen || 0,
-    hydOilSTBY: fluidData.hydOilSTBY || fluidData.hydOilYellow || 0,
-    otherOil: fluidData.otherOil || 0,
+    hydOilA: fluidData.hydOilA || fluidData.hydOilBlue || null,
+    hydOilB: fluidData.hydOilB || fluidData.hydOilGreen || null,
+    hydOilSTBY: fluidData.hydOilSTBY || fluidData.hydOilYellow || null,
+    otherOil: fluidData.otherOil || null,
   }
 }
 export const transformFluidDataToAPI = (fluidData: FluidFormData) => {
-  const engOilSets = fluidData.engOilSets || [{ left: "", right: "" }]
+  const engOilSets = fluidData.engOilSets || []
 
   return {
     fluidName: fluidData.fluidName?.value || "",
-    engOil: engOilSets.map(set => ({ left: set.left || 0, right: set.right || 0 })),
+    engOil: engOilSets.map(set => ({ left: set.left || null, right: set.right || null })),
 
-    hydOilBlue: fluidData.hydOilBlue || 0,
-    hydOilGreen: fluidData.hydOilGreen || 0,
-    hydOilYellow: fluidData.hydOilYellow || 0,
+    hydOilBlue: fluidData.hydOilBlue || null,
+    hydOilGreen: fluidData.hydOilGreen || null,
+    hydOilYellow: fluidData.hydOilYellow || null,
 
-    hydOilA: fluidData.hydOilA || fluidData.hydOilBlue || 0,
-    hydOilB: fluidData.hydOilB || fluidData.hydOilGreen || 0,
-    hydOilSTBY: fluidData.hydOilSTBY || fluidData.hydOilYellow || 0,
-    otherOil: fluidData.otherOil || 0,
+    hydOilA: fluidData.hydOilA || fluidData.hydOilBlue || null,
+    hydOilB: fluidData.hydOilB || fluidData.hydOilGreen || null,
+    hydOilSTBY: fluidData.hydOilSTBY || fluidData.hydOilYellow || null,
+    otherOil: fluidData.otherOil || null,
   }
 }
 export const transformServicesDataToAPI = (data: ServicesFormInputs) => {
@@ -213,7 +213,7 @@ export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse |
   const engOilSets = fluidServicing?.engOil?.map(oil => ({
     left: oil.left || 0,
     right: oil.left || 0,
-  })) || [{ left: 0, right: 0 }];
+  })) || [];
 
   const fluid = {
     fluidName: fluidServicing?.fluidName ? {

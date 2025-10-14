@@ -1,20 +1,13 @@
 "use client"
-import { Button } from "@/components/ui/button";
-import { Filter, Download, Plus, BarChart, CircleOff, CalendarPlus, CalendarCheck, CalendarX } from "lucide-react";
-import CreateProject from "./create-project";
-import { useState } from "react";
-import { cn } from "@/lib/utils";
-import { Link, usePathname } from "@/components/navigation";
-import DateRangePicker from "@/components/date-range-picker";
-import { Card, CardContent } from "@/components/ui/card";
-import { StatusBlock } from "@/components/blocks/status-block";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Icon } from "@/components/ui/icon";
-import { useToast } from "@/components/ui/use-toast";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { ExcelImportButton } from "@/components/excel-import-button";
 import { useTemplateDownload } from "@/hooks/use-template-download";
 import { useDashboardFlight } from "@/lib/api/hooks/useDashboardFlight";
-import EditFlight from "./edit-project";
+import { Download, Plus, CalendarPlus, CalendarCheck, CalendarX } from "lucide-react";
+import CreateProject from "./create-project";
 
 const ProjectWrapper = ({ children }: { children: React.ReactNode }) => {
     const [open, setOpen] = useState<boolean>(false);

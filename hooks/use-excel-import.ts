@@ -1,9 +1,10 @@
 import { useState, useRef } from "react";
-import { useToast } from "@/components/ui/use-toast";
 import * as XLSX from "xlsx";
 import axios from "@/lib/axios.config";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 // เปิดใช้งาน plugin สำหรับ parse format ต่างๆ
 dayjs.extend(customParseFormat);
@@ -14,7 +15,7 @@ export interface ImportFlightData {
   airlinesCode: string;
   stationsCode: string;
   acReg: string;
-  acType: string;
+  acTypeCode: string;
   arrivalFlightNo: string;
   arrivalDate: string;
   arrivalStaTime: string;
@@ -31,7 +32,8 @@ export interface ImportFlightData {
 export const useExcelImport = () => {
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
+  const qc = useQueryClient();
+
 
   // Helper function เพื่อจัดการวันที่ด้วย dayjs
   const formatDate = (dateValue: any): string => {
@@ -191,7 +193,7 @@ export const useExcelImport = () => {
         airlinesCode: String(row['Airlines Code'] || row['airlinesCode'] || '').trim(),
         stationsCode: String(row['Station Code'] || row['stationsCode'] || '').trim(),
         acReg: String(row['A/C Reg'] || row['acReg'] || '').trim(),
-        acType: String(row['A/C Type'] || row['acType'] || '').trim(),
+        acTypeCode: String(row['A/C Type'] || row['acType'] || '').trim(),
         arrivalFlightNo: String(row['Arrival Flight No'] || row['arrivalFlightNo'] || '').trim(),
         arrivalDate: formatDate(row['Arrival Date'] || row['arrivalDate']),
         arrivalStaTime: formatTime(row['Arrival STA (UTC)'] || row['arrivalStaTime']),
@@ -228,12 +230,10 @@ export const useExcelImport = () => {
       });
 
       // console.log('Import response:', response.data);
-
-      toast({
-        variant: "success",
-        title: "Import Successful",
-        description: `Successfully imported ${data.length} flight records.`,
-      });
+      toast.success(`Successfully imported ${data.length} flight records.`);
+      
+      // Invalidate flight list queries to refresh data
+      qc.invalidateQueries({ queryKey: ["flightList"] });
 
       return response.data;
 
@@ -248,11 +248,7 @@ export const useExcelImport = () => {
         errorMessage = error.message;
       }
 
-      toast({
-        variant: "destructive",
-        title: "Import Failed",
-        description: errorMessage,
-      });
+      toast.error(errorMessage);
 
       throw error;
     }
@@ -265,11 +261,8 @@ export const useExcelImport = () => {
 
     // ตรวจสอบประเภทไฟล์
     if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
-      toast({
-        variant: "destructive",
-        title: "Invalid File Type",
-        description: "Please select an Excel file (.xlsx or .xls)",
-      });
+      toast.error("Please select an Excel file (.xlsx or .xls)");
+
       return;
     }
 
@@ -321,11 +314,7 @@ export const useExcelImport = () => {
 
     } catch (error) {
       console.error('Error processing file:', error);
-      toast({
-        variant: "destructive",
-        title: "File Processing Failed",
-        description: "Failed to process the Excel file. Please check the file format.",
-      });
+      toast.error("Failed to process the Excel file. Please check the file format.");
     } finally {
       setIsUploading(false);
       // Clear file input

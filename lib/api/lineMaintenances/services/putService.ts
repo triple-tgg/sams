@@ -1,4 +1,5 @@
 import axiosConfig from "@/lib/axios.config";
+import { convertDateToBackend } from "@/lib/utils/formatPicker";
 
 // Interface for attachment files
 export interface AttachFiles {
@@ -243,8 +244,8 @@ export const createServiceRequestFromForm = (
         personnels: formData.personnel.map((person: any) => ({
           staffId: person.staffId || "",
           formTime: person.formTime || "",
-          formDate: person.formDate || "",
-          toDate: person.toDate || "",
+          formDate: person.formDate ? convertDateToBackend(person.formDate) : "",
+          toDate: person.toDate ? convertDateToBackend(person.toDate) : "",
           toTime: person.toTime || "",
           note: person.remark || ""
         }))
@@ -273,10 +274,10 @@ export const createServiceRequestFromForm = (
 
       ...(shouldIncludeTowing && {
         aircraftTowing: formData.aircraftTowingInfo.map((towing: any) => ({
-          aircraftDate: towing.aircraftDate || "",
-          onDate: towing.onDate || "",
+          aircraftDate: towing.aircraftDate ? convertDateToBackend(towing.aircraftDate) : "",
+          onDate: towing.onDate ? convertDateToBackend(towing.onDate) : "",
           onTime: towing.onTime || "",
-          offDate: towing.offDate || "",
+          offDate: towing.offDate ? convertDateToBackend(towing.offDate) : "",
           offTime: towing.offTime || "",
           ...(towing.bayFrom && { bayFrom: towing.bayFrom }),
           ...(towing.bayTo && { bayTo: towing.bayTo })

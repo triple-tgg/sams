@@ -9,21 +9,24 @@ import { FlightItem, Pagination } from "@/lib/api/flight/filghtlist.interface";
 import dayjs from "dayjs";
 
 import { FilterParams } from "./components/list-table";  // Import the interface
+import { useFlightListContext } from "../List.provider";
 
 export default function FlightList() {
-    const [pagination, setPagination] = useState<{ page: number; perPage: number }>({
-        page: 1,
-        perPage: 20,
-    });
+    const { pagination, filters, totalItems, setTotalItems, updateFilters, goToPage, resetAll } = useFlightListContext();
+
+    // const [pagination, setPagination] = useState<{ page: number; perPage: number }>({
+    //     page: 1,
+    //     perPage: 20,
+    // });
 
     // State สำหรับ filter parameters
-    const [filters, setFilters] = useState<FilterParams>({
-        flightNo: "",
-        stationCodeList: [],
-        stationCode: "",
-        dateStart: dayjs().format("YYYY-MM-DD"), // Today's date
-        dateEnd: dayjs().format("YYYY-MM-DD"), // Today's date
-    });
+    // const [filters, setFilters] = useState<FilterParams>({
+    //     flightNo: "",
+    //     stationCodeList: [],
+    //     stationCode: "",
+    //     dateStart: dayjs().format("YYYY-MM-DD"), // Today's date
+    //     dateEnd: dayjs().format("YYYY-MM-DD"), // Today's date
+    // });
 
     // Combine filters with pagination for API call
     const params: GetFlightListParams = {
@@ -46,9 +49,10 @@ export default function FlightList() {
 
     // Handler สำหรับเปลี่ยน filter
     const handleFilterChange = (newFilters: FilterParams) => {
-        setFilters(newFilters);
+        // setFilters(newFilters);
+        updateFilters(newFilters);
         // Reset to page 1 when filter changes
-        setPagination(prev => ({ ...prev, page: 1 }));
+        // setPagination(prev => ({ ...prev, page: 1 }));
     };
 
     return (
@@ -71,10 +75,10 @@ export default function FlightList() {
                         page: pagination.page,
                         perPage: pagination.perPage,
                         total,
-                        onPageChange: (nextPage: number) =>
-                            setPagination((p) => ({ ...p, page: nextPage })),
-                        onPerPageChange: (pp: number) =>
-                            setPagination((p) => ({ ...p, perPage: pp, page: 1 })),
+                        onPageChange: (nextPage: number) => { },
+                        // setPagination((p) => ({ ...p, page: nextPage })),
+                        onPerPageChange: (pp: number) => { }
+                        // setPagination((p) => ({ ...p, perPage: pp, page: 1 })),
                     }}
                     onFilterChange={handleFilterChange}
                     initialFilters={filters}

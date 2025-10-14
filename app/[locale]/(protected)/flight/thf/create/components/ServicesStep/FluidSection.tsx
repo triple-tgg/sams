@@ -10,6 +10,7 @@ import { PlusIcon, TrashIcon } from 'lucide-react'
 import { ServicesFormInputs, fluidOptions } from './types'
 import { CustomDateInput } from '@/components/ui/input-date/CustomDateInput'
 import { FieldError } from '@/components/ui/field-error'
+import NumberInputExamples from '@/components/ui/input.examples'
 
 interface FluidSectionProps {
   form: UseFormReturn<ServicesFormInputs>
@@ -60,7 +61,7 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
             </FormItem>
           )}
         />
-
+        <NumberInputExamples />
         {servicingPerformed && (
           <div className="space-y-6">
             {/* Fluid Type */}
@@ -132,12 +133,19 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                             <FormControl>
                               <Input
                                 type="number"
+                                min={0}
+                                step={0.5}
                                 placeholder="0.0"
-                                value={value ?? ''}
+                                value={value || ''}
                                 onChange={(e) => {
-                                  const val = e.target.value;
-                                  onChange(val === '' ? undefined : parseFloat(val));
+                                  const val = e.target.value
+                                  onChange(val === '' ? undefined : parseFloat(val) || 0)
                                 }}
+                                // value={value ?? ''}
+                                // onChange={(e) => {
+                                //   const val = e.target.value;
+                                //   onChange(val === '' ? undefined : parseFloat(val));
+                                // }}
                                 {...field}
                               />
                             </FormControl>
@@ -155,12 +163,19 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                             <FormControl>
                               <Input
                                 type="number"
+                                min={0}
+                                step={0.5}
                                 placeholder="0.0"
-                                value={value ?? ''}
+                                value={value || ''}
                                 onChange={(e) => {
-                                  const val = e.target.value;
-                                  onChange(val === '' ? undefined : parseFloat(val));
+                                  const val = e.target.value
+                                  onChange(val === '' ? undefined : parseFloat(val) || 0)
                                 }}
+                                // value={value ?? ''}
+                                // onChange={(e) => {
+                                //   const val = e.target.value;
+                                //   onChange(val === '' ? undefined : parseFloat(val));
+                                // }}
                                 {...field}
                               />
                             </FormControl>
@@ -217,6 +232,8 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                               <FormControl>
                                 <Input
                                   type="number"
+                                  min={0}
+                                  step={0.5}
                                   placeholder="0.0"
                                   {...field}
                                   value={value || ''}
@@ -240,6 +257,8 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                               <FormControl>
                                 <Input
                                   type="number"
+                                  min={0}
+                                  step={0.5}
                                   placeholder="0.0"
                                   {...field}
                                   value={value || ''}
@@ -263,6 +282,8 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                               <FormControl>
                                 <Input
                                   type="number"
+                                  min={0}
+                                  step={0.5}
                                   placeholder="0.0"
                                   {...field}
                                   value={value || ''}
@@ -292,6 +313,8 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                               <FormControl>
                                 <Input
                                   type="number"
+                                  min={0}
+                                  step={0.5}
                                   placeholder="0.0"
                                   {...field}
                                   value={value || ''}
@@ -315,6 +338,8 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                               <FormControl>
                                 <Input
                                   type="number"
+                                  min={0}
+                                  step={0.5}
                                   placeholder="0.0"
                                   {...field}
                                   value={value || ''}
@@ -338,6 +363,8 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                               <FormControl>
                                 <Input
                                   type="number"
+                                  min={0}
+                                  step={0.5}
                                   placeholder="0.0"
                                   {...field}
                                   value={value || ''}
@@ -384,12 +411,19 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                     <FormControl>
                       <Input
                         type="number"
+                        min={0}
+                        step={0.5}
                         placeholder="0.0"
-                        value={value ?? ''}
+                        value={value || ''}
                         onChange={(e) => {
-                          const val = e.target.value;
-                          onChange(val === '' ? undefined : parseFloat(val));
+                          const val = e.target.value
+                          onChange(val === '' ? undefined : parseFloat(val) || 0)
                         }}
+                        // value={value ?? ''}
+                        // onChange={(e) => {
+                        //   const val = e.target.value;
+                        //   onChange(val === '' ? undefined : parseFloat(val));
+                        // }}
                         {...field}
                       />
                     </FormControl>
@@ -450,78 +484,6 @@ export const OperationalSections: React.FC<OperationalSectionsProps> = ({
               </FormItem>
             )}
           />
-
-          {/* {flightDeck && (
-            <>
-              <div className="flex justify-between items-center">
-                <h4 className="font-medium">Flight Deck Information</h4>
-                <Button type="button" onClick={onAddFlightDeckInfo} size="sm">
-                  <PlusIcon className="h-4 w-4 mr-1" />
-                  Add Info
-                </Button>
-              </div>
-
-              {flightDeckInfo.map((_, index) => (
-                <div key={index} className="border rounded-lg p-4">
-                  <div className="flex justify-between items-center mb-4">
-                    <h5 className="font-medium">Info {index + 1}</h5>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onRemoveFlightDeckInfo(index)}
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <FormField
-                      control={form.control}
-                      name={`flightDeckInfo.${index}.date`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Date *</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name={`flightDeckInfo.${index}.timeOn`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Time On *</FormLabel>
-                          <FormControl>
-                            <Input type="time" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name={`flightDeckInfo.${index}.timeOf`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Time Of *</FormLabel>
-                          <FormControl>
-                            <Input type="time" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-              ))}
-            </>
-          )} */}
         </CardContent>
       </Card>
 

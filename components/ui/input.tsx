@@ -43,6 +43,10 @@ export interface InputProps
   VariantProps<typeof inputVariants> {
   color?: InputColor
   size?: any
+  // Explicit support for number input constraints
+  min?: number | string
+  max?: number | string
+  step?: number | string
 }
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
