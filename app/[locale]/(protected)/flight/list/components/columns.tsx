@@ -21,10 +21,10 @@ export function getFlightColumns({
   isCancelLoading?: boolean;
 }): ColumnDef<FlightItem>[] {
   return [
-    {
-      accessorKey: "status", header: "-",
-      cell: ({ row }) => <div className="bg-primary/10 border-l-4 border-l-red-600 px-6 h-20"></div>
-    },
+    // {
+    //   accessorKey: "status", header: "-",
+    //   cell: ({ row }) => <div className="bg-primary/10 border-l-4 border-l-red-600 px-6 h-20"></div>
+    // },
     {
       accessorKey: "arrivalFlightNo", header: "Flight No",
       cell: ({ row }) => <div className="font-medium text-sm whitespace-nowrap">{row.getValue("arrivalFlightNo")}</div>
@@ -65,7 +65,46 @@ export function getFlightColumns({
       cell: ({ row }) => {
         const flight = row.original;
         return (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 justify-start">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild disabled={flight.statusObj.code === "Cancel" || isCancelLoading}>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="w-7 h-7 ring-offset-transparent border-default-300 text-default-500"
+                  disabled={flight.statusObj.code === "Cancel" || isCancelLoading}
+                >
+                  <EllipsisVertical className="w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center">
+                {/* <DropdownMenuSeparator /> */}
+                <DropdownMenuItem
+                  disabled={flight.statusObj.code === "Cancel"}
+                  onClick={() => {
+                    onEditFlight?.(flight)
+                  }}
+                >
+                  <SquarePen className="w-4 h-4 me-4" /> <p>Edit Flight</p>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={flight.statusObj.code === "Cancel"}
+                  onClick={() => {
+                    onCreateTHF?.(flight)
+                  }}
+                >
+                  <FilePenLine className="w-4 h-4 me-4" /> {flight.state === "draft save " ? <p>Plan THF</p> : <p>Edit THF</p>}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="bg-red-700 text-white hover:bg-red-800 focus:bg-red-800 hover:text-white focus:text-white"
+                  disabled={flight.statusObj.code === "Cancel"}
+                  onClick={() => onCancel?.(flight)}
+                >
+                  <CircleOff className="w-4 h-4 me-4" /> <p>Cancel Flight</p>
+                </DropdownMenuItem>
+
+              </DropdownMenuContent>
+            </DropdownMenu>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -107,84 +146,6 @@ export function getFlightColumns({
               </TooltipProvider>
             )}
 
-            {/* <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    disabled={flight.statusObj.code === "Cancel"}
-                    variant="outline"
-                    size="icon"
-                    className="w-7 h-7 ring-offset-transparent border-default-300 text-default-500"
-                    color="secondary"
-                    onClick={() => onCreateTHF?.(flight)}
-                  >
-                    <SquarePen className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top">
-                  <p>Create THF</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant={flight.statusObj.code === "Cancel" ? "default" : "outline"}
-                    size="icon"
-                    className={clsx("w-7 h-7 ring-offset-transparent border-default-300 text-default-500", flight.statusObj.code === "Cancel" && "text-secondary")}
-                    color="destructive"
-                    onClick={() => onCancel?.(flight)}
-                    disabled={flight.statusObj.code === "Cancel" || isCancelLoading}
-                  >
-                    <CircleOff className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="bg-destructive text-destructive-foreground">
-                  <p>{isCancelLoading ? "Cancelling..." : "Cancel"}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider> */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild disabled={flight.statusObj.code === "Cancel" || isCancelLoading}>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="w-7 h-7 ring-offset-transparent border-default-300 text-default-500"
-                  disabled={flight.statusObj.code === "Cancel" || isCancelLoading}
-                >
-                  <EllipsisVertical className="w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="center">
-                {/* <DropdownMenuSeparator /> */}
-                <DropdownMenuItem
-                  disabled={flight.statusObj.code === "Cancel"}
-                  onClick={() => {
-                    onEditFlight?.(flight)
-                  }}
-                >
-                  <SquarePen className="w-4 h-4 me-4" /> <p>Edit Flight</p>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  disabled={flight.statusObj.code === "Cancel"}
-                  onClick={() => {
-                    onCreateTHF?.(flight)
-                  }}
-                >
-                  <FilePenLine className="w-4 h-4 me-4" /> {flight.state === "draft save " ? <p>Plan THF</p> : <p>Edit THF</p>}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="bg-red-700 text-white hover:bg-red-800 focus:bg-red-800 hover:text-white focus:text-white"
-                  disabled={flight.statusObj.code === "Cancel"}
-                  onClick={() => onCancel?.(flight)}
-                >
-                  <CircleOff className="w-4 h-4 me-4" /> <p>Cancel Flight</p>
-                </DropdownMenuItem>
-
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
         );
       },
