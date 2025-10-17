@@ -16,6 +16,9 @@ import { AdditionalDefectAttachFile } from '@/lib/api/lineMaintenances/flight/ge
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { StaffTypeOption } from '@/lib/api/hooks/useStaffsTypes'
 import { CustomDateInput } from '@/components/ui/input-date/CustomDateInput'
+import { FlightFormData } from '@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId'
+import { dateTimeUtils } from '@/lib/dayjs'
+import { formatFromPicker } from '@/lib/utils/formatPicker'
 
 
 
@@ -448,8 +451,9 @@ const PhotoUploadField: React.FC<{
 const SearchableStaffSelect: React.FC<{
   form: UseFormReturn<ServicesFormInputs>
   index: number
-  onStaffSelect: (staff: any) => void
-}> = ({ form, index, onStaffSelect }) => {
+  onStaffSelect: (staff: any) => void;
+  infoData: FlightFormData | null;
+}> = ({ form, index, onStaffSelect, infoData }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [searchBy, setSearchBy] = useState<'code' | 'name'>('code')
   const [showResults, setShowResults] = useState(false)
@@ -495,6 +499,11 @@ const SearchableStaffSelect: React.FC<{
       form.setValue(`personnel.${index}.staffCode`, selectedStaff.code)
       form.setValue(`personnel.${index}.name`, selectedStaff.name)
       form.setValue(`personnel.${index}.type`, selectedStaff.position.code)
+
+      form.setValue(`personnel.${index}.formDate`, formatFromPicker(infoData?.arrivalDate || dateTimeUtils.getCurrentDate()))
+      form.setValue(`personnel.${index}.formTime`, infoData?.ata || '')
+      form.setValue(`personnel.${index}.toDate`, formatFromPicker(infoData?.departureDate || dateTimeUtils.getCurrentDate()))
+      form.setValue(`personnel.${index}.toTime`, infoData?.atd || '')
 
       // Clear search
       setSearchTerm('')
@@ -905,7 +914,7 @@ export const AdditionalDefectsSection: React.FC<{
                       <FormItem>
                         <FormLabel>LAE MH</FormLabel>
                         <FormControl>
-                          <Input type="number" placeholder="0.0" {...field} />
+                          <Input type="number" min={0} step={0.5} placeholder="0.0" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -919,7 +928,7 @@ export const AdditionalDefectsSection: React.FC<{
                       <FormItem>
                         <FormLabel>Mech MH</FormLabel>
                         <FormControl>
-                          <Input type="number" placeholder="0.0" {...field} />
+                          <Input type="number" min={0} step={0.5} placeholder="0.0" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -961,8 +970,9 @@ export const PersonnelSection: React.FC<{
     isLoadingStaffsTypes: boolean;
     staffsTypesError: Error | null;
     hasOptionsStaffsTypes: boolean;
-  }
-}> = ({ form, onAdd, onRemove, staffsTypesValuesOptions }) => {
+  };
+  infoData: FlightFormData | null;
+}> = ({ form, onAdd, onRemove, staffsTypesValuesOptions, infoData }) => {
 
   const addPersonnels = form.watch('addPersonnels')
   const personnel = form.watch('personnel') || []
@@ -997,6 +1007,7 @@ export const PersonnelSection: React.FC<{
             <div className="space-y-4">
               <h4 className="font-medium">Staff Search & Selection</h4>
               <SearchableStaffSelect
+                infoData={infoData}
                 form={form}
                 index={personnel.length} // Use current personnel length as next index
                 onStaffSelect={(staff) => {
@@ -1195,68 +1206,6 @@ export const PersonnelSection: React.FC<{
                     </div>
                   </div>
 
-                  {/* <div className='col-span-6  grid grid-cols-1 md:grid-cols-12 gap-4'>
-                    <div className='col-span-12'> <FormLabel>From *</FormLabel></div>
-                    <div className='col-span-12 flex w-full'>
-                      <div className='w-1/2'>
-                        <Controller
-                          name={`personnel.${index}.formDate`}
-                          control={form.control}
-                          render={({ field }) => (
-                            <CustomDateInput
-                              value={field.value}
-                              onChange={field.onChange}
-                              placeholder="DD-MMM-YYYY"
-                              className='col-span-6'
-                            />
-                          )}
-                        />
-                      </div>
-                      <FormField
-                        control={form.control}
-                        name={`personnel.${index}.formTime`}
-                        render={({ field }) => (
-                          <FormItem className='w-1/2'>
-                            <FormControl>
-                              <Input type="time" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-                  <div className='col-span-6 grid grid-cols-1 md:grid-cols-12 gap-4'>
-                    <div className='col-span-12'>
-                      <FormLabel>To *</FormLabel>
-                    </div>
-                    <div className='col-span-6'>
-                      <Controller
-                        name={`personnel.${index}.toDate`}
-                        control={form.control}
-                        render={({ field }) => (
-                          <CustomDateInput
-                            value={field.value}
-                            onChange={field.onChange}
-                            placeholder="DD-MMM-YYYY"
-                            className='col-span-6'
-                          />
-                        )}
-                      />
-                    </div>
-                    <FormField
-                      control={form.control}
-                      name={`personnel.${index}.toTime`}
-                      render={({ field }) => (
-                        <FormItem className='col-span-6'>
-                          <FormControl >
-                            <Input type="time" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div> */}
 
                   <FormField
                     control={form.control}

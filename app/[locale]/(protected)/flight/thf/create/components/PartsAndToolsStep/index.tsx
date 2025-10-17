@@ -15,11 +15,13 @@ import { usePartsToolsSubmission } from './usePartsToolsSubmission'
 import { PartsToolsCard } from './PartsToolsCard'
 import { LineMaintenanceThfResponse } from "@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId"
 import CardContentStep from "../CardContentStep"
+import { FlightFormData } from "@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId"
 
 /**
  * Props for PartsAndToolsStep component
  */
 interface PartsAndToolsStepProps {
+  infoData: FlightFormData | null;
   initialData?: LineMaintenanceThfResponse | null;
   flightInfosId?: number | null;
   lineMaintenanceId?: number | null;
@@ -126,7 +128,7 @@ const PartsAndToolsStep: React.FC<PartsAndToolsStepProps> = (props) => {
               </div>
             )}
             {/* Parts & Tools Card */}
-            <PartsToolsCard form={form} />
+            <PartsToolsCard form={form} infoData={props.infoData} />
 
             {/* Form Actions */}
             <FormActions

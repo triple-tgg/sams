@@ -20,7 +20,7 @@ export interface PartToolItem {
   hrs: number
   formDate: string | null
   toDate: string | null
-  formTime: string | null
+  formTime: string
   toTime: string | null
 }
 
@@ -43,7 +43,7 @@ export const defaultPartToolItem: PartToolItem = {
   hrs: 0,
   formDate: formatFromPicker(dateTimeUtils.getCurrentDate()),
   toDate: formatFromPicker(dateTimeUtils.getCurrentDate()),
-  formTime: null,
+  formTime: "",
   toTime: null,
 }
 

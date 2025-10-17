@@ -6,6 +6,9 @@ import { EquipmentFormData, defaultEquipment } from './types'
 import { equipmentFormSchema } from './schema'
 import { getDefaultValues, mapEquipmentFormToApiData } from './utils'
 import { LineMaintenanceThfData } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
+import { FlightFormData } from '@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId'
+import { formatFromPicker } from '@/lib/utils/formatPicker'
+import { dateTimeUtils } from '@/lib/dayjs'
 
 interface UseEquipmentSubmissionProps {
   form: UseFormReturn<EquipmentFormData>
@@ -15,6 +18,7 @@ interface UseEquipmentSubmissionProps {
   reset: () => void
   updateEquipment: (lineMaintenancesId: number, equipmentData: any[]) => void
   lineMaintenanceId?: number | null
+  infoData: FlightFormData | null;
 }
 
 export const useEquipmentSubmission = ({
@@ -24,7 +28,8 @@ export const useEquipmentSubmission = ({
   onUpdateData,
   updateEquipment,
   reset,
-  lineMaintenanceId
+  lineMaintenanceId,
+  infoData,
 }: UseEquipmentSubmissionProps) => {
   const { toast } = useToast()
 
@@ -97,10 +102,16 @@ export const useEquipmentSubmission = ({
       })
       return
     }
-
+    console.log("infoData?.departureDate ,", infoData?.departureDate)
     form.setValue('equipments', [
       ...currentEquipments,
-      { ...defaultEquipment }
+      {
+        ...defaultEquipment,
+        fromDate: formatFromPicker(infoData?.arrivalDate || dateTimeUtils.getCurrentDate()),
+        fromTime: infoData?.ata || dateTimeUtils.getCurrentTime(),
+        toDate: formatFromPicker(infoData?.departureDate || dateTimeUtils.getCurrentDate()),
+        toTime: infoData?.atd || dateTimeUtils.getCurrentTime()
+      }
     ])
 
     toast({

@@ -116,6 +116,7 @@ const StepForm = () => {
           flightInfosId={flightInfosId}
           lineMaintenanceId={lineMaintenanceData?.id || null}
           initialData={equipmentData}
+          infoData={existingFlightData}
         />
         <PartsAndToolsStep
           flightError={flightError}
@@ -123,6 +124,7 @@ const StepForm = () => {
           flightInfosId={flightInfosId}
           lineMaintenanceId={lineMaintenanceData?.id || null}
           initialData={data}
+          infoData={existingFlightData}
         />
         <AttachFileStep
           lineMaintenanceId={lineMaintenanceData?.id || null}

@@ -5,6 +5,7 @@ import { transformServicesDataToAPI } from './utils'
 import { usePutServiceFromForm } from '@/lib/api/hooks/usePutService'
 import { dateTimeUtils } from '@/lib/dayjs'
 import { formatFromPicker } from '@/lib/utils/formatPicker'
+import { FlightFormData } from '@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId'
 
 interface UseServicesSubmissionProps {
   form: UseFormReturn<ServicesFormInputs>
@@ -13,6 +14,7 @@ interface UseServicesSubmissionProps {
   onUpdateData: (data: any) => void
   existingFlightData?: any // Add flight data for line maintenance ID
   lineMaintenanceId?: number | null
+  formData?: FlightFormData | null
 }
 
 export const useServicesSubmission = ({
@@ -21,7 +23,8 @@ export const useServicesSubmission = ({
   onBackStep,
   onUpdateData,
   existingFlightData,
-  lineMaintenanceId
+  lineMaintenanceId,
+  ...props
 }: UseServicesSubmissionProps) => {
 
   // Initialize the PUT service mutation hook
@@ -186,14 +189,15 @@ export const useServicesSubmission = ({
 
   const handleAddTowingInfo = () => {
     const currentInfo = form.getValues('aircraftTowingInfo') || []
-
     form.setValue('aircraftTowingInfo', [
       ...currentInfo,
       {
-        onDate: formatFromPicker(dateTimeUtils.getCurrentDate()),
-        offDate: formatFromPicker(dateTimeUtils.getCurrentDate()),
-        onTime: "",
-        offTime: "",
+        // onDate: formatFromPicker(dateTimeUtils.getCurrentDate()),
+        // offDate: formatFromPicker(dateTimeUtils.getCurrentDate()),
+        onDate: formatFromPicker(props.formData?.arrivalDate || dateTimeUtils.getCurrentDate()),
+        offDate: formatFromPicker(props.formData?.arrivalDate || dateTimeUtils.getCurrentDate()),
+        onTime: props.formData?.ata || "",
+        offTime: props.formData?.atd || "",
         bayFrom: "",
         bayTo: "",
       }

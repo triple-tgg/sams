@@ -14,12 +14,16 @@ import PartsToolsNameDropdown from './PartsToolsNameDropdown'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { CustomDateInput } from '@/components/ui/input-date/CustomDateInput'
+import { FlightFormData } from '@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId'
+import { formatFromPicker } from '@/lib/utils/formatPicker'
+import { dateTimeUtils } from '@/lib/dayjs'
 
 interface PartsToolsCardProps {
   form: UseFormReturn<PartsToolsFormInputs>
+  infoData: FlightFormData | null
 }
 
-export const PartsToolsCard: React.FC<PartsToolsCardProps> = ({ form }) => {
+export const PartsToolsCard: React.FC<PartsToolsCardProps> = ({ form, infoData }) => {
   const [isPartsTools, setIsPartsTools] = useState(false)
 
   const { options: stationOptions, isLoading: isLoadingStations } = useStationsOptions()
@@ -30,7 +34,13 @@ export const PartsToolsCard: React.FC<PartsToolsCardProps> = ({ form }) => {
   })
 
   const handleAddItem = () => {
-    append(defaultPartToolItem)
+    append({
+      ...defaultPartToolItem,
+      formDate: formatFromPicker(infoData?.arrivalDate || dateTimeUtils.getCurrentDate()),
+      formTime: infoData?.ata || dateTimeUtils.getCurrentTime(),
+      toDate: formatFromPicker(infoData?.departureDate || dateTimeUtils.getCurrentDate()),
+      toTime: infoData?.atd || dateTimeUtils.getCurrentTime()
+    })
   }
 
   const handleRemoveItem = (index: number) => {

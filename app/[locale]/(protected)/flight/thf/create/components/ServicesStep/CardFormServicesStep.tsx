@@ -124,6 +124,7 @@ const CardFormServicesStep = (props: Props) => {
     onNextStep: goNext,
     onBackStep: goBack,
     onUpdateData: handleOnSave,
+    formData: props.formData,
     existingFlightData: props.initialData,
     lineMaintenanceId: props.lineMaintenanceId
   })
@@ -184,6 +185,7 @@ const CardFormServicesStep = (props: Props) => {
           onAdd={handleAddPersonnel}
           onRemove={handleRemovePersonnel}
           staffsTypesValuesOptions={props.staffsTypesValuesOptions}
+          infoData={props.formData}
         />
 
         <Separator />

@@ -1,3 +1,4 @@
+import { FlightFormData } from '@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId'
 import { Equipment as EquipmentAPI } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
 
 import dayjs from 'dayjs'
@@ -25,6 +26,7 @@ export interface EquipmentStepProps {
   initialData?: EquipmentAPI[]
   flightInfosId: number | null
   lineMaintenanceId: number | null
+  infoData: FlightFormData | null;
 }
 
 // Default equipment values with current date/time

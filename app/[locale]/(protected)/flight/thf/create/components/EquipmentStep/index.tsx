@@ -69,7 +69,8 @@ export default function EquipmentStep(props: EquipmentStepProps) {
     onUpdateData: onSave,
     updateEquipment: updateEquipment,
     reset: reset,
-    lineMaintenanceId: props.lineMaintenanceId
+    lineMaintenanceId: props.lineMaintenanceId,
+    infoData: props.infoData
   })
 
   // Load initial data if provided
