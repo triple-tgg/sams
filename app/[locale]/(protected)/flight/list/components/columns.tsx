@@ -34,7 +34,7 @@ export function getFlightColumns({
       id: "station",
       header: "STATION",
       accessorFn: (row) => row?.stationObj?.code ?? "",
-      cell: ({ getValue }) => <span className="whitespace-nowrap">{(getValue() as string) || "n/a"}</span>,
+      cell: ({ getValue }) => <span className="whitespace-nowrap">{(getValue() as string) || "-"}</span>,
       filterFn: (row, _id, filterValue?: string[]) => {
         if (!filterValue?.length) return true;
         const cell = row.getValue("station") as string;
@@ -43,22 +43,22 @@ export function getFlightColumns({
     },
     {
       accessorKey: "acReg", header: "A/C Reg",
-      cell: ({ row }) => <span className="whitespace-nowrap">{row.getValue("acReg") || "n/a"}</span>
+      cell: ({ row }) => <span className="whitespace-nowrap">{row.getValue("acReg") || "-"}</span>
     },
     {
       accessorKey: "acType", header: "A/C Type",
       accessorFn: (row) => `${row?.acTypeObj?.code ?? ""}`,
-      cell: ({ getValue }) => <span className="whitespace-nowrap">{(getValue() as string) || "n/a"}</span>,
+      cell: ({ getValue }) => <span className="whitespace-nowrap">{(getValue() as string) || "-"}</span>,
     },
     {
       id: "sta", header: "STA(UTC)",
       accessorFn: (row) => `${row?.arrivalDate ? formatForDisplayDateTime(row?.arrivalDate, row?.arrivalStatime) : ""}`,
-      cell: ({ getValue }) => <span className="whitespace-nowrap">{(getValue() as string) || "n/a"}</span>
+      cell: ({ getValue }) => <span className="whitespace-nowrap">{(getValue() as string) || "-"}</span>
     },
     {
       id: "std", header: "STD(UTC)",
       accessorFn: (row) => `${row?.departureDate ? formatForDisplayDateTime(row?.departureDate, row?.departureStdTime) : ""}`,
-      cell: ({ getValue }) => <span className="whitespace-nowrap">{(getValue() as string) || "n/a"}</span>
+      cell: ({ getValue }) => <span className="whitespace-nowrap">{(getValue() as string) || "-"}</span>
     },
     {
       id: "actions",
