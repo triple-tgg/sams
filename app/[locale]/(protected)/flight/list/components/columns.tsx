@@ -111,7 +111,7 @@ export function getFlightColumns({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    disabled={flight.isFiles}
+                    disabled={!flight.isFiles}
                     variant="outline"
                     size="icon"
                     className="w-7 h-7 ring-offset-transparent border-default-300 text-default-500"
@@ -122,7 +122,7 @@ export function getFlightColumns({
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="top">
-                  <p>Attach file</p>
+                  {flight.isFiles ? <p>Attach file</p> : <p>No file attached</p>}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -131,18 +131,18 @@ export function getFlightColumns({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
-                      disabled={flight.state === "draft save"}
+                      // disabled={flight.state !== "save"}
                       variant="outline"
                       size="icon"
                       className="w-7 h-7 ring-offset-transparent border-default-300 text-default-500"
                       color="secondary"
                       onClick={() => onAttach?.(flight)}
                     >
-                      <FileCheck className="w-4" />
+                      {flight.state === "save" ? <FileCheck className="w-4" /> : <FilePenLine className="w-4" />}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="top">
-                    {flight.state === "save done" ? <p>Save done</p> : <p>Draft Thf</p>}
+                    {flight.state === "save" ? <p>Save done</p> : <p>Draft Thf</p>}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
