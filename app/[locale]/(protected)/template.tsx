@@ -3,6 +3,13 @@
 import { motion } from 'framer-motion'
 import { usePathname } from '@/components/navigation'
 
+import dayjs from 'dayjs'
+import 'dayjs/locale/th';
+import buddhistEra from 'dayjs/plugin/buddhistEra';
+dayjs.extend(buddhistEra);
+// dayjs.locale('th');
+
+
 export default function Template({ children }: { children: React.ReactNode }) {
 
     const pathname = usePathname()

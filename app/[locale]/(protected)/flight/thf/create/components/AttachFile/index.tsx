@@ -107,12 +107,6 @@ const AttachFileStep: React.FC<Props> = ({ lineMaintenanceId, flightInfosId, ini
   const onSubmit = (formData: AttachFileFormInputs) => {
     // Add completed file data to form before submission
     console.log("🚀 AttachFileStep onSubmit called with formData:", formData)
-    console.log("📋 Form validation state:", {
-      isValid: form.formState.isValid,
-      errors: form.formState.errors,
-      isDirty: form.formState.isDirty
-    })
-
     const completedFiles = getCompletedFilesData()
     console.log("📁 Completed files from upload manager:", completedFiles)
 
@@ -120,7 +114,7 @@ const AttachFileStep: React.FC<Props> = ({ lineMaintenanceId, flightInfosId, ini
     const updatedFormData: AttachFileFormInputs = {
       ...formData,
       attachFiles: [
-        ...(formData.attachFiles || []), // Handle undefined attachFiles
+        // ...(formData.attachFiles || []), // Handle undefined attachFiles
         ...completedFiles.map((file, index) => ({
           id: `uploaded-${index}`,
           name: file.realName.split('.')[0],

@@ -9,6 +9,8 @@ export interface StaffMember {
   code: string;
   name: string;
   staffsType: string;
+  staffTypeCode: string;
+  staffTypeId: string;
 }
 
 export interface Personnel {
@@ -37,8 +39,8 @@ export interface AdditionalDefect {
 }
 
 export interface EngOil {
-  left: number;
-  right: number;
+  leftOil: number;
+  rightOil: number;
 }
 
 export interface FluidServicing {

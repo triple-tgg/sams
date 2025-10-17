@@ -21,7 +21,7 @@ const getFlightList = async (params: GetFlightListParams) => {
   });
   return res.data as {
     responseData: any[]; // ใส่เป็น FlightItem[] ถ้าคุณมี type
-    pagination?: { page: number; perPage: number; total: number };
+    page: number; perPage: number; total: number, totalAll: number;
   };
 };
 

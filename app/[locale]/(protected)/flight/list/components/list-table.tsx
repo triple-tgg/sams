@@ -21,6 +21,7 @@ import FilterRange from "./FilterRange"
 import DateRangeFilter from "./DateRange"
 import EditFlight from "../../edit-project"
 import { useStationsOptions } from "@/lib/api/hooks/useStations"
+import { useFlightListContext } from "../../List.provider"
 
 interface Option {
     value: string; label: string; image?: string;
@@ -64,13 +65,15 @@ const stationInList = (row: any, _columnId: string, filterValue: string[] | unde
 
 const ListTable = ({
     projects,
-    pagination,
+    // pagination,
     onFilterChange,
     initialFilters
 }: ListTableProps) => {
+    const { pagination, totalItems: total, setTotalItems, updateFilters, goToPage, resetAll } = useFlightListContext();
+
     const router = useRouter()
     const { locale } = useParams()
-    const { page, perPage, total, onPageChange, onPerPageChange } = pagination
+    // const { page, perPage, total, onPageChange, onPerPageChange } = pagination
     const [openEditFlight, setOpenEditFlight] = React.useState<boolean>(false);
     const [editFlightId, setEditFlightId] = React.useState<number | null>(null);
 
@@ -129,8 +132,8 @@ const ListTable = ({
         isCancelLoading: cancelFlightMutation.isPending,
     })
 
-    const pageCount = Math.max(1, Math.ceil(total / Math.max(1, perPage)))
-
+    const pageCount = Math.max(1, Math.ceil(total / Math.max(1, pagination.perPage)))
+    console.log("FlightListProvider: pageCount", pageCount, total, pagination.perPage)
     const table = useReactTable({
         data: projects,
         columns,
@@ -140,7 +143,7 @@ const ListTable = ({
             columnVisibility,
             rowSelection,
             // map state จากพาเรนต์ (page เริ่มที่ 1 -> pageIndex เริ่มที่ 0)
-            pagination: { pageIndex: Math.max(0, page - 1), pageSize: perPage },
+            pagination: { pageIndex: Math.max(0, pagination.page - 1), pageSize: pagination.perPage },
         },
         onSortingChange: setSorting,
         onColumnFiltersChange: setColumnFilters,
@@ -149,10 +152,10 @@ const ListTable = ({
 
         // bridge การเปลี่ยนหน้า/ขนาดหน้า -> callback พาเรนต์
         onPaginationChange: (updater) => {
-            const prev = { pageIndex: Math.max(0, page - 1), pageSize: perPage }
+            const prev = { pageIndex: Math.max(0, pagination.page - 1), pageSize: pagination.perPage }
             const next = typeof updater === "function" ? updater(prev) : updater
-            if (next.pageSize !== perPage) onPerPageChange(next.pageSize)
-            if (next.pageIndex !== prev.pageIndex) onPageChange(next.pageIndex + 1)
+            if (next.pageSize !== pagination.perPage) goToPage(next.pageSize)
+            if (next.pageIndex !== prev.pageIndex) goToPage(next.pageIndex + 1)
         },
 
         // server-side pagination
@@ -192,7 +195,7 @@ const ListTable = ({
         onFilterChange(filters)
 
         // Reset to page 1 when filtering
-        onPageChange(1)
+        goToPage(1)
     }
 
     const {

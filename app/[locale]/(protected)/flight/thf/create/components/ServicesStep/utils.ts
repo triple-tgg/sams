@@ -211,8 +211,8 @@ export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse |
   // Map fluid data
   const fluidServicing = aircraft?.fluidServicing;
   const engOilSets = fluidServicing?.engOil?.map(oil => ({
-    left: oil.left || 0,
-    right: oil.left || 0,
+    left: oil.leftOil || 0,
+    right: oil.rightOil || 0,
   })) || [];
 
   const fluid = {
@@ -237,7 +237,7 @@ export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse |
     staffId: person.staff?.id || 0,
     staffCode: person.staff?.code || "",
     name: person.staff?.name || "",
-    type: person.staff?.staffsType || "",
+    type: (person.staff?.staffTypeId) ? person.staff.staffTypeId.toString() : "",
     formDate: person.formDate ? formatFromPicker(person.formDate) : "",
     toDate: person.toDate ? formatFromPicker(person.toDate) : "",
     formTime: person.formTime || "",

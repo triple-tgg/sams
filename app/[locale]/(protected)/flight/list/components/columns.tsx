@@ -6,6 +6,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { CircleOff, EllipsisVertical, FileCheck, FilePenLine, Paperclip, SquarePen } from "lucide-react";
 import clsx from "clsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { formatForDisplay, formatForDisplayDateTime, formatForValue, formatFromPicker } from "@/lib/utils/formatPicker";
 
 export function getFlightColumns({
   onCreateTHF,
@@ -46,16 +47,17 @@ export function getFlightColumns({
     },
     {
       accessorKey: "acType", header: "A/C Type",
-      cell: ({ row }) => <span className="whitespace-nowrap">{row.getValue("acType") || "n/a"}</span>
+      accessorFn: (row) => `${row?.acTypeObj?.code ?? ""}`,
+      cell: ({ getValue }) => <span className="whitespace-nowrap">{(getValue() as string) || "n/a"}</span>,
     },
     {
       id: "sta", header: "STA(UTC)",
-      accessorFn: (row) => `${row?.arrivalDate ?? ""} ${row?.arrivalStatime ?? ""}`.trim(),
+      accessorFn: (row) => `${row?.arrivalDate ? formatForDisplayDateTime(row?.arrivalDate, row?.arrivalStatime) : ""}`,
       cell: ({ getValue }) => <span className="whitespace-nowrap">{(getValue() as string) || "n/a"}</span>
     },
     {
       id: "std", header: "STD(UTC)",
-      accessorFn: (row) => `${row?.departureDate ?? ""} ${row?.departureStdTime ?? ""}`.trim(),
+      accessorFn: (row) => `${row?.departureDate ? formatForDisplayDateTime(row?.departureDate, row?.departureStdTime) : ""}`,
       cell: ({ getValue }) => <span className="whitespace-nowrap">{(getValue() as string) || "n/a"}</span>
     },
     {
@@ -67,12 +69,12 @@ export function getFlightColumns({
         return (
           <div className="flex items-center gap-2 justify-start">
             <DropdownMenu>
-              <DropdownMenuTrigger asChild disabled={flight.statusObj.code === "Cancel" || isCancelLoading}>
+              <DropdownMenuTrigger asChild disabled={flight.statusObj?.code === "Cancel" || isCancelLoading}>
                 <Button
                   variant="outline"
                   size="icon"
                   className="w-7 h-7 ring-offset-transparent border-default-300 text-default-500"
-                  disabled={flight.statusObj.code === "Cancel" || isCancelLoading}
+                  disabled={flight.statusObj?.code === "Cancel" || isCancelLoading}
                 >
                   <EllipsisVertical className="w-4" />
                 </Button>
@@ -80,7 +82,7 @@ export function getFlightColumns({
               <DropdownMenuContent align="center">
                 {/* <DropdownMenuSeparator /> */}
                 <DropdownMenuItem
-                  disabled={flight.statusObj.code === "Cancel"}
+                  disabled={flight.statusObj?.code === "Cancel"}
                   onClick={() => {
                     onEditFlight?.(flight)
                   }}
@@ -88,7 +90,7 @@ export function getFlightColumns({
                   <SquarePen className="w-4 h-4 me-4" /> <p>Edit Flight</p>
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  disabled={flight.statusObj.code === "Cancel"}
+                  disabled={flight.statusObj?.code === "Cancel"}
                   onClick={() => {
                     onCreateTHF?.(flight)
                   }}
@@ -97,7 +99,7 @@ export function getFlightColumns({
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="bg-red-700 text-white hover:bg-red-800 focus:bg-red-800 hover:text-white focus:text-white"
-                  disabled={flight.statusObj.code === "Cancel"}
+                  disabled={flight.statusObj?.code === "Cancel"}
                   onClick={() => onCancel?.(flight)}
                 >
                   <CircleOff className="w-4 h-4 me-4" /> <p>Cancel Flight</p>

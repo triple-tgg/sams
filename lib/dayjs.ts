@@ -1,5 +1,8 @@
 import dayjs from 'dayjs'
-
+import 'dayjs/locale/th';
+import buddhistEra from 'dayjs/plugin/buddhistEra';
+dayjs.extend(buddhistEra);
+// dayjs.locale('th');
 // Day.js utility functions for date/time management
 export const dateTimeUtils = {
   getCurrentDate: () => dayjs().format('YYYY-MM-DD'),

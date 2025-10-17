@@ -85,15 +85,15 @@ export const useAttachFileSubmission = ({
 
       console.log('📦 Prepared API data:', apiData)
 
-      if (apiData.length === 0) {
-        console.warn('⚠️ No completed files to submit - proceeding without files')
-        // Files are optional, proceed to completion
-        queryClient.invalidateQueries({ queryKey: ['flightList'] })
-        onUpdateData?.()
-        toast.success('THF process completed successfully (no files attached)')
-        router.push(`/${locale}/flight/list`)
-        return
-      }
+      // if (apiData.length === 0) {
+      //   console.warn('⚠️ No completed files to submit - proceeding without files')
+      //   // Files are optional, proceed to completion
+      //   queryClient.invalidateQueries({ queryKey: ['flightList'] })
+      //   onUpdateData?.()
+      //   toast.success('THF process completed successfully (no files attached)')
+      //   router.push(`/${locale}/flight/list`)
+      //   return
+      // }
 
       // Submit to API
       updateAttachFileOther(apiData)

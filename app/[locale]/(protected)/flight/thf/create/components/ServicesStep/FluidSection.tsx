@@ -550,58 +550,6 @@ export const OperationalSections: React.FC<OperationalSectionsProps> = ({
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                    {/* <FormField
-                      control={form.control}
-                      name={`aircraftTowingInfo.${index}.onDate`}
-                      render={({ field }) => (
-                        <FormItem className='col-span-3'>
-                          <FormLabel>Date *</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name={`aircraftTowingInfo.${index}.onTime`}
-                      render={({ field }) => (
-                        <FormItem className='col-span-3'>
-                          <FormLabel>Time On *</FormLabel>
-                          <FormControl>
-                            <Input type="time" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name={`aircraftTowingInfo.${index}.offDate`}
-                      render={({ field }) => (
-                        <FormItem className='col-span-3'>
-                          <FormLabel>Date *</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name={`aircraftTowingInfo.${index}.offTime`}
-                      render={({ field }) => (
-                        <FormItem className='col-span-3'>
-                          <FormLabel>Time Of *</FormLabel>
-                          <FormControl>
-                            <Input type="time" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    /> */}
                     <div className='col-span-12 grid grid-cols-1 md:grid-cols-12 gap-4'>
                       <div className='col-span-6 flex flex-col'>
                         <div className=''>

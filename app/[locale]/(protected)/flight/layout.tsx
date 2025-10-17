@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 const Layout = ({ children }: { children: React.ReactNode }) => {
   return (
     <FlightListProvider
-      initialPagination={{ page: 1, perPage: 10 }}
+      initialPagination={{ page: 1, perPage: 20 }}
       initialFilters={{
         flightNo: "",
         stationCode: "",

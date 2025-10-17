@@ -1,4 +1,21 @@
 // Convert DD/MM/YYYY to DD-MMM-YYYY for display
+import dayjs from "dayjs";
+
+export const formatForDisplayDateTime = (dateStr: string, timeStr?: string | null): string => {
+  if (!dateStr) return "";
+  // รวมวันที่และเวลาเข้าด้วยกัน ถ้าไม่มีเวลา จะใช้ 00:00
+  const combined = `${dateStr} ${timeStr || "00:00"}`;
+  // กำหนดรูปแบบของ input (เช่น "DD-MM-YYYY HH:mm")
+  const date = dayjs(combined, "YYYY-MM-DD HH:mm");
+  // console.log("formatForDisplayDateTime", combined);
+  // console.log("formatForDisplayDateTime:date", date.format("DD-MMM-YYYY HH:mm"));
+  // ถ้าไม่สามารถ parse ได้ ให้คืนค่าต้นฉบับ
+  if (!date.isValid()) return dateStr;
+  // คืนค่ารูปแบบที่ต้องการ เช่น "01-Feb-2025 00:05"
+  // console.log("date.format('DD-MMM-YYYY HH:mm')", date.format("DD-MMM-YYYY HH:mm"))
+  return date.format("DD-MMM-YYYY HH:mm");
+};
+
 export const formatForDisplay = (dateStr: string): string => {
   if (!dateStr) return "";
   const parts = dateStr.split("/");

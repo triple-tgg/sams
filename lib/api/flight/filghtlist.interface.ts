@@ -18,6 +18,16 @@ export interface FlightItem {
   stationObj: StationObj
   acReg: string
   acType: string
+  acTypeObj: {
+    id: string
+    code: string
+    name: string
+    isDelete: boolean
+    createdDate: string
+    createdBy: string
+    updatedDate: string
+    updatedBy: string
+  },
   arrivalFlightNo: string
   arrivalDate: string
   arrivalStatime: string

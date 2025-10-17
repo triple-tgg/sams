@@ -1,6 +1,6 @@
 // 'ProjectList.tsx'
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import ListTable from "./components/list-table";
 import { useFlightListQuery } from "@/lib/api/hooks/useFlightListQuery";
 import { GetFlightListParams } from "@/lib/api/flight/getFlightList";
@@ -13,6 +13,8 @@ import { useFlightListContext } from "../List.provider";
 
 export default function FlightList() {
     const { pagination, filters, totalItems, setTotalItems, updateFilters, goToPage, resetAll } = useFlightListContext();
+    console.log("FlightList: pagination", pagination);
+    console.log("FlightList: filters", filters);
 
     // const [pagination, setPagination] = useState<{ page: number; perPage: number }>({
     //     page: 1,
@@ -45,7 +47,12 @@ export default function FlightList() {
     const { data, isLoading, isError, error, isFetching } = useFlightListQuery(params);
 
     const rows = (data?.responseData ?? []) as FlightItem[];
-    const total = data?.pagination?.total ?? 0;
+    const total = data?.totalAll ?? 0;
+    console.log("totalItems:", total, data);
+
+    useEffect(() => {
+        setTotalItems(total);
+    }, [total, isLoading]);
 
     // Handler สำหรับเปลี่ยน filter
     const handleFilterChange = (newFilters: FilterParams) => {
