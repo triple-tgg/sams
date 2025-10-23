@@ -3,10 +3,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Upload, X, FileText, Image as ImageIcon, File, CheckCircle, AlertCircle } from 'lucide-react'
+import { Upload, X, FileText, Image as ImageIcon, File, CheckCircle, AlertCircle, Eye } from 'lucide-react'
 import { AttachFileData } from '@/lib/api/hooks/useAttachFileUpload'
 import { formatFileSize, isImageFile } from './utils'
 import { validateFileConstraints } from './schema'
+import Link from 'next/link'
 
 interface FileUploadCardProps {
   file: AttachFileData
@@ -31,11 +32,11 @@ export const FileUploadCard: React.FC<FileUploadCardProps> = ({
   // Get appropriate icon based on file type
   const getFileIcon = () => {
     if (!file.file) return <File className="w-5 h-5" />
-    
+
     if (isImageFile(file.file)) {
       return <ImageIcon className="w-5 h-5" />
     }
-    
+
     return <FileText className="w-5 h-5" />
   }
 
@@ -98,21 +99,28 @@ export const FileUploadCard: React.FC<FileUploadCardProps> = ({
             )}
 
             {/* Status Badge */}
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-2 ">
               <Badge className={`text-xs ${getStatusColor()}`}>
                 <div className="flex items-center gap-1">
                   {getStatusIcon()}
                   {file.status.charAt(0).toUpperCase() + file.status.slice(1)}
                 </div>
               </Badge>
+              {file.status === 'completed' && (
+                <Link href={file.storagePath || '#'} target="_blank" className="text-xs flex items-center gap-1  hover:bg-gray-700 hover:text-white rounded-md px-2">
+                  <Eye />  Preview
+                </Link>
+              )}
             </div>
+
+
 
             {/* Progress Bar (show only when uploading) */}
             {file.status === 'uploading' && (
               <div className="mb-2">
                 <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                     style={{ width: `${file.progress}%` }}
                   ></div>
                 </div>
@@ -246,10 +254,10 @@ export const FileDropZone: React.FC<FileDropZoneProps> = ({
         disabled={!canAddFiles}
         accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt"
       />
-      
+
       <div className="flex flex-col items-center gap-4">
         <Upload className={`w-12 h-12 ${canAddFiles ? 'text-gray-400' : 'text-gray-300'}`} />
-        
+
         {canAddFiles ? (
           <>
             <div>
