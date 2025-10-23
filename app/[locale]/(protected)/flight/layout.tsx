@@ -12,7 +12,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       initialFilters={{
         flightNo: "",
         stationCode: "",
-        dateStart: dayjs().format("YYYY-MM-DD"), // Today's date
+        dateStart: dayjs().subtract(1, "day").format("YYYY-MM-DD"), // Today's date
         dateEnd: dayjs().format("YYYY-MM-DD"), // Today's date
       }}
     >

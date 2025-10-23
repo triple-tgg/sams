@@ -33,10 +33,9 @@ export default function FlightList() {
     // Combine filters with pagination for API call
     const params: GetFlightListParams = {
         flightNo: filters.flightNo,
-        // stationCodeList: filters?.stationCodeList?.length ? filters?.stationCodeList : undefined,
-        // stationCodeList: filters?.stationCodeList || filters.stationCode ? [filters.stationCode] : [],
         stationCodeList: filters.stationCode ? [filters.stationCode] : [],
 
+        airlineId: filters.airlineId ? Number(filters.airlineId) : undefined,
         stationCode: filters.stationCode || undefined,
         dateStart: filters.dateStart,
         dateEnd: filters.dateEnd,
@@ -48,7 +47,6 @@ export default function FlightList() {
 
     const rows = (data?.responseData ?? []) as FlightItem[];
     const total = data?.totalAll ?? 0;
-    console.log("totalItems:", total, data);
 
     useEffect(() => {
         setTotalItems(total);

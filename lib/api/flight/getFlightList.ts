@@ -5,6 +5,7 @@ export type GetFlightListParams = {
   flightNo?: string;
   stationCodeList?: string[] | null;
   stationCode?: string | null;
+  airlineId?: number | null;
   dateStart: string;
   dateEnd: string;
   page?: number;

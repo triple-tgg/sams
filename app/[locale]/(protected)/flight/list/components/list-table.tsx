@@ -22,6 +22,7 @@ import DateRangeFilter from "./DateRange"
 import EditFlight from "../../edit-project"
 import { useStationsOptions } from "@/lib/api/hooks/useStations"
 import { useFlightListContext } from "../../List.provider"
+import { useAirlineOptions } from "@/lib/api/hooks/useAirlines"
 
 interface Option {
     value: string; label: string; image?: string;
@@ -29,12 +30,14 @@ interface Option {
 
 type Inputs = {
     search: string
+    airlineId: string
     stationCode: string | undefined
     dateRange: DateRange | undefined
 }
 
 export interface FilterParams {
-    flightNo: string
+    flightNo?: string
+    airlineId?: string
     stationCodeList?: string[]
     stationCode: string
     dateStart: string
@@ -99,11 +102,15 @@ const ListTable = ({
     const initialStationCode = React.useMemo(() => {
         return initialFilters?.stationCode || "all"
     }, [initialFilters])
+    const initialAirlineId = React.useMemo(() => {
+        return initialFilters?.airlineId || "all"
+    }, [initialFilters])
 
     const { register, handleSubmit, control, watch, setValue, getValues, ...props } = useForm<Inputs>({
         defaultValues: {
             search: initialFilters?.flightNo || "",
             stationCode: initialStationCode,
+            airlineId: initialAirlineId,
             dateRange: initialDateRange
         },
     })
@@ -184,13 +191,13 @@ const ListTable = ({
         // Convert form data to API params 
         const filters: FilterParams = {
             flightNo: data.search || "",
+            airlineId: data.airlineId !== "all" ? (data.airlineId || "") : "",
             stationCode: data.stationCode !== "all" ? (data.stationCode || "") : "",
             dateStart: data.dateRange?.from ?
                 dayjs(data.dateRange.from).format('YYYY-MM-DD') : "",
             dateEnd: data.dateRange?.to ?
                 dayjs(data.dateRange.to).format('YYYY-MM-DD') : ""
         }
-
         // Send to parent component
         onFilterChange(filters)
 
@@ -205,10 +212,21 @@ const ListTable = ({
         usingFallback: stationsUsingFallback
     } = useStationsOptions();
 
+    const {
+        options: airlinesOptions,
+        isLoading: loadingAirlines,
+        error: airlinesError,
+
+    } = useAirlineOptions();
+
     const stationOptionsWithAll = React.useMemo(() => {
         const allOption = { value: "all", label: "All Stations" }
         return [allOption, ...stationOptions]
     }, [stationOptions])
+    const airlinesOptionsWithAll = React.useMemo(() => {
+        const allOption = { value: "all", label: "All Airlines", id: 0 }
+        return [allOption, ...airlinesOptions]
+    }, [airlinesOptions])
 
     const onEditFlightClose = () => {
         setOpenEditFlight(false);
@@ -249,6 +267,30 @@ const ListTable = ({
                                             <SelectContent>
                                                 {stationOptionsWithAll.map((option) => (
                                                     <SelectItem key={option.value} value={option.value}>
+                                                        {option.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    )}
+                                />
+                            </div>
+                            <div className="flex min-w-[180px]">
+                                <Controller
+                                    name="airlineId"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <Select value={String(field.value)} onValueChange={(value) => {
+                                            field.onChange(value);
+                                            handleSubmit(onSubmit)();
+                                            // Auto-submit when station changes
+                                        }}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select Airline" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {airlinesOptionsWithAll.map((option) => (
+                                                    <SelectItem key={String(option.id)} value={String(option.id)}>
                                                         {option.label}
                                                     </SelectItem>
                                                 ))}

@@ -42,6 +42,11 @@ export function getFlightColumns({
       },
     },
     {
+      accessorKey: "airlineObj", header: "airline Code",
+      accessorFn: (row) => `${row?.airlineObj?.code ?? ""}`,
+      cell: ({ getValue }) => <span className="whitespace-nowrap">{(getValue() as string) || "-"}</span>,
+    },
+    {
       accessorKey: "acReg", header: "A/C Reg",
       cell: ({ row }) => <span className="whitespace-nowrap">{row.getValue("acReg") || "-"}</span>
     },

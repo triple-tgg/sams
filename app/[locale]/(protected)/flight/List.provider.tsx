@@ -5,7 +5,8 @@ import dayjs from 'dayjs';
 
 // Types
 export interface FilterParams {
-    flightNo: string;
+    flightNo?: string;
+    airlineId?: string;
     stationCodeList?: string[];
     stationCode: string;
     dateStart: string;
@@ -35,7 +36,7 @@ export interface FlightListContextValue {
     setTotalItems: React.Dispatch<React.SetStateAction<number>>;
 
     // Helper functions
-    updateFilterRangeActive: (updates: Partial<FilterRangeActive>) => void;
+    updateFilterRangeActive: (range: FilterRangeActive) => void;
     updatePagination: (updates: Partial<PaginationParams>) => void;
     updateFilters: (updates: Partial<FilterParams>) => void;
     resetFilters: () => void;
@@ -72,9 +73,10 @@ const DEFAULT_PAGINATION: PaginationParams = {
 
 const DEFAULT_FILTERS: FilterParams = {
     flightNo: "",
+    airlineId: "0",
     stationCodeList: [],
     stationCode: "",
-    dateStart: dayjs().format("YYYY-MM-DD"), // Today's date
+    dateStart: dayjs().subtract(1, "day").format("YYYY-MM-DD"), // Yesterday's date
     dateEnd: dayjs().format("YYYY-MM-DD"), // Today's date
 };
 
@@ -182,8 +184,45 @@ export const FlightListProvider: React.FC<FlightListProviderProps> = ({
         setPagination(DEFAULT_PAGINATION);
         setTotalItems(0);
     }, []);
-    const updateFilterRangeActive = useCallback((updates: FilterRangeActive) => {
-        setFilterRangeActive(updates);
+    const updateFilterRangeActive = useCallback((range: FilterRangeActive) => {
+        setFilterRangeActive(range);
+
+        // Update date range based on selected range
+        const today = dayjs();
+        let dateStart: string;
+        let dateEnd: string;
+
+        switch (range) {
+            case "Day":
+                dateStart = today.subtract(1, "day").format("YYYY-MM-DD");
+                dateEnd = today.format("YYYY-MM-DD");
+                break;
+            case "Week":
+                dateStart = today.subtract(7, "days").format("YYYY-MM-DD");
+                dateEnd = today.format("YYYY-MM-DD");
+                break;
+            case "Month":
+                dateStart = today.subtract(1, "month").format("YYYY-MM-DD");
+                dateEnd = today.format("YYYY-MM-DD");
+                break;
+            case "Year":
+                dateStart = today.subtract(1, "year").format("YYYY-MM-DD");
+                dateEnd = today.format("YYYY-MM-DD");
+                break;
+            default:
+                dateStart = today.subtract(1, "day").format("YYYY-MM-DD");
+                dateEnd = today.format("YYYY-MM-DD");
+        }
+
+        // Update filters with new date range
+        setFilters(prev => ({
+            ...prev,
+            dateStart,
+            dateEnd
+        }));
+
+        // Reset to first page when range changes
+        setPagination(prev => ({ ...prev, page: 1 }));
     }, []);
 
     // Computed pagination values
@@ -294,21 +333,45 @@ export const useFlightListPagination = () => {
 export const useFlightListFilters = () => {
     const {
         filters,
+        filterRangeActive,
         updateFilters,
         resetFilters,
         setFlightNo,
         setStationCode,
         setStationCodeList,
         setDateRange,
+        updateFilterRangeActive,
     } = useFlightListContext();
 
     return {
         filters,
+        filterRangeActive,
         updateFilters,
         resetFilters,
         setFlightNo,
         setStationCode,
         setStationCodeList,
+        setDateRange,
+        updateFilterRangeActive,
+    };
+};
+
+/**
+ * Hook for date range filter functionality only
+ */
+export const useFlightListDateRange = () => {
+    const {
+        filterRangeActive,
+        updateFilterRangeActive,
+        filters,
+        setDateRange,
+    } = useFlightListContext();
+
+    return {
+        filterRangeActive,
+        updateFilterRangeActive,
+        dateStart: filters.dateStart,
+        dateEnd: filters.dateEnd,
         setDateRange,
     };
 };

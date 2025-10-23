@@ -18,7 +18,8 @@ const FilterRange = (props: Props) => {
       label: 'Day',
       onClick: () => {
         const today = dayjs().toDate();
-        setValue("dateRange", { from: today, to: today });
+        const yesterday = dayjs().subtract(1, "day").toDate(); // Yesterday's date
+        setValue("dateRange", { from: yesterday, to: today });
         setActive('Day');
         props.onClick();
       }
