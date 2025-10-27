@@ -34,7 +34,7 @@ export function getFlightColumns({
       id: "station",
       header: "STATION",
       accessorFn: (row) => row?.stationObj?.code ?? "",
-      cell: ({ getValue }) => <span className="whitespace-nowrap">{(getValue() as string) || "-"}</span>,
+      cell: ({ row, getValue }) => <span className={clsx("whitespace-nowrap", row.getValue("datasource") === "adhoc" ? "text-orange-400" : "")}>{getValue() as string || "-"}</span>,
       filterFn: (row, _id, filterValue?: string[]) => {
         if (!filterValue?.length) return true;
         const cell = row.getValue("station") as string;
@@ -44,26 +44,26 @@ export function getFlightColumns({
     {
       accessorKey: "airlineObj", header: "airline Code",
       accessorFn: (row) => `${row?.airlineObj?.code ?? ""}`,
-      cell: ({ getValue }) => <span className="whitespace-nowrap">{(getValue() as string) || "-"}</span>,
+      cell: ({ row }) => <span className={clsx("whitespace-nowrap", row.getValue("datasource") === "adhoc" ? "text-orange-400" : "")}>{row.getValue("airlineObj") || "-"}</span>,
     },
     {
       accessorKey: "acReg", header: "A/C Reg",
-      cell: ({ row }) => <span className="whitespace-nowrap">{row.getValue("acReg") || "-"}</span>
+      cell: ({ row }) => <span className={clsx("whitespace-nowrap", row?.getValue("datasource") === "adhoc" ? "text-orange-400" : "")}>{row.getValue("acReg") || "-"}</span>
     },
     {
       accessorKey: "acType", header: "A/C Type",
       accessorFn: (row) => `${row?.acTypeObj?.code ?? ""}`,
-      cell: ({ getValue }) => <span className="whitespace-nowrap">{(getValue() as string) || "-"}</span>,
+      cell: ({ row }) => <span className={clsx("whitespace-nowrap", row.getValue("datasource") === "adhoc" ? "text-orange-400" : "")}>{row.getValue("acType") || "-"}</span>,
     },
     {
       id: "ata", header: "ATA(UTC)",
       accessorFn: (row) => `${row?.arrivalDate ? formatForDisplayDateTime(row?.arrivalDate, row?.arrivalAtaTime) : ""}`,
-      cell: ({ getValue }) => <span className="whitespace-nowrap">{(getValue() as string) || "-"}</span>
+      cell: ({ row }) => <span className={clsx("whitespace-nowrap", row.getValue("datasource") === "adhoc" ? "text-orange-400" : "")}>{(row.getValue("ata") as string) || "-"}</span>
     },
     {
       id: "std", header: "ATD(UTC)",
       accessorFn: (row) => `${row?.departureDate ? formatForDisplayDateTime(row?.departureDate, row?.departureAtdtime) : ""}`,
-      cell: ({ getValue }) => <span className="whitespace-nowrap">{(getValue() as string) || "-"}</span>
+      cell: ({ row }) => <span className={clsx("whitespace-nowrap", row.getValue("datasource") === "adhoc" ? "text-orange-400" : "")}>{row.getValue("std") as string || "-"}</span>
     },
     {
       id: "actions",

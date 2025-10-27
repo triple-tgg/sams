@@ -1,11 +1,11 @@
 import { useQuery, UseQueryResult } from '@tanstack/react-query';
-import { 
-  getEquipmentNames, 
-  getEquipmentByCode, 
+import {
+  getEquipmentNames,
+  getEquipmentByCode,
   getEquipmentByCodes,
-  Equipment, 
-  EquipmentApiResponse, 
-  EquipmentByCodeApiResponse 
+  Equipment,
+  EquipmentApiResponse,
+  EquipmentByCodeApiResponse
 } from '@/lib/api/master/equipment/getEquiment';
 
 // Query keys for equipment
@@ -23,7 +23,9 @@ export const useEquipmentNames = (): UseQueryResult<EquipmentApiResponse, Error>
   return useQuery({
     queryKey: equipmentQueryKeys.names(),
     queryFn: getEquipmentNames,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    // staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 0,
+    gcTime: 0,
     retry: 2,
     refetchOnWindowFocus: false,
   });
@@ -42,7 +44,9 @@ export const useEquipmentByCode = (
     queryKey: equipmentQueryKeys.byCode(equipmentCode),
     queryFn: () => getEquipmentByCode(equipmentCode),
     enabled: Boolean(equipmentCode && equipmentCode.trim() !== '' && options?.enabled !== false),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    // staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 0,
+    gcTime: 0,
     retry: 2,
     refetchOnWindowFocus: false,
   });
@@ -61,12 +65,14 @@ export const useEquipmentByCodes = (
     queryKey: equipmentQueryKeys.byCodes(equipmentCodes),
     queryFn: () => getEquipmentByCodes(equipmentCodes),
     enabled: Boolean(
-      equipmentCodes && 
-      equipmentCodes.length > 0 && 
-      equipmentCodes.some(code => code && code.trim() !== '') && 
+      equipmentCodes &&
+      equipmentCodes.length > 0 &&
+      equipmentCodes.some(code => code && code.trim() !== '') &&
       options?.enabled !== false
     ),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    // staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 0,
+    gcTime: 0,
     retry: 2,
     refetchOnWindowFocus: false,
   });
@@ -84,7 +90,7 @@ export const useEquipmentSearch = () => {
     }
 
     const lowerSearchTerm = searchTerm.toLowerCase();
-    return equipmentNames.responseData.filter(equipment => 
+    return equipmentNames.responseData.filter(equipment =>
       equipment.code.toLowerCase().includes(lowerSearchTerm) ||
       equipment.id.toString().includes(lowerSearchTerm)
     );

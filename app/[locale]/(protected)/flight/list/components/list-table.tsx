@@ -24,6 +24,7 @@ import { useStationsOptions } from "@/lib/api/hooks/useStations"
 import { useFlightListContext } from "../../List.provider"
 import { useAirlineOptions } from "@/lib/api/hooks/useAirlines"
 import { routerPushNewTab } from "@/lib/utils/navigation"
+import { Pagination } from "./Pagination"
 
 interface Option {
     value: string; label: string; image?: string;
@@ -374,9 +375,15 @@ const ListTable = ({
                         )}
                     </TableBody>
                 </Table>
-
+                <Pagination
+                    pageIndex={table.getState().pagination.pageIndex}
+                    pageCount={pageCount}
+                    onPageChange={(page) => table.setPageIndex(page)}
+                    onNextPage={() => table.nextPage()}
+                    onPrevPage={() => table.previousPage()}
+                />
                 {/* Pagination bar (server-driven) */}
-                <div className="flex items-center justify-end py-4 px-10">
+                {/* <div className="flex items-center justify-end py-4 px-10">
                     <div className="flex-1 flex items-center gap-3">
                         <div className="flex gap-2 items-center">
                             <div className="text-sm font-medium text-default-60">Go</div>
@@ -427,7 +434,7 @@ const ListTable = ({
                             <ChevronRight className="w-4 h-4" />
                         </Button>
                     </div>
-                </div>
+                </div> */}
             </CardContent>
         </Card>
     )

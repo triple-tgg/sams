@@ -10,6 +10,7 @@ import dayjs from "dayjs";
 
 import { FilterParams } from "./components/list-table";  // Import the interface
 import { useFlightListContext } from "../List.provider";
+import TableSkeleton from "@/components/skeketon/TableSkeleton";
 
 export default function FlightList() {
     const { pagination, filters, totalItems, setTotalItems, updateFilters, goToPage, resetAll } = useFlightListContext();
@@ -59,7 +60,9 @@ export default function FlightList() {
         // Reset to page 1 when filter changes
         // setPagination(prev => ({ ...prev, page: 1 }));
     };
-
+    if (isLoading || isFetching) {
+        return <TableSkeleton columns={7} rows={5} />;
+    }
     return (
         <div className="space-y-3">
             {/* <div className="text-sm text-gray-500">

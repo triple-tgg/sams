@@ -8,8 +8,10 @@ export function useStatus() {
   return useQuery<ResStatusItem, Error>({
     queryKey: ["status"],
     queryFn: getStatus,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
+    // staleTime: 5 * 60 * 1000, // 5 minutes
+    // gcTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 0,
+    gcTime: 0,
     retry: 2,
     refetchOnWindowFocus: false,
   });
@@ -18,7 +20,7 @@ export function useStatus() {
 // Hook สำหรับ options ที่พร้อมใช้กับ react-select
 export function useStatusOptions() {
   const { data, isLoading, error } = useStatus();
-  
+
   // Fallback options กรณี API ล้มเหลว
   const fallbackOptions = [
     { value: "Normal", label: "Normal" },
@@ -27,7 +29,7 @@ export function useStatusOptions() {
     { value: "AOG", label: "AOG" },
     { value: "Cancel", label: "Cancel" },
   ];
-  
+
   const apiOptions = data?.responseData?.map((status: StatusItem) => ({
     value: status.code,
     label: status.code,

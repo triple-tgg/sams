@@ -1,26 +1,26 @@
 import { useMutation, useQuery, UseQueryOptions } from '@tanstack/react-query';
-import { 
-  getEquipmentReport, 
+import {
+  getEquipmentReport,
   downloadEquipmentReport,
   EquipmentReportRequest,
-  EquipmentReportResponse 
+  EquipmentReportResponse
 } from '../report/equipments/getEquipments';
-import { 
-  getPartsToolsReport, 
+import {
+  getPartsToolsReport,
   downloadPartsToolsReport,
   PartsToolsReportRequest,
-  PartsToolsReportResponse 
+  PartsToolsReportResponse
 } from '../report/partstools/getPartsTools';
-import { 
-  getThfReport, 
+import {
+  getThfReport,
   downloadThfReport,
   ThfReportRequest,
-  ThfReportResponse 
+  ThfReportResponse
 } from '../report/thf/getThf';
-import { 
-  exportEquipmentReport, 
-  exportPartsToolsReport, 
-  exportThfReport 
+import {
+  exportEquipmentReport,
+  exportPartsToolsReport,
+  exportThfReport
 } from '../../utils/excelExport';
 
 // Define the download result interface for validation
@@ -46,7 +46,9 @@ export const useEquipmentReport = (
   return useQuery({
     queryKey: REPORT_QUERY_KEYS.equipment(params),
     queryFn: () => getEquipmentReport(params),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    // staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 0,
+    gcTime: 0,
     ...options,
   });
 };
@@ -62,12 +64,12 @@ export const useEquipmentReportDownload = () => {
       } else {
         // Get data and export using xlsx library
         const response = await getEquipmentReport(params);
-        
+
         // Check if responseData is empty or null
         if (!response.responseData || response.responseData.length === 0) {
           return { hasData: false, dataCount: 0, reportType: 'equipment' };
         }
-        
+
         exportEquipmentReport(response.responseData, format);
         return { hasData: true, dataCount: response.responseData.length, reportType: 'equipment' };
       }
@@ -83,7 +85,9 @@ export const usePartsToolsReport = (
   return useQuery({
     queryKey: REPORT_QUERY_KEYS.partstools(params),
     queryFn: () => getPartsToolsReport(params),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    // staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 0,
+    gcTime: 0,
     ...options,
   });
 };
@@ -99,12 +103,12 @@ export const usePartsToolsReportDownload = () => {
       } else {
         // Get data and export using xlsx library
         const response = await getPartsToolsReport(params);
-        
+
         // Check if responseData is empty or null
         if (!response.responseData || response.responseData.length === 0) {
           return { hasData: false, dataCount: 0, reportType: 'partstools' };
         }
-        
+
         exportPartsToolsReport(response.responseData, format);
         return { hasData: true, dataCount: response.responseData.length, reportType: 'partstools' };
       }
@@ -120,7 +124,9 @@ export const useThfReport = (
   return useQuery({
     queryKey: REPORT_QUERY_KEYS.thf(params),
     queryFn: () => getThfReport(params),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    // staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 0,
+    gcTime: 0,
     ...options,
   });
 };
@@ -136,12 +142,12 @@ export const useThfReportDownload = () => {
       } else {
         // Get data and export using xlsx library
         const response = await getThfReport(params);
-        
+
         // Check if responseData is empty or null
         if (!response.responseData || response.responseData.length === 0) {
           return { hasData: false, dataCount: 0, reportType: 'thf' };
         }
-        
+
         exportThfReport(response.responseData, format);
         return { hasData: true, dataCount: response.responseData.length, reportType: 'thf' };
       }

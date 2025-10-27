@@ -18,8 +18,10 @@ export const usePartsToolsNames = (
   return useQuery({
     queryKey: PARTS_TOOLS_QUERY_KEYS.names(),
     queryFn: getPartsToolsNames,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
+    // staleTime: 5 * 60 * 1000, // 5 minutes
+    // gcTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 0,
+    gcTime: 0,
     ...options,
   });
 };
@@ -35,8 +37,10 @@ export const usePartsToolsByName = (
     queryKey: PARTS_TOOLS_QUERY_KEYS.byName(name),
     queryFn: () => getPartsToolsByName(name),
     enabled: !!name && name.trim() !== '',
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
+    // staleTime: 5 * 60 * 1000, // 5 minutes
+    // gcTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 0,
+    gcTime: 0,
     ...options,
   });
 };
@@ -52,8 +56,10 @@ export const useSearchPartsTools = (
     queryKey: PARTS_TOOLS_QUERY_KEYS.search(searchTerm),
     queryFn: () => searchPartsToolsByName(searchTerm),
     enabled: !!searchTerm && searchTerm.trim() !== '' && searchTerm.length >= 2, // Minimum 2 characters
-    staleTime: 2 * 60 * 1000, // 2 minutes (shorter for search)
-    gcTime: 5 * 60 * 1000, // 5 minutes
+    // staleTime: 2 * 60 * 1000, // 2 minutes (shorter for search)
+    // gcTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 0,
+    gcTime: 0,
     ...options,
   });
 };
@@ -68,7 +74,9 @@ export const usePartsToolsWithPrefetch = (
 ) => {
   // Get all names first
   const namesQuery = usePartsToolsNames({
-    staleTime: 10 * 60 * 1000, // 10 minutes for names
+    // staleTime: 10 * 60 * 1000, // 10 minutes for names
+    staleTime: 0,
+    gcTime: 0,
   });
 
   // Get specific parts/tools if name is provided

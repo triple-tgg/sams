@@ -31,8 +31,10 @@ export const useStaff = (
     queryKey: ['staff', searchCriteria],
     queryFn: () => getStaff(searchCriteria),
     enabled,
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    gcTime: 30 * 60 * 1000, // 30 minutes
+    // staleTime: 10 * 60 * 1000, // 10 minutes
+    // gcTime: 30 * 60 * 1000, // 30 minutes
+    staleTime: 0,
+    gcTime: 0,
     retry: 2,
     retryDelay: 1000,
   });

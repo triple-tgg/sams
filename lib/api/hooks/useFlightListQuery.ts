@@ -15,6 +15,8 @@ export function useFlightListQuery(params: GetFlightListParams) {
     // Prevent concurrent queries
     refetchOnMount: false,
     refetchOnReconnect: false,
+    staleTime: 0,
+    gcTime: 0,
     // Increase retry delay to reduce concurrent requests
     retry: (failureCount, error) => {
       if (failureCount < 3) {

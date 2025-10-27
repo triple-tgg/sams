@@ -8,8 +8,10 @@ export function useStations() {
   return useQuery<ResStationItem, Error>({
     queryKey: ["stations"],
     queryFn: getStations,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes (renamed from cacheTime in newer versions)
+    // staleTime: 5 * 60 * 1000, // 5 minutes
+    // gcTime: 10 * 60 * 1000, // 10 minutes (renamed from cacheTime in newer versions)
+    staleTime: 0,
+    gcTime: 0,
     retry: 2,
     refetchOnWindowFocus: false,
   });
@@ -18,7 +20,7 @@ export function useStations() {
 // Hook สำหรับ options ที่พร้อมใช้กับ react-select
 export function useStationsOptions() {
   const { data, isLoading, error } = useStations();
-  
+
   // Fallback options กรณี API ล้มเหลว
   const fallbackOptions = [
     { value: "BKK", label: "BKK" },
@@ -30,7 +32,7 @@ export function useStationsOptions() {
     { value: "UTH", label: "UTH" },
     { value: "KBV", label: "KBV" },
   ];
-  
+
   const apiOptions = data?.responseData?.map((station: StationItem) => ({
     value: station.code,
     label: station.code,

@@ -19,6 +19,7 @@ import { FileUploadCard, FileDropZone } from './FileUploadComponents'
 import { useLineMaintenancesQueryThfByFlightId } from '@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId'
 import CardContentStep from '../CardContentStep'
 import { LineMaintenanceThfResponse } from "@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId"
+import FlightTimeCard from "./FlightTimeCard"
 
 /**
  * AttachFile Step component for THF form
@@ -162,7 +163,15 @@ const AttachFileStep: React.FC<Props> = ({ lineMaintenanceId, flightInfosId, ini
           warningMessage="Line maintenance information is required to save attach file data."
         />
       )}
-
+      <div>
+        <FlightTimeCard
+          title="Arrival (UTC Time)"
+          flightNo="6E1061"
+          date="22-Oct-2025"
+          timeLabels={["STA (UTC)", "ATA (UTC)"]}
+          times={["12:05", "02:29"]}
+        />
+      </div>
       {!loading && !flightError && (
         <Form {...form}>
           <form className="space-y-6">

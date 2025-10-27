@@ -87,10 +87,12 @@ export const useLineMaintenancesQueryThfByFlightId = (params: LineMaintenanceThf
     queryKey: ["lineMaintenancesThf", "flight", params.flightInfosId],
     queryFn: () => getlineMaintenancesThfByFlightId(params),
     enabled: !!params.flightInfosId, // Only run query if flightId exists
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
-    retry: 2,
-
+    // staleTime: 5 * 60 * 1000, // 5 minutes
+    // gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
+    // retry: 2,
+    // 🔥 ปิดการ cache ทั้งหมด
+    staleTime: 0,     // ข้อมูลหมดอายุทันที
+    gcTime: 0,        // ลบทิ้งจาก memory ทันทีเมื่อไม่ใช้งาน
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
