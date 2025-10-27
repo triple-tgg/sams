@@ -169,6 +169,7 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
   });
 
   const { mutate, isPending, error: mError } = useAddFlight();
+  console.log("mError:", mError)
 
   const onSubmit: SubmitHandler<Inputs> = (values) => {
     const payload: FlightData = {
@@ -559,7 +560,7 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
 
             {mError && (
               <p className="text-sm text-red-600">
-                {(mError as { error?: string; message?: string })?.error || "Submit failed"}
+                {mError.message || "Submit failed"}
               </p>
             )}
           </form>

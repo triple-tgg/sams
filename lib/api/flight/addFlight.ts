@@ -45,7 +45,7 @@ export async function addFlight(
     return res.data;
   } catch (e) {
     const err = e as AxiosError<{ message?: string; error?: string }>;
-    const msg = err.response?.data?.message ?? err.message ?? "Add flight failed";
+    const msg = err.response?.data?.error ?? err.response?.data.message ?? "Add flight failed";
     // โยน Error ที่อ่านง่ายให้ UI แสดงผล
     throw new Error(msg);
   }
