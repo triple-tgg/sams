@@ -18,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useToast } from "@/components/ui/use-toast"; // shadcn toast
+
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Select,
@@ -41,6 +41,7 @@ import { convertDateToBackend } from "@/lib/utils/formatPicker";
 import { CustomDateInput } from "@/components/ui/input-date/CustomDateInput";
 import { SearchableSelectField } from "@/components/ui/search-select";
 import { useAircraftTypes } from "@/lib/api/hooks/useAircraftTypes";
+import { toast } from "sonner";
 
 
 
@@ -112,7 +113,7 @@ interface CreateTaskProps {
 export default function CreateProject({ open, setOpen }: CreateTaskProps) {
   const params = useParams<{ locale: string }>();
   const direction = getLangDir(params?.locale ?? "");
-  const { toast } = useToast();
+  // const { toast } = useToast();
 
   // Use airline options hook
   const {
@@ -169,7 +170,6 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
   });
 
   const { mutate, isPending, error: mError } = useAddFlight();
-  console.log("mError:", mError)
 
   const onSubmit: SubmitHandler<Inputs> = (values) => {
     const payload: FlightData = {
@@ -196,16 +196,17 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
       { payload },
       {
         onSuccess: () => {
-          toast({ title: "Saved", description: "Flight was added successfully." });
+          toast.success("Flight was added successfully.");
           reset();
           setOpen(false);
         },
         onError: (err) => {
-          toast({
-            variant: "destructive",
-            title: "Failed",
-            description: err?.message ?? "Submit failed",
-          });
+          toast.error(err?.message ?? "Submit failed");
+          // toast({
+          //   variant: "destructive",
+          //   title: "Failed",
+          //   description: err?.message ?? "Submit failed",
+          // });
         },
       }
     );
@@ -381,45 +382,6 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                     <Input type="time" {...register("ata")} />
                     <FieldError msg={errors.ata?.message} />
                   </div>
-                  {/* <div className="space-y-2 col-span-2">
-                    <Label htmlFor="routeFrom">Route From</Label>
-                    <Controller
-                      name="routeFrom"
-                      control={control}
-                      render={({ field }) => (
-                        <Select
-                          value={field.value?.value}
-                          onValueChange={(value) => {
-                            const option = stationOptions.find(opt => opt.value === value);
-                            field.onChange(option || null);
-                          }}
-                          disabled={loadingStations}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={
-                              loadingStations ? "Loading stations..." :
-                                stationsError ? "Failed to load stations" :
-                                  stationOptions.length === 0 ? "No stations found" :
-                                    "Select station"
-                            } />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {stationOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                    <FieldError msg={errors.station?.message as string | undefined} />
-                    {stationsUsingFallback && (
-                      <p className="text-sm text-amber-600">
-                        ⚠️ Using offline station data due to API connection issue
-                      </p>
-                    )}
-                  </div> */}
                 </div>
               </div>
 
@@ -457,45 +419,6 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                     <Input type="time" {...register("atd")} />
                     <FieldError msg={errors.atd?.message} />
                   </div>
-                  {/* <div className="space-y-2 col-span-2">
-                    <Label htmlFor="routeTo">Route To</Label>
-                    <Controller
-                      name="routeTo"
-                      control={control}
-                      render={({ field }) => (
-                        <Select
-                          value={field.value?.value}
-                          onValueChange={(value) => {
-                            const option = stationOptions.find(opt => opt.value === value);
-                            field.onChange(option || null);
-                          }}
-                          disabled={loadingStations}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={
-                              loadingStations ? "Loading stations..." :
-                                stationsError ? "Failed to load stations" :
-                                  stationOptions.length === 0 ? "No stations found" :
-                                    "Select station"
-                            } />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {stationOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                    <FieldError msg={errors.station?.message as string | undefined} />
-                    {stationsUsingFallback && (
-                      <p className="text-sm text-amber-600">
-                        ⚠️ Using offline station data due to API connection issue
-                      </p>
-                    )}
-                  </div> */}
                 </div>
               </div>
             </div>
@@ -568,7 +491,10 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
 
         <Separator className="mb-2 mt-0" />
         <div className="flex justify-end gap-2 py-2 px-2">
-          <Button type="button" variant="outline" color="primary" onClick={() => setOpen(false)} disabled={isPending}>
+          <Button type="button" variant="outline" color="primary" onClick={() => {
+            reset();
+            setOpen(false)
+          }} disabled={isPending}>
             Cancel
           </Button>
           <Button type="submit" color="primary" form="create-flight-form" disabled={isPending}>
