@@ -20,6 +20,7 @@ import { useLineMaintenancesQueryThfByFlightId } from '@/lib/api/hooks/uselineMa
 import CardContentStep from '../CardContentStep'
 import { LineMaintenanceThfResponse } from "@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId"
 import FlightTimeCard from "./FlightTimeCard"
+import { formatForDisplay, formatFromPicker } from "@/lib/utils/formatPicker"
 
 /**
  * AttachFile Step component for THF form
@@ -163,13 +164,20 @@ const AttachFileStep: React.FC<Props> = ({ lineMaintenanceId, flightInfosId, ini
           warningMessage="Line maintenance information is required to save attach file data."
         />
       )}
-      <div>
+      <div className="grid lg:grid-cols-2 gap-4 mb-6">
         <FlightTimeCard
           title="Arrival (UTC Time)"
           flightNo="6E1061"
-          date="22-Oct-2025"
+          date={initialData?.responseData?.flight.arrivalDate ? formatFromPicker(initialData.responseData.flight.arrivalDate) : ""}
           timeLabels={["STA (UTC)", "ATA (UTC)"]}
-          times={["12:05", "02:29"]}
+          times={[initialData?.responseData?.flight.arrivalStatime ?? "", initialData?.responseData?.flight.arrivalAtaTime ?? ""]}
+        />
+        <FlightTimeCard
+          title="Departure (UTC Time)"
+          flightNo="6E1062"
+          date={initialData?.responseData?.flight.departureDate ? formatFromPicker(initialData.responseData.flight.departureDate) : ""}
+          timeLabels={["STD (UTC)", "ATD (UTC)"]}
+          times={[initialData?.responseData?.flight.departureStdTime ?? "", initialData?.responseData?.flight.departureAtdtime ?? ""]}
         />
       </div>
       {!loading && !flightError && (
