@@ -12,10 +12,10 @@ export const useAircraftCheckTypes = () => {
   return useQuery<MasterDataResponse<AircraftCheckType>, Error>({
     queryKey: ["master", "aircraftCheckTypes"],
     queryFn: getAircraftCheckTypes,
-    // staleTime: 10 * 60 * 1000, // 10 minutes - master data doesn't change often
-    // gcTime: 30 * 60 * 1000, // 30 minutes cache time
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 10 * 60 * 1000, // 10 minutes - master data doesn't change often
+    gcTime: 30 * 60 * 1000, // 30 minutes cache time
+    // staleTime: 0,
+    // gcTime: 0,
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });

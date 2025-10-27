@@ -23,9 +23,9 @@ export const useEquipmentNames = (): UseQueryResult<EquipmentApiResponse, Error>
   return useQuery({
     queryKey: equipmentQueryKeys.names(),
     queryFn: getEquipmentNames,
-    // staleTime: 5 * 60 * 1000, // 5 minutes
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    // staleTime: 0,
+    // gcTime: 0,
     retry: 2,
     refetchOnWindowFocus: false,
   });

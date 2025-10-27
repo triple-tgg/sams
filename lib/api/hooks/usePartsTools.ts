@@ -18,10 +18,10 @@ export const usePartsToolsNames = (
   return useQuery({
     queryKey: PARTS_TOOLS_QUERY_KEYS.names(),
     queryFn: getPartsToolsNames,
-    // staleTime: 5 * 60 * 1000, // 5 minutes
-    // gcTime: 10 * 60 * 1000, // 10 minutes
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    // staleTime: 0,
+    // gcTime: 0,
     ...options,
   });
 };

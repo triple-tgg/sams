@@ -36,9 +36,6 @@ export interface StaffResponse {
 export const getStaff = async (data: StaffRequest): Promise<StaffResponse> => {
   try {
     const response = await axiosConfig.post('/master/Staffs', data);
-    console.log('API URL:', `${axiosConfig.defaults.baseURL}/master/Staffs`);
-    console.log('Request data:', data);
-    console.log('Staff response:', response.data);
     return response.data;
   } catch (error) {
     console.error('Get staff error:', error);

@@ -7,10 +7,10 @@ export const useAircraftTypes = () => {
   const query = useQuery<AircraftTypesResponse, Error>({
     queryKey: ["aircraftTypes"],
     queryFn: getAircraftTypes,
-    // staleTime: 30 * 60 * 1000, // 30 minutes - master data doesn't change often
-    // gcTime: 60 * 60 * 1000, // 1 hour
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 30 * 60 * 1000, // 30 minutes - master data doesn't change often
+    gcTime: 60 * 60 * 1000, // 1 hour
+    // staleTime: 0,
+    // gcTime: 0,
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });

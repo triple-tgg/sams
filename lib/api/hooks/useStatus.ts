@@ -8,10 +8,10 @@ export function useStatus() {
   return useQuery<ResStatusItem, Error>({
     queryKey: ["status"],
     queryFn: getStatus,
-    // staleTime: 5 * 60 * 1000, // 5 minutes
-    // gcTime: 10 * 60 * 1000, // 10 minutes
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    // staleTime: 0,
+    // gcTime: 0,
     retry: 2,
     refetchOnWindowFocus: false,
   });

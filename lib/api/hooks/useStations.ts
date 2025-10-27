@@ -8,10 +8,10 @@ export function useStations() {
   return useQuery<ResStationItem, Error>({
     queryKey: ["stations"],
     queryFn: getStations,
-    // staleTime: 5 * 60 * 1000, // 5 minutes
-    // gcTime: 10 * 60 * 1000, // 10 minutes (renamed from cacheTime in newer versions)
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (renamed from cacheTime in newer versions)
+    // staleTime: 0,
+    // gcTime: 0,
     retry: 2,
     refetchOnWindowFocus: false,
   });
