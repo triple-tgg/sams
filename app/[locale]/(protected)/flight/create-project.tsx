@@ -480,12 +480,11 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                 </div>
               </div>
             </div>
-
-            {mError && (
+            {/* {mError && (
               <p className="text-sm text-red-600">
                 {mError.message || "Submit failed"}
               </p>
-            )}
+            )} */}
           </form>
         </ScrollArea>
 
