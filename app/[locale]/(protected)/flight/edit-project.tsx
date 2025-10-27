@@ -40,9 +40,9 @@ import { CustomDateInput } from "@/components/ui/input-date/CustomDateInput";
 import { SearchableSelectField } from "@/components/ui/search-select";
 import { useAircraftTypes } from "@/lib/api/hooks/useAircraftTypes";
 import { toast } from "sonner";
-import { useFlightQueryById } from "@/lib/api/hooks/useFlightQueryById";
 import { useMemo, useEffect } from "react";
 import useUpdateFlight from "@/lib/api/hooks/useUpdateFlight";
+import { useLineMaintenancesQueryThfByFlightId } from "@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId";
 
 
 
@@ -115,7 +115,7 @@ const convertDateFromBackend = (dateStr: string | null): string => {
 
 // Create default values from flight data
 const createDefaultValues = (flightData: any): Inputs => {
-  const responseData = flightData?.responseData?.[0];
+  const responseData = flightData?.responseData?.flight;
 
   if (!responseData) {
     return {
@@ -184,17 +184,18 @@ const createDefaultValues = (flightData: any): Inputs => {
 // Component
 // ------------------------------------------------------
 interface EditFlightProps {
-  flightId: number | null;
+  flightInfosId: number | null;
   open: boolean;
   onClose: () => void;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export default function EditFlight({ open, setOpen, flightId, onClose }: EditFlightProps) {
+export default function EditFlight({ open, setOpen, flightInfosId, onClose }: EditFlightProps) {
   const params = useParams<{ locale: string }>();
   const direction = getLangDir(params?.locale ?? "");
 
-  const { data: flightData } = useFlightQueryById(flightId);
+  // const { data: flightData } = useFlightQueryById(flightId);
+  const { data: flightInfoData } = useLineMaintenancesQueryThfByFlightId({ flightInfosId });
   // Use airline options hook
   const {
     options: customerOptions,
@@ -220,9 +221,9 @@ export default function EditFlight({ open, setOpen, flightId, onClose }: EditFli
   } = useStatusOptions();
 
   // Memoize default values based on flight data
-  const defaultValues = useMemo(() => createDefaultValues(flightData), [flightData]);
+  const defaultValues = useMemo(() => createDefaultValues(flightInfoData), [flightInfoData]);
 
-  console.log("flightData:", flightData)
+  console.log("flightInfoData:", flightInfoData)
   const {
     register,
     handleSubmit,
@@ -236,19 +237,19 @@ export default function EditFlight({ open, setOpen, flightId, onClose }: EditFli
 
   // Reset form when flight data changes
   useEffect(() => {
-    if (flightData) {
-      const newValues = createDefaultValues(flightData);
+    if (flightInfoData) {
+      const newValues = createDefaultValues(flightInfoData);
       reset(newValues);
     }
-  }, [flightData, reset]);
+  }, [flightInfoData, reset]);
 
 
   const { mutate: updateFlight, isPending, error: mError } = useUpdateFlight();
   const onSubmit: SubmitHandler<Inputs> = (values) => {
-    if (!flightId) return;
+    if (!flightInfosId) return;
 
     const payload = {
-      id: flightId as number,
+      id: flightInfosId as number,
       airlinesCode: values.customer!.value.trim(),
       stationsCode: values.station!.value.trim(),
       acReg: (values.acReg ?? "").trim(),

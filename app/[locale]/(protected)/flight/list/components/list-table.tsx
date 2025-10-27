@@ -23,6 +23,7 @@ import EditFlight from "../../edit-project"
 import { useStationsOptions } from "@/lib/api/hooks/useStations"
 import { useFlightListContext } from "../../List.provider"
 import { useAirlineOptions } from "@/lib/api/hooks/useAirlines"
+import { routerPushNewTab } from "@/lib/utils/navigation"
 
 interface Option {
     value: string; label: string; image?: string;
@@ -121,7 +122,8 @@ const ListTable = ({
     const columns = getFlightColumns({
         onCreateTHF: (flight) => {
             const q = new URLSearchParams({ flightInfosId: String(flight.flightInfosId ?? "") })
-            router.push(`/${locale}/flight/thf/create?${q.toString()}`)
+            // router.push(`/${locale}/flight/thf/create?${q.toString()}`)
+            routerPushNewTab(`/${locale}/flight/thf/create?${q.toString()}`)
         },
         onEditFlight: (flight) => {
             setEditFlightId(flight.flightInfosId || null);
@@ -234,7 +236,7 @@ const ListTable = ({
     }
     return (
         <Card>
-            <EditFlight open={openEditFlight} setOpen={setOpenEditFlight} flightId={editFlightId} onClose={onEditFlightClose} />
+            <EditFlight open={openEditFlight} setOpen={setOpenEditFlight} flightInfosId={editFlightId} onClose={onEditFlightClose} />
             <FormProvider {...{ register, handleSubmit, control, watch, setValue, getValues, ...props }}>
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <CardHeader className="flex flex-row items-center space-x-2 justify-between">

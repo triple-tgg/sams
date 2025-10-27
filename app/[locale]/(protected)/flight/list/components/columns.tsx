@@ -56,13 +56,13 @@ export function getFlightColumns({
       cell: ({ getValue }) => <span className="whitespace-nowrap">{(getValue() as string) || "-"}</span>,
     },
     {
-      id: "sta", header: "STA(UTC)",
-      accessorFn: (row) => `${row?.arrivalDate ? formatForDisplayDateTime(row?.arrivalDate, row?.arrivalStatime) : ""}`,
+      id: "ata", header: "ATA(UTC)",
+      accessorFn: (row) => `${row?.arrivalDate ? formatForDisplayDateTime(row?.arrivalDate, row?.arrivalAtaTime) : ""}`,
       cell: ({ getValue }) => <span className="whitespace-nowrap">{(getValue() as string) || "-"}</span>
     },
     {
-      id: "std", header: "STD(UTC)",
-      accessorFn: (row) => `${row?.departureDate ? formatForDisplayDateTime(row?.departureDate, row?.departureStdTime) : ""}`,
+      id: "std", header: "ATD(UTC)",
+      accessorFn: (row) => `${row?.departureDate ? formatForDisplayDateTime(row?.departureDate, row?.departureAtdtime) : ""}`,
       cell: ({ getValue }) => <span className="whitespace-nowrap">{(getValue() as string) || "-"}</span>
     },
     {
