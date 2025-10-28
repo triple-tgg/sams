@@ -167,14 +167,14 @@ const AttachFileStep: React.FC<Props> = ({ lineMaintenanceId, flightInfosId, ini
       <div className="grid lg:grid-cols-2 gap-4 mb-6">
         <FlightTimeCard
           title="Arrival (UTC Time)"
-          flightNo="6E1061"
+          flightNo={initialData?.responseData?.flight.arrivalFlightNo || ""}
           date={initialData?.responseData?.flight.arrivalDate ? formatFromPicker(initialData.responseData.flight.arrivalDate) : ""}
           timeLabels={["STA (UTC)", "ATA (UTC)"]}
           times={[initialData?.responseData?.flight.arrivalStatime ?? "", initialData?.responseData?.flight.arrivalAtaTime ?? ""]}
         />
         <FlightTimeCard
           title="Departure (UTC Time)"
-          flightNo="6E1062"
+          flightNo={initialData?.responseData?.flight.departureFlightNo || ""}
           date={initialData?.responseData?.flight.departureDate ? formatFromPicker(initialData.responseData.flight.departureDate) : ""}
           timeLabels={["STD (UTC)", "ATD (UTC)"]}
           times={[initialData?.responseData?.flight.departureStdTime ?? "", initialData?.responseData?.flight.departureAtdtime ?? ""]}
