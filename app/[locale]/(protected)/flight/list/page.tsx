@@ -60,9 +60,9 @@ export default function FlightList() {
         // Reset to page 1 when filter changes
         // setPagination(prev => ({ ...prev, page: 1 }));
     };
-    if (isLoading || isFetching) {
-        return <TableSkeleton columns={7} rows={5} />;
-    }
+    // if (isLoading || isFetching) {
+    //     return <TableSkeleton columns={7} rows={5} />;
+    // }
     return (
         <div className="space-y-3">
             {/* <div className="text-sm text-gray-500">
@@ -76,8 +76,10 @@ export default function FlightList() {
                 </div>
             )}
 
-            {!isLoading && !isError && (
+            {!isError && (
                 <ListTable
+                    isLoading={isLoading}
+                    isFetching={isFetching}
                     projects={rows}
                     pagination={{
                         page: pagination.page,

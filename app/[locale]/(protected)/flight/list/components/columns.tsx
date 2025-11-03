@@ -17,7 +17,7 @@ export function getFlightColumns({
 }: {
   onCreateTHF?: (flight: FlightItem) => void;
   onEditFlight?: (flight: FlightItem) => void;
-  onAttach?: (flight: FlightItem) => void;
+  onAttach?: (filePath: string) => void;
   onCancel?: (flight: FlightItem) => void;
   isCancelLoading?: boolean;
 }): ColumnDef<FlightItem>[] {
@@ -121,7 +121,7 @@ export function getFlightColumns({
                     size="icon"
                     className="w-7 h-7 ring-offset-transparent border-default-300 text-default-500"
                     color="secondary"
-                    onClick={() => onAttach?.(flight)}
+                    onClick={() => onAttach?.(flight.filePath)}
                   >
                     <Paperclip className="w-4" />
                   </Button>
@@ -141,13 +141,13 @@ export function getFlightColumns({
                       size="icon"
                       className="w-7 h-7 ring-offset-transparent border-default-300 text-default-500"
                       color="secondary"
-                      onClick={() => onAttach?.(flight)}
+                    // onClick={() => onAttach?.(flight)}
                     >
                       {flight.state === "save" ? <FileCheck className="w-4" /> : <FilePenLine className="w-4" />}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="top">
-                    {flight.state === "save" ? <p>Save done</p> : <p>Draft Thf</p>}
+                    {flight.state === "save" ? <p>Done (THF:{flight.thfNumber})</p> : <p>Draft (THF:{flight.thfNumber})</p>}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>

@@ -18,6 +18,7 @@ export interface EquipmentReportItem {
 export interface EquipmentReportRequest {
   dateStart: string; // Format: YYYY-MM-DD
   dateEnd: string;   // Format: YYYY-MM-DD
+  airlineId: string | undefined;
 }
 
 export interface EquipmentReportResponse {

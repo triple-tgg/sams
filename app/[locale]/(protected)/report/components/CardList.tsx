@@ -11,6 +11,7 @@ type Props = {
     description: string
     reportType: 'equipment' | 'partstools' | 'thf'
   }>
+  airlineId: string | undefined
   date?: { dateStart: string, dateEnd: string }
   isError?: boolean
 }
@@ -49,6 +50,7 @@ const CardList = (props: Props) => {
             </div>
             <ReportDownloadButton
               reportType={item.reportType}
+              airlineId={props.airlineId}
               dateRange={{
                 dateStart: props.date?.dateStart || '',
                 dateEnd: props.date?.dateEnd || ''

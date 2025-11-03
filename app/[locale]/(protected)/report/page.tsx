@@ -22,6 +22,8 @@ const ReportPage = (props: Props) => {
     dateStart: dayjs().format('YYYY-MM-DD'),
     dateEnd: dayjs().format('YYYY-MM-DD')
   })
+
+  const [airlineId, setAirlineId] = useState<string | undefined>("0")
   const [isError, setIsError] = useState<boolean>(false) // Initially valid (same date = valid)
 
   // Memoized handler สำหรับรับค่าจาก ReportFormFilter
@@ -34,11 +36,14 @@ const ReportPage = (props: Props) => {
       if (prevRange.dateStart === data.dateStart && prevRange.dateEnd === data.dateEnd) {
         return prevRange // Return same reference if no change
       }
-      console.log('Date range updated:', data, 'isValid:', isValid)
       return data
     })
   }, [])
 
+  const handleChange = (data: ReportFormData, isValid: boolean, airlineId: string | undefined) => {
+    handleDateRangeChange(data, isValid)
+    setAirlineId(airlineId)
+  }
   return (
     <div className="space-y-6">
       {/* Report Form Card */}
@@ -51,8 +56,8 @@ const ReportPage = (props: Props) => {
         </CardHeader>
         <CardContent>
           <ReportFormFilter
-            onChange={handleDateRangeChange}
-            initialValues={dateRange}
+            onChange={handleChange}
+            initialValues={{ ...dateRange, airlineId }}
           />
         </CardContent>
       </Card>
@@ -64,6 +69,9 @@ const ReportPage = (props: Props) => {
             <FileText className="h-5 w-5" />
             Report Generator
           </CardTitle>
+          <div className="text-sm text-default-600  overflow-hidden text-ellipsis whitespace-nowrap me-6">
+            Airline ID: {airlineId || "All Airlines"}
+          </div>
           <div className="text-sm text-gray-500">
             {dateRange.dateStart && dateRange.dateEnd && (
               <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-md">
@@ -76,6 +84,7 @@ const ReportPage = (props: Props) => {
           <CardList
             values={itemReport}
             date={dateRange}
+            airlineId={airlineId}
             isError={isError}
           />
         </CardContent>

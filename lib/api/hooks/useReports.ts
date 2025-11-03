@@ -165,11 +165,13 @@ export const useReportDownload = () => {
     reportType: 'equipment' | 'partstools' | 'thf',
     dateRange: { dateStart: string; dateEnd: string },
     format: 'xlsx' | 'csv',
+    airlineId: string | undefined,
     directDownload?: boolean
   ): Promise<DownloadResult> => {
     const params = {
       dateStart: dateRange.dateStart,
       dateEnd: dateRange.dateEnd,
+      airlineId: airlineId,
     };
 
     switch (reportType) {

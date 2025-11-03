@@ -25,6 +25,7 @@ import { useFlightListContext } from "../../List.provider"
 import { useAirlineOptions } from "@/lib/api/hooks/useAirlines"
 import { routerPushNewTab } from "@/lib/utils/navigation"
 import { Pagination } from "./Pagination"
+import TableSkeleton from "@/components/skeketon/TableSkeleton"
 
 interface Option {
     value: string; label: string; image?: string;
@@ -55,6 +56,8 @@ type PaginationProps = {
 }
 
 interface ListTableProps {
+    isLoading: boolean
+    isFetching: boolean
     projects: FlightItem[]
     pagination: PaginationProps
     onFilterChange: (filters: FilterParams) => void
@@ -71,6 +74,8 @@ const stationInList = (row: any, _columnId: string, filterValue: string[] | unde
 const ListTable = ({
     projects,
     // pagination,
+    isLoading,
+    isFetching,
     onFilterChange,
     initialFilters
 }: ListTableProps) => {
@@ -130,7 +135,10 @@ const ListTable = ({
             setEditFlightId(flight.flightInfosId || null);
             setOpenEditFlight(true);
         },
-        onAttach: (flight) => console.log("Attach for flight:", flight),
+        onAttach: (filePath: string) => {
+            console.log("Attach file:", filePath);
+            routerPushNewTab(filePath);
+        },
         onCancel: (flight) => {
             if (!flight.flightInfosId) return;
             if (confirm(`Are you sure you want to cancel flight ${flight.arrivalFlightNo || flight.flightInfosId}?`)) {
@@ -143,7 +151,6 @@ const ListTable = ({
     })
 
     const pageCount = Math.max(1, Math.ceil(total / Math.max(1, pagination.perPage)))
-    console.log("FlightListProvider: pageCount", pageCount, total, pagination.perPage)
     const table = useReactTable({
         data: projects,
         columns,
@@ -330,112 +337,62 @@ const ListTable = ({
                     </CardHeader>
                 </form>
             </FormProvider>
-            <CardContent className="p-0">
-                <Table>
-                    <TableHeader className="px-3 bg-primary-50">
-                        {table.getHeaderGroups().map((hg) => (
-                            <TableRow key={hg.id}>
-                                {hg.headers.map((h) => (
-                                    <TableHead key={h.id}>
-                                        {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
-                                    </TableHead>
-                                ))}
-                            </TableRow>
-                        ))}
-                    </TableHeader>
+            {(isLoading || isFetching) && <TableSkeleton columns={7} rows={5} />}
+            {!isLoading && !isFetching && (
+                <CardContent className="p-0">
+                    <Table>
+                        <TableHeader className="px-3 bg-primary-50">
+                            {table.getHeaderGroups().map((hg) => (
+                                <TableRow key={hg.id}>
+                                    {hg.headers.map((h) => (
+                                        <TableHead key={h.id}>
+                                            {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
+                                        </TableHead>
+                                    ))}
+                                </TableRow>
+                            ))}
+                        </TableHeader>
 
-                    <TableBody>
-                        {table.getRowModel().rows?.length ? (
-                            table.getRowModel().rows.map((row) => {
-                                const flight = row.original;
-                                const isCancelled = flight.statusObj?.code === "Cancel";
-                                console.log("isCancelled", isCancelled);
-                                return (
-                                    <TableRow
-                                        key={row.id}
-                                        data-state={row.getIsSelected() && "selected"}
-                                        className={clsx(
-                                            "even:bg-default-100 px-6 h-20",
-                                            row.getIsSelected() && "bg-primary/10",
-                                            isCancelled ? "bg-primary/10 border-l-4 border-l-red-600" : ""
-                                        )}
-                                    >
-                                        {row.getVisibleCells().map((cell) => (
-                                            <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
-                                        ))}
-                                    </TableRow>
-                                );
-                            })
-                        ) : (
-                            <TableRow>
-                                <TableCell colSpan={columns.length} className="h-24 text-center">
-                                    No results.
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-                <Pagination
-                    pageIndex={table.getState().pagination.pageIndex}
-                    pageCount={pageCount}
-                    onPageChange={(page) => table.setPageIndex(page)}
-                    onNextPage={() => table.nextPage()}
-                    onPrevPage={() => table.previousPage()}
-                />
-                {/* Pagination bar (server-driven) */}
-                {/* <div className="flex items-center justify-end py-4 px-10">
-                    <div className="flex-1 flex items-center gap-3">
-                        <div className="flex gap-2 items-center">
-                            <div className="text-sm font-medium text-default-60">Go</div>
-                            <Input
-                                type="number"
-                                className="w-16 px-2"
-                                value={table.getState().pagination.pageIndex + 1}
-                                onChange={(e) => {
-                                    const pageNumber = e.target.value ? Number(e.target.value) - 1 : 0
-                                    table.setPageIndex(pageNumber)
-                                }}
-                            />
-                        </div>
-                        <div className="text-sm font-medium text-default-600">
-                            Page {table.getState().pagination.pageIndex + 1} of {pageCount}
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 flex-none">
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => table.previousPage()}
-                            disabled={table.getState().pagination.pageIndex === 0}
-                            className="w-8 h-8"
-                        >
-                            <ChevronLeft className="w-4 h-4" />
-                        </Button>
-
-                        {Array.from({ length: pageCount }).map((_, i) => (
-                            <Button
-                                key={`page-${i}`}
-                                onClick={() => table.setPageIndex(i)}
-                                size="icon"
-                                className={`w-8 h-8 ${table.getState().pagination.pageIndex === i ? "bg-default" : "bg-default-300 text-default"}`}
-                            >
-                                {i + 1}
-                            </Button>
-                        ))}
-
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => table.nextPage()}
-                            disabled={table.getState().pagination.pageIndex >= pageCount - 1}
-                            className="w-8 h-8"
-                        >
-                            <ChevronRight className="w-4 h-4" />
-                        </Button>
-                    </div>
-                </div> */}
-            </CardContent>
+                        <TableBody>
+                            {table.getRowModel().rows?.length ? (
+                                table.getRowModel().rows.map((row) => {
+                                    const flight = row.original;
+                                    const isCancelled = flight.statusObj?.code === "Cancel";
+                                    console.log("isCancelled", isCancelled);
+                                    return (
+                                        <TableRow
+                                            key={row.id}
+                                            data-state={row.getIsSelected() && "selected"}
+                                            className={clsx(
+                                                "even:bg-default-100 px-6 h-20",
+                                                row.getIsSelected() && "bg-primary/10",
+                                                isCancelled ? "bg-primary/10 border-l-4 border-l-red-600" : ""
+                                            )}
+                                        >
+                                            {row.getVisibleCells().map((cell) => (
+                                                <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                                            ))}
+                                        </TableRow>
+                                    );
+                                })
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={columns.length} className="h-24 text-center">
+                                        No results.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                    <Pagination
+                        pageIndex={table.getState().pagination.pageIndex}
+                        pageCount={pageCount}
+                        onPageChange={(page) => table.setPageIndex(page)}
+                        onNextPage={() => table.nextPage()}
+                        onPrevPage={() => table.previousPage()}
+                    />
+                </CardContent>
+            )}
         </Card>
     )
 }

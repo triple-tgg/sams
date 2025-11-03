@@ -11,13 +11,14 @@ import { Download, FileSpreadsheet, FileText, Loader2 } from 'lucide-react';
 
 import { toast } from 'sonner';
 import { useReportDownload } from '@/lib/api/hooks/useReports';
-import { useToast } from "@/components/ui/use-toast";
+// import { useToast } from "@/components/ui/use-toast";
 interface ReportDownloadButtonProps {
   reportType: 'equipment' | 'partstools' | 'thf';
   dateRange: {
     dateStart: string;
     dateEnd: string;
   };
+  airlineId: string | undefined;
   disabled?: boolean;
   className?: string;
 }
@@ -25,12 +26,13 @@ interface ReportDownloadButtonProps {
 const ReportDownloadButton: React.FC<ReportDownloadButtonProps> = ({
   reportType,
   dateRange,
+  airlineId,
   disabled = false,
   className = "",
 }) => {
   const [downloadFormat, setDownloadFormat] = useState<'xlsx' | 'csv'>('xlsx');
   const { downloadReport, isLoading } = useReportDownload();
-  const { toast: _toast } = useToast();
+  // const { toast: _toast } = useToast();
 
   // Get report display name
   const getReportDisplayName = (type: string) => {
@@ -55,7 +57,7 @@ const ReportDownloadButton: React.FC<ReportDownloadButtonProps> = ({
       }
 
       setDownloadFormat(format);
-      const result = await downloadReport(reportType, dateRange, format);
+      const result = await downloadReport(reportType, dateRange, format, airlineId);
 
       // Check if data is available
       if (result && !result.hasData) {
@@ -66,12 +68,15 @@ const ReportDownloadButton: React.FC<ReportDownloadButtonProps> = ({
         //     duration: 5000,
         //   }
         // );
-        _toast({
-          variant: "destructive",
-          title: `No data found for ${getReportDisplayName(reportType)} report in the selected date range`,
-          description: `Date range: ${dateRange.dateStart} to ${dateRange.dateEnd}`,
-          duration: 5000,
-        });
+        //  toast.success(data.message || "Flight cancelled successfully");
+        toast.error(`No data found for ${getReportDisplayName(reportType)} report in the selected date range`);
+
+        // _toast({
+        //   variant: "destructive",
+        //   title: `No data found for ${getReportDisplayName(reportType)} report in the selected date range`,
+        //   description: `Date range: ${dateRange.dateStart} to ${dateRange.dateEnd}`,
+        //   duration: 5000,
+        // });
 
         return;
       }
@@ -91,12 +96,13 @@ const ReportDownloadButton: React.FC<ReportDownloadButtonProps> = ({
       //   description: error instanceof Error ? error.message : 'Unknown error occurred',
       //   duration: 5000,
       // });
-      _toast({
-        variant: "destructive",
-        title: "!Failed",
-        description: error instanceof Error ? error.message : 'Unknown error occurred',
-        duration: 5000,
-      });
+      toast.error(error instanceof Error ? error.message : 'Unknown error occurred');
+      // _toast({
+      //   variant: "destructive",
+      //   title: "!Failed",
+      //   description: error instanceof Error ? error.message : 'Unknown error occurred',
+      //   duration: 5000,
+      // });
     }
   };
 

@@ -10,6 +10,8 @@ import { z } from 'zod'
 import dayjs from 'dayjs'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
 import { Calendar, Clock, RotateCcw, Zap } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { useAirlineOptions } from '@/lib/api/hooks/useAirlines'
 
 // Debounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -43,7 +45,8 @@ const reportFormSchema = z.object({
     .min(1, 'To date is required')
     .refine((date) => {
       return dayjs(date).isValid()
-    }, 'Invalid to date format')
+    }, 'Invalid to date format'),
+  airlineId: z.string().optional(),
 }).superRefine((data, ctx) => {
   // Date comparison validation: dateStart ≤ dateEnd
   const fromDate = dayjs(data.dateStart)
@@ -67,7 +70,7 @@ const reportFormSchema = z.object({
 type ReportFormData = z.infer<typeof reportFormSchema>
 
 interface ReportFormFilterProps {
-  onChange?: (data: ReportFormData, isValid: boolean) => void
+  onChange?: (data: ReportFormData, isValid: boolean, airlineId: string | undefined) => void
   initialValues?: ReportFormData
   isLoading?: boolean
 }
@@ -94,7 +97,7 @@ const ReportFormFilter: React.FC<ReportFormFilterProps> = ({
   // Watch form values with minimal re-renders
   const watchedValues = useWatch({
     control: form.control,
-    name: ['dateStart', 'dateEnd']
+    name: ['dateStart', 'dateEnd', 'airlineId']
   })
 
   // Debounce the watched values to prevent excessive onChange calls
@@ -127,7 +130,7 @@ const ReportFormFilter: React.FC<ReportFormFilterProps> = ({
 
   // Optimized onChange callback with debounce and memoization
   React.useEffect(() => {
-    const [dateStart, dateEnd] = debouncedValues
+    const [dateStart, dateEnd, airlineId] = debouncedValues
 
     // Call onChange with current validation status (both valid and invalid states)
     if (onChange && dateStart && dateEnd) {
@@ -139,15 +142,16 @@ const ReportFormFilter: React.FC<ReportFormFilterProps> = ({
         prevValuesRef.current = currentHash
         onChange({
           dateStart,
-          dateEnd
+          dateEnd,
         },
-          validationResult.isValid
+          validationResult.isValid,
+          airlineId
         ) // Always pass current validation status
       }
     }
     // Also handle case when fields are empty to properly disable buttons
     else if (onChange && (!dateStart || !dateEnd)) {
-      onChange({ dateStart: dateStart || '', dateEnd: dateEnd || '' }, false)
+      onChange({ dateStart: dateStart || '', dateEnd: dateEnd || '' }, false, airlineId)
     }
   }, [debouncedValues, validationResult.isValid, onChange])
 
@@ -157,6 +161,7 @@ const ReportFormFilter: React.FC<ReportFormFilterProps> = ({
     form.reset({
       dateStart: today,
       dateEnd: today,
+      airlineId: "0",
     })
 
     // Update ref to prevent duplicate onChange
@@ -165,7 +170,7 @@ const ReportFormFilter: React.FC<ReportFormFilterProps> = ({
 
     // Trigger onChange immediately for reset (today = today is always valid)
     if (onChange) {
-      onChange({ dateStart: today, dateEnd: today }, true) // Reset is always valid
+      onChange({ dateStart: today, dateEnd: today }, true, "0") // Reset is always valid
     }
   }, [form, onChange])
 
@@ -180,7 +185,7 @@ const ReportFormFilter: React.FC<ReportFormFilterProps> = ({
 
     // Trigger onChange immediately for quick actions (these are always valid)
     if (onChange) {
-      onChange({ dateStart: today, dateEnd: today }, true) // Today = today is always valid
+      onChange({ dateStart: today, dateEnd: today }, true, "0") // Today = today is always valid
     }
   }, [form, onChange])
 
@@ -196,7 +201,7 @@ const ReportFormFilter: React.FC<ReportFormFilterProps> = ({
 
     // Trigger onChange immediately for quick actions (these are always valid)
     if (onChange) {
-      onChange({ dateStart: startOfWeek, dateEnd: endOfWeek }, true) // Week range is always valid
+      onChange({ dateStart: startOfWeek, dateEnd: endOfWeek }, true, "0") // Week range is always valid
     }
   }, [form, onChange])
 
@@ -212,7 +217,7 @@ const ReportFormFilter: React.FC<ReportFormFilterProps> = ({
 
     // Trigger onChange immediately for quick actions (these are always valid)
     if (onChange) {
-      onChange({ dateStart: startOfMonth, dateEnd: endOfMonth }, true) // Month range is always valid
+      onChange({ dateStart: startOfMonth, dateEnd: endOfMonth }, true, "0") // Month range is always valid
     }
   }, [form, onChange])
 
@@ -237,13 +242,22 @@ const ReportFormFilter: React.FC<ReportFormFilterProps> = ({
   }, [form.formState.errors, validationResult])
 
   const { hasErrors, isValid, hasRequiredFields, customError } = validationStatus
+  const {
+    options: airlinesOptions,
+    isLoading: loadingAirlines,
+    error: airlinesError,
 
+  } = useAirlineOptions();
+  const airlinesOptionsWithAll = React.useMemo(() => {
+    const allOption = { value: "all", label: "All Airlines", id: 0 }
+    return [allOption, ...airlinesOptions]
+  }, [airlinesOptions])
   return (
     <div className="space-y-4">
       <Form {...form}>
         <div className="space-y-4">
           {/* Date Range Inputs */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
             <FormField
               control={form.control}
               name="dateStart"
@@ -297,107 +311,93 @@ const ReportFormFilter: React.FC<ReportFormFilterProps> = ({
                 </FormItem>
               )}
             />
-          </div>
-
-          {/* Real-time Validation Status */}
-          {/* <div className="flex items-center gap-2 text-sm">
-            <div className={`flex items-center gap-1 transition-colors ${isValid ? 'text-green-600' : hasErrors ? 'text-red-600' : 'text-gray-500'
-              }`}>
-              <div className={`w-2 h-2 rounded-full ${isValid ? 'bg-green-500' : hasErrors ? 'bg-red-500' : 'bg-gray-400'
-                }`}></div>
-              {(() => {
-                if (!hasRequiredFields) return 'Select date range'
-                if (isValid) return 'Valid date range ✓'
-                if (hasErrors) {
-                  // Priority: 1) Custom validation errors, 2) Form field errors
-                  if (customError) return customError
-
-                  const dateFormError = form.formState.errors.dateForm?.message
-                  const dateToError = form.formState.errors.dateTo?.message
-                  return dateToError || dateFormError || 'Invalid date range'
-                }
-                return 'Checking...'
-              })()}
-            </div>
-          </div> */}
-
-          {/* Quick Select Buttons */}
-          <div className="flex flex-wrap gap-2 pt-2 border-t justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleSetToday}
-              disabled={isLoading}
-              className="text-xs hover:bg-blue-50 hover:border-blue-300 transition-colors"
-            >
-              <Zap className="h-3 w-3 mr-1" />
-              Today
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleSetThisWeek}
-              disabled={isLoading}
-              className="text-xs hover:bg-green-50 hover:border-green-300 transition-colors"
-            >
-              <Calendar className="h-3 w-3 mr-1" />
-              This Week
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleSetThisMonth}
-              disabled={isLoading}
-              className="text-xs hover:bg-purple-50 hover:border-purple-300 transition-colors"
-            >
-              <Clock className="h-3 w-3 mr-1" />
-              This Month
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleReset}
-              disabled={isLoading}
-              className="text-xs hover:bg-gray-50 hover:border-gray-300 transition-colors"
-            >
-              <RotateCcw className="h-3 w-3 mr-1" />
-              Reset
-            </Button>
-          </div>
-
-          {/* Loading State */}
-          {/* {isLoading && (
-            <div className="flex items-center justify-center py-4">
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                <span>Processing...</span>
+            <FormField
+              control={form.control}
+              name="airlineId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-medium flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Alrline *
+                  </FormLabel>
+                  <FormControl>
+                    <Select
+                      value={String(field.value)}
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        const formValues = form.getValues();
+                        if (onChange) {
+                          onChange({ dateStart: formValues.dateStart || '', dateEnd: formValues.dateEnd || '' }, validationResult.isValid, value)
+                        }
+                      }}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Airline" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {airlinesOptionsWithAll.map((option) => (
+                          <SelectItem key={String(option.id)} value={String(option.id)}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormMessage className="text-xs text-red-600" />
+                </FormItem>
+              )}
+            />
+            {/* Quick Select Buttons */}
+            <div className="col-span-3 flex justify-end items-center">
+              <div className="flex flex-wrap gap-2 pt-2 border-t justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSetToday}
+                  disabled={isLoading}
+                  className="text-xs hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                >
+                  <Zap className="h-3 w-3 mr-1" />
+                  Today
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSetThisWeek}
+                  disabled={isLoading}
+                  className="text-xs hover:bg-green-50 hover:border-green-300 transition-colors"
+                >
+                  <Calendar className="h-3 w-3 mr-1" />
+                  This Week
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSetThisMonth}
+                  disabled={isLoading}
+                  className="text-xs hover:bg-purple-50 hover:border-purple-300 transition-colors"
+                >
+                  <Clock className="h-3 w-3 mr-1" />
+                  This Month
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleReset}
+                  disabled={isLoading}
+                  className="text-xs hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                >
+                  <RotateCcw className="h-3 w-3 mr-1" />
+                  Reset
+                </Button>
               </div>
             </div>
-          )} */}
+          </div>
         </div>
       </Form>
-
-      {/* Form State Debug (Development Only) */}
-      {/* {process.env.NODE_ENV === 'development' && (
-        <div className="mt-4 p-3 bg-gray-50 rounded-md text-xs border">
-          <div className="font-medium mb-2">Form State (Dev Only):</div>
-          <div className="space-y-1">
-            <div>Valid: {form.formState.isValid ? '✅' : '❌'}</div>
-            <div>Errors: {Object.keys(form.formState.errors).length}</div>
-            <div>Values: {JSON.stringify(form.getValues(), null, 2)}</div>
-            {Object.keys(form.formState.errors).length > 0 && (
-              <div className="mt-2">
-                <div className="font-medium text-red-600">Errors:</div>
-                <pre className="text-red-600 text-xs">{JSON.stringify(form.formState.errors, null, 2)}</pre>
-              </div>
-            )}
-          </div>
-        </div>
-      )} */}
     </div>
   )
 }

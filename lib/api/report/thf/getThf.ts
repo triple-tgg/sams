@@ -42,6 +42,7 @@ export interface ThfReportItem {
 export interface ThfReportRequest {
   dateStart: string; // Format: YYYY-MM-DD
   dateEnd: string;   // Format: YYYY-MM-DD
+  airlineId: string | undefined;
 }
 
 export interface ThfReportResponse {

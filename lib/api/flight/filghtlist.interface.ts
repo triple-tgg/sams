@@ -45,6 +45,8 @@ export interface FlightItem {
   createdBy: string
   updatedDate: string
   updatedBy: string
+  thfNumber: string
+  filePath: string
   isFiles: boolean
   isLlineMaintenances: boolean
   state: string

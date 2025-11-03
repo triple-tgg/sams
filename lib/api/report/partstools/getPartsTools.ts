@@ -22,6 +22,7 @@ export interface PartsToolsReportItem {
 export interface PartsToolsReportRequest {
   dateStart: string; // Format: YYYY-MM-DD
   dateEnd: string;   // Format: YYYY-MM-DD
+  airlineId: string | undefined;
 }
 
 export interface PartsToolsReportResponse {
