@@ -19,6 +19,7 @@ import { CustomDateInput } from '@/components/ui/input-date/CustomDateInput'
 import { FlightFormData } from '@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId'
 import { dateTimeUtils } from '@/lib/dayjs'
 import { formatFromPicker } from '@/lib/utils/formatPicker'
+import { nanoid } from '@/lib/utils/nanoidLike'
 
 
 
@@ -31,6 +32,7 @@ const PhotoUploadField: React.FC<{
   maxFiles?: number
   maxSizeInMB?: number
   single?: boolean
+  thfNumber: string
 }> = ({
   form,
   fieldName,
@@ -38,7 +40,8 @@ const PhotoUploadField: React.FC<{
   value,
   maxFiles = 1,
   maxSizeInMB = 10,
-  single = true
+  single = true,
+  thfNumber
 }) => {
     console.log("uploadedFiles value prop:", value)
     const [uploadedFiles, setUploadedFiles] = useState<Array<{ fileName: string; filePath: string; originalName?: string; size?: number; uploadedAt?: Date }>>(
@@ -63,7 +66,7 @@ const PhotoUploadField: React.FC<{
           fileName: `File ${index + 1}`,
           filePath: filePath,
           originalName: `Existing file ${index + 1}`,
-          uploadedAt: new Date()
+          uploadedAt: new Date(),
         }))
         setUploadedFiles(syncedFiles)
       }
@@ -151,7 +154,8 @@ const PhotoUploadField: React.FC<{
 
           const result = await uploadMutation.mutateAsync({
             file,
-            fileType: "other"
+            fileType: "service",
+            fileName: `${thfNumber}_${nanoid(5)}`
           })
 
           // Complete progress
@@ -810,7 +814,8 @@ export const AdditionalDefectsSection: React.FC<{
   form: UseFormReturn<ServicesFormInputs>
   onAdd: () => void
   onRemove: (index: number) => void
-}> = ({ form, onAdd, onRemove }) => {
+  thfNumber: string
+}> = ({ form, onAdd, onRemove, thfNumber }) => {
   const additionalDefectRectification = form.watch('additionalDefectRectification')
   const additionalDefects = form.watch('additionalDefects') || []
 
@@ -936,6 +941,7 @@ export const AdditionalDefectsSection: React.FC<{
                   />
 
                   <PhotoUploadField
+                    thfNumber={thfNumber}
                     form={form}
                     fieldName={`additionalDefects.${index}.attachFiles`}
                     label="Attach Files"

@@ -1,10 +1,10 @@
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "@/components/ui/use-toast";
-import { 
-  fileUpload, 
-  uploadFile, 
-  type FileUploadRequest, 
-  type FileUploadResponse 
+import {
+  fileUpload,
+  uploadFile,
+  type FileUploadRequest,
+  type FileUploadResponse
 } from "../uploadFile/fileUpload";
 
 /**
@@ -38,12 +38,12 @@ export const useFileUpload = () => {
  */
 export const useUploadFile = () => {
   return useMutation<
-    FileUploadResponse, 
-    Error, 
-    { file: File; fileType?: "other" | "service" }
+    FileUploadResponse,
+    Error,
+    { file: File; fileType?: "thfnumber" | "service"; fileName: string; }
   >({
-    mutationFn: async ({ file, fileType = "other" }) => {
-      return await uploadFile(file, fileType);
+    mutationFn: async ({ file, fileType = "thfnumber", fileName }) => {
+      return await uploadFile(file, fileType, fileName);
     },
     onSuccess: (data) => {
       toast({
@@ -69,12 +69,12 @@ export const useUploadFile = () => {
  */
 export const useUploadMultipleFiles = () => {
   return useMutation<
-    FileUploadResponse[], 
-    Error, 
-    { files: File[]; fileType?: "other" | "service" }
+    FileUploadResponse[],
+    Error,
+    { files: File[]; fileType?: "thfnumber" | "service", fileName: string; }
   >({
-    mutationFn: async ({ files, fileType = "other" }) => {
-      const uploadPromises = files.map(file => uploadFile(file, fileType));
+    mutationFn: async ({ files, fileType = "thfnumber", fileName }) => {
+      const uploadPromises = files.map(file => uploadFile(file, fileType, fileName));
       return await Promise.all(uploadPromises);
     },
     onSuccess: (data) => {

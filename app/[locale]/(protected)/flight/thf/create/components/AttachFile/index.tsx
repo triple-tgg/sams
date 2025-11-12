@@ -32,8 +32,9 @@ type Props = {
   initialData?: LineMaintenanceThfResponse | null; // Replace 'any' with actual type if available
   loading?: boolean;
   flightError?: Error | null;
+  thfNumber: string;
 }
-const AttachFileStep: React.FC<Props> = ({ lineMaintenanceId, flightInfosId, initialData, loading, flightError }) => {
+const AttachFileStep: React.FC<Props> = ({ lineMaintenanceId, flightInfosId, initialData, loading, flightError, thfNumber }) => {
   const { goNext, onSave, goBack } = useStep()
 
 
@@ -68,7 +69,7 @@ const AttachFileStep: React.FC<Props> = ({ lineMaintenanceId, flightInfosId, ini
     hasFiles,
     hasCompletedFiles,
     isUploading
-  } = useAttachFileUpload(mapDataThfToAttachFileStep(initialData))
+  } = useAttachFileUpload(mapDataThfToAttachFileStep(initialData), thfNumber)
 
   // Submission hook
   const {

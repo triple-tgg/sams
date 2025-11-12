@@ -80,7 +80,7 @@ export const FileUploadCard: React.FC<FileUploadCardProps> = ({
           {/* File Info */}
           <div className="flex-1 min-w-0">
             {/* File Name Input */}
-            <div className="mb-2">
+            {/* <div className="mb-2">
               <Input
                 value={nameEdit}
                 onChange={(e) => setNameEdit(e.target.value)}
@@ -89,7 +89,7 @@ export const FileUploadCard: React.FC<FileUploadCardProps> = ({
                 disabled={disabled || file.status === 'uploading'}
                 className="text-sm"
               />
-            </div>
+            </div> */}
 
             {/* File Details */}
             {file.file && (

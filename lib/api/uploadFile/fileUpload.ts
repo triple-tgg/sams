@@ -3,7 +3,8 @@ import axiosConfig from "@/lib/axios.config";
 // Interface for file upload request
 export interface FileUploadRequest {
   FileBase64: string;
-  FileType: "other" | "service"; // Based on your example
+  FileName: string;
+  FileType: "thfnumber" | "service"; // Based on your example
   ExtensionFile: string;
 }
 
@@ -57,18 +58,18 @@ export const fileUpload = async (fileData: FileUploadRequest): Promise<FileUploa
 export const convertFileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    
+
     reader.onload = () => {
       const result = reader.result as string;
       // Remove data URL prefix (e.g., "data:image/jpeg;base64,")
       const base64 = result.split(',')[1];
       resolve(base64);
     };
-    
+
     reader.onerror = () => {
       reject(new Error('Failed to convert file to base64'));
     };
-    
+
     reader.readAsDataURL(file);
   });
 };
@@ -89,19 +90,21 @@ export const getFileExtension = (filename: string): string => {
  * @returns Promise<FileUploadResponse> - Upload response
  */
 export const uploadFile = async (
-  file: File, 
-  fileType: "other" | "service" = "other"
+  file: File,
+  fileType: "thfnumber" | "service" = "thfnumber",
+  fileName: string,
 ): Promise<FileUploadResponse> => {
   try {
     const base64 = await convertFileToBase64(file);
     const extension = getFileExtension(file.name);
-    
+
     const uploadData: FileUploadRequest = {
       FileBase64: base64,
       FileType: fileType,
+      FileName: fileName,
       ExtensionFile: extension
     };
-    
+
     return await fileUpload(uploadData);
   } catch (error) {
     console.error('Upload file error:', error);

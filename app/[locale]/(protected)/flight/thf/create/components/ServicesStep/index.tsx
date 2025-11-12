@@ -22,6 +22,7 @@ interface ServicesStepProps {
   loading: boolean;
   flightError: Error | null;
   lineMaintenanceId: number | null;
+  thfNumber: string;
 
   acType?: string;
 }
@@ -75,6 +76,7 @@ const ServicesStep = (props: ServicesStepProps) => {
         />
       )}
       <CardFormServicesStep
+        thfNumber={props.thfNumber}
         flightInfosId={props.flightInfosId}
         flightError={props.flightError}
         loading={props.loading}

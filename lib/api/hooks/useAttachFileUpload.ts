@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { AttachFileOtherData } from '../lineMaintenances/attachfile-other/putAttachfileOther'
 import { useUploadFile } from './useFileUpload'
 import { AttachFileFormInputs } from '@/app/[locale]/(protected)/flight/thf/create/components/AttachFile/types'
+import { nanoid } from '@/lib/utils/nanoidLike'
 
 export interface AttachFileData {
   id: string
@@ -33,7 +34,7 @@ export interface UseAttachFileUploadReturn {
  * Hook for managing file uploads in the AttachFile step
  * Handles file selection, upload progress, and data preparation for API calls
  */
-export const useAttachFileUpload = (initialData: AttachFileFormInputs): UseAttachFileUploadReturn => {
+export const useAttachFileUpload = (initialData: AttachFileFormInputs, thfNumber: string): UseAttachFileUploadReturn => {
   const [files, setFiles] = useState<AttachFileData[]>(initialData.attachFiles)
   const uploadFileMutation = useUploadFile()
 
@@ -93,7 +94,8 @@ export const useAttachFileUpload = (initialData: AttachFileFormInputs): UseAttac
       }
       const response = await uploadFileMutation.mutateAsync({
         file: fileData.file,
-        fileType: 'other'
+        fileType: 'thfnumber',
+        fileName: `${thfNumber}_${nanoid(5)}`
       })
 
       if (response.responseData && response.responseData.length > 0) {

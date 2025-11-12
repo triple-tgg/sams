@@ -35,6 +35,7 @@ const isDataReady = (loading: boolean, error: Error | null, checkTypesLoading: b
  */
 
 interface Props {
+  thfNumber: string;
   initialData?: ServicesFormInputs | null
   flightInfosId: number | null
   formData: FlightFormData | null;
@@ -165,6 +166,7 @@ const CardFormServicesStep = (props: Props) => {
           form={form}
           onAdd={handleAddDefect}
           onRemove={handleRemoveDefect}
+          thfNumber={props.thfNumber}
         />
 
         <Separator />

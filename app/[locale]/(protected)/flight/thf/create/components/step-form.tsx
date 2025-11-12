@@ -109,6 +109,7 @@ const StepForm = () => {
           loading={loadingFlight}
           formData={existingFlightData}
           initialData={data}
+          thfNumber={lineMaintenanceData?.thfNumber || ''}
           lineMaintenanceId={lineMaintenanceData?.id || null}
 
         />
@@ -127,6 +128,7 @@ const StepForm = () => {
           infoData={existingFlightData}
         />
         <AttachFileStep
+          thfNumber={lineMaintenanceData?.thfNumber || ''}
           lineMaintenanceId={lineMaintenanceData?.id || null}
           flightInfosId={flightInfosId}
           flightError={flightError}
