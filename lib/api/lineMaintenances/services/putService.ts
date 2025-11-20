@@ -259,13 +259,16 @@ export const createServiceRequestFromForm = (
           ataChapter: defect.ataChapter || "",
           lae: safeParseFloat(defect.laeMH),
           mech: safeParseFloat(defect.mechMH),
-          ...((defect.attachFiles?.length > 0 || defect?.attachFiles?.storagePath) && {
-            attachFiles: {
-              storagePath: defect.attachFiles.storagePath || defect?.attachFiles,
-              realName: (defect?.attachFiles?.storagePath || defect.attachFiles) ? defect.attachFiles.storagePath ? defect?.attachFiles?.storagePath?.split('/').pop() : defect.attachFiles.split('/').pop() : "",
-              fileType: "service"
-            }
-          })
+          attachFiles: defect?.attachFiles
+          // ...((defect.attachFiles?.length > 0 || defect?.attachFiles?.storagePath) && {
+          //   attachFiles: {
+          //     id: defect.attachFiles.id,
+          //     isDelete: defect.attachFiles.isDelete,
+          //     storagePath: defect.attachFiles.storagePath || defect?.attachFiles,
+          //     realName: defect.attachFiles.realName || "",
+          //     fileType: "service"
+          //   }
+          // })
         }))
       }),
 

@@ -11,9 +11,10 @@ import { Download, FileSpreadsheet, FileText, Loader2 } from 'lucide-react';
 
 import { toast } from 'sonner';
 import { useReportDownload } from '@/lib/api/hooks/useReports';
+import { ReportType } from '@/app/[locale]/(protected)/report/data';
 // import { useToast } from "@/components/ui/use-toast";
 interface ReportDownloadButtonProps {
-  reportType: 'equipment' | 'partstools' | 'thf';
+  reportType: ReportType;
   dateRange: {
     dateStart: string;
     dateEnd: string;
@@ -43,6 +44,8 @@ const ReportDownloadButton: React.FC<ReportDownloadButtonProps> = ({
         return 'Parts & Tools';
       case 'thf':
         return 'THF Document';
+      case 'thf-2':
+        return 'THF Document V.2';
       default:
         return 'Report';
     }
@@ -61,23 +64,7 @@ const ReportDownloadButton: React.FC<ReportDownloadButtonProps> = ({
 
       // Check if data is available
       if (result && !result.hasData) {
-        // toast.warning(
-        //   `No data found for ${getReportDisplayName(reportType)} report in the selected date range`,
-        //   {
-        //     description: `Date range: ${dateRange.dateStart} to ${dateRange.dateEnd}`,
-        //     duration: 5000,
-        //   }
-        // );
-        //  toast.success(data.message || "Flight cancelled successfully");
-        toast.error(`No data found for ${getReportDisplayName(reportType)} report in the selected date range`);
-
-        // _toast({
-        //   variant: "destructive",
-        //   title: `No data found for ${getReportDisplayName(reportType)} report in the selected date range`,
-        //   description: `Date range: ${dateRange.dateStart} to ${dateRange.dateEnd}`,
-        //   duration: 5000,
-        // });
-
+        toast.warning(`No data found for ${getReportDisplayName(reportType)} report in the selected date range`);
         return;
       }
 
@@ -92,17 +79,7 @@ const ReportDownloadButton: React.FC<ReportDownloadButtonProps> = ({
       });
     } catch (error) {
       console.error('Download failed:', error);
-      // toast.error(`Failed to download ${getReportDisplayName(reportType)} report`, {
-      //   description: error instanceof Error ? error.message : 'Unknown error occurred',
-      //   duration: 5000,
-      // });
       toast.error(error instanceof Error ? error.message : 'Unknown error occurred');
-      // _toast({
-      //   variant: "destructive",
-      //   title: "!Failed",
-      //   description: error instanceof Error ? error.message : 'Unknown error occurred',
-      //   duration: 5000,
-      // });
     }
   };
 

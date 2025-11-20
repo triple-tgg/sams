@@ -3,6 +3,21 @@ import { dateTimeUtils } from '@/lib/dayjs'
 import dayjs from 'dayjs';
 import { convertDateToBackend } from '@/lib/utils/formatPicker';
 
+
+const FileObjectSchema = z.object({
+  id: z.string().nullable().optional(),
+  additionalDefectId: z.string().nullable().optional(),
+  fileType: z.string().nullable().optional(),
+  isDelete: z.boolean().default(false),
+  realName: z.string(),
+  storagePath: z.string(),
+});
+
+const attachFilesSchema = z
+  .array(FileObjectSchema)
+  .nullable()
+  .default(null);
+
 // Helper function to validate time format (HH:MM) using Day.js
 const timeSchema = z.string().refine((time) => {
   if (!time || time === "") return false;
@@ -43,21 +58,17 @@ export const servicesFormSchema = z.object({
   additionalDefects: z.array(z.object({
     defect: z.string().min(5, "Defect details must be at least 5 characters").max(500, "Defect details cannot exceed 500 characters"),
     ataChapter: ataChapterSchema,
-    attachFiles: z.union([
-      z.string(),  // Single file as string
-      z.array(z.string()),  // Multiple files as array
-      z.object({   // File object
-        realName: z.string(),
-        storagePath: z.string(),
-      }),
-      z.array(z.object({   // Array of file objects
-        realName: z.string(),
-        storagePath: z.string(),
-      })),
-      z.literal(""),  // Empty string
-      z.null(),  // Null
-      z.undefined()  // Undefined
-    ]).optional().nullable().default(""),
+    attachFiles: attachFilesSchema,
+    // attachFiles: z
+    //   .union([
+    //     FileObjectSchema,            // single object
+    //     z.array(FileObjectSchema),   // multiple objects
+    //     z.null(),
+    //     z.undefined()
+    //   ])
+    //   .optional()
+    //   .nullable(),
+
     laeMH: z.string().optional().refine((val) => !val || numericStringSchema.safeParse(val).success, {
       message: "LAE MH must be a valid number"
     }),

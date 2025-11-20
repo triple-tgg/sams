@@ -38,7 +38,7 @@ export type ServicesFormInputs = {
     defect: string
     ataChapter: string
     photo?: FileList
-    attachFiles: AdditionalDefectAttachFile | null
+    attachFiles: AdditionalDefectAttachFile[] | null
     laeMH?: string
     mechMH?: string
   }[]

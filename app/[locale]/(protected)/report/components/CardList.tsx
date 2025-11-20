@@ -3,13 +3,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { FileDown, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ReportDownloadButton from '@/components/report/ReportDownloadButton';
+import { ReportType } from '../data';
 
 type Props = {
   values: Array<{
     id: string
     name: string
     description: string
-    reportType: 'equipment' | 'partstools' | 'thf'
+    reportType: ReportType
   }>
   airlineId: string | undefined
   date?: { dateStart: string, dateEnd: string }

@@ -23,9 +23,11 @@ export interface Personnel {
 }
 
 export interface AdditionalDefectAttachFile {
+  id?: string | null
   additionalDefectId: string;
   storagePath: string;
   realName: string;
+  isDelete: boolean
   fileType: string;
 }
 

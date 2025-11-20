@@ -205,7 +205,7 @@ export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse |
     ataChapter: defect.ataChapter || "",
     laeMH: defect.lae?.toString() || "",
     mechMH: defect.mech?.toString() || "",
-    attachFiles: defect.attachFiles ? defect.attachFiles : null,
+    attachFiles: defect.attachFiles ? [defect.attachFiles] : null,
     // Note: photo files would need special handling for FileList
   })) || [];
   // Map fluid data

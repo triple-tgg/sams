@@ -1,29 +1,24 @@
 "use client"
 
-import React, { useEffect, useMemo } from "react"
+import React, { useEffect } from "react"
 import { Form } from "@/components/ui/form"
 import { Separator } from "@/components/ui/separator"
 import { FormActions, StatusMessages } from "../shared"
-import {
-  AircraftChecksSection,
-  AdditionalDefectsSection,
-  PersonnelSection
-} from './FormSections'
-import { FluidSection, OperationalSections } from './FluidSection'
-import CardContentStep from "../CardContentStep"
-import { LineMaintenanceThfResponse } from "@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId"
-import { FlightFormData } from "@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId"
+
+import { useStep } from "../step-context"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { ServicesFormInputs } from "./types"
-import { useServicesSubmission } from './useServicesSubmission'
-import { servicesFormSchema } from "./schema"
-import { useStep } from "../step-context"
-import { useAircraftCheckMasterData } from '@/lib/api/hooks/useAircraftCheckMasterData'
-import { useSearchParams } from "next/navigation"
-import { getDefaultValues } from "./utils"
-import { AircraftCheckSubType, AircraftCheckType } from "@/lib/api/master/aircraft-check-types/airlines.interface"
+import { FlightFormData } from "@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId"
 import { StaffTypeOption } from "@/lib/api/hooks/useStaffsTypes"
+import { getDefaultValues } from "./utils"
+import { ServicesFormInputs } from "./types"
+import { servicesFormSchema } from "./schema"
+import { useServicesSubmission } from './useServicesSubmission'
+import { FluidSection, OperationalSections } from './FluidSection'
+import { AircraftCheckSubType, AircraftCheckType } from "@/lib/api/master/aircraft-check-types/airlines.interface"
+import PersonnelSection from "./formSection/PersonnelSection"
+import AircraftChecksSection from "./formSection/AircraftChecksSection"
+import AdditionalDefectsSection from "./formSection/AdditionalDefectsSection"
 
 // Determine if all required data is loaded
 const isDataReady = (loading: boolean, error: Error | null, checkTypesLoading: boolean, checkTypesError: Error | null) => {

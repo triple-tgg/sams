@@ -9,7 +9,8 @@
 
 // ตัวอย่าง
 // console.log(nanoid(10)); // ex: "B3k_g7Yf-2"
-const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+// const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+const alphabet = "0123456789";
 
 export function nanoid(size = 21): string {
   const bytes =

@@ -15,19 +15,22 @@ import {
   getThfReport,
   downloadThfReport,
   ThfReportRequest,
-  ThfReportResponse
+  ThfReportResponse,
+  getThfNumberReport,
+  downloadThfNumberReport
 } from '../report/thf/getThf';
 import {
   exportEquipmentReport,
   exportPartsToolsReport,
   exportThfReport
 } from '../../utils/excelExport';
+import { ReportType } from '@/app/[locale]/(protected)/report/data';
 
 // Define the download result interface for validation
 interface DownloadResult {
   hasData: boolean;
   dataCount: number;
-  reportType: 'equipment' | 'partstools' | 'thf';
+  reportType: ReportType;
 }
 
 // Query keys for React Query caching
@@ -154,15 +157,39 @@ export const useThfReportDownload = () => {
     },
   });
 };
+// THF number Report Download Mutation
+export const useThfNumberReportDownload = () => {
+  return useMutation<DownloadResult, Error, { params: ThfReportRequest; format: 'xlsx' | 'csv'; directDownload?: boolean }>({
+    mutationFn: async ({ params, format, directDownload = false }) => {
+      if (directDownload) {
+        // Direct download for non-Excel formats
+        await downloadThfNumberReport(params);
+        return { hasData: true, dataCount: 0, reportType: 'thf-2' }; // Can't check blob content easily
+      } else {
+        // Get data and export using xlsx library
+        const response = await getThfNumberReport(params);
+
+        // Check if responseData is empty or null
+        if (!response.responseData || response.responseData.length === 0) {
+          return { hasData: false, dataCount: 0, reportType: 'thf-2' };
+        }
+
+        exportThfReport(response.responseData, format);
+        return { hasData: true, dataCount: response.responseData.length, reportType: 'thf-2' };
+      }
+    },
+  });
+};
 
 // Generic download hook that combines all report types
 export const useReportDownload = () => {
   const equipmentMutation = useEquipmentReportDownload();
   const partsToolsMutation = usePartsToolsReportDownload();
   const thfMutation = useThfReportDownload();
+  const thfNumberMutation = useThfNumberReportDownload();
 
   const downloadReport = async (
-    reportType: 'equipment' | 'partstools' | 'thf',
+    reportType: ReportType,
     dateRange: { dateStart: string; dateEnd: string },
     format: 'xlsx' | 'csv',
     airlineId: string | undefined,
@@ -181,6 +208,8 @@ export const useReportDownload = () => {
         return partsToolsMutation.mutateAsync({ params, format, directDownload });
       case 'thf':
         return thfMutation.mutateAsync({ params, format, directDownload });
+      case 'thf-2':
+        return thfNumberMutation.mutateAsync({ params, format, directDownload });
       default:
         throw new Error(`Unknown report type: ${reportType}`);
     }

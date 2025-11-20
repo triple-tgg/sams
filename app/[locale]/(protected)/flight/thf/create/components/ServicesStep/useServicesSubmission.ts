@@ -32,7 +32,7 @@ export const useServicesSubmission = ({
 
 
   const handleSubmit = async (data: ServicesFormInputs) => {
-
+    console.log("data:handleSubmit", data)
     try {
       // Validate form data
       const isValid = await form.trigger()
@@ -117,12 +117,7 @@ export const useServicesSubmission = ({
         ataChapter: "",
         laeMH: "",
         mechMH: "",
-        attachFiles: {
-          additionalDefectId: "",
-          storagePath: "",
-          realName: "",
-          fileType: "",
-        }
+        attachFiles: null
       }
     ])
   }

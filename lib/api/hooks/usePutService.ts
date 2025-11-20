@@ -114,13 +114,6 @@ export const usePutServiceSection = () => {
       };
 
       const serviceRequest = createServiceRequestFromForm(formData, options);
-
-      console.log(`Updating ${section} section:`, {
-        lineMaintenanceId,
-        section,
-        serviceRequest
-      });
-
       return await putService(lineMaintenanceId, serviceRequest);
     },
     onSuccess: (data, variables) => {

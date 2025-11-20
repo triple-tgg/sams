@@ -80,7 +80,6 @@ export const getThfReport = async (
     throw error;
   }
 };
-
 /**
  * Download THF report as Excel
  * POST /report/thf/download
@@ -107,11 +106,69 @@ export const downloadThfReport = async (
     throw error;
   }
 };
+/**
+ * Get THF number report data
+ * POST /report/thf
+ */
+export const getThfNumberReport = async (
+  request: ThfReportRequest
+): Promise<ThfReportResponse> => {
+  try {
+    if (!request.dateStart || !request.dateEnd) {
+      throw new Error('Date range is required');
+    }
+
+    const response = await axiosInstance.post<ThfReportResponse>(
+      '/report/thfnumber',
+      request,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        timeout: 30000, // 30 seconds timeout
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching THF report:', error);
+    throw error;
+  }
+};
+
+/**
+ * Download THF number report as Excel
+ * POST /report/thfnumber/download
+ */
+export const downloadThfNumberReport = async (
+  request: ThfReportRequest
+): Promise<Blob> => {
+  try {
+    const response = await axiosInstance.post(
+      '/report/thfnumber/download',
+      request,
+      {
+        responseType: 'blob',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        timeout: 60000, // 60 seconds for download
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error('Error downloading THF number report:', error);
+    throw error;
+  }
+};
 
 // Export all functions
 const thfReportApi = {
   getThfReport,
   downloadThfReport,
+  getThfNumberReport,
+  downloadThfNumberReport
 };
 
 export default thfReportApi;
