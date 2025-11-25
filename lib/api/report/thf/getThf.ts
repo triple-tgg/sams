@@ -163,12 +163,98 @@ export const downloadThfNumberReport = async (
   }
 };
 
+/**
+ * Response interface for THF File Report
+ */
+export interface ThfFileReportResponse {
+  message: string;
+  responseData: {
+    haveFile: boolean;
+    fileName: string;
+    url: string;
+  };
+  error: string;
+}
+
+/**
+ * Get THF file report (zip file URL)
+ * POST /report/files
+ */
+export const getThfFileReport = async (
+  request: ThfReportRequest
+): Promise<ThfFileReportResponse> => {
+  try {
+    if (!request.dateStart || !request.dateEnd) {
+      throw new Error('Date range is required');
+    }
+
+    const response = await axiosInstance.post<ThfFileReportResponse>(
+      '/report/files',
+      request,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        timeout: 30000, // 30 seconds timeout
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching THF file report:', error);
+    throw error;
+  }
+};
+
+/**
+ * Download THF file report (.zip)
+ * Downloads the zip file from the provided URL
+ */
+export const downloadThfFileReport = async (
+  request: ThfReportRequest
+): Promise<void> => {
+  try {
+    // First, get the file information
+    const fileInfo = await getThfFileReport(request);
+
+    if (!fileInfo.responseData.haveFile) {
+      throw new Error('No files available for the selected date range');
+    }
+
+    // Download the file from the URL
+    const response = await fetch(fileInfo.responseData.url);
+    console.log("response", response)
+    if (!response.ok) {
+      throw new Error(`Failed to download file: ${response.statusText}`);
+    }
+
+    const blob = await response.blob();
+
+    // Create download link
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = fileInfo.responseData.fileName || 'thf-files.zip';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Clean up
+    window.URL.revokeObjectURL(downloadUrl);
+  } catch (error) {
+    console.error('Error downloading THF file report:', error);
+    throw error;
+  }
+};
+
 // Export all functions
 const thfReportApi = {
   getThfReport,
   downloadThfReport,
   getThfNumberReport,
-  downloadThfNumberReport
+  downloadThfNumberReport,
+  getThfFileReport,
+  downloadThfFileReport
 };
 
 export default thfReportApi;

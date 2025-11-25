@@ -17,7 +17,10 @@ import {
   ThfReportRequest,
   ThfReportResponse,
   getThfNumberReport,
-  downloadThfNumberReport
+  downloadThfNumberReport,
+  getThfFileReport,
+  downloadThfFileReport,
+  ThfFileReportResponse
 } from '../report/thf/getThf';
 import {
   exportEquipmentReport,
@@ -58,7 +61,7 @@ export const useEquipmentReport = (
 
 // Equipment Report Download Mutation
 export const useEquipmentReportDownload = () => {
-  return useMutation<DownloadResult, Error, { params: EquipmentReportRequest; format: 'xlsx' | 'csv'; directDownload?: boolean }>({
+  return useMutation<DownloadResult, Error, { params: EquipmentReportRequest; format: 'xlsx' | 'csv' | 'zip'; directDownload?: boolean }>({
     mutationFn: async ({ params, format, directDownload = false }) => {
       if (directDownload) {
         // Direct download for non-Excel formats
@@ -97,7 +100,7 @@ export const usePartsToolsReport = (
 
 // Parts & Tools Report Download Mutation
 export const usePartsToolsReportDownload = () => {
-  return useMutation<DownloadResult, Error, { params: PartsToolsReportRequest; format: 'xlsx' | 'csv'; directDownload?: boolean }>({
+  return useMutation<DownloadResult, Error, { params: PartsToolsReportRequest; format: 'xlsx' | 'csv' | 'zip'; directDownload?: boolean }>({
     mutationFn: async ({ params, format, directDownload = false }) => {
       if (directDownload) {
         // Direct download for non-Excel formats
@@ -136,7 +139,7 @@ export const useThfReport = (
 
 // THF Report Download Mutation
 export const useThfReportDownload = () => {
-  return useMutation<DownloadResult, Error, { params: ThfReportRequest; format: 'xlsx' | 'csv'; directDownload?: boolean }>({
+  return useMutation<DownloadResult, Error, { params: ThfReportRequest; format: 'xlsx' | 'csv' | 'zip'; directDownload?: boolean }>({
     mutationFn: async ({ params, format, directDownload = false }) => {
       if (directDownload) {
         // Direct download for non-Excel formats
@@ -159,7 +162,7 @@ export const useThfReportDownload = () => {
 };
 // THF number Report Download Mutation
 export const useThfNumberReportDownload = () => {
-  return useMutation<DownloadResult, Error, { params: ThfReportRequest; format: 'xlsx' | 'csv'; directDownload?: boolean }>({
+  return useMutation<DownloadResult, Error, { params: ThfReportRequest; format: 'xlsx' | 'csv' | 'zip'; directDownload?: boolean }>({
     mutationFn: async ({ params, format, directDownload = false }) => {
       if (directDownload) {
         // Direct download for non-Excel formats
@@ -180,6 +183,31 @@ export const useThfNumberReportDownload = () => {
     },
   });
 };
+// THF File Report Download Mutation (Downloads .zip file)
+export const useThfFileReportDownload = () => {
+  return useMutation<DownloadResult, Error, { params: ThfReportRequest }>({
+    mutationFn: async ({ params }) => {
+      // // Get file information first
+      const response = await getThfFileReport(params);
+
+      // Check if file is available
+      if (!response.responseData || !response.responseData.haveFile) {
+        return { hasData: false, dataCount: 0, reportType: 'thf-file' };
+      }
+      window.open(response.responseData.url, '_blank')
+
+      // Download the zip file
+      // await downloadThfFileReport(params);
+
+      return {
+        hasData: true,
+        dataCount: 1, // One zip file
+        reportType: 'thf-file',
+        response
+      };
+    },
+  });
+};
 
 // Generic download hook that combines all report types
 export const useReportDownload = () => {
@@ -187,11 +215,12 @@ export const useReportDownload = () => {
   const partsToolsMutation = usePartsToolsReportDownload();
   const thfMutation = useThfReportDownload();
   const thfNumberMutation = useThfNumberReportDownload();
+  const thfFileMutation = useThfFileReportDownload();
 
   const downloadReport = async (
     reportType: ReportType,
     dateRange: { dateStart: string; dateEnd: string },
-    format: 'xlsx' | 'csv',
+    format: 'xlsx' | 'csv' | 'zip',
     airlineId: string | undefined,
     directDownload?: boolean
   ): Promise<DownloadResult> => {
@@ -210,6 +239,8 @@ export const useReportDownload = () => {
         return thfMutation.mutateAsync({ params, format, directDownload });
       case 'thf-2':
         return thfNumberMutation.mutateAsync({ params, format, directDownload });
+      case 'thf-file':
+        return thfFileMutation.mutateAsync({ params });
       default:
         throw new Error(`Unknown report type: ${reportType}`);
     }
@@ -220,8 +251,20 @@ export const useReportDownload = () => {
     downloadEquipment: equipmentMutation.mutateAsync,
     downloadPartsTools: partsToolsMutation.mutateAsync,
     downloadThf: thfMutation.mutateAsync,
-    isLoading: equipmentMutation.isPending || partsToolsMutation.isPending || thfMutation.isPending,
-    error: equipmentMutation.error || partsToolsMutation.error || thfMutation.error,
+    downloadThfNumber: thfNumberMutation.mutateAsync,
+    downloadThfFile: thfFileMutation.mutateAsync,
+    isLoading:
+      equipmentMutation.isPending ||
+      partsToolsMutation.isPending ||
+      thfMutation.isPending ||
+      thfNumberMutation.isPending ||
+      thfFileMutation.isPending,
+    error:
+      equipmentMutation.error ||
+      partsToolsMutation.error ||
+      thfMutation.error ||
+      thfNumberMutation.error ||
+      thfFileMutation.error,
   };
 };
 

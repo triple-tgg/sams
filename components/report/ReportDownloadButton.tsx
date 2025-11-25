@@ -31,7 +31,7 @@ const ReportDownloadButton: React.FC<ReportDownloadButtonProps> = ({
   disabled = false,
   className = "",
 }) => {
-  const [downloadFormat, setDownloadFormat] = useState<'xlsx' | 'csv'>('xlsx');
+  const [downloadFormat, setDownloadFormat] = useState<'xlsx' | 'csv' | 'zip'>('xlsx');
   const { downloadReport, isLoading } = useReportDownload();
   // const { toast: _toast } = useToast();
 
@@ -46,13 +46,15 @@ const ReportDownloadButton: React.FC<ReportDownloadButtonProps> = ({
         return 'THF Document';
       case 'thf-2':
         return 'THF Document V.2';
+      case 'thf-file':
+        return 'THF Document File';
       default:
         return 'Report';
     }
   };
 
   // Handle download
-  const handleDownload = async (format: 'xlsx' | 'csv') => {
+  const handleDownload = async (format: 'xlsx' | 'csv' | 'zip') => {
     try {
       if (!dateRange.dateStart || !dateRange.dateEnd) {
         toast.error('Please select date range');
@@ -61,6 +63,7 @@ const ReportDownloadButton: React.FC<ReportDownloadButtonProps> = ({
 
       setDownloadFormat(format);
       const result = await downloadReport(reportType, dateRange, format, airlineId);
+      console.log("Download result:", result);
 
       // Check if data is available
       if (result && !result.hasData) {
@@ -86,6 +89,23 @@ const ReportDownloadButton: React.FC<ReportDownloadButtonProps> = ({
   // Check if date range is valid
   const isDateRangeValid = dateRange.dateStart && dateRange.dateEnd;
 
+  if (reportType === 'thf-file') {
+    return (
+      <Button
+        onClick={() => handleDownload('zip')}
+        variant="outline"
+        disabled={disabled || isLoading || !isDateRangeValid}
+        className={`flex items-center gap-2 ${className}`}
+      >
+        {isLoading ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Download className="h-4 w-4" />
+        )}
+        Download
+      </Button>
+    );
+  }
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>

@@ -3,9 +3,10 @@ import { AttachFileOtherData } from '../lineMaintenances/attachfile-other/putAtt
 import { useUploadFile } from './useFileUpload'
 import { AttachFileFormInputs } from '@/app/[locale]/(protected)/flight/thf/create/components/AttachFile/types'
 import { nanoid } from '@/lib/utils/nanoidLike'
+import { UseFormReturn } from 'react-hook-form'
 
 export interface AttachFileData {
-  id: string
+  id: string | null
   file: File | null
   name: string
   progress: number
@@ -14,6 +15,7 @@ export interface AttachFileData {
   realName?: string
   fileType: string
   error?: string
+  isDelete: boolean
 }
 
 export interface UseAttachFileUploadReturn {
@@ -34,104 +36,161 @@ export interface UseAttachFileUploadReturn {
  * Hook for managing file uploads in the AttachFile step
  * Handles file selection, upload progress, and data preparation for API calls
  */
-export const useAttachFileUpload = (initialData: AttachFileFormInputs, thfNumber: string): UseAttachFileUploadReturn => {
+export const useAttachFileUpload = (form: UseFormReturn<AttachFileFormInputs>, initialData: AttachFileFormInputs, thfNumber: string): UseAttachFileUploadReturn => {
   const [files, setFiles] = useState<AttachFileData[]>(initialData.attachFiles)
   const uploadFileMutation = useUploadFile()
 
   // Generate unique ID for files
   const generateId = () => Math.random().toString(36).substr(2, 9)
+  // helper: convert UI state to serializable form data
+  const makeFormPayload = (uiFiles: AttachFileData[]): AttachFileData[] => {
+    console.log("makeFormPayload", uiFiles)
+    return uiFiles.map(f => ({
+      id: f.id && typeof f.id === 'string' ? f.id : null,
+      file: null, // Always null in form data (File objects are not serializable)
+      name: f.name,
+      progress: f.progress,
+      status: f.status,
+      storagePath: f.storagePath ?? '',
+      realName: f.realName ?? f.name ?? '',
+      fileType: f.fileType,
+      error: f.error,
+      isDelete: !!f.isDelete
+    }));
+  };
 
-  // Add files to the upload queue
+  // sync UI state -> form (ONLY serializable fields)
+  const syncForm = (uiFiles: AttachFileData[]) => {
+    console.log("uiFiles:", uiFiles)
+    // const payload = makeFormPayload(uiFiles);
+    // console.log("payload:", uiFiles)
+    // don't pass File objects into form
+    // form.setValue('attachFiles', payload, {
+    //   shouldValidate: true,
+    //   shouldDirty: true,
+    //   shouldTouch: true,
+    // });
+  };
+
+  // Add files (keep File in UI state only)
   const addFiles = useCallback((newFiles: FileList | File[]) => {
-    const fileArray = Array.from(newFiles)
+    const fileArray = Array.from(newFiles);
     const fileData: AttachFileData[] = fileArray.map(file => ({
-      id: generateId(),
+      id: `uploaded-${generateId()}`,
       file,
-      name: file.name.split('.')[0], // Remove extension for name
+      name: file.name.split('.')[0],
       progress: 0,
-      status: 'pending',
-      fileType: 'other', // Default to 'other' as specified in API
-    }))
+      status: 'pending' as const,
+      fileType: 'thfnumber',
+      isDelete: false
+    }));
 
-    setFiles(prev => [...prev, ...fileData])
-  }, [])
+    setFiles(prev => {
+      const next = [...prev, ...fileData];
+      // sync with form but only serializable data
+      syncForm(next);
+      return next;
+    });
+  }, [form]);
 
-  // Remove a file from the upload queue
   const removeFile = useCallback((id: string) => {
-    setFiles(prev => prev.filter(file => file.id !== id))
-  }, [])
+    setFiles(prev => {
+      const next = prev
+        .map(file => {
+          if (file.id === id) {
+            if (String(file.id).startsWith('uploaded-')) {
+              return null;
+            }
+            return { ...file, isDelete: true };
+          }
+          return file;
+        })
+        .filter(Boolean) as AttachFileData[];
+      syncForm(next);
 
-  // Update file name
+      return next;
+    });
+  }, [form]);
+
+  // Update file name (UI only)
   const updateFileName = useCallback((id: string, name: string) => {
-    setFiles(prev => prev.map(file =>
-      file.id === id ? { ...file, name } : file
-    ))
-  }, [])
+    setFiles(prev => {
+      const next = prev.map(file => file.id === id ? { ...file, name } : file);
+      // name is serializable, so sync
+      syncForm(next);
+      return next;
+    });
+  }, [form]);
+
+  // Upload single file
+  const uploadFile = useCallback(async (id: string) => {
+    // find file
+    const target = files.find(f => f.id === id);
+    if (!target) return;
+
+    // update status uploading (mutate object safely via setFiles functional update)
+    setFiles(prev => {
+      const next = prev.map(f => f.id === id ? { ...f, status: 'uploading' as const, progress: 0 } : f);
+      // do not include File in form, but update form with other fields
+      syncForm(next);
+      return next;
+    });
+
+    try {
+      if (!target.file) throw new Error('File is null');
+      const response = await uploadFileMutation.mutateAsync({
+        file: target.file,
+        fileType: 'thfnumber',
+        fileName: `${thfNumber}_${nanoid(5)}`
+      });
+
+      if (response?.responseData && response.responseData.length > 0) {
+        const uploadedFile = response.responseData[0];
+
+        setFiles(prev => {
+          const next = prev.map(f =>
+            f.id === id
+              ? {
+                ...f,
+                status: 'completed' as const,
+                progress: 100,
+                storagePath: uploadedFile.filePath,
+                realName: uploadedFile.fileName,
+                // keep file: null or keep file to allow re-upload? recommended to keep file = null
+                file: null
+              }
+              : f
+          );
+          syncForm(next);
+          return next;
+        });
+      }
+    } catch (err: any) {
+      setFiles(prev => {
+        const next = prev.map(f =>
+          f.id === id
+            ? { ...f, status: 'error' as const, error: err?.message ?? 'Upload failed' }
+            : f
+        );
+        syncForm(next);
+        return next;
+      });
+    }
+  }, [files, uploadFileMutation, thfNumber, form]);
+
+
 
   // Clear all files
   const clearFiles = useCallback(() => {
     setFiles([])
   }, [])
 
-  // Upload a single file
-  const uploadFile = useCallback(async (id: string) => {
-    const fileIndex = files.findIndex(f => f.id === id)
-    if (fileIndex === -1) return
-
-    const fileData = files[fileIndex]
-
-    // Update status to uploading
-    setFiles(prev => prev.map(file =>
-      file.id === id
-        ? { ...file, status: 'uploading', progress: 0 }
-        : file
-    ))
-
-    try {
-      // Use the existing upload hook
-      if (fileData.file === null) {
-        throw new Error("File is null");
-      }
-      const response = await uploadFileMutation.mutateAsync({
-        file: fileData.file,
-        fileType: 'thfnumber',
-        fileName: `${thfNumber}_${nanoid(5)}`
-      })
-
-      if (response.responseData && response.responseData.length > 0) {
-        const uploadedFile = response.responseData[0]
-
-        setFiles(prev => prev.map(file =>
-          file.id === id
-            ? {
-              ...file,
-              status: 'completed',
-              progress: 100,
-              storagePath: uploadedFile.filePath,
-              realName: uploadedFile.fileName
-            }
-            : file
-        ))
-      }
-    } catch (error) {
-      setFiles(prev => prev.map(file =>
-        file.id === id
-          ? {
-            ...file,
-            status: 'error',
-            error: error instanceof Error ? error.message : 'Upload failed'
-          }
-          : file
-      ))
-    }
-  }, [files, uploadFileMutation])
-
   // Upload all pending files
   const uploadAllFiles = useCallback(async () => {
     const pendingFiles = files.filter(f => f.status === 'pending')
 
     for (const file of pendingFiles) {
-      await uploadFile(file.id)
+      await uploadFile(file.id || '')
     }
   }, [files, uploadFile])
 
@@ -140,13 +199,18 @@ export const useAttachFileUpload = (initialData: AttachFileFormInputs, thfNumber
     return files
       .filter(file => file.status === 'completed' && file.storagePath && file.realName)
       .map(file => ({
+        id: file.id,
         storagePath: file.storagePath!,
         realName: file.realName!,
-        fileType: file.fileType
+        fileType: file.fileType,
+        isDelete: file.isDelete || false
       }))
   }, [files])
 
   // Computed properties
+  // const hasFiles = files.filter(f => !f.isDelete).length > 0
+  // const hasCompletedFiles = files.some(f => !f.isDelete && f.status === 'completed')
+  // const isUploading = files.some(f => !f.isDelete && f.status === 'uploading') || uploadFileMutation.isPending
   const hasFiles = files.length > 0
   const hasCompletedFiles = files.some(f => f.status === 'completed')
   const isUploading = files.some(f => f.status === 'uploading') || uploadFileMutation.isPending

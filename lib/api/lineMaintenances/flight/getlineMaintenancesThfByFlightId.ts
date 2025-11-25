@@ -105,10 +105,12 @@ export interface PartsTool {
 }
 
 export interface AttachFile {
+  id: string;
   additionalDefectId: string;
   storagePath: string;
   realName: string;
   fileType: string;
+  isDelete: boolean;
 }
 
 export interface CodeObject {

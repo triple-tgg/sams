@@ -11,7 +11,7 @@ export interface AttachFileFormInputs {
  * Individual attach file entry in the form
  */
 export interface AttachFileEntry {
-  id: string
+  id: string | null
   name: string
   file: File | null
   fileType: string
@@ -20,6 +20,7 @@ export interface AttachFileEntry {
   storagePath?: string
   realName?: string
   error?: string
+  isDelete: boolean
 }
 
 /**
@@ -47,14 +48,15 @@ export const mapApiDataToAttachFileForm = (
   }
 
   const attachFiles: AttachFileEntry[] = apiData.map((item, index) => ({
-    id: `existing-${index}`,
+    id: item.id,//`existing-${index}`,
     name: item.realName.split('.')[0], // Remove extension
     file: null, // Existing files don't have File objects
     fileType: item.fileType,
     status: 'completed',
     progress: 100,
     storagePath: item.storagePath,
-    realName: item.realName
+    realName: item.realName,
+    isDelete: false
   }))
 
   return { attachFiles }

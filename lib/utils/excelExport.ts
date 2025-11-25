@@ -21,7 +21,7 @@ export const exportToExcel = <T extends Record<string, any>>(
     // Auto-size columns (optional enhancement)
     const columnWidths: { wch: number }[] = [];
     const headers = Object.keys(data[0]);
-    
+
     headers.forEach((header, index) => {
       const maxLength = Math.max(
         header.length,
@@ -29,7 +29,7 @@ export const exportToExcel = <T extends Record<string, any>>(
       );
       columnWidths[index] = { wch: Math.min(maxLength + 2, 50) }; // Max width 50
     });
-    
+
     worksheet['!cols'] = columnWidths;
 
     // Add worksheet to workbook
@@ -37,8 +37,8 @@ export const exportToExcel = <T extends Record<string, any>>(
 
     // Generate filename with timestamp if not provided
     const timestamp = new Date().toISOString().split('T')[0];
-    const finalFilename = filename.includes('.') 
-      ? filename 
+    const finalFilename = filename.includes('.')
+      ? filename
       : `${filename}_${timestamp}.xlsx`;
 
     // Write and download the file
@@ -71,8 +71,8 @@ export const exportToCSV = <T extends Record<string, any>>(
 
     // Generate filename with timestamp if not provided
     const timestamp = new Date().toISOString().split('T')[0];
-    const finalFilename = filename.includes('.') 
-      ? filename.replace('.xlsx', '.csv') 
+    const finalFilename = filename.includes('.')
+      ? filename.replace('.xlsx', '.csv')
       : `${filename}_${timestamp}.csv`;
 
     // Write and download the file as CSV
@@ -84,9 +84,9 @@ export const exportToCSV = <T extends Record<string, any>>(
 };
 
 // Specific export functions for each report type
-export const exportEquipmentReport = (data: any[], format: 'xlsx' | 'csv' = 'xlsx') => {
+export const exportEquipmentReport = (data: any[], format: 'xlsx' | 'csv' | 'zip' = 'xlsx') => {
   const filename = `Equipment_Report`;
-  
+
   if (format === 'csv') {
     exportToCSV(data, filename);
   } else {
@@ -94,9 +94,9 @@ export const exportEquipmentReport = (data: any[], format: 'xlsx' | 'csv' = 'xls
   }
 };
 
-export const exportPartsToolsReport = (data: any[], format: 'xlsx' | 'csv' = 'xlsx') => {
+export const exportPartsToolsReport = (data: any[], format: 'xlsx' | 'csv' | 'zip' = 'xlsx') => {
   const filename = `Parts_Tools_Report`;
-  
+
   if (format === 'csv') {
     exportToCSV(data, filename);
   } else {
@@ -104,9 +104,9 @@ export const exportPartsToolsReport = (data: any[], format: 'xlsx' | 'csv' = 'xl
   }
 };
 
-export const exportThfReport = (data: any[], format: 'xlsx' | 'csv' = 'xlsx') => {
+export const exportThfReport = (data: any[], format: 'xlsx' | 'csv' | 'zip' = 'xlsx') => {
   const filename = `THF_Report`;
-  
+
   if (format === 'csv') {
     exportToCSV(data, filename);
   } else {
@@ -121,13 +121,13 @@ export const formatDataForExport = <T extends Record<string, any>>(
 ): T[] => {
   return data.map(row => {
     const formattedRow = { ...row } as any;
-    
+
     Object.keys(formatters).forEach(key => {
       if (formattedRow[key] !== undefined) {
         formattedRow[key] = formatters[key](formattedRow[key]);
       }
     });
-    
+
     return formattedRow as T;
   });
 };

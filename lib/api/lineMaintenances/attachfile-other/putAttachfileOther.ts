@@ -1,9 +1,11 @@
 import axios from '@/lib/axios.config'
 
 export interface AttachFileOtherData {
+  id: string | null
   storagePath: string
   realName: string
   fileType: string
+  isDelete: boolean
 }
 
 export interface PutAttachFileOtherPayload {

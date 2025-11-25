@@ -63,7 +63,7 @@ export const useAttachFileSubmission = ({
       toast.success(`Attach file data prepared successfully`)
 
       // Navigate to flight list page
-      router.push(`/${locale}/flight/list`)
+      // router.push(`/${locale}/flight/list`)
     },
     onError: (error) => {
       console.error('❌ Failed to update attach files:', error)
@@ -72,8 +72,6 @@ export const useAttachFileSubmission = ({
 
   // Handle form submission
   const handleSubmit = useCallback((data: AttachFileFormInputs) => {
-    console.log('📤 Submitting attach file data:', data)
-
     if (!hasLineMaintenanceId) {
       console.error('❌ No line maintenance ID available')
       return
@@ -82,8 +80,6 @@ export const useAttachFileSubmission = ({
     try {
       // Prepare data for API
       const apiData = prepareAttachFileDataForApi(data)
-
-      console.log('📦 Prepared API data:', apiData)
 
       // if (apiData.length === 0) {
       //   console.warn('⚠️ No completed files to submit - proceeding without files')
@@ -102,7 +98,7 @@ export const useAttachFileSubmission = ({
       toast.error(`Error preparing attach file data: ${error}`)
 
     }
-  }, [hasLineMaintenanceId, updateAttachFileOther, queryClient, onUpdateData, router, locale])
+  }, [hasLineMaintenanceId, updateAttachFileOther])
 
   // Handle back navigation
   const handleOnBackStep = useCallback(() => {

@@ -14,7 +14,8 @@ const attachFileEntrySchema = z.object({
   progress: z.number().min(0).max(100),
   storagePath: z.string().optional(),
   realName: z.string().optional(),
-  error: z.string().optional()
+  error: z.string().optional(),
+  isDelete: z.boolean().optional()
 })
 
 /**
@@ -68,7 +69,7 @@ export const validateFileConstraints = (file: File): { valid: boolean; errors: s
   // Check file type
   const allowedTypes = [
     'image/jpeg',
-    'image/png', 
+    'image/png',
     'image/gif',
     'image/webp',
     'application/pdf',
