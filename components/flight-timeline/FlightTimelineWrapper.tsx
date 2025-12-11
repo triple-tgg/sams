@@ -1,11 +1,12 @@
 'use client';
 
 import { useTheme } from "next-themes";
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { useEpg, Epg, Layout } from 'planby';
 import { FlightProgram } from './FlightProgram';
 import { FlightChannel } from './FlightChannel';
 import { FlightTable } from './FlightTable';
+import { FlightSkeleton } from './FlightSkeleton';
 import { FlightEpgItem, AirlineChannel, flightTimelineThemeDark, flightTimelineThemeLight } from './types';
 import {
     transformFlightsToEpg,
@@ -16,7 +17,7 @@ import {
 import { useFlightListQuery } from '@/lib/api/hooks/useFlightListQuery';
 import { GetFlightListParams } from "@/lib/api/flight/getFlightList";
 import { FlightItem } from "@/lib/api/flight/filghtlist.interface";
-import { AlignStartVertical, ArrowLeftFromLine, ArrowRightFromLine, BetweenVerticalStart, ChevronLeft, ChevronRight, Table } from "lucide-react";
+import { AlignStartVertical, ArrowLeftFromLine, ArrowRightFromLine, BetweenVerticalStart, ChevronLeft, ChevronRight, Table, Maximize2, Minimize2, X } from "lucide-react";
 
 interface FlightTimelineWrapperProps {
     initialDate?: Date;
@@ -28,6 +29,48 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
     const { theme } = useTheme();
     const [selectedDate, setSelectedDate] = useState<Date>(initialDate || new Date());
     const [viewMode, setViewMode] = useState<'timeline' | 'table'>('timeline');
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const contentRef = useRef<HTMLDivElement>(null);
+
+    // Toggle fullscreen using Browser Fullscreen API
+    const toggleFullscreen = useCallback(async () => {
+        if (!contentRef.current) return;
+
+        try {
+            if (!isFullscreen) {
+                // Enter fullscreen
+                if (contentRef.current.requestFullscreen) {
+                    await contentRef.current.requestFullscreen();
+                } else if ((contentRef.current as any).webkitRequestFullscreen) {
+                    await (contentRef.current as any).webkitRequestFullscreen();
+                }
+            } else {
+                // Exit fullscreen
+                if (document.exitFullscreen) {
+                    await document.exitFullscreen();
+                } else if ((document as any).webkitExitFullscreen) {
+                    await (document as any).webkitExitFullscreen();
+                }
+            }
+        } catch (err) {
+            console.error('Fullscreen error:', err);
+        }
+    }, [isFullscreen]);
+
+    // Listen for fullscreen changes
+    useEffect(() => {
+        const handleFullscreenChange = () => {
+            setIsFullscreen(!!document.fullscreenElement);
+        };
+
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+
+        return () => {
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+        };
+    }, []);
 
     // Format dates for API
     const dateStart = formatDateForApi(selectedDate);
@@ -44,7 +87,7 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
         perPage: 1000,
     };
     // Fetch flight data
-    const { data, isLoading, error } = useFlightListQuery(params);
+    const { data, isLoading, error, isFetched } = useFlightListQuery(params);
 
     const flights: FlightItem[] = data?.responseData || [];
 
@@ -122,7 +165,7 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
     }
 
     return (
-        <div className="space-y-4">
+        <div className="relative space-y-4">
             {/* Controls */}
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg bg-slate-800/50 p-4">
                 {/* Date Navigation */}
@@ -201,7 +244,7 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                         <div className="flex items-center gap-1 rounded-lg bg-slate-700 p-1">
                             <button
                                 onClick={() => setViewMode('timeline')}
-                                className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${viewMode === 'timeline'
+                                className={`cursor-pointer flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${viewMode === 'timeline'
                                     ? 'bg-sky-600 text-white'
                                     : 'text-slate-300 hover:text-white'
                                     }`}
@@ -212,13 +255,22 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                             </button>
                             <button
                                 onClick={() => setViewMode('table')}
-                                className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${viewMode === 'table'
+                                className={`cursor-pointer flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${viewMode === 'table'
                                     ? 'bg-sky-600 text-white'
                                     : 'text-slate-300 hover:text-white'
                                     }`}
                             >
                                 <span><Table className="w-4 h-4" /></span>
                                 {/* <span>Table</span> */}
+                            </button>
+                        </div>
+                        {/* Fullscreen Toggle Button */}
+                        <div className="flex justify-end items-center gap-1 rounded-lg bg-slate-700 p-1">
+                            <button
+                                onClick={toggleFullscreen}
+                                className="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors text-white hover:bg-slate-600 cursor-pointer"
+                            >
+                                {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                             </button>
                         </div>
                     </div>
@@ -249,33 +301,56 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                 </div>
             </div> */}
 
+            {/* Loading Skeleton */}
+            {!isFetched && <FlightSkeleton viewMode={viewMode} />}
+
             {/* Timeline or Table View */}
-            {viewMode === 'timeline' ? (
-                <div className="overflow-hidden rounded-lg border border-slate-700 bg-slate-900">
-                    <div style={{ height: '600px', width: '100%' }}>
-                        <Epg {...getEpgProps()} isLoading={isLoading}>
-                            <Layout
-                                {...getLayoutProps()}
-                                renderProgram={({ program, ...rest }) => (
-                                    <FlightProgram
-                                        key={program.data.id}
-                                        program={program as any}
-                                        {...rest}
-                                    />
-                                )}
-                                renderChannel={({ channel }) => (
-                                    <FlightChannel
-                                        key={channel.uuid}
-                                        channel={channel as any}
-                                    />
-                                )}
-                            />
-                        </Epg>
+            <div
+                ref={contentRef}
+                className={isFullscreen ? 'bg-slate-900 p-4 overflow-auto h-screen w-screen' : ''}
+            >
+                {/* Fullscreen Header */}
+                {isFullscreen && (
+                    <div className="mb-4 flex items-center justify-between">
+                        <h2 className="text-xl font-bold text-white">Flight {viewMode === 'timeline' ? 'Timeline' : 'Table'}</h2>
+                        <button
+                            onClick={toggleFullscreen}
+                            className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-700 text-white hover:bg-slate-600 transition-colors cursor-pointer"
+                        >
+                            <Minimize2 className="w-5 h-5" />
+                        </button>
                     </div>
-                </div>
-            ) : (
-                <FlightTable flights={flights} isLoading={isLoading} />
-            )}
+                )}
+
+                {viewMode === 'timeline' ? (
+                    isFetched && (
+                        <div className="overflow-hidden rounded-lg border border-slate-700 bg-slate-900">
+                            <div style={{ height: isFullscreen ? 'calc(100vh - 120px)' : '600px', width: '100%' }}>
+                                <Epg {...getEpgProps()} isLoading={isLoading}>
+                                    <Layout
+                                        {...getLayoutProps()}
+                                        renderProgram={({ program, ...rest }) => (
+                                            <FlightProgram
+                                                key={program.data.id}
+                                                program={program as any}
+                                                {...rest}
+                                            />
+                                        )}
+                                        renderChannel={({ channel }) => (
+                                            <FlightChannel
+                                                key={channel.uuid}
+                                                channel={channel as any}
+                                            />
+                                        )}
+                                    />
+                                </Epg>
+                            </div>
+                        </div>
+                    )
+                ) : (
+                    isFetched && <FlightTable flights={flights} isLoading={isLoading} />
+                )}
+            </div>
 
             {/* No flights message */}
             {!isLoading && flights.length === 0 && (
