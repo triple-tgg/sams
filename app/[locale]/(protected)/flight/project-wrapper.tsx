@@ -8,8 +8,10 @@ import { useTemplateDownload } from "@/hooks/use-template-download";
 import { useDashboardFlight } from "@/lib/api/hooks/useDashboardFlight";
 import { Download, Plus, CalendarPlus, CalendarCheck, CalendarX } from "lucide-react";
 import CreateProject from "./create-project";
+import { useRouter } from "next/navigation";
 
 const ProjectWrapper = ({ children }: { children: React.ReactNode }) => {
+    const router = useRouter();
     const [open, setOpen] = useState<boolean>(false);
 
     const { handleDownloadTemplate } = useTemplateDownload();
@@ -103,6 +105,14 @@ const ProjectWrapper = ({ children }: { children: React.ReactNode }) => {
                     >
                         <Plus className="w-4 h-4 me-1" />
                         <span>Add Flight</span>
+                    </Button>
+                    <Button
+                        className="flex-none"
+                        color="primary"
+                        onClick={() => router.push(`/en/views-flight-timeline`)}
+                    >
+                        <Plus className="w-4 h-4 me-1" />
+                        <span>Timeline</span>
                     </Button>
                 </div>
             </div>
