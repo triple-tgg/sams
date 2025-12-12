@@ -75,12 +75,12 @@ export function FlightProgram({ program, ...rest }: FlightProgramProps) {
                                     <ProgramText className="text-xs text-white/80">
                                         {sinceTime} - {tillTime}
                                     </ProgramText>
-                                    {scheduledTime && (
+                                    {/* {scheduledTime && (
                                         <ProgramText className="text-xl text-white/70">
                                             ⏰ STD/STA: {scheduledTime}
                                             {actualTime && ` → ATD/ATA: ${actualTime}`}
                                         </ProgramText>
-                                    )}
+                                    )} */}
                                     <div className="flex items-center gap-2 text-[10px] text-white/70">
                                         {acReg && <span>✈ {acReg}</span>}
                                         {bayNo && <span>📍 Bay {bayNo}</span>}

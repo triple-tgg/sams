@@ -51,8 +51,10 @@ const LoginForm = () => {
     resolver: zodResolver(schema),
     mode: "all",
     defaultValues: {
-      email: "navee@gmail.com", // Changed to email
-      password: "sams-password",
+      // email: "navee@gmail.com", // Changed to email
+      // password: "sams-password",
+      email: "", // Changed to email
+      password: "",
     },
   });
 

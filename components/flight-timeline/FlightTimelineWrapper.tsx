@@ -30,7 +30,9 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
     const [selectedDate, setSelectedDate] = useState<Date>(initialDate || new Date());
     const [viewMode, setViewMode] = useState<'timeline' | 'table'>('timeline');
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [containerKey, setContainerKey] = useState(0);
     const contentRef = useRef<HTMLDivElement>(null);
+    const timelineContainerRef = useRef<HTMLDivElement>(null);
 
     // Toggle fullscreen using Browser Fullscreen API
     const toggleFullscreen = useCallback(async () => {
@@ -61,6 +63,8 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
     useEffect(() => {
         const handleFullscreenChange = () => {
             setIsFullscreen(!!document.fullscreenElement);
+            // Force re-render when fullscreen changes
+            setContainerKey(prev => prev + 1);
         };
 
         document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -121,7 +125,10 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
         console.log("First EPG item since/till:", epgData[0].since, epgData[0].till);
     }
 
-    // Initialize Planby
+    // Track container dimensions for Planby
+    const [containerDimensions, setContainerDimensions] = useState<{ width: number; height: number }>({ width: 1200, height: 600 });
+
+    // Initialize Planby with explicit dimensions
     const { getEpgProps, getLayoutProps, onScrollToNow, onScrollLeft, onScrollRight } = useEpg({
         epg: epgData,
         channels: channels,
@@ -134,7 +141,45 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
         isInitialScrollToNow: true,
         isLine: true,
         licenseKey: PLANBY_LICENSE_KEY,
+        width: containerDimensions.width,
+        height: containerDimensions.height,
     } as any);
+
+    // Force Planby to re-render when container dimensions change
+    useEffect(() => {
+        if (!isFetched || viewMode !== 'timeline') return;
+
+        const container = timelineContainerRef.current;
+        if (!container) return;
+
+        const resizeObserver = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                const { width, height } = entry.contentRect;
+                if (width > 0 && height > 0) {
+                    setContainerDimensions({ width, height });
+                    setContainerKey(prev => prev + 1);
+                }
+            }
+        });
+
+        resizeObserver.observe(container);
+
+        // Also trigger an initial measurement after a short delay
+        const timer = setTimeout(() => {
+            if (container.offsetWidth > 0 && container.offsetHeight > 0) {
+                setContainerDimensions({
+                    width: container.offsetWidth,
+                    height: container.offsetHeight
+                });
+                setContainerKey(prev => prev + 1);
+            }
+        }, 50);
+
+        return () => {
+            resizeObserver.disconnect();
+            clearTimeout(timer);
+        };
+    }, [isFetched, viewMode]);
 
     // Handle date change
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -307,7 +352,10 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
             {/* Timeline or Table View */}
             <div
                 ref={contentRef}
-                className={isFullscreen ? 'bg-slate-900 p-4 overflow-auto h-screen w-screen' : ''}
+                className={isFullscreen
+                    ? 'fixed inset-0 z-50 bg-slate-900 p-4 overflow-auto'
+                    : 'relative w-full'
+                }
             >
                 {/* Fullscreen Header */}
                 {isFullscreen && (
@@ -324,27 +372,29 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
 
                 {viewMode === 'timeline' ? (
                     isFetched && (
-                        <div className="overflow-hidden rounded-lg border border-slate-700 bg-slate-900">
-                            <div style={{ height: isFullscreen ? 'calc(100vh - 120px)' : '600px', width: '100%' }}>
-                                <Epg {...getEpgProps()} isLoading={isLoading}>
-                                    <Layout
-                                        {...getLayoutProps()}
-                                        renderProgram={({ program, ...rest }) => (
-                                            <FlightProgram
-                                                key={program.data.id}
-                                                program={program as any}
-                                                {...rest}
-                                            />
-                                        )}
-                                        renderChannel={({ channel }) => (
-                                            <FlightChannel
-                                                key={channel.uuid}
-                                                channel={channel as any}
-                                            />
-                                        )}
-                                    />
-                                </Epg>
-                            </div>
+                        <div
+                            ref={timelineContainerRef}
+                            className="overflow-hidden rounded-lg border border-slate-700 bg-slate-900"
+                            style={{ height: isFullscreen ? 'calc(100vh - 80px)' : '600px' }}
+                        >
+                            <Epg key={containerKey} {...getEpgProps()} isLoading={isLoading}>
+                                <Layout
+                                    {...getLayoutProps()}
+                                    renderProgram={({ program, ...rest }) => (
+                                        <FlightProgram
+                                            key={program.data.id}
+                                            program={program as any}
+                                            {...rest}
+                                        />
+                                    )}
+                                    renderChannel={({ channel }) => (
+                                        <FlightChannel
+                                            key={channel.uuid}
+                                            channel={channel as any}
+                                        />
+                                    )}
+                                />
+                            </Epg>
                         </div>
                     )
                 ) : (
