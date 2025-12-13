@@ -53,8 +53,13 @@ export function FlightProgram({ program, ...rest }: FlightProgramProps) {
                 <ProgramContent
                     width={styles.width}
                     isLive={isLive}
+                    className={`w-[98%] border 
+                        ${isArrival
+                            ? 'border-sky-600'
+                            : 'border-emerald-600'
+                        }`}
                 >
-                    <ProgramFlex>
+                    <ProgramFlex >
                         <ProgramStack>
                             {/* Flight Type Badge */}
                             <div className="flex items-center gap-2">

@@ -13,7 +13,7 @@ export function FlightChannel({ channel }: FlightChannelProps) {
     return (
         <ChannelBox {...position}>
             <div
-                className="flex h-full w-full items-center gap-3 px-3 py-2 bg-slate-800 border-b border-slate-700"
+                className="flex h-full w-full items-center gap-3 px-3 py-2 dark:bg-slate-800 bg-slate-100 border-b dark:border-slate-700 border-slate-300"
             >
                 {/* Airline Logo */}
                 <div className="relative h-10 w-10 overflow-hidden rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
@@ -27,7 +27,7 @@ export function FlightChannel({ channel }: FlightChannelProps) {
                             }}
                         />
                     ) : (
-                        <span className="text-xs font-bold text-white/60">
+                        <span className="text-xs font-bold dark:text-white/60 text-slate-900">
                             {airlineCode?.slice(0, 2)}
                         </span>
                     )}
@@ -35,10 +35,10 @@ export function FlightChannel({ channel }: FlightChannelProps) {
 
                 {/* Airline Info */}
                 <div className="flex flex-col min-w-0">
-                    <span className="text-sm font-semibold text-white truncate">
+                    <span className="text-sm font-semibold dark:text-white text-slate-900 truncate">
                         {airlineCode}
                     </span>
-                    <span className="text-xs text-slate-400 truncate">
+                    <span className="text-xs dark:text-slate-400 text-slate-900 truncate">
                         {name || 'Airline'}
                     </span>
                 </div>

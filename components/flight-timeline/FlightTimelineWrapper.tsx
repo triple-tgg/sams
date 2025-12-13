@@ -7,7 +7,7 @@ import { FlightProgram } from './FlightProgram';
 import { FlightChannel } from './FlightChannel';
 import { FlightTable } from './FlightTable';
 import { FlightSkeleton } from './FlightSkeleton';
-import { FlightEpgItem, AirlineChannel, flightTimelineThemeDark, flightTimelineThemeLight } from './types';
+import { flightTimelineThemeDark, flightTimelineThemeLight } from './types';
 import {
     transformFlightsToEpg,
     transformAirlinesToChannels,
@@ -17,7 +17,9 @@ import {
 import { useFlightListQuery } from '@/lib/api/hooks/useFlightListQuery';
 import { GetFlightListParams } from "@/lib/api/flight/getFlightList";
 import { FlightItem } from "@/lib/api/flight/filghtlist.interface";
-import { AlignStartVertical, ArrowLeftFromLine, ArrowRightFromLine, BetweenVerticalStart, ChevronLeft, ChevronRight, Table, Maximize2, Minimize2, X } from "lucide-react";
+import { AlignStartVertical, ArrowLeftFromLine, ArrowRightFromLine, ChevronLeft, ChevronRight, Table, Maximize2, Minimize2, X } from "lucide-react";
+import { FlightTimeline } from "./FlightTimeline";
+import { GridCell } from "./GridCell";
 
 interface FlightTimelineWrapperProps {
     initialDate?: Date;
@@ -31,8 +33,27 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
     const [viewMode, setViewMode] = useState<'timeline' | 'table'>('timeline');
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [containerKey, setContainerKey] = useState(0);
+    const [currentTime, setCurrentTime] = useState(new Date());
     const contentRef = useRef<HTMLDivElement>(null);
     const timelineContainerRef = useRef<HTMLDivElement>(null);
+
+    // Update current time every minute
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setCurrentTime(new Date());
+        }, 60000); // Update every minute
+
+        return () => clearInterval(timer);
+    }, []);
+
+    // Format current time for display
+    const formattedCurrentTime = useMemo(() => {
+        return currentTime.toLocaleTimeString('th-TH', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        });
+    }, [currentTime]);
 
     // Toggle fullscreen using Browser Fullscreen API
     const toggleFullscreen = useCallback(async () => {
@@ -99,36 +120,25 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
     const epgData = useMemo(() => transformFlightsToEpg(flights), [flights]);
     const channels = useMemo(() => transformAirlinesToChannels(flights), [flights]);
 
-    // Debug: Check EPG data and channels matching
-    console.log("=== PLANBY DEBUG ===");
-    console.log("EPG Items:", epgData.length, epgData);
-    console.log("Channels:", channels.length, channels);
-    console.log("Channel UUIDs:", channels.map(c => c.uuid));
-    console.log("EPG channelUuids:", Array.from(new Set(epgData.map(e => e.channelUuid))));
-
-    // Format start date for Planby
+    // Format start date for Planby (00:00 of selected date)
     const startDateFormatted = useMemo(() => {
         const d = new Date(selectedDate);
         d.setHours(0, 0, 0, 0);
         return d.toISOString();
     }, [selectedDate]);
 
+    // Format end date for Planby (00:00 of next day for full 24 hours)
     const endDateFormatted = useMemo(() => {
         const d = new Date(selectedDate);
-        d.setHours(23, 59, 59, 999);
+        d.setDate(d.getDate() + 1); // Move to next day
+        d.setHours(0, 0, 0, 0);
         return d.toISOString();
     }, [selectedDate]);
-
-    // Debug date range
-    console.log("Timeline Date Range:", startDateFormatted, "to", endDateFormatted);
-    if (epgData.length > 0) {
-        console.log("First EPG item since/till:", epgData[0].since, epgData[0].till);
-    }
 
     // Track container dimensions for Planby
     const [containerDimensions, setContainerDimensions] = useState<{ width: number; height: number }>({ width: 1200, height: 600 });
 
-    // Initialize Planby with explicit dimensions
+    // Initialize Planby with explicit dimensions and full 24-hour view
     const { getEpgProps, getLayoutProps, onScrollToNow, onScrollLeft, onScrollRight } = useEpg({
         epg: epgData,
         channels: channels,
@@ -140,9 +150,13 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
         isCurrentTime: true,
         isInitialScrollToNow: true,
         isLine: true,
+        grid: {
+            enabled: true,
+        },
         licenseKey: PLANBY_LICENSE_KEY,
         width: containerDimensions.width,
         height: containerDimensions.height,
+        dayWidth: 7200, // Width for full 24 hours (300px per hour * 24 = 7200px)
     } as any);
 
     // Force Planby to re-render when container dimensions change
@@ -212,12 +226,12 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
     return (
         <div className="relative space-y-4">
             {/* Controls */}
-            <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg bg-slate-800/50 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg dark:bg-slate-800/50 bg-slate-100 p-4 shadow">
                 {/* Date Navigation */}
                 <div className="flex items-center gap-2">
                     <button
                         onClick={handlePrevDay}
-                        className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-700 text-white hover:bg-slate-600 transition-colors"
+                        className="cursor-pointer flex h-10 w-10 items-center justify-center rounded-lg dark:bg-slate-700 dark:text-white bg-slate-200 text-slate-700 hover:bg-slate-600 hover:text-white transition-colors"
                     >
                         <ArrowLeftFromLine className="w-4 h-4" />
                     </button>
@@ -226,19 +240,19 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                         type="date"
                         value={formatDateForApi(selectedDate)}
                         onChange={handleDateChange}
-                        className="h-10 rounded-lg bg-slate-700 px-4 text-white border-none focus:ring-2 focus:ring-sky-500"
+                        className="h-10 rounded-lg dark:bg-slate-700 dark:text-white bg-slate-200 text-slate-700 px-4 border-none focus:ring-2 focus:ring-sky-500"
                     />
 
                     <button
                         onClick={handleNextDay}
-                        className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-700 text-white hover:bg-slate-600 transition-colors"
+                        className="cursor-pointer flex h-10 w-10 items-center justify-center rounded-lg dark:bg-slate-700 dark:text-white bg-slate-200 text-slate-700 hover:bg-slate-600 hover:text-white transition-colors"
                     >
                         <ArrowRightFromLine className="w-4 h-4" />
                     </button>
 
                     <button
                         onClick={handleToday}
-                        className="h-10 rounded-lg bg-sky-600 px-4 text-white font-medium hover:bg-sky-500 transition-colors"
+                        className="cursor-pointer h-10 rounded-lg dark:bg-sky-600 bg-sky-400 px-4 dark:text-white text-white font-medium hover:bg-sky-500 hover:text-white transition-colors"
                     >
                         Today
                     </button>
@@ -249,21 +263,21 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => onScrollLeft(200)}
-                            className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-700 text-white hover:bg-slate-600 transition-colors"
+                            className="cursor-pointer flex h-10 w-10 items-center justify-center rounded-lg dark:bg-slate-700 dark:text-white bg-slate-200 text-slate-700 hover:bg-slate-600 hover:text-white transition-colors"
                         >
                             <span><ChevronLeft className="w-4 h-4" /></span>
                         </button>
                         <button
 
                             onClick={onScrollToNow}
-                            className="h-10 rounded-lg bg-emerald-600 px-4 text-white font-medium hover:bg-emerald-500 transition-colors"
+                            className="cursor-pointer h-10 rounded-lg dark:bg-emerald-600 bg-emerald-400 px-4 text-white font-medium hover:bg-emerald-500 hover:text-white transition-colors"
                         >
                             Now
                         </button>
 
                         <button
                             onClick={() => onScrollRight(200)}
-                            className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-700 text-white hover:bg-slate-600 transition-colors"
+                            className="cursor-pointer flex h-10 w-10 items-center justify-center rounded-lg dark:bg-slate-700 dark:text-white bg-slate-200 text-slate-700 hover:bg-slate-600 hover:text-white transition-colors"
                         >
                             <span><ChevronRight className="w-4 h-4" /></span>
                         </button>
@@ -275,23 +289,23 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                     <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
                             <div className="h-4 w-4 rounded bg-linear-to-r from-sky-600 to-sky-500" />
-                            <span className="text-sm text-slate-300">Arrival</span>
+                            <span className="text-sm text-slate-700 dark:text-white">Arrival</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <div className="h-4 w-4 rounded bg-linear-to-r from-emerald-600 to-emerald-500" />
-                            <span className="text-sm text-slate-300">Departure</span>
+                            <span className="text-sm text-slate-700 dark:text-white">Departure</span>
                         </div>
                     </div>
 
                     {/* View Toggle */}
                     <div className="flex items-center gap-2">
-                        <div className="text-sm text-slate-300">View : </div>
-                        <div className="flex items-center gap-1 rounded-lg bg-slate-700 p-1">
+                        <div className="text-sm text-slate-700 dark:text-white">View : </div>
+                        <div className="flex items-center gap-1 rounded-lg dark:bg-slate-700 bg-slate-200 p-1">
                             <button
                                 onClick={() => setViewMode('timeline')}
                                 className={`cursor-pointer flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${viewMode === 'timeline'
-                                    ? 'bg-sky-600 text-white'
-                                    : 'text-slate-300 hover:text-white'
+                                    ? 'bg-sky-400 text-white'
+                                    : 'text-slate-700 dark:text-white hover:text-slate-500'
                                     }`}
                             >
                                 <span><AlignStartVertical className="w-4 h-4" /></span>
@@ -301,8 +315,8 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                             <button
                                 onClick={() => setViewMode('table')}
                                 className={`cursor-pointer flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${viewMode === 'table'
-                                    ? 'bg-sky-600 text-white'
-                                    : 'text-slate-300 hover:text-white'
+                                    ? 'bg-sky-400 text-white'
+                                    : 'text-slate-700 dark:text-white hover:text-slate-500'
                                     }`}
                             >
                                 <span><Table className="w-4 h-4" /></span>
@@ -321,30 +335,6 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                     </div>
                 </div>
             </div>
-
-            {/* Flight Stats */}
-            {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="rounded-lg bg-slate-800/50 p-4">
-                    <p className="text-2xl font-bold text-white">{flights.length}</p>
-                    <p className="text-sm text-slate-400">Total Flights</p>
-                </div>
-                <div className="rounded-lg bg-sky-900/50 p-4">
-                    <p className="text-2xl font-bold text-sky-400">
-                        {epgData.filter(f => f.flightType === 'arrival').length}
-                    </p>
-                    <p className="text-sm text-slate-400">Arrivals</p>
-                </div>
-                <div className="rounded-lg bg-emerald-900/50 p-4">
-                    <p className="text-2xl font-bold text-emerald-400">
-                        {epgData.filter(f => f.flightType === 'departure').length}
-                    </p>
-                    <p className="text-sm text-slate-400">Departures</p>
-                </div>
-                <div className="rounded-lg bg-slate-800/50 p-4">
-                    <p className="text-2xl font-bold text-white">{channels.length}</p>
-                    <p className="text-sm text-slate-400">Airlines</p>
-                </div>
-            </div> */}
 
             {/* Loading Skeleton */}
             {!isFetched && <FlightSkeleton viewMode={viewMode} />}
@@ -374,20 +364,29 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                     isFetched && (
                         <div
                             ref={timelineContainerRef}
-                            className="overflow-hidden rounded-lg border border-slate-700 bg-slate-900"
+                            className="relative overflow-hidden rounded-lg border-2 dark:border-2 dark:border-slate-700 dark:bg-slate-900 bg-white shadow-lg"
                             style={{ height: isFullscreen ? 'calc(100vh - 80px)' : '600px' }}
                         >
+                            {/* Current Time Badge */}
+                            {/* <div className="absolute top-2 right-2 z-50 flex items-center gap-2 bg-red-500 text-white px-3 py-1.5 rounded-lg shadow-lg">
+                                <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                                <span className="text-sm font-bold">{formattedCurrentTime}</span>
+                            </div> */}
                             <Epg key={containerKey} {...getEpgProps()} isLoading={isLoading}>
                                 <Layout
-                                    {...getLayoutProps()}
-                                    renderProgram={({ program, ...rest }) => (
+                                    {...(getLayoutProps() as any)}
+                                    renderGridCell={(props: any) => (
+                                        <GridCell key={props.item?.position?.top} {...props} />
+                                    )}
+                                    renderTimeline={(props: any) => <FlightTimeline {...props} />}
+                                    renderProgram={({ program, ...rest }: any) => (
                                         <FlightProgram
                                             key={program.data.id}
                                             program={program as any}
                                             {...rest}
                                         />
                                     )}
-                                    renderChannel={({ channel }) => (
+                                    renderChannel={({ channel }: any) => (
                                         <FlightChannel
                                             key={channel.uuid}
                                             channel={channel as any}
