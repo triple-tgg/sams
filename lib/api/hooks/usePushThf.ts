@@ -7,7 +7,7 @@ import { pushThf, PushThfRequest, PushThfResponse } from "../lineMaintenances/fl
 
 export function usePushThf() {
   const queryClient = useQueryClient();
-  const loadingToastRef = useRef<string | number | undefined>();
+  const loadingToastRef = useRef<string | number | undefined>(undefined);
 
   return useMutation<PushThfResponse, Error, PushThfRequest>({
     mutationFn: pushThf,
