@@ -1,5 +1,5 @@
 import React from 'react'
-import { UseFormReturn } from 'react-hook-form'
+import { FieldPath, UseFormReturn } from 'react-hook-form'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
 import { PlusIcon, TrashIcon } from 'lucide-react'
 import { ServicesFormInputs } from '../types'
+import { AdditionalDefectAttachFile } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
 import PhotoUploadField from '../upload/PhotoUploadField'
 
 
@@ -86,12 +87,12 @@ export const AdditionalDefectsSection: React.FC<{
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name={`additionalDefects.${index}.defect`}
+                    name={`additionalDefects.${index}.defect` as FieldPath<ServicesFormInputs>}
                     render={({ field }) => (
                       <FormItem className="md:col-span-1">
                         <FormLabel>Defect Details *</FormLabel>
                         <FormControl>
-                          <Textarea placeholder="Describe the defect..." {...field} />
+                          <Textarea placeholder="Describe the defect..." {...field} value={(field.value as unknown as string) ?? ''} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -100,12 +101,12 @@ export const AdditionalDefectsSection: React.FC<{
 
                   <FormField
                     control={form.control}
-                    name={`additionalDefects.${index}.ataChapter`}
+                    name={`additionalDefects.${index}.ataChapter` as FieldPath<ServicesFormInputs>}
                     render={({ field }) => (
                       <FormItem className="md:col-span-1">
                         <FormLabel>ATA Chapter *</FormLabel>
                         <FormControl>
-                          <Textarea placeholder="e.g., 32-41-00" {...field} />
+                          <Textarea placeholder="e.g., 32-41-00" {...field} value={(field.value as unknown as string) ?? ''} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -114,12 +115,12 @@ export const AdditionalDefectsSection: React.FC<{
 
                   <FormField
                     control={form.control}
-                    name={`additionalDefects.${index}.laeMH`}
+                    name={`additionalDefects.${index}.laeMH` as FieldPath<ServicesFormInputs>}
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>LAE MH</FormLabel>
                         <FormControl>
-                          <Input type="number" min={0} step={0.5} placeholder="0.0" {...field} />
+                          <Input type="number" min={0} step={0.5} placeholder="0.0" {...field} value={(field.value as unknown as string) ?? ''} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -128,12 +129,12 @@ export const AdditionalDefectsSection: React.FC<{
 
                   <FormField
                     control={form.control}
-                    name={`additionalDefects.${index}.mechMH`}
+                    name={`additionalDefects.${index}.mechMH` as FieldPath<ServicesFormInputs>}
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Mech MH</FormLabel>
                         <FormControl>
-                          <Input type="number" min={0} step={0.5} placeholder="0.0" {...field} />
+                          <Input type="number" min={0} step={0.5} placeholder="0.0" {...field} value={(field.value as unknown as string) ?? ''} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -145,7 +146,7 @@ export const AdditionalDefectsSection: React.FC<{
                     form={form}
                     fieldName={`additionalDefects.${index}.attachFiles`}
                     label="Attach Files"
-                    value={getActiveFile(form.getValues(`additionalDefects.${index}.attachFiles`)) || null}
+                    value={getActiveFile(form.getValues(`additionalDefects.${index}.attachFiles` as FieldPath<ServicesFormInputs>) as AdditionalDefectAttachFile[] | null) || null}
                   />
                   {/* 
                   <PhotoUploadField

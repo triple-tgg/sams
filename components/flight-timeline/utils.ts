@@ -48,6 +48,12 @@ export function transformFlightsToEpg(flights: FlightItem[]): FlightEpgItem[] {
                 departureDate: flight.departureDate ?? '',
                 arrivalStatime: flight.arrivalStatime ?? '',
                 departureStdTime: flight.departureStdTime ?? '',
+                departureFlightNo: flight.departureFlightNo ?? '',
+                arrivalFlightNo: flight.arrivalFlightNo ?? '',
+                color: {
+                    background: '#3b82f6',
+                    foreground: '#ffffff',
+                },
             });
         }
         // // Create arrival EPG item if arrival flight number exists
