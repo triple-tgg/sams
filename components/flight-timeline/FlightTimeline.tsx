@@ -41,7 +41,8 @@ export function FlightTimeline({
     const renderTime = (index: number) => (
         <TimelineBox key={index} width={hourWidth} >
             <TimelineTime>
-                {formatTime(index + offsetStartHoursRange).toLowerCase()}
+                {index + offsetStartHoursRange}
+                {/* {formatTime(index + offsetStartHoursRange).toLowerCase()} */}
             </TimelineTime>
             <TimelineDividers >{renderDividers()}</TimelineDividers>
         </TimelineBox>

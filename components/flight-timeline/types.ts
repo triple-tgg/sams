@@ -7,13 +7,17 @@ export interface FlightEpgItem {
     since: string;
     till: string;
     image?: string;
-    flightType: 'arrival' | 'departure';
+    // flightType: 'arrival' | 'departure';
     acReg: string;
     bayNo: string;
     status: string;
     flightNo: string;
-    scheduledTime: string;
-    actualTime: string;
+    arrivalStatime: string;
+    departureStdTime: string;
+    arrivalDate: string;
+    departureDate: string;
+    // scheduledTime: string;
+    // actualTime: string;
 }
 
 export interface AirlineChannel {
@@ -21,6 +25,12 @@ export interface AirlineChannel {
     logo: string;
     name: string;
     airlineCode: string;
+}
+export interface AirlineChannelPlanby {
+    uuid: string;
+    // logo: string;
+    // name: string;
+    // airlineCode: string;
 }
 
 // Planby theme configuration

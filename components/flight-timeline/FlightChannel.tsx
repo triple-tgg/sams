@@ -8,7 +8,7 @@ interface FlightChannelProps {
 }
 
 export function FlightChannel({ channel }: FlightChannelProps) {
-    const { position, logo, airlineCode, name } = channel;
+    const { position, logo, airlineCode, name, uuid } = channel;
 
     return (
         <ChannelBox {...position}>
@@ -16,7 +16,7 @@ export function FlightChannel({ channel }: FlightChannelProps) {
                 className="flex h-full w-full items-center gap-3 px-3 py-2 dark:bg-slate-800 bg-slate-100 border-b dark:border-slate-700 border-slate-300"
             >
                 {/* Airline Logo */}
-                <div className="relative h-10 w-10 overflow-hidden rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
+                {/* <div className="relative h-10 w-10 overflow-hidden rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
                     {logo ? (
                         <ChannelLogo
                             src={logo}
@@ -31,12 +31,13 @@ export function FlightChannel({ channel }: FlightChannelProps) {
                             {airlineCode?.slice(0, 2)}
                         </span>
                     )}
-                </div>
+                </div> */}
 
                 {/* Airline Info */}
                 <div className="flex flex-col min-w-0">
                     <span className="text-sm font-semibold dark:text-white text-slate-900 truncate">
-                        {airlineCode}
+                        {/* {airlineCode} */}
+                        {uuid}
                     </span>
                     <span className="text-xs dark:text-slate-400 text-slate-900 truncate">
                         {name || 'Airline'}

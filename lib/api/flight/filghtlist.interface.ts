@@ -52,7 +52,35 @@ export interface FlightItem {
   state: string
   routeForm: string | null
   routeTo: string | null
+  csList?: CSList[]
+  mechList?: MechList[]
 }
+
+export interface CSList {
+  id: number
+  code: string
+  name: string
+  staffstypeid: number
+  isdelete: boolean
+  createddate: string
+  createdby: string
+  updateddate: string
+  updatedby: string
+  displayName: string
+}
+export interface MechList {
+  id: number
+  code: string
+  name: string
+  staffstypeid: number
+  isdelete: boolean
+  createddate: string
+  createdby: string
+  updateddate: string
+  updatedby: string
+  displayName: string
+}
+
 export interface AirlineObj {
   id: number
   code: string

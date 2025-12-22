@@ -1,8 +1,9 @@
 // Utility functions for transforming flight data to Planby format
 import dayjs from 'dayjs';
 import { FlightItem } from '@/lib/api/flight/filghtlist.interface';
-import { FlightEpgItem, AirlineChannel } from './types';
-import { unknown } from 'zod';
+import { FlightEpgItem, AirlineChannel, AirlineChannelPlanby } from './types';
+import { FlightPlanbyItem } from '@/lib/api/flight/getFlightListPlanby';
+
 
 /**
  * Transform FlightItem array to Planby EPG format
@@ -24,11 +25,12 @@ export function transformFlightsToEpg(flights: FlightItem[]): FlightEpgItem[] {
     flights.forEach((flight: FlightItem, index: number) => {
         // Create arrival EPG item if arrival flight number exists
         if (flight.arrivalFlightNo && flight.arrivalDate) {
+            // arrivalSince: ใช้ arrivalDate + arrivalStatime
             const arrivalSince = combineDateAndTime(flight.arrivalDate, flight.arrivalStatime);
-            // Arrival duration: from STA to ATA, or default 1 hour if ATA not available or is "00:00"
-            const hasValidAta = flight.arrivalAtaTime && flight.arrivalAtaTime !== '00:00' && flight.arrivalAtaTime !== '00:00:00';
-            const arrivalTill = hasValidAta
-                ? combineDateAndTime(flight.arrivalDate, flight.arrivalAtaTime)
+            // arrivalTill: ใช้ departureDate + departureStdTime (หรือ default 60 นาที ถ้าไม่มี)
+            const hasValidDeparture = flight.departureDate && flight.departureStdTime && flight.departureStdTime !== '00:00' && flight.departureStdTime !== '00:00:00';
+            const arrivalTill = hasValidDeparture
+                ? combineDateAndTime(flight.departureDate!, flight.departureStdTime)
                 : addMinutes(arrivalSince, 60);
 
             epgItems.push({
@@ -37,40 +39,66 @@ export function transformFlightsToEpg(flights: FlightItem[]): FlightEpgItem[] {
                 title: flight.arrivalFlightNo,
                 since: arrivalSince,
                 till: arrivalTill,
-                flightType: 'arrival',
+                // flightType: 'arrival',
                 acReg: flight.acReg,
                 bayNo: flight.bayNo,
                 status: flight.statusObj?.code,
                 flightNo: flight.arrivalFlightNo,
-                scheduledTime: flight.arrivalStatime,
-                actualTime: flight.arrivalAtaTime,
+                arrivalDate: flight.arrivalDate,
+                departureDate: flight.departureDate ?? '',
+                arrivalStatime: flight.arrivalStatime ?? '',
+                departureStdTime: flight.departureStdTime ?? '',
             });
         }
+        // // Create arrival EPG item if arrival flight number exists
+        // if (flight.arrivalFlightNo && flight.arrivalDate) {
+        //     const arrivalSince = combineDateAndTime(flight.arrivalDate, flight.arrivalStatime);
+        //     // Arrival duration: from STA to ATA, or default 1 hour if ATA not available or is "00:00"
+        //     const hasValidAta = flight.arrivalAtaTime && flight.arrivalAtaTime !== '00:00' && flight.arrivalAtaTime !== '00:00:00';
+        //     const arrivalTill = hasValidAta
+        //         ? combineDateAndTime(flight.arrivalDate, flight.arrivalAtaTime)
+        //         : addMinutes(arrivalSince, 60);
 
-        // Create departure EPG item if departure flight number exists
-        if (flight.departureFlightNo && flight.departureDate) {
-            const departureSince = combineDateAndTime(flight.departureDate, flight.departureStdTime);
-            // Departure duration: from STD to ATD, or default 1 hour if ATD not available or is "00:00"
-            const hasValidAtd = flight.departureAtdtime && flight.departureAtdtime !== '00:00' && flight.departureAtdtime !== '00:00:00';
-            const departureTill = hasValidAtd
-                ? combineDateAndTime(flight.departureDate, flight.departureAtdtime)
-                : addMinutes(departureSince, 60);
+        //     epgItems.push({
+        //         channelUuid: flight?.airlineObj?.code || "unknown",
+        //         id: `${flight.flightInfosId}-arrival`,
+        //         title: flight.arrivalFlightNo,
+        //         since: arrivalSince,
+        //         till: arrivalTill,
+        //         flightType: 'arrival',
+        //         acReg: flight.acReg,
+        //         bayNo: flight.bayNo,
+        //         status: flight.statusObj?.code,
+        //         flightNo: flight.arrivalFlightNo,
+        //         scheduledTime: flight.arrivalStatime,
+        //         actualTime: flight.arrivalAtaTime,
+        //     });
+        // }
 
-            epgItems.push({
-                channelUuid: flight?.airlineObj?.code || "unknown",
-                id: `${flight.flightInfosId}-departure`,
-                title: flight.departureFlightNo,
-                since: departureSince,
-                till: departureTill,
-                flightType: 'departure',
-                acReg: flight.acReg,
-                bayNo: flight.bayNo,
-                status: flight.statusObj?.code,
-                flightNo: flight.departureFlightNo,
-                scheduledTime: flight.departureStdTime ?? '',
-                actualTime: flight.departureAtdtime ?? '',
-            });
-        }
+        // // Create departure EPG item if departure flight number exists
+        // if (flight.departureFlightNo && flight.departureDate) {
+        //     const departureSince = combineDateAndTime(flight.departureDate, flight.departureStdTime);
+        //     // Departure duration: from STD to ATD, or default 1 hour if ATD not available or is "00:00"
+        //     const hasValidAtd = flight.departureAtdtime && flight.departureAtdtime !== '00:00' && flight.departureAtdtime !== '00:00:00';
+        //     const departureTill = hasValidAtd
+        //         ? combineDateAndTime(flight.departureDate, flight.departureAtdtime)
+        //         : addMinutes(departureSince, 60);
+
+        //     epgItems.push({
+        //         channelUuid: flight?.airlineObj?.code || "unknown",
+        //         id: `${flight.flightInfosId}-departure`,
+        //         title: flight.departureFlightNo,
+        //         since: departureSince,
+        //         till: departureTill,
+        //         flightType: 'departure',
+        //         acReg: flight.acReg,
+        //         bayNo: flight.bayNo,
+        //         status: flight.statusObj?.code,
+        //         flightNo: flight.departureFlightNo,
+        //         scheduledTime: flight.departureStdTime ?? '',
+        //         actualTime: flight.departureAtdtime ?? '',
+        //     });
+        // }
     });
     console.log("epgItems", epgItems);
     return epgItems;
@@ -93,6 +121,27 @@ export function transformAirlinesToChannels(flights: FlightItem[]): AirlineChann
         }
     });
     return Array.from(uniqueAirlines.values());
+}
+export function transformAirlinesToChannelsPlanby(flights: FlightPlanbyItem[]): AirlineChannelPlanby[] {
+    const uniqueChannels = new Map<string, AirlineChannelPlanby>();
+
+    flights.forEach((flight) => {
+        const channelId = flight?.channelUuid ?? "unknown";
+
+        // Group by channelUuid - only add if not already in the map
+        if (!uniqueChannels.has(channelId)) {
+            uniqueChannels.set(channelId, {
+                uuid: channelId,
+            });
+        }
+    });
+
+    // Sort channels by uuid for consistent ordering
+    const sortedChannels = Array.from(uniqueChannels.values()).sort((a, b) =>
+        a.uuid.localeCompare(b.uuid, undefined, { numeric: true })
+    );
+
+    return sortedChannels;
 }
 
 /**
