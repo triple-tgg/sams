@@ -37,12 +37,13 @@ export function FlightProgram({ program, ...rest }: FlightProgramProps) {
         <ProgramBox
             width={styles.width}
             style={styles.position}
+            className='hover:!text-white'
         >
             <div
                 className={`
           relative flex h-full w-full overflow-hidden rounded-lg
           bg-linear-to-r from-emerald-600 to-emerald-500
-          ${isLive ? 'ring-2 ring-white ring-offset-1 ring-offset-transparent' : ''}
+          ${isLive ? 'ring-2 ring-white ring-offset-1 ring-offset-transparent !text-white' : ''}
           transition-all duration-200 hover:scale-[1.02] hover:shadow-lg cursor-pointer
         `}
             >
@@ -51,9 +52,9 @@ export function FlightProgram({ program, ...rest }: FlightProgramProps) {
                     isLive={isLive}
                     className={`w-[98%] border !p-2`}
                 >
-                    <ProgramFlex>
-                        <ProgramStack>
-                            <ProgramTitle className="!text-[4px]  font-bold text-white !p-0">
+                    <ProgramFlex className='hover:!text-white'>
+                        <ProgramStack className='hover:!text-white'>
+                            <ProgramTitle className={`!text-[10px] font-bold !p-0 ${isLive ? '!text-white' : 'hover:!text-white'}`}>
                                 {title}
                             </ProgramTitle>
                         </ProgramStack>

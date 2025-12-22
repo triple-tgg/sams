@@ -107,6 +107,11 @@ export const flightTimelineThemeLight = {
             600: '#3b82f6', // blue-500
             900: '#1d4ed8', // blue-700
         },
+        live: {
+            300: '#E4F3FF', // blue-400
+            600: '#a2ccfd', // blue-500
+            900: '#81B9FC', // blue-700
+        }
     },
     text: {
         grey: {

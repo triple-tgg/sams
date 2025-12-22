@@ -140,87 +140,10 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
 
     // Track container dimensions for Planby
     const [containerDimensions, setContainerDimensions] = useState<{ width: number; height: number }>({ width: 1200, height: 600 });
-    console.log("channels", channels)
     // Initialize Planby with explicit dimensions and full 24-hour view
 
     // const channels1 = useMemo(() => transformAirlinesToChannels(flights), [flights]);
-    const epgDatas = [
-        {
-            "channelUuid": "unknown",
-            "id": "1486-arrival",
-            "title": "MH792 / MH793",
-            "since": "2025-12-20T06:50:00.000Z",
-            "till": "2025-12-20T07:50:00.000Z",
-            "acReg": "",
-            "bayNo": "",
-            "status": "Normal",
-            "flightNo": "MH792 / MH793",
-            "arrivalDate": "2025-12-20",
-            "departureDate": "2025-12-20",
-            "arrivalStatime": "13:50",
-            "departureStdTime": "14:50"
-        },
-        {
-            "channelUuid": "JYH",
-            "id": "1575-arrival",
-            "title": "AQ1267 / AQ1268",
-            "since": "2025-12-20T06:45:00.000Z",
-            "till": "2025-12-20T07:45:00.000Z",
-            "acReg": "",
-            "bayNo": "",
-            "status": "Normal",
-            "flightNo": "AQ1267 / AQ1268",
-            "arrivalDate": "2025-12-20",
-            "departureDate": "2025-12-20",
-            "arrivalStatime": "13:45",
-            "departureStdTime": "14:45"
-        },
-        {
-            "channelUuid": "FFM",
-            "id": "1576-arrival",
-            "title": "AQ1245 / AQ1246",
-            "since": "2025-12-20T07:35:00.000Z",
-            "till": "2025-12-20T08:35:00.000Z",
-            "acReg": "",
-            "bayNo": "",
-            "status": "Normal",
-            "flightNo": "AQ1245 / AQ1246",
-            "arrivalDate": "2025-12-20",
-            "departureDate": "2025-12-20",
-            "arrivalStatime": "14:35",
-            "departureStdTime": "15:35"
-        },
-        {
-            "channelUuid": "unknown",
-            "id": "1643-arrival",
-            "title": "FY3620 / FY3621",
-            "since": "2025-12-20T03:45:00.000Z",
-            "till": "2025-12-20T04:45:00.000Z",
-            "acReg": "",
-            "bayNo": "",
-            "status": "Normal",
-            "flightNo": "FY3620 / FY3621",
-            "arrivalDate": "2025-12-20",
-            "departureDate": "2025-12-20",
-            "arrivalStatime": "10:45",
-            "departureStdTime": "11:45"
-        },
-        {
-            "channelUuid": "unknown",
-            "id": "1643-arrival",
-            "title": "FY6620 / FY6621",
-            "since": "2025-12-20T10:45:00.000Z",
-            "till": "2025-12-20T11:45:00.000Z",
-            "acReg": "",
-            "bayNo": "",
-            "status": "Normal",
-            "flightNo": "FY6620 / FY6621",
-            "arrivalDate": "2025-12-20",
-            "departureDate": "2025-12-20",
-            "arrivalStatime": "17:45",
-            "departureStdTime": "18:45"
-        }
-    ]
+
     const { getEpgProps, getLayoutProps, onScrollToNow, onScrollLeft, onScrollRight } = useEpg({
         epg: flightsPlanby,
         // epg: epgData,
@@ -245,7 +168,7 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
         //     mode: "stack"
         // },
         // dayWidth: 1640,
-        dayWidth: 2000,
+        dayWidth: 1800,
         licenseKey: PLANBY_LICENSE_KEY,
         width: containerDimensions.width,
         height: containerDimensions.height,
