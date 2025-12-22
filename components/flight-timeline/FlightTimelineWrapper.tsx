@@ -147,31 +147,21 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
     const { getEpgProps, getLayoutProps, onScrollToNow, onScrollLeft, onScrollRight } = useEpg({
         epg: flightsPlanby,
         // epg: epgData,
-        // channels: [],
         channels: channels,
         startDate: startDateFormatted,
         endDate: endDateFormatted,
         theme: theme === 'dark' ? flightTimelineThemeDark : flightTimelineThemeLight,
-        // sidebarWidth: 150,
-        // sidebarWidth: 90,
+        sidebarWidth: 10,
         itemHeight: 40,
         isCurrentTime: true,
         isInitialScrollToNow: true,
         isLine: true,
-        // grid: {
-        //     enabled: true,
-        //     hourWidth: 60,
-        //     hourHeight: 60,
-        // },
-        // overlap: {
-        //     enabled: true,
-        //     mode: "stack"
-        // },
-        // dayWidth: 1640,
-        dayWidth: 1800,
         licenseKey: PLANBY_LICENSE_KEY,
         width: containerDimensions.width,
         height: containerDimensions.height,
+        dayWidth: 1850,
+        // hourWidth: 30,
+        // dayWidth: 720, // Width for full 24 hours (300px per hour * 24 = 7200px)
         // dayWidth: 7200, // Width for full 24 hours (300px per hour * 24 = 7200px)
     } as any);
 
@@ -275,7 +265,7 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                 </div>
 
                 {/* Timeline Navigation */}
-                {viewMode === "timeline" ? (
+                {/* {viewMode === "timeline" ? (
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => onScrollLeft(200)}
@@ -298,10 +288,10 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                             <span><ChevronRight className="w-4 h-4" /></span>
                         </button>
                     </div>
-                ) : null}
+                ) : null} */}
 
                 <div className="flex items-center gap-6">
-                    {/* Legend */}
+                    {/* Legend
                     <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
                             <div className="h-4 w-4 rounded bg-linear-to-r from-sky-600 to-sky-500" />
@@ -311,7 +301,7 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                             <div className="h-4 w-4 rounded bg-linear-to-r from-emerald-600 to-emerald-500" />
                             <span className="text-sm text-slate-700 dark:text-white">Departure</span>
                         </div>
-                    </div>
+                    </div> */}
 
                     {/* View Toggle */}
                     <div className="flex items-center gap-2">
