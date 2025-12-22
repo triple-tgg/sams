@@ -19,6 +19,8 @@ import { AlignStartVertical, ArrowLeftFromLine, ArrowRightFromLine, ChevronLeft,
 import { FlightTimeline } from "./FlightTimeline";
 import { GridCell } from "./GridCell";
 import { FlightPlanbyItem, useFlightListPlanbyQuery } from "@/lib/api/hooks/useFlightListPlanbyQuery";
+import dayjs from "dayjs";
+
 
 interface FlightTimelineWrapperProps {
     initialDate?: Date;
@@ -152,7 +154,7 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
         endDate: endDateFormatted,
         theme: theme === 'dark' ? flightTimelineThemeDark : flightTimelineThemeLight,
         sidebarWidth: 10,
-        itemHeight: 40,
+        itemHeight: 60,
         isCurrentTime: true,
         isInitialScrollToNow: true,
         isLine: true,
@@ -349,14 +351,15 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
             <div
                 ref={contentRef}
                 className={isFullscreen
-                    ? 'fixed inset-0 z-50 bg-slate-900 p-4 overflow-auto'
+                    ? 'fixed inset-0 z-50 bg-slate-200 dark:bg-slate-900 p-4 overflow-auto'
                     : 'relative w-full'
                 }
             >
                 {/* Fullscreen Header */}
                 {isFullscreen && (
                     <div className="mb-4 flex items-center justify-between">
-                        <h2 className="text-xl font-bold text-white">Flight {viewMode === 'timeline' ? 'Timeline' : 'Table'}</h2>
+                        <h2 className="text-xl font-bold text-slate-800 dark:text-white">Flight {viewMode === 'timeline' ? 'Timeline' : 'Table'}</h2>
+                        <div className="text-slate-800 dark:text-white"> {dayjs(selectedDate).format('ddd DD MMM YYYY')} </div>
                         <button
                             onClick={toggleFullscreen}
                             className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-700 text-white hover:bg-slate-600 transition-colors cursor-pointer"

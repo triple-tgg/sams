@@ -25,7 +25,7 @@ export function FlightProgram({ program, ...rest }: FlightProgramProps) {
     });
 
     const { data } = program;
-    const { title, since, till, flightType, acReg, bayNo, status, scheduledTime, actualTime } = data;
+    const { departureFlightNo, arrivalFlightNo, since, till, flightType, color } = data;
 
     const sinceTime = formatTime(since);
     const tillTime = formatTime(till);
@@ -37,30 +37,35 @@ export function FlightProgram({ program, ...rest }: FlightProgramProps) {
         <ProgramBox
             width={styles.width}
             style={styles.position}
-            className='hover:!text-white'
+        // className='!bg-sky-500'
         >
-            <div
+            {/* <div
                 className={`
           relative flex h-full w-full overflow-hidden rounded-lg
           bg-linear-to-r from-emerald-600 to-emerald-500
           ${isLive ? 'ring-2 ring-white ring-offset-1 ring-offset-transparent !text-white' : ''}
           transition-all duration-200 hover:scale-[1.02] hover:shadow-lg cursor-pointer
         `}
+            > */}
+            <ProgramContent
+                width={styles.width}
+                isLive={isLive}
+                className={`w-[98%] border !p-2`}
+                style={{
+                    background: color.background,
+                    color: color.foreground
+                }}
             >
-                <ProgramContent
-                    width={styles.width}
-                    isLive={isLive}
-                    className={`w-[98%] border !p-2`}
-                >
-                    <ProgramFlex className='hover:!text-white'>
-                        <ProgramStack className='hover:!text-white'>
-                            <ProgramTitle className={`!text-[10px] font-bold !p-0 ${isLive ? '!text-white' : 'hover:!text-white'}`}>
-                                {title}
-                            </ProgramTitle>
-                        </ProgramStack>
-                    </ProgramFlex>
-                </ProgramContent>
-            </div>
-        </ProgramBox>
+                <ProgramFlex className='hover:!text-white p-1 m-0' >
+                    <ProgramStack>
+                        <ProgramTitle className={`!text-[10px] font-bold ${isLive ? '!text-white' : 'hover:!text-white'}`}>
+                            <div style={{ color: color.foreground }}>{arrivalFlightNo}</div>
+                            <div style={{ color: color.foreground }}>{departureFlightNo}</div>
+                        </ProgramTitle>
+                    </ProgramStack>
+                </ProgramFlex>
+            </ProgramContent>
+            {/* </div> */}
+        </ProgramBox >
     );
 }

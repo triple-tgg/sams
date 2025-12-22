@@ -84,6 +84,8 @@ export interface MechList {
 export interface AirlineObj {
   id: number
   code: string
+  colorBackground: string
+  colorForeground: string
   name: string
   description: string
   isdelete: boolean

@@ -29,40 +29,57 @@ export function FlightTable({ flights, isLoading }: FlightTableProps) {
     }
 
     return (
-        <div className="overflow-hidden rounded-lg border border-slate-700 dark:border-slate-600 dark:bg-slate-900 ">
+        <div className="overflow-hidden rounded-lg border border-slate-300 dark:border-slate-800 dark:bg-slate-800 shadow-lg ">
             <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full bg-slate-50 dark:bg-slate-800">
                     <thead>
-                        <tr className="bg-slate-600 text-left dark:bg-slate-700 dark:text-slate-300  ">
-                            <th className="px-4 py-3 text-sm font-semibold text-slate-300 dark:text-slate-300">Flight No</th>
-                            <th className="px-4 py-3 text-sm font-semibold text-slate-300 dark:text-slate-300">A/C Type</th>
-                            <th className="px-4 py-3 text-sm font-semibold text-slate-300 dark:text-slate-300">A/C REG</th>
+                        <tr className="bg-slate-300 text-left dark:bg-slate-700 dark:text-slate-300  text-slate-500 ">
+                            <th className="px-4 py-3 text-sm font-semibold">Airlines</th>
+                            <th className="px-4 py-3 text-sm font-semibold">Flight No</th>
+                            <th className="px-4 py-3 text-sm font-semibold">Root</th>
+                            <th className="px-4 py-3 text-sm font-semibold ">A/C Type</th>
+                            <th className="px-4 py-3 text-sm font-semibold ">A/C REG</th>
                             {/* <th className="px-4 py-3 text-sm font-semibold text-slate-300">REG</th> */}
-                            <th className="px-4 py-3 text-sm font-semibold text-slate-300 dark:text-slate-300">STA</th>
-                            <th className="px-4 py-3 text-sm font-semibold text-slate-300 dark:text-slate-300">STD</th>
-                            <th className="px-4 py-3 text-sm font-semibold text-slate-300 dark:text-slate-300">BAY</th>
+                            <th className="px-4 py-3 text-sm font-semibold ">STA</th>
+                            <th className="px-4 py-3 text-sm font-semibold ">ETA</th>
+                            <th className="px-4 py-3 text-sm font-semibold ">STD</th>
+                            <th className="px-4 py-3 text-sm font-semibold ">BAY</th>
 
-                            <th className="px-4 py-3 text-sm font-semibold text-slate-300 dark:text-slate-300">CS</th>
-                            <th className="px-4 py-3 text-sm font-semibold text-slate-300 dark:text-slate-300">MECH</th>
-                            <th className="px-4 py-3 text-sm font-semibold text-slate-300 dark:text-slate-300">Status</th>
-                            <th className="px-4 py-3 text-sm font-semibold text-slate-300 dark:text-slate-300">Remarks</th>
-                            <th className="px-4 py-3 text-sm font-semibold text-slate-300 dark:text-slate-300 flex items-center justify-center">action</th>
+                            <th className="px-4 py-3 text-sm font-semibold ">CS</th>
+                            <th className="px-4 py-3 text-sm font-semibold ">MECH</th>
+                            <th className="px-4 py-3 text-sm font-semibold ">Status</th>
+                            <th className="px-4 py-3 text-sm font-semibold ">Remarks</th>
+                            <th className="px-4 py-3 text-sm font-semibold  flex items-center justify-center">action</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-700 dark:divide-slate-600">
+                    <tbody className="divide-y divide-slate-300 dark:divide-slate-900">
                         {flights.map((flight, index) => (
                             <tr
                                 key={flight.flightInfosId ?? index}
                                 className="transition-colors hover:bg-slate-600/50 dark:hover:bg-slate-800/50 text-slate-900 dark:text-slate-300"
                             >
+                                {/* Airlines */}
+                                <td className="px-4 py-3 text-sm">
+                                    <span className={`w-full inline-flex items-center rounded
+                                         px-1.5 py-2 text-[10px] font-semibold 
+                                         ${flight.airlineObj?.colorBackground ? `bg-${flight.airlineObj?.colorBackground} text-${flight.airlineObj?.colorForeground}` : 'bg-slate-900 text-slate-300'}
+                                         `}
+                                        style={{
+                                            backgroundColor: flight.airlineObj?.colorBackground,
+                                            color: flight.airlineObj?.colorForeground
+                                        }}
+                                    >
+                                        {flight.airlineObj?.name || '-'}
+                                    </span>
+                                </td>
                                 {/* Flight No - Show both arrival and departure */}
                                 <td className="px-4 py-3 text-sm">
                                     <div className="space-y-1">
                                         {flight.arrivalFlightNo && (
                                             <div className="flex items-center gap-2">
-                                                <span className="inline-flex items-center rounded bg-sky-900 px-1.5 py-0.5 text-[10px] font-semibold text-sky-300">
+                                                {/* <span className="inline-flex items-center rounded bg-sky-900 px-1.5 py-0.5 text-[10px] font-semibold text-sky-300">
                                                     ARR
-                                                </span>
+                                                </span> */}
                                                 <span className="text-sm font-medium">{flight.arrivalFlightNo}</span>
                                             </div>
                                         )}
@@ -77,6 +94,10 @@ export function FlightTable({ flights, isLoading }: FlightTableProps) {
                                     </div>
                                 </td>
 
+                                {/* Root */}
+                                <td className="px-4 py-3 text-sm">
+                                    {`${flight.routeForm || "-"} / ${flight.routeTo || "-"}`}
+                                </td>
                                 {/* A/C Type */}
                                 <td className="px-4 py-3 text-sm">
                                     {flight.acTypeObj?.code || flight.acType || '-'}
@@ -91,6 +112,17 @@ export function FlightTable({ flights, isLoading }: FlightTableProps) {
                                 <td className="px-4 py-3 text-sm">
                                     <div className="">
                                         {flight.arrivalStatime || '-'}
+                                    </div>
+                                    {/* {flight.arrivalAtaTime && flight.arrivalAtaTime !== '00:00' && (
+                                        <div className="text-xs text-sky-400">
+                                            ATA: {flight.arrivalAtaTime}
+                                        </div>
+                                    )} */}
+                                </td>
+                                {/* ETA */}
+                                <td className="px-4 py-3 text-sm">
+                                    <div className="">
+                                        {flight.arrivalAtaTime || '-'}
                                     </div>
                                     {/* {flight.arrivalAtaTime && flight.arrivalAtaTime !== '00:00' && (
                                         <div className="text-xs text-sky-400">

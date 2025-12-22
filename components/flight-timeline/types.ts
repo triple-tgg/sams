@@ -16,6 +16,12 @@ export interface FlightEpgItem {
     departureStdTime: string;
     arrivalDate: string;
     departureDate: string;
+    departureFlightNo: string;
+    arrivalFlightNo: string;
+    color: {
+        background: string;
+        foreground: string;
+    }
     // scheduledTime: string;
     // actualTime: string;
 }
