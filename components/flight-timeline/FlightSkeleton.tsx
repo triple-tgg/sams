@@ -60,18 +60,18 @@ function TimelineSkeleton() {
 
 function TableSkeleton() {
     return (
-        <div className="overflow-hidden rounded-lg border border-slate-700 bg-slate-900">
+        <div className="overflow-hidden rounded-lg border dark:border-slate-700 border-slate-300 dark:bg-slate-900 bg-slate-200">
             {/* Table header skeleton */}
-            <div className="flex bg-slate-800 p-3 gap-4">
+            <div className="flex dark:bg-slate-800 bg-slate-200 p-3 gap-4">
                 {[...Array(6)].map((_, i) => (
-                    <div key={i} className="h-4 w-20 animate-pulse rounded bg-slate-700" />
+                    <div key={i} className="h-4 w-20 animate-pulse rounded dark:bg-slate-700 bg-slate-300" />
                 ))}
             </div>
             {/* Table rows skeleton */}
             {[...Array(8)].map((_, i) => (
-                <div key={i} className="flex border-t border-slate-700 p-3 gap-4">
+                <div key={i} className="flex border-t dark:border-slate-700 border-slate-300 p-3 gap-4">
                     {[...Array(6)].map((_, j) => (
-                        <div key={j} className="h-4 w-20 animate-pulse rounded bg-slate-700" />
+                        <div key={j} className="h-4 w-20 animate-pulse rounded dark:bg-slate-700 bg-slate-300" />
                     ))}
                 </div>
             ))}

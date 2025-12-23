@@ -42,6 +42,7 @@ import { CustomDateInput } from "@/components/ui/input-date/CustomDateInput";
 import { SearchableSelectField } from "@/components/ui/search-select";
 import { useAircraftTypes } from "@/lib/api/hooks/useAircraftTypes";
 import { toast } from "sonner";
+import { PersonnelSection } from "./thf/create/components/CPresonel";
 
 
 
@@ -73,7 +74,11 @@ const FormSchema = z
     bay: z.string().trim().optional().default(""),
     thfNumber: z.string().trim().optional().default(""),
     status: z.object({ value: z.string(), label: z.string() }).nullable().default({ value: "Normal", label: "Normal" }),
-    note: z.string().trim().optional().default("")
+    note: z.string().trim().optional().default(""),
+
+    userName: z.string().trim().optional().default(""),
+    csIdList: z.array(z.number()).nullable().default(null),
+    mechIdList: z.array(z.number()).nullable().default(null),
   })
   // ถ้าใส่ departure อย่างใดอย่างหนึ่ง ต้องใส่ให้ครบ (date + std อย่างน้อย)
   .refine(
@@ -145,6 +150,7 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
     control,
     formState: { errors },
     reset,
+    setValue,
   } = useForm<Inputs>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
@@ -190,6 +196,10 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
       thfNo: (values.thfNumber ?? "").trim(),
       statusCode: values.status?.value ?? "Normal",
       note: (values.note ?? "").trim(),
+
+      userName: values.userName.trim() ?? "",
+      csIdList: values.csIdList || null,
+      mechIdList: values.mechIdList || null,
     };
 
     mutate(
@@ -479,7 +489,14 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                   <FieldError msg={errors.note?.message} />
                 </div>
               </div>
+
             </div>
+            <Separator className="mb-8 mt-10" />
+            <PersonnelSection
+              control={control}
+              onCsChange={(ids) => setValue("csIdList", ids)}
+              onMechChange={(ids) => setValue("mechIdList", ids)}
+            />
           </form>
         </ScrollArea>
 

@@ -2,6 +2,11 @@
 
 import { FlightItem } from '@/lib/api/flight/filghtlist.interface';
 import { Edit } from 'lucide-react';
+import Tooltip from '../ui/c-tooltip';
+import dayjs from 'dayjs';
+import EditFlight from '@/app/[locale]/(protected)/flight/edit-project';
+import { useState } from 'react';
+
 
 interface FlightTableProps {
     flights: FlightItem[];
@@ -9,6 +14,14 @@ interface FlightTableProps {
 }
 
 export function FlightTable({ flights, isLoading }: FlightTableProps) {
+    const [openEditFlight, setOpenEditFlight] = useState<boolean>(false);
+    const [editFlightId, setEditFlightId] = useState<number | null>(null);
+
+    const onEditFlightClose = () => {
+        setOpenEditFlight(false);
+        setEditFlightId(null);
+    }
+
     if (isLoading) {
         return (
             <div className="flex h-96 items-center justify-center rounded-lg bg-slate-800/50">
@@ -30,6 +43,7 @@ export function FlightTable({ flights, isLoading }: FlightTableProps) {
 
     return (
         <div className="overflow-hidden rounded-lg border border-slate-300 dark:border-slate-800 dark:bg-slate-800 shadow-lg ">
+            <EditFlight open={openEditFlight} setOpen={setOpenEditFlight} flightInfosId={editFlightId} onClose={onEditFlightClose} />
             <div className="overflow-x-auto">
                 <table className="w-full bg-slate-50 dark:bg-slate-800">
                     <thead>
@@ -59,21 +73,26 @@ export function FlightTable({ flights, isLoading }: FlightTableProps) {
                                 className="transition-colors hover:bg-slate-600/50 dark:hover:bg-slate-800/50 text-slate-900 dark:text-slate-300"
                             >
                                 {/* Airlines */}
-                                <td className="px-4 py-3 text-sm">
-                                    <span className={`w-full inline-flex items-center rounded
+                                <td className="overflow-hidden px-4 py-3 text-sm w-[130px] text-ellipsis">
+                                    <Tooltip
+                                        content={flight.airlineObj?.name || '-'}
+                                    >
+                                        <span className={`w-full inline-flex items-center rounded
                                          px-1.5 py-2 text-[10px] font-semibold 
                                          ${flight.airlineObj?.colorBackground ? `bg-${flight.airlineObj?.colorBackground} text-${flight.airlineObj?.colorForeground}` : 'bg-slate-900 text-slate-300'}
                                          `}
-                                        style={{
-                                            backgroundColor: flight.airlineObj?.colorBackground,
-                                            color: flight.airlineObj?.colorForeground
-                                        }}
-                                    >
-                                        {flight.airlineObj?.name || '-'}
-                                    </span>
+                                            style={{
+                                                backgroundColor: flight.airlineObj?.colorBackground,
+                                                color: flight.airlineObj?.colorForeground
+                                            }}
+                                        >
+                                            {flight.airlineObj?.name || "-"}
+                                            {/* {flight.airlineObj?.name?.length > 10 ? `${flight.airlineObj?.name?.slice(0, 10)}...` : flight.airlineObj?.name || '-'} */}
+                                        </span>
+                                    </Tooltip>
                                 </td>
                                 {/* Flight No - Show both arrival and departure */}
-                                <td className="px-4 py-3 text-sm">
+                                <td className="px-4 py-3 text-sm w-[150px]">
                                     <div className="space-y-1">
                                         {flight.arrivalFlightNo && (
                                             <div className="flex items-center gap-2">
@@ -95,72 +114,79 @@ export function FlightTable({ flights, isLoading }: FlightTableProps) {
                                 </td>
 
                                 {/* Root */}
-                                <td className="px-4 py-3 text-sm">
+                                <td className="px-4 py-3 text-sm w-[100px]">
                                     {`${flight.routeForm || "-"} / ${flight.routeTo || "-"}`}
                                 </td>
                                 {/* A/C Type */}
-                                <td className="px-4 py-3 text-sm">
+                                <td className="px-4 py-3 text-sm w-[80px]">
                                     {flight.acTypeObj?.code || flight.acType || '-'}
                                 </td>
 
                                 {/* REG */}
-                                <td className="px-4 py-3 text-sm">
+                                <td className="px-4 py-3 text-sm w-[80px]">
                                     {flight.acReg || '-'}
                                 </td>
 
                                 {/* STA */}
-                                <td className="px-4 py-3 text-sm">
-                                    <div className="">
-                                        {flight.arrivalStatime || '-'}
-                                    </div>
-                                    {/* {flight.arrivalAtaTime && flight.arrivalAtaTime !== '00:00' && (
-                                        <div className="text-xs text-sky-400">
-                                            ATA: {flight.arrivalAtaTime}
+                                <td className="px-4 py-3 text-sm w-[60px]">
+                                    <Tooltip content={dayjs(`${flight.arrivalDate} ${flight.arrivalStatime}`).format('DD-MMM-YYYY, HH:mm') || '-'}>
+                                        <div className="">
+                                            {dayjs(`${flight.arrivalDate} ${flight.arrivalStatime}`).format('HH:mm') || '-'}
                                         </div>
-                                    )} */}
+                                    </Tooltip>
                                 </td>
                                 {/* ETA */}
-                                <td className="px-4 py-3 text-sm">
-                                    <div className="">
-                                        {flight.arrivalAtaTime || '-'}
-                                    </div>
-                                    {/* {flight.arrivalAtaTime && flight.arrivalAtaTime !== '00:00' && (
-                                        <div className="text-xs text-sky-400">
-                                            ATA: {flight.arrivalAtaTime}
+                                <td className="px-4 py-3 text-sm w-[60px]">
+                                    <Tooltip content={dayjs(`${flight.arrivalDate} ${flight.arrivalAtaTime}`).format('DD-MMM-YYYY, HH:mm') || '-'}>
+                                        <div className="">
+                                            {dayjs(`${flight.arrivalDate} ${flight.arrivalAtaTime}`).format('HH:mm') || '-'}
                                         </div>
-                                    )} */}
+                                    </Tooltip>
                                 </td>
 
                                 {/* STD */}
-                                <td className="px-4 py-3 text-sm">
-                                    <div className="">
-                                        {flight.departureStdTime || '-'}
-                                    </div>
-                                    {/* {flight.departureAtdtime && flight.departureAtdtime !== '00:00' && (
-                                        <div className="text-xs text-emerald-400">
-                                            ATD: {flight.departureAtdtime}
+                                <td className="px-4 py-3 text-sm w-[60px]">
+                                    <Tooltip content={dayjs(`${flight.departureDate} ${flight.departureStdTime}`).format('DD-MMM-YYYY, HH:mm') || '-'}>
+                                        <div className="">
+                                            {dayjs(`${flight.departureDate} ${flight.departureStdTime}`).format('HH:mm') || '-'}
                                         </div>
-                                    )} */}
+                                    </Tooltip>
                                 </td>
 
                                 {/* BAY */}
-                                <td className="px-4 py-3 text-sm">
+                                <td className="px-4 py-3 text-sm w-[90px]">
                                     {flight.bayNo || '-'}
                                 </td>
                                 {/* CS */}
-                                <td className="px-4 py-3 text-sm ">
-                                    {flight.csList?.length ? (<span className="bg-yellow-300 text-black dark:text-slate-900 px-2 py-1 rounded">
-                                        {flight.csList?.map((cs) => cs.displayName).join(', ') || '-'}
-                                    </span>) : '-'}
+                                <td className="px-4 py-3 text-sm w-[100px]">
+                                    <div className="flex flex-wrap gap-1 items-start justify-start h-full flex-1 flex-col">
+                                        {flight.csList?.length ? (
+                                            flight.csList?.map((cs) => (
+                                                <Tooltip key={cs.id} content={cs.name || ''}>
+                                                    <span className="bg-cyan-500 text-white dark:text-slate-900 px-2 py-1 rounded">
+                                                        {cs.displayName}
+                                                    </span>
+                                                </Tooltip>
+                                            ))
+                                        ) : '-'}
+                                    </div>
                                 </td>
                                 {/* MECH */}
-                                <td className="px-4 py-3 text-sm">
-                                    {flight.mechList?.length ? (<span className="bg-blue-300 text-black dark:text-slate-900 px-2 py-1 rounded">
-                                        {flight.mechList?.map((mech) => mech.displayName).join(', ') || '-'}
-                                    </span>) : '-'}
+                                <td className="px-4 py-3 text-sm w-[100px]">
+                                    <div className="flex flex-wrap gap-1 items-start h-full flex-1 grow-0">
+                                        {flight.mechList?.length ? (
+                                            flight.mechList?.map((mech) => (
+                                                <Tooltip key={mech.id} content={mech.name || ''}>
+                                                    <span className="bg-amber-600 text-white dark:text-slate-900 px-2 py-1 rounded">
+                                                        {mech.displayName}
+                                                    </span>
+                                                </Tooltip>
+                                            ))
+                                        ) : '-'}
+                                    </div>
                                 </td>
                                 {/* Status */}
-                                <td className="px-4 py-3 text-sm">
+                                <td className="px-4 py-3 text-sm w-[100px]">
                                     <span className={`
                                         inline-flex items-center rounded px-2 py-1 text-xs font-medium
                                         ${flight.statusObj?.code === 'Normal' ? 'dark:bg-green-900/50 bg-green-700 dark:text-green-400 text-green-100' : ''}
@@ -172,11 +198,22 @@ export function FlightTable({ flights, isLoading }: FlightTableProps) {
                                     </span>
                                 </td>
                                 {/* Remarks */}
-                                <td className="px-4 py-3 text-sm text-slate-900 dark:text-slate-300">
-                                    {flight.note || '-'}
+                                <td className="px-4 py-3 text-sm w-[100px] text-slate-900 dark:text-slate-300">
+                                    {flight.note ? <Tooltip content={flight.note || ''}>
+                                        <div className="">
+                                            {flight.note?.length > 10 ? `${flight.note?.slice(0, 10)}...` : flight.note || '-'}
+                                        </div>
+                                    </Tooltip> : '-'}
                                 </td>
-                                <td className="px-4 py-3 text-sm text-slate-900 dark:text-slate-300">
-                                    <button className="bg-slate-600 text-white py-2 px-2 rounded-md cursor-pointer w-full flex items-center justify-center"><Edit className='w-5 h-5' /></button>
+                                <td className="px-2 py-2 text-sm w-[50px] text-slate-900 dark:text-slate-300 text-center">
+                                    <button
+                                        className="bg-slate-300 hover:bg-slate-500 text-slate-700 hover:text-slate-300 dark:text-slate-300 py-2 px-2 rounded-md cursor-pointer hover:scale-110 transition-all "
+                                        onClick={() => {
+                                            setEditFlightId(flight.flightInfosId);
+                                            setOpenEditFlight(true);
+                                        }} >
+                                        <Edit className='w-4 h-4' />
+                                    </button>
                                 </td>
 
                                 {/* Status */}

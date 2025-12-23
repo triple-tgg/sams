@@ -28,9 +28,6 @@ import {
 
 import { getLangDir } from "rtl-detect";
 import { useParams } from "next/navigation";
-
-import { useAddFlight } from "@/lib/api/hooks/useAddFlight";
-import type { FlightData } from "@/lib/api/flight/addFlight";
 import { useAirlineOptions } from "@/lib/api/hooks/useAirlines";
 import { useStationsOptions } from "@/lib/api/hooks/useStations";
 import { useStatusOptions } from "@/lib/api/hooks/useStatus";
@@ -43,6 +40,9 @@ import { toast } from "sonner";
 import { useMemo, useEffect } from "react";
 import useUpdateFlight from "@/lib/api/hooks/useUpdateFlight";
 import { useLineMaintenancesQueryThfByFlightId } from "@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId";
+import { PersonnelSection } from "./thf/create/components/CPresonel";
+import ConfirmEditFlight from "./thf/create/components/ConfirmEditFlight";
+
 
 
 
@@ -52,7 +52,7 @@ import { useLineMaintenancesQueryThfByFlightId } from "@/lib/api/hooks/uselineMa
 type Option = { value: string; label: string };
 
 // RHF form values (before transform -> API payload)
-const FormSchema = z
+export const FormSchema = z
   .object({
     customer: z.object({ value: z.string(), label: z.string() }).nullable().refine(Boolean, "Required"),
     station: z.object({ value: z.string(), label: z.string() }).nullable().refine(Boolean, "Required"),
@@ -64,18 +64,22 @@ const FormSchema = z
     arrivalDate: z.string().regex(/^\d{2}\/\d{2}\/\d{4}$/g, "DD/MMM/YYYY"),
     sta: z.string().regex(/^\d{2}:\d{2}$/g, "HH:mm"),
     ata: z.string().regex(/^\d{2}:\d{2}$/g, "HH:mm").optional().or(z.literal("")),
-    // routeFrom: z.object({ value: z.string(), label: z.string() }).nullable().optional(),
+    routeFrom: z.object({ value: z.string(), label: z.string() }).nullable().optional(),
 
     flightDeparture: z.string().trim().optional().default(""),
     departureDate: z.string().regex(/^\d{2}\/\d{2}\/\d{4}$/g, "DD/MMM/YYYY").optional().or(z.literal("")),
     std: z.string().regex(/^\d{2}:\d{2}$/g, "HH:mm").optional().or(z.literal("")),
     atd: z.string().regex(/^\d{2}:\d{2}$/g, "HH:mm").optional().or(z.literal("")),
-    // routeTo: z.object({ value: z.string(), label: z.string() }).nullable().optional(),
+    routeTo: z.object({ value: z.string(), label: z.string() }).nullable().optional(),
 
     bay: z.string().trim().optional().default(""),
     thfNumber: z.string().trim().optional().default(""),
     status: z.object({ value: z.string(), label: z.string() }).nullable().default({ value: "Normal", label: "Normal" }),
-    note: z.string().trim().optional().default("")
+    note: z.string().trim().optional().default(""),
+
+    userName: z.string().trim().optional().default(""),
+    csIdList: z.array(z.number()).nullable().default(null),
+    mechIdList: z.array(z.number()).nullable().default(null),
   })
   // ถ้าใส่ departure อย่างใดอย่างหนึ่ง ต้องใส่ให้ครบ (date + std อย่างน้อย)
   .refine(
@@ -127,16 +131,19 @@ const createDefaultValues = (flightData: any): Inputs => {
       arrivalDate: "",
       sta: "",
       ata: "",
-      // routeFrom: null,
+      routeFrom: null,
       flightDeparture: "",
       departureDate: "",
       std: "",
       atd: "",
-      // routeTo: null,
+      routeTo: null,
       bay: "",
       thfNumber: "",
       status: { value: "Normal", label: "Normal" },
       note: "",
+      userName: "",
+      csIdList: null,
+      mechIdList: null
     };
   }
 
@@ -177,6 +184,10 @@ const createDefaultValues = (flightData: any): Inputs => {
       label: responseData.statusObj.name || responseData.statusObj.code
     } : { value: "Normal", label: "Normal" },
     note: responseData.note || "",
+
+    userName: responseData.userName || "",
+    csIdList: responseData.csIdList || null,
+    mechIdList: responseData.mechIdList || null,
   };
 };
 
@@ -193,7 +204,12 @@ interface EditFlightProps {
 export default function EditFlight({ open, setOpen, flightInfosId, onClose }: EditFlightProps) {
   const params = useParams<{ locale: string }>();
   const direction = getLangDir(params?.locale ?? "");
+  const [isConfirm, setIsConfirm] = React.useState(false)
 
+  const handleOnClose = () => {
+    setOpen(false)
+    setIsConfirm(false)
+  }
   // const { data: flightData } = useFlightQueryById(flightId);
   const { data: flightInfoData } = useLineMaintenancesQueryThfByFlightId({ flightInfosId });
   // Use airline options hook
@@ -222,14 +238,13 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
 
   // Memoize default values based on flight data
   const defaultValues = useMemo(() => createDefaultValues(flightInfoData), [flightInfoData]);
-
-  console.log("flightInfoData:", flightInfoData)
   const {
     register,
     handleSubmit,
     control,
     formState: { errors },
     reset,
+    setValue,
   } = useForm<Inputs>({
     resolver: zodResolver(FormSchema),
     defaultValues,
@@ -266,6 +281,12 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
       thfNo: (values.thfNumber ?? "").trim(),
       statusCode: values.status?.value ?? "Normal",
       note: (values.note ?? "").trim(),
+      routeFrom: values.routeFrom?.value ?? "",
+      routeTo: values.routeTo?.value ?? "",
+
+      userName: values.userName.trim() ?? "",
+      csIdList: values.csIdList || null,
+      mechIdList: values.mechIdList || null,
     };
 
     updateFlight(
@@ -275,7 +296,7 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
           toast.success("Flight updated successfully.")
           reset();
           // setOpen(false);
-          onClose();
+          handleOnClose();
         },
         onError: (err) => {
           toast.error(err?.message ?? "Submit failed")
@@ -293,7 +314,10 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
     <Dialog
       open={open}
       onOpenChange={(o) => {
-        if (!isPending) setOpen(o);
+        if (!isPending) {
+          setOpen(o)
+          setIsConfirm(false)
+        };
       }}
     >
       <DialogContent
@@ -306,348 +330,371 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
           if (isPending) e.preventDefault();
         }}
       >
-        <DialogHeader>
-          <DialogTitle>Edit Flight Information</DialogTitle>
-        </DialogHeader>
-        <DialogDescription className="hidden" />
-        <Separator className="mb-4" />
+        {isConfirm ?
+          <React.Fragment>
+            <DialogHeader>
+              <DialogTitle>Edit Flight Information</DialogTitle>
+            </DialogHeader>
+            <DialogDescription className="hidden" />
+            <Separator className="mb-4" />
 
-        <ScrollArea className="[&>div>div[style]]:block!" dir={direction}>
-          <form id="create-flight-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            {/* Customer / Station */}
-            <div className="grid lg:grid-cols-2 gap-6">
-              <div className="space-y-1">
-                <Label htmlFor="customer">Customer / Airlines</Label>
-                <Controller
-                  name="customer"
-                  control={control}
-                  render={({ field }) => (
-                    <Select
-                      value={field.value?.value}
-                      onValueChange={(value) => {
-                        const option = customerOptions.find(opt => opt.value === value);
-                        field.onChange(option || null);
-                      }}
-                      disabled={loadingAirlines || customerOptions.length === 0}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={
-                          loadingAirlines ? "Loading airlines..." :
-                            airlinesError ? "Failed to load airlines" :
-                              customerOptions.length === 0 ? "No airlines found" :
-                                "Select customer"
-                        } />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {customerOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                <FieldError msg={errors.customer?.message as string | undefined} />
-                {usingFallback && (
-                  <p className="text-sm text-amber-600">
-                    ⚠️ Using offline airline data due to API connection issue
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="station">Station</Label>
-                <Controller
-                  name="station"
-                  control={control}
-                  render={({ field }) => (
-                    <Select
-                      value={field.value?.value}
-                      onValueChange={(value) => {
-                        const option = stationOptions.find(opt => opt.value === value);
-                        field.onChange(option || null);
-                      }}
-                      disabled={loadingStations || stationOptions.length === 0}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={
-                          loadingStations ? "Loading stations..." :
-                            stationsError ? "Failed to load stations" :
-                              stationOptions.length === 0 ? "No stations found" :
-                                "Select station"
-                        } />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {stationOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                <FieldError msg={errors.station?.message as string | undefined} />
-                {stationsUsingFallback && (
-                  <p className="text-sm text-amber-600">
-                    ⚠️ Using offline station data due to API connection issue
-                  </p>
-                )}
-              </div>
-
-              {/* A/C Reg / A/C Type */}
-              <div className="space-y-1">
-                <Label htmlFor="acReg">A/C Reg</Label>
-                <Input {...register("acReg")} placeholder="A/C Reg" autoComplete="off" />
-                <FieldError msg={errors.acReg?.message} />
-              </div>
-              <div className="space-y-1">
-                <SearchableSelectField
-                  name="acType"
-                  control={control}
-                  label="A/C Type"
-                  placeholder="Select A/C Type"
-                  options={aircraftOptions}
-                  isLoading={isLoadingAircraft}
-                  errorMessage={errors.acType?.message}
-                  usingFallback={acTypeCodeUsingFallback}
-                />
-              </div>
-            </div>
-
-            <Separator className="mb-8 mt-10" />
-
-            {/* ARRIVAL + DEPARTURE */}
-            <div className="grid lg:grid-cols-2 gap-6">
-              {/* ARRIVAL */}
-              <div>
-                <h4 className="text-sm font-medium mb-2">Arrival (UTC Time)</h4>
-                <div className="grid grid-cols-2 gap-4">
+            <ScrollArea className="[&>div>div[style]]:block!" dir={direction}>
+              <form id="create-flight-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                {/* Customer / Station */}
+                <div className="grid lg:grid-cols-2 gap-6">
                   <div className="space-y-1">
-                    <Label htmlFor="flightArrival">Flight No</Label>
-                    <Input {...register("flightArrival")} placeholder="Flight No" autoComplete="off" />
-                    <FieldError msg={errors.flightArrival?.message} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="arrivalDate">Date</Label>
+                    <Label htmlFor="customer">Customer / Airlines</Label>
                     <Controller
-                      name="arrivalDate"
+                      name="customer"
                       control={control}
                       render={({ field }) => (
-                        <CustomDateInput
-                          value={field.value}
-                          onChange={field.onChange}
-                          placeholder="DD-MMM-YYYY"
-                        />
+                        <Select
+                          value={field.value?.value}
+                          onValueChange={(value) => {
+                            const option = customerOptions.find(opt => opt.value === value);
+                            field.onChange(option || null);
+                          }}
+                          disabled={loadingAirlines || customerOptions.length === 0}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={
+                              loadingAirlines ? "Loading airlines..." :
+                                airlinesError ? "Failed to load airlines" :
+                                  customerOptions.length === 0 ? "No airlines found" :
+                                    "Select customer"
+                            } />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {customerOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       )}
                     />
-                    <FieldError msg={errors.arrivalDate?.message} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="sta">STA (UTC)</Label>
-                    <Input type="time" {...register("sta")} />
-                    <FieldError msg={errors.sta?.message} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="ata">ATA (UTC)</Label>
-                    <Input type="time" {...register("ata")} />
-                    <FieldError msg={errors.ata?.message} />
-                  </div>
-                  {/* <div className="space-y-2 col-span-2">
-                            <Label htmlFor="routeFrom">Route From</Label>
-                            <Controller
-                              name="routeFrom"
-                              control={control}
-                              render={({ field }) => (
-                                <Select
-                                  value={field.value?.value}
-                                  onValueChange={(value) => {
-                                    const option = stationOptions.find(opt => opt.value === value);
-                                    field.onChange(option || null);
-                                  }}
-                                  disabled={loadingStations}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder={
-                                      loadingStations ? "Loading stations..." :
-                                        stationsError ? "Failed to load stations" :
-                                          stationOptions.length === 0 ? "No stations found" :
-                                            "Select station"
-                                    } />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {stationOptions.map((option) => (
-                                      <SelectItem key={option.value} value={option.value}>
-                                        {option.label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              )}
-                            />
-                            <FieldError msg={errors.station?.message as string | undefined} />
-                            {stationsUsingFallback && (
-                              <p className="text-sm text-amber-600">
-                                ⚠️ Using offline station data due to API connection issue
-                              </p>
-                            )}
-                          </div> */}
-                </div>
-              </div>
-
-              {/* DEPARTURE */}
-              <div>
-                <h4 className="text-sm font-medium mb-2">Departure (UTC Time)</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <Label htmlFor="flightDeparture">Flight No</Label>
-                    <Input {...register("flightDeparture")} placeholder="Flight No" autoComplete="off" />
-                    <FieldError msg={errors.flightDeparture?.message} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="departureDate">Date</Label>
-                    <Controller
-                      name="departureDate"
-                      control={control}
-                      render={({ field }) => (
-                        <CustomDateInput
-                          value={field.value}
-                          onChange={field.onChange}
-                          placeholder="DD-MMM-YYYY"
-                        />
-                      )}
-                    />
-                    <FieldError msg={errors.departureDate?.message} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="std">STD (UTC)</Label>
-                    <Input type="time" {...register("std")} />
-                    <FieldError msg={errors.std?.message} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="atd">ATD (UTC)</Label>
-                    <Input type="time" {...register("atd")} />
-                    <FieldError msg={errors.atd?.message} />
-                  </div>
-                  {/* <div className="space-y-2 col-span-2">
-                            <Label htmlFor="routeTo">Route To</Label>
-                            <Controller
-                              name="routeTo"
-                              control={control}
-                              render={({ field }) => (
-                                <Select
-                                  value={field.value?.value}
-                                  onValueChange={(value) => {
-                                    const option = stationOptions.find(opt => opt.value === value);
-                                    field.onChange(option || null);
-                                  }}
-                                  disabled={loadingStations}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder={
-                                      loadingStations ? "Loading stations..." :
-                                        stationsError ? "Failed to load stations" :
-                                          stationOptions.length === 0 ? "No stations found" :
-                                            "Select station"
-                                    } />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {stationOptions.map((option) => (
-                                      <SelectItem key={option.value} value={option.value}>
-                                        {option.label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              )}
-                            />
-                            <FieldError msg={errors.station?.message as string | undefined} />
-                            {stationsUsingFallback && (
-                              <p className="text-sm text-amber-600">
-                                ⚠️ Using offline station data due to API connection issue
-                              </p>
-                            )}
-                          </div> */}
-                </div>
-              </div>
-            </div>
-
-            <Separator className="mb-8 mt-10" />
-
-            <div className="grid lg:grid-cols-2 gap-6">
-              <div className="space-y-1 ">
-                <div className="space-y-1">
-                  <Label htmlFor="bay">Bay</Label>
-                  <Input {...register("bay")} placeholder="Bay" autoComplete="off" />
-                  <FieldError msg={errors.bay?.message} />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="status">Status</Label>
-                  <Controller
-                    name="status"
-                    control={control}
-                    render={({ field }) => (
-                      <Select
-                        value={field.value?.value}
-                        onValueChange={(value) => {
-                          const option = statusOptions.find(opt => opt.value === value);
-                          field.onChange(option || null);
-                        }}
-                        disabled={loadingStatus || statusOptions.length === 0}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder={
-                            loadingStatus ? "Loading status..." :
-                              statusError ? "Failed to load status" :
-                                statusOptions.length === 0 ? "No status found" :
-                                  "Select status"
-                          } />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {statusOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <FieldError msg={errors.customer?.message as string | undefined} />
+                    {usingFallback && (
+                      <p className="text-sm text-amber-600">
+                        ⚠️ Using offline airline data due to API connection issue
+                      </p>
                     )}
-                  />
-                  <FieldError msg={errors.status?.message as string | undefined} />
-                  {statusUsingFallback && (
-                    <p className="text-sm text-amber-600">
-                      ⚠️ Using offline status data due to API connection issue
-                    </p>
-                  )}
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="station">Station</Label>
+                    <Controller
+                      name="station"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          value={field.value?.value}
+                          onValueChange={(value) => {
+                            const option = stationOptions.find(opt => opt.value === value);
+                            field.onChange(option || null);
+                          }}
+                          disabled={loadingStations || stationOptions.length === 0}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={
+                              loadingStations ? "Loading stations..." :
+                                stationsError ? "Failed to load stations" :
+                                  stationOptions.length === 0 ? "No stations found" :
+                                    "Select station"
+                            } />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {stationOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    <FieldError msg={errors.station?.message as string | undefined} />
+                    {stationsUsingFallback && (
+                      <p className="text-sm text-amber-600">
+                        ⚠️ Using offline station data due to API connection issue
+                      </p>
+                    )}
+                  </div>
+
+                  {/* A/C Reg / A/C Type */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <Label htmlFor="acReg">A/C Reg</Label>
+                      <Input {...register("acReg")} placeholder="A/C Reg" autoComplete="off" />
+                      <FieldError msg={errors.acReg?.message} />
+                    </div>
+                    <div className="space-y-1">
+                      <SearchableSelectField
+                        name="acType"
+                        control={control}
+                        label="A/C Type"
+                        placeholder="Select A/C Type"
+                        options={aircraftOptions}
+                        isLoading={isLoadingAircraft}
+                        errorMessage={errors.acType?.message}
+                        usingFallback={acTypeCodeUsingFallback}
+                      />
+                    </div>
+                  </div>
+                  {/* Route From / Route To */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2 col-span-1">
+                      <Label htmlFor="routeFrom">Route From</Label>
+                      <Controller
+                        name="routeFrom"
+                        control={control}
+                        render={({ field }) => (
+                          <Select
+                            value={field.value?.value}
+                            onValueChange={(value) => {
+                              const option = stationOptions.find(opt => opt.value === value);
+                              field.onChange(option || null);
+                            }}
+                            disabled={loadingStations}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder={
+                                loadingStations ? "Loading stations..." :
+                                  stationsError ? "Failed to load stations" :
+                                    stationOptions.length === 0 ? "No stations found" :
+                                      "Select station"
+                              } />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {stationOptions.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                      <FieldError msg={errors.station?.message as string | undefined} />
+                      {stationsUsingFallback && (
+                        <p className="text-sm text-amber-600">
+                          ⚠️ Using offline station data due to API connection issue
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2 col-span-1">
+                      <Label htmlFor="routeTo">Route To</Label>
+                      <Controller
+                        name="routeTo"
+                        control={control}
+                        render={({ field }) => (
+                          <Select
+                            value={field.value?.value}
+                            onValueChange={(value) => {
+                              const option = stationOptions.find(opt => opt.value === value);
+                              field.onChange(option || null);
+                            }}
+                            disabled={loadingStations}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder={
+                                loadingStations ? "Loading stations..." :
+                                  stationsError ? "Failed to load stations" :
+                                    stationOptions.length === 0 ? "No stations found" :
+                                      "Select station"
+                              } />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {stationOptions.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                      <FieldError msg={errors.station?.message as string | undefined} />
+                      {stationsUsingFallback && (
+                        <p className="text-sm text-amber-600">
+                          ⚠️ Using offline station data due to API connection issue
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-1">
-                <div className="space-y-1">
-                  <Label htmlFor="note">Note</Label>
-                  <Textarea {...register("note")} placeholder="Note..." />
-                  <FieldError msg={errors.note?.message} />
+
+                <Separator className="mb-8 mt-10" />
+
+                {/* ARRIVAL + DEPARTURE */}
+                <div className="grid lg:grid-cols-2 gap-6">
+                  {/* ARRIVAL */}
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">Arrival (UTC Time)</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <Label htmlFor="flightArrival">Flight No</Label>
+                        <Input {...register("flightArrival")} placeholder="Flight No" autoComplete="off" />
+                        <FieldError msg={errors.flightArrival?.message} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="arrivalDate">Date</Label>
+                        <Controller
+                          name="arrivalDate"
+                          control={control}
+                          render={({ field }) => (
+                            <CustomDateInput
+                              value={field.value}
+                              onChange={field.onChange}
+                              placeholder="DD-MMM-YYYY"
+                            />
+                          )}
+                        />
+                        <FieldError msg={errors.arrivalDate?.message} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="sta">STA (UTC)</Label>
+                        <Input type="time" {...register("sta")} />
+                        <FieldError msg={errors.sta?.message} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="ata">ATA (UTC)</Label>
+                        <Input type="time" {...register("ata")} />
+                        <FieldError msg={errors.ata?.message} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* DEPARTURE */}
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">Departure (UTC Time)</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <Label htmlFor="flightDeparture">Flight No</Label>
+                        <Input {...register("flightDeparture")} placeholder="Flight No" autoComplete="off" />
+                        <FieldError msg={errors.flightDeparture?.message} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="departureDate">Date</Label>
+                        <Controller
+                          name="departureDate"
+                          control={control}
+                          render={({ field }) => (
+                            <CustomDateInput
+                              value={field.value}
+                              onChange={field.onChange}
+                              placeholder="DD-MMM-YYYY"
+                            />
+                          )}
+                        />
+                        <FieldError msg={errors.departureDate?.message} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="std">STD (UTC)</Label>
+                        <Input type="time" {...register("std")} />
+                        <FieldError msg={errors.std?.message} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="atd">ATD (UTC)</Label>
+                        <Input type="time" {...register("atd")} />
+                        <FieldError msg={errors.atd?.message} />
+                      </div>
+
+
+                    </div>
+                  </div>
                 </div>
-              </div>
+                <div className="grid lg:grid-cols-2 gap-6">
+                  <div className="space-y-1 ">
+                    <div className="space-y-1">
+                      <Label htmlFor="bay">Bay</Label>
+                      <Input {...register("bay")} placeholder="Bay" autoComplete="off" />
+                      <FieldError msg={errors.bay?.message} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="status">Status</Label>
+                      <Controller
+                        name="status"
+                        control={control}
+                        render={({ field }) => (
+                          <Select
+                            value={field.value?.value}
+                            onValueChange={(value) => {
+                              const option = statusOptions.find(opt => opt.value === value);
+                              field.onChange(option || null);
+                            }}
+                            disabled={loadingStatus || statusOptions.length === 0}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder={
+                                loadingStatus ? "Loading status..." :
+                                  statusError ? "Failed to load status" :
+                                    statusOptions.length === 0 ? "No status found" :
+                                      "Select status"
+                              } />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {statusOptions.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                      <FieldError msg={errors.status?.message as string | undefined} />
+                      {statusUsingFallback && (
+                        <p className="text-sm text-amber-600">
+                          ⚠️ Using offline status data due to API connection issue
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="space-y-1">
+                      <Label htmlFor="note">Note</Label>
+                      <Textarea {...register("note")} placeholder="Note..." />
+                      <FieldError msg={errors.note?.message} />
+                    </div>
+                  </div>
+                </div>
+
+
+                <Separator className="mb-8 mt-10" />
+                <PersonnelSection
+                  control={control}
+                  onCsChange={(ids) => setValue("csIdList", ids)}
+                  onMechChange={(ids) => setValue("mechIdList", ids)}
+                />
+
+
+                {mError && (
+                  <p className="text-sm text-red-600">
+                    {(mError as { error?: string; message?: string })?.error || "Submit failed"}
+                  </p>
+                )}
+              </form>
+            </ScrollArea>
+
+            <Separator className="mb-2 mt-0" />
+            <div className="flex justify-end gap-2 py-2 px-2">
+              <Button
+                type="button" variant="outline" color="primary" onClick={() => handleOnClose()} disabled={isPending}>
+                Cancel
+              </Button>
+              <Button type="submit" color="primary" form="create-flight-form" disabled={isPending}>
+                {isPending ? "Updating..." : "Update"}
+              </Button>
             </div>
-
-            {mError && (
-              <p className="text-sm text-red-600">
-                {(mError as { error?: string; message?: string })?.error || "Submit failed"}
-              </p>
-            )}
-          </form>
-        </ScrollArea>
-
-        <Separator className="mb-2 mt-0" />
-        <div className="flex justify-end gap-2 py-2 px-2">
-          <Button type="button" variant="outline" color="primary" onClick={() => onClose()} disabled={isPending}>
-            Cancel
-          </Button>
-          <Button type="submit" color="primary" form="create-flight-form" disabled={isPending}>
-            {isPending ? "Updating..." : "Update"}
-          </Button>
-        </div>
+          </React.Fragment>
+          : <ConfirmEditFlight
+            onClose={handleOnClose}
+            onConfirm={() => setIsConfirm(true)}
+            setUserConfirm={(ids) => setValue("userName", ids)}
+          />
+        }
       </DialogContent>
     </Dialog>
   );

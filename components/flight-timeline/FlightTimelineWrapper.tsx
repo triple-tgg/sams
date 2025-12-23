@@ -15,11 +15,14 @@ import {
 import { useFlightListQuery } from '@/lib/api/hooks/useFlightListQuery';
 import { GetFlightListParams } from "@/lib/api/flight/getFlightList";
 import { FlightItem } from "@/lib/api/flight/filghtlist.interface";
-import { AlignStartVertical, ArrowLeftFromLine, ArrowRightFromLine, ChevronLeft, ChevronRight, Table, Maximize2, Minimize2, X } from "lucide-react";
+import { AlignStartVertical, ArrowLeftFromLine, ArrowRightFromLine, ChevronLeft, ChevronRight, Table, Maximize2, Minimize2, X, Plus } from "lucide-react";
 import { FlightTimeline } from "./FlightTimeline";
-import { GridCell } from "./GridCell";
 import { FlightPlanbyItem, useFlightListPlanbyQuery } from "@/lib/api/hooks/useFlightListPlanbyQuery";
 import dayjs from "dayjs";
+import CreateProject from "@/app/[locale]/(protected)/flight/create-project";
+import { Button } from "@/components/ui/button";
+import EditFlight from "@/app/[locale]/(protected)/flight/edit-project";
+
 
 
 interface FlightTimelineWrapperProps {
@@ -37,6 +40,7 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
     const [currentTime, setCurrentTime] = useState(new Date());
     const contentRef = useRef<HTMLDivElement>(null);
     const timelineContainerRef = useRef<HTMLDivElement>(null);
+    const [openAddFlight, setOpenAddFlight] = useState<boolean>(false);
 
     // Update current time every minute
     useEffect(() => {
@@ -233,6 +237,7 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
 
     return (
         <div className="relative space-y-4">
+            <CreateProject open={openAddFlight} setOpen={setOpenAddFlight} />
             {/* Controls */}
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg dark:bg-slate-800/50 bg-slate-100 p-4 shadow">
                 {/* Date Navigation */}
@@ -331,6 +336,19 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                                 {/* <span>Table</span> */}
                             </button>
                         </div>
+
+                        <div>
+                            <Button
+                                className="flex-none"
+                                color="primary"
+                                onClick={() => setOpenAddFlight(true)}
+                                size="md"
+                            >
+                                <Plus className="w-4 h-4" />
+                                <span>Add Flight</span>
+                            </Button>
+                        </div>
+
                         {/* Fullscreen Toggle Button */}
                         <div className="flex justify-end items-center gap-1 rounded-lg bg-slate-700 p-1">
                             <button

@@ -22,6 +22,10 @@ export interface FlightData {
   thfNo: string;
   statusCode: string;
   note: string;
+
+  userName: string;
+  csIdList: number[] | null;
+  mechIdList: number[] | null;
 }
 
 // ถ้า API ห่อ response เป็น envelope อื่น ปรับให้ตรงได้
@@ -38,7 +42,7 @@ export async function addFlight(
   opts: ReqOpts = {}
 ): Promise<AddFlightRes> {
   try {
-    const res = await axios.post<AddFlightRes>("/flight/import", flightData, {
+    const res = await axios.post<AddFlightRes>("/flight/import-v2", flightData, {
       signal: opts.signal,
       headers: opts.token ? { Authorization: `Bearer ${opts.token}` } : undefined,
     });

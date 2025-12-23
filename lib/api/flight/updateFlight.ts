@@ -44,7 +44,7 @@ export async function updateFlight(
   opts: ReqOpts = {}
 ): Promise<UpdateFlightResponse> {
   try {
-    const res = await axios.post<UpdateFlightResponse>("/flight/update", flightData, {
+    const res = await axios.post<UpdateFlightResponse>("/flight/update-v2", flightData, {
       signal: opts.signal,
       headers: opts.token ? { Authorization: `Bearer ${opts.token}` } : undefined,
     });

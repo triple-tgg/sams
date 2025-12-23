@@ -155,6 +155,9 @@ export interface Flight {
   routeForm?: string | null; // Fixed typo from routeFrom
   routeTo?: string | null; // Made explicitly nullable
   acTypeId?: number | null; // Added this field from response
+  userName: string;
+  csIdList: number[] | null;
+  mechIdList: number[] | null;
 }
 
 export interface LineMaintenance {
