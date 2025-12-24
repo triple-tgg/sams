@@ -4,7 +4,7 @@ import { Control, useWatch } from "react-hook-form";
 import { FormSchema } from "../../../../edit-project";
 import z from "zod";
 import { Label } from "@/components/ui/label";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -26,12 +26,19 @@ interface PersonnelSectionProps {
     control: Control<Inputs>;
     onCsChange: (ids: number[]) => void;
     onMechChange: (ids: number[]) => void;
+    initialCsList?: SelectedStaff[];
+    initialMechList?: SelectedStaff[];
 }
 
-export const PersonnelSection = ({ control, onCsChange, onMechChange }: PersonnelSectionProps) => {
+export const PersonnelSection = ({
+    control,
+    onCsChange,
+    onMechChange,
+    initialCsList = [],
+    initialMechList = [],
+}: PersonnelSectionProps) => {
     const csIdList = useWatch({ control, name: "csIdList" }) || [];
     const mechIdList = useWatch({ control, name: "mechIdList" }) || [];
-
     return (
         <div className="space-y-4">
             <h4 className="text-sm font-medium">Personnel Assignment</h4>
@@ -48,6 +55,7 @@ export const PersonnelSection = ({ control, onCsChange, onMechChange }: Personne
                         onChange={onCsChange}
                         placeholder="Search CS staff..."
                         badgeColor="bg-cyan-500"
+                        initialStaff={initialCsList}
                     />
                 </div>
 
@@ -63,6 +71,7 @@ export const PersonnelSection = ({ control, onCsChange, onMechChange }: Personne
                         onChange={onMechChange}
                         placeholder="Search MECH staff..."
                         badgeColor="bg-amber-500"
+                        initialStaff={initialMechList}
                     />
                 </div>
             </div>
@@ -79,6 +88,7 @@ interface StaffSearchSelectProps {
     onChange: (ids: number[]) => void;
     placeholder?: string;
     badgeColor?: string;
+    initialStaff?: SelectedStaff[];
 }
 
 export const StaffSearchSelect = ({
@@ -87,17 +97,30 @@ export const StaffSearchSelect = ({
     onChange,
     placeholder = "Search staff...",
     badgeColor = "bg-blue-500",
+    initialStaff = [],
 }: StaffSearchSelectProps) => {
     const [searchTerm, setSearchTerm] = useState("");
     const [showResults, setShowResults] = useState(false);
-    const [selectedStaff, setSelectedStaff] = useState<SelectedStaff[]>([]);
+    const [selectedStaff, setSelectedStaff] = useState<SelectedStaff[]>(initialStaff);
     const [searchBy, setSearchBy] = useState<'code' | 'name'>('code')
+    const [isInitialized, setIsInitialized] = useState(false);
+
+    // Initialize selectedStaff from initialStaff prop when component mounts or when initialStaff changes
+    useEffect(() => {
+        if (!isInitialized && initialStaff.length > 0) {
+            setSelectedStaff(initialStaff);
+            setIsInitialized(true);
+        }
+    }, [initialStaff, isInitialized]);
+
+    // Sync selectedStaff when selectedIds changes externally (reset scenario)
+    useEffect(() => {
+        if (selectedIds.length === 0 && selectedStaff.length > 0) {
+            setSelectedStaff([]);
+        }
+    }, [selectedIds]);
 
     // Fetch staff data based on search
-    // const { data: staffData, isLoading } = useStaff(
-    //   { code: "", name: searchTerm, id: "" },
-    //   searchTerm.length > 1
-    // );
     const { data: staffData, isLoading } = useStaff(
         {
             code: searchBy === 'code' ? searchTerm : '',

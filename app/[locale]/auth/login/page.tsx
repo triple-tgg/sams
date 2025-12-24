@@ -2,6 +2,8 @@ import { Link } from '@/i18n/routing';
 import LoginForm from "@/components/partials/auth/login-form";
 import Copyright from "@/components/partials/auth/copyright";
 import Logo from "@/components/partials/auth/logo";
+import Image from "next/image";
+
 const Login = ({ params: { locale } }: { params: { locale: string } }) => {
   return (
     <>

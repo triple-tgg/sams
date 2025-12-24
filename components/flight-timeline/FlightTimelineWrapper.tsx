@@ -15,7 +15,7 @@ import {
 import { useFlightListQuery } from '@/lib/api/hooks/useFlightListQuery';
 import { GetFlightListParams } from "@/lib/api/flight/getFlightList";
 import { FlightItem } from "@/lib/api/flight/filghtlist.interface";
-import { AlignStartVertical, ArrowLeftFromLine, ArrowRightFromLine, ChevronLeft, ChevronRight, Table, Maximize2, Minimize2, X, Plus } from "lucide-react";
+import { AlignStartVertical, ArrowLeftFromLine, ArrowRightFromLine, ChevronLeft, ChevronRight, Table, Maximize2, Minimize2, X, Plus, AlarmClockOff, AlarmClock } from "lucide-react";
 import { FlightTimeline } from "./FlightTimeline";
 import { FlightPlanbyItem, useFlightListPlanbyQuery } from "@/lib/api/hooks/useFlightListPlanbyQuery";
 import dayjs from "dayjs";
@@ -36,6 +36,7 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
     const [selectedDate, setSelectedDate] = useState<Date>(initialDate || new Date());
     const [viewMode, setViewMode] = useState<'timeline' | 'table'>('timeline');
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [isAlarm, setIsAlarm] = useState(false);
     const [containerKey, setContainerKey] = useState(0);
     const [currentTime, setCurrentTime] = useState(new Date());
     const contentRef = useRef<HTMLDivElement>(null);
@@ -46,7 +47,7 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
     useEffect(() => {
         const timer = setInterval(() => {
             setCurrentTime(new Date());
-        }, 60000); // Update every minute
+        }, 600); // Update every minute
 
         return () => clearInterval(timer);
     }, []);
@@ -310,6 +311,28 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                         </div>
                     </div> */}
 
+                    <div className="flex items-center gap-2">
+                        {/* Current Time Badge */}
+                        {viewMode === 'table' && <Button
+                            onClick={() => setIsAlarm(!isAlarm)}
+                            color={isAlarm ? "warning" : "destructive"}
+                            className="flex space-x-2"
+                            size="md"
+                        >
+                            {isAlarm ? <AlarmClockOff className="w-4 h-4" /> : <AlarmClock className="w-4 h-4 animate-pulse" />}
+                            {!isAlarm ? <span className="text-sm font-bold">{formattedCurrentTime}</span> : <span className="text-sm font-bold">OFF</span>}
+                        </Button>
+                        }
+                        <Button
+                            className="flex-none"
+                            color="primary"
+                            onClick={() => setOpenAddFlight(true)}
+                            size="md"
+                        >
+                            <Plus className="w-4 h-4" />
+                            <span>Add Flight</span>
+                        </Button>
+                    </div>
                     {/* View Toggle */}
                     <div className="flex items-center gap-2">
                         <div className="text-sm text-slate-700 dark:text-white">View : </div>
@@ -335,18 +358,6 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                                 <span><Table className="w-4 h-4" /></span>
                                 {/* <span>Table</span> */}
                             </button>
-                        </div>
-
-                        <div>
-                            <Button
-                                className="flex-none"
-                                color="primary"
-                                onClick={() => setOpenAddFlight(true)}
-                                size="md"
-                            >
-                                <Plus className="w-4 h-4" />
-                                <span>Add Flight</span>
-                            </Button>
                         </div>
 
                         {/* Fullscreen Toggle Button */}
@@ -394,11 +405,6 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                             className="relative overflow-hidden rounded-lg border-2 dark:border-2 dark:border-slate-700 dark:bg-slate-900 bg-white shadow-lg"
                             style={{ height: isFullscreen ? 'calc(100vh - 80px)' : '600px' }}
                         >
-                            {/* Current Time Badge */}
-                            {/* <div className="absolute top-2 right-2 z-50 flex items-center gap-2 bg-red-500 text-white px-3 py-1.5 rounded-lg shadow-lg">
-                                <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                                <span className="text-sm font-bold">{formattedCurrentTime}</span>
-                            </div> */}
                             <Epg key={containerKey} {...getEpgProps()} isLoading={isLoading}>
                                 <Layout
                                     {...(getLayoutProps() as any)}
@@ -424,7 +430,7 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                         </div>
                     )
                 ) : (
-                    isFetched && <FlightTable flights={flights} isLoading={isLoading} />
+                    isFetched && <FlightTable flights={flights} isLoading={isLoading} isFullscreen={isFullscreen} isAlarm={isAlarm} />
                 )}
             </div>
 

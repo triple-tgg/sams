@@ -5,22 +5,73 @@ import { Edit } from 'lucide-react';
 import Tooltip from '../ui/c-tooltip';
 import dayjs from 'dayjs';
 import EditFlight from '@/app/[locale]/(protected)/flight/edit-project';
-import { useState } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 
+// Filter function: extracted for reusability
+const filterFlightsByAlarm = (flights: FlightItem[], currentTime: Date): FlightItem[] => {
+    const now = dayjs(currentTime);
+    const today = now.format('YYYY-MM-DD');
+
+    return flights.filter((flight) => {
+        // Check if arrivalDate is today
+        const arrivalDate = flight.arrivalDate || '';
+        const arrivalDateFormatted = dayjs(arrivalDate).format('YYYY-MM-DD');
+        const isArrivalToday = arrivalDate === today || arrivalDateFormatted === today;
+
+        // If arrivalDate is NOT today, show the flight normally
+        if (!isArrivalToday) return true;
+
+        // If arrivalDate IS today, check departureDate + departureStdTime >= current datetime
+        const departureDate = flight.departureDate || '';
+        const departureStdTime = flight.departureStdTime || '';
+
+        // If no departure info, show the flight
+        if (!departureDate || !departureStdTime) return true;
+
+        // Combine departureDate + departureStdTime and compare with current datetime
+        const departureDatetime = dayjs(`${departureDate} ${departureStdTime}`);
+
+        // Show flight if departureDatetime >= now
+        return departureDatetime.isAfter(now) || departureDatetime.isSame(now);
+    });
+};
 
 interface FlightTableProps {
     flights: FlightItem[];
     isLoading?: boolean;
+    isFullscreen?: boolean;
+    isAlarm?: boolean;
 }
 
-export function FlightTable({ flights, isLoading }: FlightTableProps) {
+export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: FlightTableProps) {
     const [openEditFlight, setOpenEditFlight] = useState<boolean>(false);
     const [editFlightId, setEditFlightId] = useState<number | null>(null);
+    const [currentTime, setCurrentTime] = useState<Date>(new Date());
 
     const onEditFlightClose = () => {
         setOpenEditFlight(false);
         setEditFlightId(null);
     }
+
+    // Update current time every 5 minutes (300000ms) for alarm filtering
+    useEffect(() => {
+        if (!isAlarm) return;
+
+        const intervalId = setInterval(() => {
+            setCurrentTime(new Date());
+            console.log('[FlightTable] Alarm filter refreshed at:', new Date().toLocaleTimeString());
+        }, 5 * 60 * 1000); // 5 minutes
+
+        return () => clearInterval(intervalId);
+    }, [isAlarm]);
+
+    // Filter flights when isAlarm is true
+    // If arrivalDate is NOT today → show flight normally
+    // If arrivalDate IS today → check if departureDate + departureStdTime >= current datetime
+    const filteredFlights = useMemo(() => {
+        if (!isAlarm) return flights;
+        return filterFlightsByAlarm(flights, currentTime);
+    }, [flights, isAlarm, currentTime]);
 
     if (isLoading) {
         return (
@@ -33,10 +84,10 @@ export function FlightTable({ flights, isLoading }: FlightTableProps) {
         );
     }
 
-    if (flights.length === 0) {
+    if (filteredFlights.length === 0) {
         return (
-            <div className="flex h-96 items-center justify-center rounded-lg bg-slate-800/50 text-slate-400">
-                <p>No flights found</p>
+            <div className="flex h-96 items-center justify-center rounded-lg bg-slate-500/50 text-slate-100">
+                <p>{isAlarm ? 'No upcoming flights for today' : 'No flights found'}</p>
             </div>
         );
     }
@@ -63,11 +114,13 @@ export function FlightTable({ flights, isLoading }: FlightTableProps) {
                             <th className="px-4 py-3 text-sm font-semibold ">MECH</th>
                             <th className="px-4 py-3 text-sm font-semibold ">Status</th>
                             <th className="px-4 py-3 text-sm font-semibold ">Remarks</th>
-                            <th className="px-4 py-3 text-sm font-semibold  flex items-center justify-center">action</th>
+                            {!isFullscreen && (
+                                <th className="px-4 py-3 text-sm font-semibold  flex items-center justify-center">action</th>
+                            )}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-300 dark:divide-slate-900">
-                        {flights.map((flight, index) => (
+                        {filteredFlights.map((flight, index) => (
                             <tr
                                 key={flight.flightInfosId ?? index}
                                 className="transition-colors hover:bg-slate-600/50 dark:hover:bg-slate-800/50 text-slate-900 dark:text-slate-300"
@@ -205,16 +258,18 @@ export function FlightTable({ flights, isLoading }: FlightTableProps) {
                                         </div>
                                     </Tooltip> : '-'}
                                 </td>
-                                <td className="px-2 py-2 text-sm w-[50px] text-slate-900 dark:text-slate-300 text-center">
-                                    <button
-                                        className="bg-slate-300 hover:bg-slate-500 text-slate-700 hover:text-slate-300 dark:text-slate-300 py-2 px-2 rounded-md cursor-pointer hover:scale-110 transition-all "
-                                        onClick={() => {
-                                            setEditFlightId(flight.flightInfosId);
-                                            setOpenEditFlight(true);
-                                        }} >
-                                        <Edit className='w-4 h-4' />
-                                    </button>
-                                </td>
+                                {!isFullscreen && (
+                                    <td className="px-2 py-2 text-sm w-[50px] text-slate-900 dark:text-slate-300 text-center">
+                                        <button
+                                            className="bg-slate-300 hover:bg-slate-500 text-slate-700 hover:text-slate-300 dark:text-slate-300 py-2 px-2 rounded-md cursor-pointer hover:scale-110 transition-all "
+                                            onClick={() => {
+                                                setEditFlightId(flight.flightInfosId);
+                                                setOpenEditFlight(true);
+                                            }} >
+                                            <Edit className='w-4 h-4' />
+                                        </button>
+                                    </td>
+                                )}
 
                                 {/* Status */}
                                 {/* <td className="px-4 py-3">

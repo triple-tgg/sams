@@ -186,8 +186,8 @@ const createDefaultValues = (flightData: any): Inputs => {
     note: responseData.note || "",
 
     userName: responseData.userName || "",
-    csIdList: responseData.csIdList || null,
-    mechIdList: responseData.mechIdList || null,
+    csIdList: responseData.csList?.map((item: any) => item.id) || null,
+    mechIdList: responseData.mechList?.map((item: any) => item.id) || null,
   };
 };
 
@@ -211,7 +211,14 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
     setIsConfirm(false)
   }
   // const { data: flightData } = useFlightQueryById(flightId);
-  const { data: flightInfoData } = useLineMaintenancesQueryThfByFlightId({ flightInfosId });
+  const { data: flightInfoData, refetch } = useLineMaintenancesQueryThfByFlightId({ flightInfosId });
+
+  // Refetch data every time dialog opens
+  useEffect(() => {
+    if (open && flightInfosId) {
+      refetch();
+    }
+  }, [open, flightInfosId, refetch]);
   // Use airline options hook
   const {
     options: customerOptions,
@@ -257,6 +264,27 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
       reset(newValues);
     }
   }, [flightInfoData, reset]);
+
+  // Extract initial staff data for PersonnelSection
+  const initialCsList = useMemo(() => {
+    const csList = flightInfoData?.responseData?.flight?.csList;
+    if (!csList) return [];
+    return csList.map((staff: any) => ({
+      id: staff.id,
+      code: staff.code || staff.staffCode || '',
+      name: staff.name || staff.staffName || '',
+    }));
+  }, [flightInfoData]);
+
+  const initialMechList = useMemo(() => {
+    const mechList = flightInfoData?.responseData?.flight?.mechList;
+    if (!mechList) return [];
+    return mechList.map((staff: any) => ({
+      id: staff.id,
+      code: staff.code || staff.staffCode || '',
+      name: staff.name || staff.staffName || '',
+    }));
+  }, [flightInfoData]);
 
 
   const { mutate: updateFlight, isPending, error: mError } = useUpdateFlight();
@@ -667,6 +695,8 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
                   control={control}
                   onCsChange={(ids) => setValue("csIdList", ids)}
                   onMechChange={(ids) => setValue("mechIdList", ids)}
+                  initialCsList={initialCsList}
+                  initialMechList={initialMechList}
                 />
 
 

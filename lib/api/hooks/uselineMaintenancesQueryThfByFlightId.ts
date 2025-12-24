@@ -94,6 +94,8 @@ export const useLineMaintenancesQueryThfByFlightId = (params: LineMaintenanceThf
     staleTime: 0,     // ข้อมูลหมดอายุทันที
     gcTime: 0,        // ลบทิ้งจาก memory ทันทีเมื่อไม่ใช้งาน
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
   });
 
   // Memoized form data mapping

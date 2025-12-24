@@ -14,7 +14,7 @@ export default function FlightTimelinePage() {
             View incoming and outgoing flights on an interactive timeline
           </p>
         </div>
-        <ThemeButton />
+        {/* <ThemeButton /> */}
       </div>
       {/* Timeline Component */}
       <FlightTimelineWrapper />

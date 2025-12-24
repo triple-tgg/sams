@@ -158,6 +158,8 @@ export interface Flight {
   userName: string;
   csIdList: number[] | null;
   mechIdList: number[] | null;
+  csList: number[] | null;
+  mechList: number[] | null;
 }
 
 export interface LineMaintenance {

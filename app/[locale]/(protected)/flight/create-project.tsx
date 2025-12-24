@@ -63,13 +63,13 @@ const FormSchema = z
     arrivalDate: z.string().regex(/^\d{2}\/\d{2}\/\d{4}$/g, "DD/MMM/YYYY"),
     sta: z.string().regex(/^\d{2}:\d{2}$/g, "HH:mm"),
     ata: z.string().regex(/^\d{2}:\d{2}$/g, "HH:mm").optional().or(z.literal("")),
-    // routeFrom: z.object({ value: z.string(), label: z.string() }).nullable().optional(),
+    routeFrom: z.object({ value: z.string(), label: z.string() }).nullable().optional(),
 
     flightDeparture: z.string().trim().optional().default(""),
     departureDate: z.string().regex(/^\d{2}\/\d{2}\/\d{4}$/g, "DD/MMM/YYYY").optional().or(z.literal("")),
     std: z.string().regex(/^\d{2}:\d{2}$/g, "HH:mm").optional().or(z.literal("")),
     atd: z.string().regex(/^\d{2}:\d{2}$/g, "HH:mm").optional().or(z.literal("")),
-    // routeTo: z.object({ value: z.string(), label: z.string() }).nullable().optional(),
+    routeTo: z.object({ value: z.string(), label: z.string() }).nullable().optional(),
 
     bay: z.string().trim().optional().default(""),
     thfNumber: z.string().trim().optional().default(""),
@@ -162,12 +162,12 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
       arrivalDate: "",
       sta: "",
       ata: "",
-      // routeFrom: null,
       flightDeparture: "",
       departureDate: "",
       std: "",
       atd: "",
-      // routeTo: null,
+      routeFrom: null,
+      routeTo: null,
       bay: "",
       thfNumber: "",
       status: { value: "Normal", label: "Normal" },
@@ -196,6 +196,9 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
       thfNo: (values.thfNumber ?? "").trim(),
       statusCode: values.status?.value ?? "Normal",
       note: (values.note ?? "").trim(),
+
+      routeFrom: values.routeFrom?.value ?? "",
+      routeTo: values.routeTo?.value ?? "",
 
       userName: values.userName.trim() ?? "",
       csIdList: values.csIdList || null,
@@ -333,24 +336,106 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                   </p>
                 )}
               </div>
-
               {/* A/C Reg / A/C Type */}
-              <div className="space-y-1">
-                <Label htmlFor="acReg">A/C Reg</Label>
-                <Input {...register("acReg")} placeholder="A/C Reg" autoComplete="off" />
-                <FieldError msg={errors.acReg?.message} />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label htmlFor="acReg">A/C Reg</Label>
+                  <Input {...register("acReg")} placeholder="A/C Reg" autoComplete="off" />
+                  <FieldError msg={errors.acReg?.message} />
+                </div>
+                <div className="space-y-1">
+                  <SearchableSelectField
+                    name="acType"
+                    control={control}
+                    label="A/C Type"
+                    placeholder="Select A/C Type"
+                    options={aircraftOptions}
+                    isLoading={isLoadingAircraft}
+                    errorMessage={errors.acType?.message}
+                    usingFallback={acTypeCodeUsingFallback}
+                  />
+                </div>
               </div>
-              <div className="space-y-1">
-                <SearchableSelectField
-                  name="acType"
-                  control={control}
-                  label="A/C Type"
-                  placeholder="Select A/C Type"
-                  options={aircraftOptions}
-                  isLoading={isLoadingAircraft}
-                  errorMessage={errors.acType?.message}
-                  usingFallback={acTypeCodeUsingFallback}
-                />
+              {/* Route From / Route To */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2 col-span-1">
+                  <Label htmlFor="routeFrom">Route From</Label>
+                  <Controller
+                    name="routeFrom"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value?.value}
+                        onValueChange={(value) => {
+                          const option = stationOptions.find(opt => opt.value === value);
+                          field.onChange(option || null);
+                        }}
+                        disabled={loadingStations}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={
+                            loadingStations ? "Loading stations..." :
+                              stationsError ? "Failed to load stations" :
+                                stationOptions.length === 0 ? "No stations found" :
+                                  "Select station"
+                          } />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {stationOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  <FieldError msg={errors.station?.message as string | undefined} />
+                  {stationsUsingFallback && (
+                    <p className="text-sm text-amber-600">
+                      ⚠️ Using offline station data due to API connection issue
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2 col-span-1">
+                  <Label htmlFor="routeTo">Route To</Label>
+                  <Controller
+                    name="routeTo"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value?.value}
+                        onValueChange={(value) => {
+                          const option = stationOptions.find(opt => opt.value === value);
+                          field.onChange(option || null);
+                        }}
+                        disabled={loadingStations}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={
+                            loadingStations ? "Loading stations..." :
+                              stationsError ? "Failed to load stations" :
+                                stationOptions.length === 0 ? "No stations found" :
+                                  "Select station"
+                          } />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {stationOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  <FieldError msg={errors.station?.message as string | undefined} />
+                  {stationsUsingFallback && (
+                    <p className="text-sm text-amber-600">
+                      ⚠️ Using offline station data due to API connection issue
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 
