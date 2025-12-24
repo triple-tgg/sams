@@ -319,8 +319,8 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                             className="flex space-x-2"
                             size="md"
                         >
-                            {isAlarm ? <AlarmClockOff className="w-4 h-4" /> : <AlarmClock className="w-4 h-4 animate-pulse" />}
-                            {!isAlarm ? <span className="text-sm font-bold">{formattedCurrentTime}</span> : <span className="text-sm font-bold">OFF</span>}
+                            {!isAlarm ? <AlarmClockOff className="w-4 h-4" /> : <AlarmClock className="w-4 h-4 animate-pulse" />}
+                            {isAlarm ? <span className="text-sm font-bold">{formattedCurrentTime}</span> : <span className="text-sm font-bold">OFF</span>}
                         </Button>
                         }
                         <Button
