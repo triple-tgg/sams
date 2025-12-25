@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ExcelImportButton } from "@/components/excel-import-button";
 import { useTemplateDownload } from "@/hooks/use-template-download";
 import { useDashboardFlight } from "@/lib/api/hooks/useDashboardFlight";
-import { Download, Plus, CalendarPlus, CalendarCheck, CalendarX } from "lucide-react";
+import { Download, Plus, CalendarPlus, CalendarCheck, CalendarX, AlignStartVertical } from "lucide-react";
 import CreateProject from "./create-project";
 import { useRouter } from "next/navigation";
 
@@ -108,10 +108,11 @@ const ProjectWrapper = ({ children }: { children: React.ReactNode }) => {
                     </Button>
                     <Button
                         className="flex-none"
-                        color="primary"
-                        onClick={() => router.push(`/en/views-flight-timeline`)}
+                        color="default"
+                        onClick={() => window.open(`/en/views-flight-timeline`, '_blank')}
                     >
-                        <Plus className="w-4 h-4 me-1" />
+                        {/* <Plus className="w-4 h-4 me-1" /> */}
+                        <AlignStartVertical className="w-4 h-4 me-1" />
                         <span>Timeline</span>
                     </Button>
                 </div>

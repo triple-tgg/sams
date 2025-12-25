@@ -101,7 +101,7 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                         <tr className="bg-slate-300 text-left dark:bg-slate-700 dark:text-slate-300  text-slate-500 ">
                             <th className="px-4 py-3 text-sm font-semibold">Airlines</th>
                             <th className="px-4 py-3 text-sm font-semibold">Flight No</th>
-                            <th className="px-4 py-3 text-sm font-semibold">Root</th>
+                            <th className="px-4 py-3 text-sm font-semibold">Route</th>
                             <th className="px-4 py-3 text-sm font-semibold ">A/C Type</th>
                             <th className="px-4 py-3 text-sm font-semibold ">A/C REG</th>
                             {/* <th className="px-4 py-3 text-sm font-semibold text-slate-300">REG</th> */}
