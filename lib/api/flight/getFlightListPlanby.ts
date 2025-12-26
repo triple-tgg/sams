@@ -8,14 +8,20 @@ export type FlightPlanbyItem = {
     title: string;
     since: string;
     till: string;
-    sinceTime: string;
-    tillTime: string;
+    sinceTime?: string;
+    tillTime?: string;
     status: string;
     flightNo: string;
     arrivalDate: string;
     departureDate: string;
     arrivalStatime: string;
     departureStdTime: string;
+    arrivalFlightNo: string,
+    departureFlightNo: string,
+    color: {
+        foreground: string;
+        background: string;
+    },
     airlineObj?: {
         code: string;
         name: string;

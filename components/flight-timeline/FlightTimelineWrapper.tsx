@@ -22,6 +22,7 @@ import dayjs from "dayjs";
 import CreateProject from "@/app/[locale]/(protected)/flight/create-project";
 import { Button } from "@/components/ui/button";
 import EditFlight from "@/app/[locale]/(protected)/flight/edit-project";
+import { mockData } from "./mockData";
 
 
 
@@ -153,7 +154,7 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
 
     const { getEpgProps, getLayoutProps, onScrollToNow, onScrollLeft, onScrollRight } = useEpg({
         epg: flightsPlanby,
-        // epg: epgData,
+        // epg: mockData,
         channels: channels,
         startDate: startDateFormatted,
         endDate: endDateFormatted,
