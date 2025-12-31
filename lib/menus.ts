@@ -72,7 +72,7 @@ export function getMenuList(pathname: string, t: any): Group[] {
           href: "/report",
           label: t("report"),
           active: pathname.includes("/report"),
-          icon: "heroicons-outline:cog-6-tooth",
+          icon: "heroicons-outline:chart-pie",
           submenus: [],
         },
       ],
@@ -109,8 +109,8 @@ export function getMenuList(pathname: string, t: any): Group[] {
     //   ],
     // },
     {
-      groupLabel: t("setting"),
-      id: "setting",
+      groupLabel: t("master-data"),
+      id: "master-data",
       menus: [
         {
           id: "master-data",
@@ -118,18 +118,83 @@ export function getMenuList(pathname: string, t: any): Group[] {
           label: t("master-data"),
           active: pathname.includes("/master-data"),
           icon: "heroicons-outline:cog-6-tooth",
-          submenus: [],
-        },
-        {
-          id: "customer",
-          href: "/customer",
-          label: t("customer"),
-          active: pathname.includes("/customer"),
-          icon: "heroicons-outline:identification",
-          submenus: [],
+          submenus: [
+            {
+              href: "/master-data/customer-airline",
+              label: t("customer-airline"),
+              active: pathname.includes("/master-data/customer-airline"),
+              icon: "heroicons-outline:cog-6-tooth",
+              children: [],
+            },
+            {
+              href: "/master-data/staff",
+              label: t("staff"),
+              active: pathname.includes("/master-data/staff"),
+              icon: "heroicons-outline:cog-6-tooth",
+              children: [],
+            },
+            {
+              href: "/master-data/station",
+              label: t("station"),
+              active: pathname.includes("/master-data/station"),
+              icon: "heroicons-outline:cog-6-tooth",
+              children: [],
+            },
+            {
+              href: "/master-data/user-login",
+              label: t("user-login"),
+              active: pathname.includes("/master-data/user-login"),
+              icon: "heroicons-outline:cog-6-tooth",
+              children: [],
+            },
+            {
+              href: "/master-data/role",
+              label: t("role"),
+              active: pathname.includes("/master-data/role"),
+              icon: "heroicons-outline:cog-6-tooth",
+              children: [],
+            },
+            {
+              href: "/master-data/set-permission",
+              label: t("set-permission"),
+              active: pathname.includes("/master-data/set-permission"),
+              icon: "heroicons-outline:cog-6-tooth",
+              children: [],
+            },
+          ],
         },
       ],
     },
+    // {
+    //   groupLabel: t("setting"),
+    //   id: "setting",
+    //   menus: [
+    //     // {
+    //     //   id: "master-data",
+    //     //   href: "/master-data",
+    //     //   label: t("master-data"),
+    //     //   active: pathname.includes("/master-data"),
+    //     //   icon: "heroicons-outline:cog-6-tooth",
+    //     //   submenus: [
+    //     //     {
+    //     //       href: "/customer",
+    //     //       label: t("customer"),
+    //     //       active: pathname.includes("/customer"),
+    //     //       icon: "heroicons-outline:identification",
+    //     //       submenus: [],
+    //     //     },
+    //     //   ],
+    //     // },
+    //     // {
+    //     //   id: "customer",
+    //     //   href: "/customer",
+    //     //   label: t("customer"),
+    //     //   active: pathname.includes("/customer"),
+    //     //   icon: "heroicons-outline:identification",
+    //     //   submenus: [],
+    //     // },
+    //   ],
+    // },
   ];
 }
 export function getHorizontalMenuList(pathname: string, t: any): Group[] {

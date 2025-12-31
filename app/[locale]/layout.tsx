@@ -15,8 +15,8 @@ import AuthProvider from "@/providers/auth.provider";
 import ReactQueryProviders from "@/providers/reactQuery.providers";
 
 export const metadata: Metadata = {
-  title: "Dashcode admin Template",
-  description: "created by codeshaper",
+  title: "SAMs Airline",
+  description: "SAMs Airline Maintainance",
 };
 
 export default async function RootLayout({

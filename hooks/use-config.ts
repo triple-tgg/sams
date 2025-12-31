@@ -24,13 +24,13 @@ export type Config = {
   radius: number;
 };
 export const defaultConfig: Config = {
-  "collapsed": false,
+  "collapsed": true,
   "theme": "zinc",
   "skin": "default",
   "layout": "vertical",
   "sidebar": "compact",
   "menuHidden": false,
-  "showSearchBar": true,
+  "showSearchBar": false,
   "topHeader": "default",
   "contentWidth": "boxed",
   "navbar": "sticky",
