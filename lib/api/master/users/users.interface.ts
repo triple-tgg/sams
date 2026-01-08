@@ -55,9 +55,9 @@ export interface UserUpsertRequest {
     email: string;
     passwordData: string;
     fullName: string;
-    role: string; // role id as string
+    roleId: number; // role id as number
     isActive: boolean;
-    userName: string; // userName from canedit API
+    userBy: string; // userName from canedit API
 }
 
 export interface UserUpsertResponse {

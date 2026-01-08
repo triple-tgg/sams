@@ -128,9 +128,9 @@ const UserLoginPage = () => {
             email: pendingFormData.email,
             passwordData: pendingFormData.passwordData,
             fullName: pendingFormData.fullName,
-            role: pendingFormData.role,
+            roleId: parseInt(pendingFormData.role),
             isActive: pendingFormData.isActive,
-            userName,
+            userBy: userName,
         };
 
         upsertUser(payload, {
