@@ -32,7 +32,7 @@ import type { UserItem } from "@/lib/api/master/users/users.interface";
 import UserFormDialog from "./components/UserFormDialog";
 import ConfirmCredentialsDialog from "./components/ConfirmCredentialsDialog";
 
-type DialogMode = 'closed' | 'add' | 'view' | 'edit' | 'confirm-edit' | 'confirm-delete';
+type DialogMode = 'closed' | 'add' | 'view' | 'edit' | 'confirm-delete';
 
 const UserLoginPage = () => {
     const t = useTranslations("Menu");
@@ -109,42 +109,60 @@ const UserLoginPage = () => {
     // Form submission handlers
     const handleAddSubmit = (formData: typeof pendingFormData) => {
         if (!formData) return;
-        setPendingFormData(formData);
-        setDialogMode('confirm-edit');
-    };
-
-    const handleEditSubmit = (formData: typeof pendingFormData) => {
-        if (!formData) return;
-        setPendingFormData(formData);
-        setDialogMode('confirm-edit');
-    };
-
-    const handleConfirmUpsert = (userName: string) => {
-        if (!pendingFormData) return;
 
         const payload = {
-            id: selectedUser?.id ?? 0,
-            username: pendingFormData.username,
-            email: pendingFormData.email,
-            passwordData: pendingFormData.passwordData,
-            fullName: pendingFormData.fullName,
-            roleId: parseInt(pendingFormData.role),
-            isActive: pendingFormData.isActive,
-            userBy: userName,
+            id: 0,
+            username: formData.username,
+            email: formData.email,
+            passwordData: formData.passwordData,
+            fullName: formData.fullName,
+            roleId: parseInt(formData.role),
+            isActive: formData.isActive,
+            userBy: 'system',
         };
 
         upsertUser(payload, {
             onSuccess: (response) => {
                 if (response.message === 'success') {
-                    toast.success(selectedUser ? 'User updated successfully!' : 'User added successfully!');
+                    toast.success('User added successfully!');
                     closeDialog();
                     refetch();
                 } else {
-                    toast.error(response.error || 'Failed to save user');
+                    toast.error(response.error || 'Failed to add user');
                 }
             },
             onError: (err) => {
-                toast.error(err.message || 'Failed to save user');
+                toast.error(err.message || 'Failed to add user');
+            },
+        });
+    };
+
+    const handleEditSubmit = (formData: typeof pendingFormData) => {
+        if (!formData || !selectedUser) return;
+
+        const payload = {
+            id: selectedUser.id,
+            username: formData.username,
+            email: formData.email,
+            passwordData: formData.passwordData,
+            fullName: formData.fullName,
+            roleId: parseInt(formData.role),
+            isActive: formData.isActive,
+            userBy: 'system',
+        };
+
+        upsertUser(payload, {
+            onSuccess: (response) => {
+                if (response.message === 'success') {
+                    toast.success('User updated successfully!');
+                    closeDialog();
+                    refetch();
+                } else {
+                    toast.error(response.error || 'Failed to update user');
+                }
+            },
+            onError: (err) => {
+                toast.error(err.message || 'Failed to update user');
             },
         });
     };
@@ -367,17 +385,7 @@ const UserLoginPage = () => {
                 </DialogContent>
             </Dialog>
 
-            {/* Confirm Edit/Add Dialog */}
-            <Dialog open={dialogMode === 'confirm-edit'} onOpenChange={(open) => !open && closeDialog()}>
-                <DialogContent className="max-w-lg">
-                    <ConfirmCredentialsDialog
-                        title={selectedUser ? "Confirm Edit User" : "Confirm Add User"}
-                        description="Please enter your credentials to confirm this action."
-                        onClose={closeDialog}
-                        onConfirm={handleConfirmUpsert}
-                    />
-                </DialogContent>
-            </Dialog>
+
 
             {/* Confirm Delete Dialog */}
             <Dialog open={dialogMode === 'confirm-delete'} onOpenChange={(open) => !open && closeDialog()}>

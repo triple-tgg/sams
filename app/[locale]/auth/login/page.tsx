@@ -1,9 +1,7 @@
 import { Link } from '@/i18n/routing';
 import LoginForm from "@/components/partials/auth/login-form";
-import Copyright from "@/components/partials/auth/copyright";
-import Logo from "@/components/partials/auth/logo";
 import Image from "next/image";
-
+import Copyright from "@/components/partials/auth/copyright";
 const Login = ({ params: { locale } }: { params: { locale: string } }) => {
   return (
     <>
@@ -12,19 +10,26 @@ const Login = ({ params: { locale } }: { params: { locale: string } }) => {
           <div className="flex-1 relative">
             <div className=" h-full flex flex-col  dark:bg-default-100 bg-white">
               <div className="max-w-[524px] md:px-[42px] md:py-[44px] p-7  mx-auto w-full text-2xl text-default-900  mb-3 h-full flex flex-col justify-center">
-                <div className="flex justify-center items-center text-center mb-6 lg:hidden ">
-                  <Link href="/">
-                    <Logo />
-                  </Link>
-                </div>
-                <div className="text-center 2xl:mb-10 mb-4">
-                  <h4 className="font-medium">Sign in</h4>
-                  <div className="text-default-500 text-base">
-                    Sign in to your account to start using
+                {/* <div className="flex justify-center items-center text-center mb-6 lg:hidden "> */}
+                {/* </div> */}
+                <div className="bg-stone-100 p-6 rounded-lg shadow-2xl shadow-stone-400">
+                  <div className="flex items-center justify-center">
+                    <Image
+                      src="/images/logo/logo.png"
+                      alt="dashcode"
+                      width={90}
+                      height={36}
+                      className="w-[120px] h-auto object-contain"
+                    />
                   </div>
+                  <div className="text-center 2xl:mb-10 mb-4">
+                    {/* <h4 className="font-medium">Sign in</h4> */}
+                    <div className="text-default-500 text-base">
+                      Sign in to your account to start using
+                    </div>
+                  </div>
+                  <LoginForm />
                 </div>
-                <LoginForm />
-
               </div>
               <div className="text-xs font-normal text-default-500  z-999 pb-10 text-center">
                 <Copyright />

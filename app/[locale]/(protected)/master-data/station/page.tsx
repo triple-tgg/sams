@@ -31,7 +31,7 @@ import type { StationItem } from "@/lib/api/master/stations/stations.interface";
 import StationFormDialog from "./components/StationFormDialog";
 import ConfirmCredentialsDialog from "./components/ConfirmCredentialsDialog";
 
-type DialogMode = 'closed' | 'add' | 'view' | 'edit' | 'confirm-edit' | 'confirm-delete';
+type DialogMode = 'closed' | 'add' | 'view' | 'edit' | 'confirm-delete';
 
 const StationPage = () => {
     const t = useTranslations("Menu");
@@ -105,40 +105,56 @@ const StationPage = () => {
     // Form submission handlers
     const handleAddSubmit = (formData: typeof pendingFormData) => {
         if (!formData) return;
-        setPendingFormData(formData);
-        setDialogMode('confirm-edit');
-    };
-
-    const handleEditSubmit = (formData: typeof pendingFormData) => {
-        if (!formData) return;
-        setPendingFormData(formData);
-        setDialogMode('confirm-edit');
-    };
-
-    const handleConfirmUpsert = (userName: string) => {
-        if (!pendingFormData) return;
 
         const payload = {
-            id: selectedStation?.id ?? 0,
-            code: pendingFormData.code,
-            name: pendingFormData.name,
-            description: pendingFormData.description,
-            userName,
+            id: 0,
+            code: formData.code,
+            name: formData.name,
+            description: formData.description,
+            userName: 'system',
             isdelete: false,
         };
 
         upsertStation(payload, {
             onSuccess: (response) => {
                 if (response.message === 'success') {
-                    toast.success(selectedStation ? 'Station updated successfully!' : 'Station added successfully!');
+                    toast.success('Station added successfully!');
                     closeDialog();
                     refetch();
                 } else {
-                    toast.error(response.error || 'Failed to save station');
+                    toast.error(response.error || 'Failed to add station');
                 }
             },
             onError: (err) => {
-                toast.error(err.message || 'Failed to save station');
+                toast.error(err.message || 'Failed to add station');
+            },
+        });
+    };
+
+    const handleEditSubmit = (formData: typeof pendingFormData) => {
+        if (!formData || !selectedStation) return;
+
+        const payload = {
+            id: selectedStation.id,
+            code: formData.code,
+            name: formData.name,
+            description: formData.description,
+            userName: 'system',
+            isdelete: false,
+        };
+
+        upsertStation(payload, {
+            onSuccess: (response) => {
+                if (response.message === 'success') {
+                    toast.success('Station updated successfully!');
+                    closeDialog();
+                    refetch();
+                } else {
+                    toast.error(response.error || 'Failed to update station');
+                }
+            },
+            onError: (err) => {
+                toast.error(err.message || 'Failed to update station');
             },
         });
     };
@@ -349,17 +365,7 @@ const StationPage = () => {
                 </DialogContent>
             </Dialog>
 
-            {/* Confirm Edit/Add Dialog */}
-            <Dialog open={dialogMode === 'confirm-edit'} onOpenChange={(open) => !open && closeDialog()}>
-                <DialogContent className="max-w-lg">
-                    <ConfirmCredentialsDialog
-                        title={selectedStation ? "Confirm Edit Station" : "Confirm Add Station"}
-                        description="Please enter your credentials to confirm this action."
-                        onClose={closeDialog}
-                        onConfirm={handleConfirmUpsert}
-                    />
-                </DialogContent>
-            </Dialog>
+
 
             {/* Confirm Delete Dialog */}
             <Dialog open={dialogMode === 'confirm-delete'} onOpenChange={(open) => !open && closeDialog()}>

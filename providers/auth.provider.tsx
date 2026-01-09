@@ -7,14 +7,16 @@ import { useRouter, usePathname } from "next/navigation"
 import store from "@/store"
 import { handleLogin } from "@/components/partials/auth/store"
 
-// Public routes that don't require authentication
-const publicRoutes = [
-    '/',
+// Public routes that don't require authentication (without locale prefix)
+const publicRoutesBase = [
     '/auth/login',
     '/auth/register',
     '/auth/forgot-password',
     '/auth/reset-password'
 ]
+
+// Root routes that should redirect based on auth status
+const rootRoutes = ['/', '/en', '/ar']
 
 const AuthGuard = ({ children }: { children: React.ReactNode }) => {
     const router = useRouter()
@@ -23,10 +25,23 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
     const [isLoading, setIsLoading] = useState(true)
 
     // Redux state
-    const { isAuth, users } = useSelector((state: RootState) => state.auth)
+    const { isAuth } = useSelector((state: RootState) => state.auth)
+
+    // Extract locale from pathname (e.g., /en/dashboard -> en, /ar/auth/login -> ar)
+    const getLocale = () => {
+        const match = pathname.match(/^\/(en|ar)/)
+        return match ? match[1] : 'en'
+    }
+    const locale = getLocale()
+
+    // Get the path without locale prefix for matching
+    const pathWithoutLocale = pathname.replace(/^\/(en|ar)/, '') || '/'
 
     // Check if current route is public
-    const isPublicRoute = publicRoutes.includes(pathname)
+    const isPublicRoute = publicRoutesBase.includes(pathWithoutLocale)
+
+    // Check if current route is a root route
+    const isRootRoute = rootRoutes.includes(pathname) || pathWithoutLocale === '/'
 
     // Initialize auth state from localStorage
     useEffect(() => {
@@ -77,14 +92,30 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
     useEffect(() => {
         if (isLoading) return // Wait for initialization
 
+        // Handle root routes (/, /en, /ar)
+        if (isRootRoute) {
+            if (isAuth) {
+                // User is authenticated - redirect to dashboard
+                router.push(`/${locale}/dashboard`)
+            } else {
+                // User is not authenticated - redirect to login
+                router.push(`/${locale}/auth/login`)
+            }
+            return
+        }
+
+        // Handle login page redirect when already authenticated
+        if (isAuth && pathWithoutLocale === '/auth/login') {
+            router.push(`/${locale}/dashboard`)
+            return
+        }
+
+        // Handle protected routes
         if (!isAuth && !isPublicRoute) {
             // User is not authenticated and trying to access protected route
-            router.push(`/`)
-        } else if (isAuth && pathname === '/auth/login') {
-            // User is authenticated and on login page - redirect to dashboard
-            router.push('/dashboard')
+            router.push(`/${locale}/auth/login`)
         }
-    }, [isAuth, pathname, isPublicRoute, router, isLoading])
+    }, [isAuth, pathname, pathWithoutLocale, isPublicRoute, isRootRoute, router, isLoading, locale])
 
     // Show loading during initialization
     if (isLoading) {

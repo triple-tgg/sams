@@ -32,7 +32,7 @@ import type { StaffItem } from "@/lib/api/master/staff/staff.interface";
 import StaffFormDialog from "./components/StaffFormDialog";
 import ConfirmCredentialsDialog from "./components/ConfirmCredentialsDialog";
 
-type DialogMode = 'closed' | 'add' | 'view' | 'edit' | 'confirm-edit' | 'confirm-delete';
+type DialogMode = 'closed' | 'add' | 'view' | 'edit' | 'confirm-delete';
 
 const StaffPage = () => {
     const t = useTranslations("Menu");
@@ -109,42 +109,60 @@ const StaffPage = () => {
     // Form submission handlers
     const handleAddSubmit = (formData: typeof pendingFormData) => {
         if (!formData) return;
-        setPendingFormData(formData);
-        setDialogMode('confirm-edit');
-    };
-
-    const handleEditSubmit = (formData: typeof pendingFormData) => {
-        if (!formData) return;
-        setPendingFormData(formData);
-        setDialogMode('confirm-edit');
-    };
-
-    const handleConfirmUpsert = (userName: string) => {
-        if (!pendingFormData) return;
 
         const payload = {
-            id: selectedStaff?.id ?? 0,
-            code: pendingFormData.code,
-            name: pendingFormData.name,
-            staffstypeid: pendingFormData.staffstypeid,
-            userName,
-            isAcive: pendingFormData.isActive, // Note: API uses "isAcive"
-            title: pendingFormData.title,
-            jobTitle: pendingFormData.jobTitle,
+            id: 0,
+            code: formData.code,
+            name: formData.name,
+            staffstypeid: formData.staffstypeid,
+            userName: 'system',
+            isAcive: formData.isActive, // Note: API uses "isAcive"
+            title: formData.title,
+            jobTitle: formData.jobTitle,
         };
 
         upsertStaff(payload, {
             onSuccess: (response) => {
                 if (response.message === 'success') {
-                    toast.success(selectedStaff ? 'Staff updated successfully!' : 'Staff added successfully!');
+                    toast.success('Staff added successfully!');
                     closeDialog();
                     refetch();
                 } else {
-                    toast.error(response.error || 'Failed to save staff');
+                    toast.error(response.error || 'Failed to add staff');
                 }
             },
             onError: (err) => {
-                toast.error(err.message || 'Failed to save staff');
+                toast.error(err.message || 'Failed to add staff');
+            },
+        });
+    };
+
+    const handleEditSubmit = (formData: typeof pendingFormData) => {
+        if (!formData || !selectedStaff) return;
+
+        const payload = {
+            id: selectedStaff.id,
+            code: formData.code,
+            name: formData.name,
+            staffstypeid: formData.staffstypeid,
+            userName: 'system',
+            isAcive: formData.isActive, // Note: API uses "isAcive"
+            title: formData.title,
+            jobTitle: formData.jobTitle,
+        };
+
+        upsertStaff(payload, {
+            onSuccess: (response) => {
+                if (response.message === 'success') {
+                    toast.success('Staff updated successfully!');
+                    closeDialog();
+                    refetch();
+                } else {
+                    toast.error(response.error || 'Failed to update staff');
+                }
+            },
+            onError: (err) => {
+                toast.error(err.message || 'Failed to update staff');
             },
         });
     };
@@ -212,7 +230,7 @@ const StaffPage = () => {
                                         <TableHead className="w-[80px]">Code</TableHead>
                                         <TableHead>Name</TableHead>
                                         <TableHead className="">Job Title</TableHead>
-                                        <TableHead className="w-[100px]">Type</TableHead>
+                                        <TableHead className="w-[150px]">Type</TableHead>
                                         <TableHead className="w-[80px]">Status</TableHead>
                                         <TableHead className="w-[140px]">Created Date</TableHead>
                                         <TableHead className="w-[80px] text-center">Action</TableHead>
@@ -370,17 +388,7 @@ const StaffPage = () => {
                 </DialogContent>
             </Dialog>
 
-            {/* Confirm Edit/Add Dialog */}
-            <Dialog open={dialogMode === 'confirm-edit'} onOpenChange={(open) => !open && closeDialog()}>
-                <DialogContent className="max-w-lg">
-                    <ConfirmCredentialsDialog
-                        title={selectedStaff ? "Confirm Edit Staff" : "Confirm Add Staff"}
-                        description="Please enter your credentials to confirm this action."
-                        onClose={closeDialog}
-                        onConfirm={handleConfirmUpsert}
-                    />
-                </DialogContent>
-            </Dialog>
+
 
             {/* Confirm Delete Dialog */}
             <Dialog open={dialogMode === 'confirm-delete'} onOpenChange={(open) => !open && closeDialog()}>

@@ -158,6 +158,7 @@ const UserFormDialog = ({
                 <div className="space-y-2">
                     <Label htmlFor="user-role">Role *</Label>
                     <Select
+                        key={`user-role-${role}-${loadingRoles}`}
                         value={role}
                         onValueChange={setRole}
                         disabled={isViewMode || isPending || loadingRoles}

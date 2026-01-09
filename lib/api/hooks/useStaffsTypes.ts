@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { getStaffsTypes, StaffType, StaffsTypesResponse } from "../master/staff/getStaffsTypes";
+import { getStaffsTypes, getStaffsTypesAll, StaffType, StaffsTypesResponse } from "../master/staff/getStaffsTypes";
 
 // For dropdown/select components
 export interface StaffTypeOption {
@@ -85,3 +85,43 @@ export const useStaffsTypesOptions = () => {
 
 // Re-export types for convenience
 export type { StaffType, StaffsTypesResponse } from "../master/staff/getStaffsTypes";
+
+// Hook for getting ALL staff types (uses /master/StaffsTypesAll)
+export const useStaffsTypesAll = () => {
+  const query = useQuery<StaffsTypesResponse, Error>({
+    queryKey: ["staffsTypesAll"],
+    queryFn: getStaffsTypesAll,
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+    retry: 2,
+    refetchOnWindowFocus: false,
+  });
+
+  const options = useMemo(() => {
+    if (!query.data?.responseData) return [];
+
+    return query.data.responseData.map((staffType): StaffTypeOption => ({
+      value: staffType.id,
+      label: staffType.code,
+      id: staffType.id,
+    }));
+  }, [query.data]);
+
+  return {
+    ...query,
+    options,
+    staffTypes: query.data?.responseData || [],
+  };
+};
+
+export const useStaffsTypesAllOptions = () => {
+  const { options, isLoading, error, isError } = useStaffsTypesAll();
+
+  return {
+    options,
+    isLoading,
+    error,
+    isError,
+    hasOptions: options.length > 0,
+  };
+};

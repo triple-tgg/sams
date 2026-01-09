@@ -32,7 +32,7 @@ import type { AirlineItem } from "@/lib/api/master/airlines/airlines.interface";
 import AirlineFormDialog from "./components/AirlineFormDialog";
 import ConfirmCredentialsDialog from "./components/ConfirmCredentialsDialog";
 
-type DialogMode = 'closed' | 'add' | 'view' | 'edit' | 'confirm-edit' | 'confirm-delete';
+type DialogMode = 'closed' | 'add' | 'view' | 'edit' | 'confirm-delete';
 
 const CustomerAirlinePage = () => {
     const t = useTranslations("Menu");
@@ -108,42 +108,60 @@ const CustomerAirlinePage = () => {
     // Form submission handlers
     const handleAddSubmit = (formData: typeof pendingFormData) => {
         if (!formData) return;
-        setPendingFormData(formData);
-        setDialogMode('confirm-edit');
-    };
-
-    const handleEditSubmit = (formData: typeof pendingFormData) => {
-        if (!formData) return;
-        setPendingFormData(formData);
-        setDialogMode('confirm-edit');
-    };
-
-    const handleConfirmUpsert = (userName: string) => {
-        if (!pendingFormData) return;
 
         const payload = {
-            id: selectedAirline?.id ?? 0,
-            code: pendingFormData.code,
-            name: pendingFormData.name,
-            description: pendingFormData.description,
+            id: 0,
+            code: formData.code,
+            name: formData.name,
+            description: formData.description,
             isdelete: false,
-            userName,
-            colorForeground: pendingFormData.colorForeground,
-            colorBackground: pendingFormData.colorBackground,
+            userName: 'system',
+            colorForeground: formData.colorForeground,
+            colorBackground: formData.colorBackground,
         };
 
         upsertAirline(payload, {
             onSuccess: (response) => {
                 if (response.message === 'success') {
-                    toast.success(selectedAirline ? 'Airline updated successfully!' : 'Airline added successfully!');
+                    toast.success('Airline added successfully!');
                     closeDialog();
                     refetch();
                 } else {
-                    toast.error(response.error || 'Failed to save airline');
+                    toast.error(response.error || 'Failed to add airline');
                 }
             },
             onError: (err) => {
-                toast.error(err.message || 'Failed to save airline');
+                toast.error(err.message || 'Failed to add airline');
+            },
+        });
+    };
+
+    const handleEditSubmit = (formData: typeof pendingFormData) => {
+        if (!formData || !selectedAirline) return;
+
+        const payload = {
+            id: selectedAirline.id,
+            code: formData.code,
+            name: formData.name,
+            description: formData.description,
+            isdelete: false,
+            userName: 'system',
+            colorForeground: formData.colorForeground,
+            colorBackground: formData.colorBackground,
+        };
+
+        upsertAirline(payload, {
+            onSuccess: (response) => {
+                if (response.message === 'success') {
+                    toast.success('Airline updated successfully!');
+                    closeDialog();
+                    refetch();
+                } else {
+                    toast.error(response.error || 'Failed to update airline');
+                }
+            },
+            onError: (err) => {
+                toast.error(err.message || 'Failed to update airline');
             },
         });
     };
@@ -365,17 +383,7 @@ const CustomerAirlinePage = () => {
                 </DialogContent>
             </Dialog>
 
-            {/* Confirm Edit/Add Dialog */}
-            <Dialog open={dialogMode === 'confirm-edit'} onOpenChange={(open) => !open && closeDialog()}>
-                <DialogContent className="max-w-lg">
-                    <ConfirmCredentialsDialog
-                        title={selectedAirline ? "Confirm Edit Airline" : "Confirm Add Airline"}
-                        description="Please enter your credentials to confirm this action."
-                        onClose={closeDialog}
-                        onConfirm={handleConfirmUpsert}
-                    />
-                </DialogContent>
-            </Dialog>
+
 
             {/* Confirm Delete Dialog */}
             <Dialog open={dialogMode === 'confirm-delete'} onOpenChange={(open) => !open && closeDialog()}>

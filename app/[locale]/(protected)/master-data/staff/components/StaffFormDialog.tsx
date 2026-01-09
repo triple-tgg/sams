@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Loader2 } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import type { StaffItem } from '@/lib/api/master/staff/staff.interface';
-import { useStaffsTypesOptions } from '@/lib/api/hooks/useStaffsTypes';
+import { useStaffsTypesAllOptions } from '@/lib/api/hooks/useStaffsTypes';
 
 type Props = {
     mode: 'add' | 'edit' | 'view';
@@ -40,7 +40,7 @@ const StaffFormDialog = ({
     const [title, setTitle] = useState('');
     const [jobTitle, setJobTitle] = useState('');
 
-    const { options: staffTypeOptions, isLoading: loadingTypes } = useStaffsTypesOptions();
+    const { options: staffTypeOptions, isLoading: loadingTypes } = useStaffsTypesAllOptions();
 
     const isViewMode = mode === 'view';
     const dialogTitle = mode === 'add' ? 'Add New Staff' : mode === 'edit' ? 'Edit Staff' : 'View Staff';
@@ -148,6 +148,7 @@ const StaffFormDialog = ({
                 <div className="space-y-2">
                     <Label htmlFor="staff-type">Staff Type *</Label>
                     <Select
+                        key={`staff-type-${staffstypeid}-${loadingTypes}`}
                         value={staffstypeid ? staffstypeid.toString() : ''}
                         onValueChange={(val) => setStaffstypeid(parseInt(val))}
                         disabled={isViewMode || isPending || loadingTypes}
