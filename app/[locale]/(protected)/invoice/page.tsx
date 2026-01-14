@@ -1,15 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Download, FileText, Upload, Filter } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, FileText, Upload, Filter, Printer } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import {
     InvoiceTabType,
-    PreInvoice,
-    DraftInvoice,
     mockPreInvoices,
     mockDraftInvoices,
     InvoiceTabs,
@@ -72,28 +70,138 @@ const InvoicePage = () => {
         if (page < totalPages) setPage(page + 1);
     };
 
-    const handleViewPreInvoice = (invoice: PreInvoice) => {
-        console.log("View pre-invoice:", invoice);
-    };
 
-    const handleEditPreInvoice = (invoice: PreInvoice) => {
-        console.log("Edit pre-invoice:", invoice);
-    };
 
-    const handleDeletePreInvoice = (invoice: PreInvoice) => {
-        console.log("Delete pre-invoice:", invoice);
-    };
+    // Print function - prints only the table with title (A4 optimized)
+    const handlePrint = () => {
+        const printContent = document.getElementById('invoice-table-container');
+        if (!printContent) return;
 
-    const handleViewDraftInvoice = (invoice: DraftInvoice) => {
-        console.log("View draft invoice:", invoice);
-    };
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
 
-    const handleEditDraftInvoice = (invoice: DraftInvoice) => {
-        console.log("Edit draft invoice:", invoice);
-    };
+        const title = activeTab === 'pre-invoice' ? 'PRE-INVOICE Report' : 'DRAFT-INVOICE Report';
+        const dateRange = startDate && endDate ? `${startDate} to ${endDate}` : '';
+        const airline = selectedAirline || '';
+        const printDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
-    const handleDeleteDraftInvoice = (invoice: DraftInvoice) => {
-        console.log("Delete draft invoice:", invoice);
+        // Different styles for pre-invoice (landscape, smaller font) vs draft-invoice (portrait)
+        const isPreInvoice = activeTab === 'pre-invoice';
+        const pageOrientation = isPreInvoice ? 'landscape' : 'portrait';
+        const fontSize = isPreInvoice ? '7px' : '11px';
+        const cellPadding = isPreInvoice ? '3px 4px' : '8px';
+
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>${title}</title>
+                <style>
+                    @page {
+                        size: A4 ${pageOrientation};
+                        margin: 10mm;
+                    }
+                    * {
+                        box-sizing: border-box;
+                    }
+                    body { 
+                        font-family: Arial, sans-serif; 
+                        padding: 10px;
+                        margin: 0;
+                        font-size: ${fontSize};
+                    }
+                    h1 { 
+                        text-align: center; 
+                        margin-bottom: 5px;
+                        font-size: 16px;
+                    }
+                    .info { 
+                        text-align: center; 
+                        margin-bottom: 10px; 
+                        color: #666;
+                        font-size: 10px;
+                    }
+                    .print-date {
+                        text-align: right;
+                        font-size: 9px;
+                        color: #999;
+                        margin-bottom: 10px;
+                    }
+                    table { 
+                        width: 100%; 
+                        border-collapse: collapse; 
+                        font-size: ${fontSize};
+                        table-layout: auto;
+                    }
+                    th, td { 
+                        border: 1px solid #ccc; 
+                        padding: ${cellPadding}; 
+                        text-align: left;
+                        word-wrap: break-word;
+                        vertical-align: top;
+                    }
+                    th { 
+                        background-color: #e8e8e8; 
+                        font-weight: bold;
+                        font-size: ${isPreInvoice ? '6px' : '10px'};
+                        white-space: nowrap;
+                    }
+                    tr:nth-child(even) { 
+                        background-color: #f9f9f9; 
+                    }
+                    tr { 
+                        page-break-inside: avoid;
+                    }
+                    thead {
+                        display: table-header-group;
+                    }
+                    tbody {
+                        display: table-row-group;
+                    }
+                    .text-right { text-align: right; }
+                    .font-bold { font-weight: bold; }
+                    .font-medium { font-weight: 500; }
+                    .font-semibold { font-weight: 600; }
+                    
+                    /* Hide scrollbar wrapper elements */
+                    [data-radix-scroll-area-viewport] {
+                        overflow: visible !important;
+                    }
+                    
+                    @media print {
+                        body { 
+                            print-color-adjust: exact; 
+                            -webkit-print-color-adjust: exact; 
+                        }
+                        table {
+                            page-break-inside: auto;
+                        }
+                        tr {
+                            page-break-inside: avoid;
+                            page-break-after: auto;
+                        }
+                        thead {
+                            display: table-header-group;
+                        }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="print-date">Printed: ${printDate}</div>
+                <h1>${title}</h1>
+                <div class="info">
+                    <p><strong>Customer:</strong> ${airline} | <strong>Period:</strong> ${dateRange}</p>
+                </div>
+                ${printContent.innerHTML}
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 250);
     };
 
     return (
@@ -116,6 +224,10 @@ const InvoicePage = () => {
                         <Button variant="outline">
                             <Upload className="h-4 w-4 mr-2" />
                             Import
+                        </Button>
+                        <Button variant="outline" color="info" onClick={handlePrint} disabled={!filtersComplete}>
+                            <Printer className="h-4 w-4 mr-2" />
+                            Print
                         </Button>
                     </div>
                 </CardHeader>
@@ -141,20 +253,14 @@ const InvoicePage = () => {
                             />
 
                             {/* Table based on active tab */}
-                            <div className="mt-4">
+                            <div id="invoice-table-container" className="mt-4">
                                 {activeTab === "pre-invoice" ? (
                                     <PreInvoiceTable
                                         invoices={paginatedPreInvoices}
-                                        onView={handleViewPreInvoice}
-                                        onEdit={handleEditPreInvoice}
-                                        onDelete={handleDeletePreInvoice}
                                     />
                                 ) : (
                                     <DraftInvoiceTable
                                         invoices={paginatedDraftInvoices}
-                                        onView={handleViewDraftInvoice}
-                                        onEdit={handleEditDraftInvoice}
-                                        onDelete={handleDeleteDraftInvoice}
                                     />
                                 )}
                             </div>

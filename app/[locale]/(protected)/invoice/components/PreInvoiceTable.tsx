@@ -1,6 +1,5 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import {
     Table,
     TableBody,
@@ -9,21 +8,12 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Eye, Pencil, Trash2, CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, XCircle } from "lucide-react";
 import { PreInvoice } from "./types";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 interface PreInvoiceTableProps {
     invoices: PreInvoice[];
-    onView?: (invoice: PreInvoice) => void;
-    onEdit?: (invoice: PreInvoice) => void;
-    onDelete?: (invoice: PreInvoice) => void;
 }
 
 const formatDate = (dateString: string) => {
@@ -41,9 +31,6 @@ const formatCurrency = (value: number) => {
 
 export const PreInvoiceTable = ({
     invoices,
-    onView,
-    onEdit,
-    onDelete,
 }: PreInvoiceTableProps) => {
     return (
         <ScrollArea className="w-full whitespace-nowrap rounded-md border">
@@ -98,13 +85,12 @@ export const PreInvoiceTable = ({
                         {/* Total */}
                         <TableHead className="min-w-[140px] font-semibold">Total (USD)</TableHead>
                         <TableHead className="min-w-[200px]">Remark</TableHead>
-                        <TableHead className="min-w-[80px] text-center sticky right-0 bg-muted/50">Action</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {invoices.length === 0 ? (
                         <TableRow>
-                            <TableCell colSpan={41} className="text-center py-8 text-muted-foreground">
+                            <TableCell colSpan={40} className="text-center py-8 text-muted-foreground">
                                 No pre-invoice records found
                             </TableCell>
                         </TableRow>
@@ -169,40 +155,6 @@ export const PreInvoiceTable = ({
                                     {formatCurrency(invoice.totalServicePrice)}
                                 </TableCell>
                                 <TableCell className="text-muted-foreground">{invoice.remark || "-"}</TableCell>
-                                <TableCell className="sticky right-0 bg-background">
-                                    <div className="flex items-center justify-center">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem
-                                                    className="cursor-pointer"
-                                                    onClick={() => onView?.(invoice)}
-                                                >
-                                                    <Eye className="h-4 w-4 mr-2" />
-                                                    View
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem
-                                                    className="cursor-pointer"
-                                                    onClick={() => onEdit?.(invoice)}
-                                                >
-                                                    <Pencil className="h-4 w-4 mr-2" />
-                                                    Edit
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem
-                                                    className="cursor-pointer text-destructive focus:text-destructive"
-                                                    onClick={() => onDelete?.(invoice)}
-                                                >
-                                                    <Trash2 className="h-4 w-4 mr-2" />
-                                                    Delete
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </div>
-                                </TableCell>
                             </TableRow>
                         ))
                     )}
