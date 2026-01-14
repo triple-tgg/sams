@@ -117,11 +117,11 @@ const ContractPage = () => {
           </CardDescription>
           <div className="flex items-center gap-2 ml-auto">
             <Button variant="outline" color="success">
-              <Download className="h-4 w-4 mr-2" />
+              <FileText className="h-4 w-4 mr-2" />
               Templat
             </Button>
             <Button variant="outline" color="primary">
-              <FileText className="h-4 w-4 mr-2" />
+              <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
             <Button variant="outline">

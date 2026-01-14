@@ -55,7 +55,6 @@ export const ContractTable = ({
             <TableHeader>
                 <TableRow>
                     <TableHead>Contract No.</TableHead>
-                    <TableHead>Contract Name</TableHead>
                     <TableHead>Customer Airline</TableHead>
                     <TableHead>Effective</TableHead>
                     <TableHead>Expires</TableHead>
@@ -69,7 +68,7 @@ export const ContractTable = ({
             <TableBody>
                 {contracts.length === 0 ? (
                     <TableRow>
-                        <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                             No contracts found
                         </TableCell>
                     </TableRow>
@@ -77,7 +76,6 @@ export const ContractTable = ({
                     contracts.map((contract) => (
                         <TableRow key={contract.id}>
                             <TableCell className="font-medium">{contract.contractNo}</TableCell>
-                            <TableCell>{contract.contractName}</TableCell>
                             <TableCell>{contract.customerAirline}</TableCell>
                             <TableCell>{formatDate(contract.effective)}</TableCell>
                             <TableCell>{formatDate(contract.expires)}</TableCell>
