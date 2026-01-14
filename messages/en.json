@@ -132,6 +132,8 @@
     "setting": "Settings",
     "flight": "Flight",
     "flightList": "Flight List",
+    "contract": "Contract",
+    "contractList": "Contract List",
     "aircraftMaintenance": "Aircraft Maintenance",
     "analytics": "Analytics",
     "customer-airline": "Customer(AirLine)",

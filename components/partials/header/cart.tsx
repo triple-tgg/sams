@@ -12,7 +12,7 @@ import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
+// import ProductCounterButton from "@/components/ecommarce/product-counter-button";
 
 export function Cart() {
     const cartProducts = [
@@ -83,6 +83,7 @@ export function Cart() {
                                                 Price: <span className="text-xs">$489</span>
                                             </div>
                                             <div className="flex items-center gap-4">
+                                                {/* <ProductCounterButton /> */}
                                                 <Button
                                                     size="icon"
                                                     className="h-8 w-8 rounded-full   bg-default-300/80 text-default-800 hover:bg-destructive hover:text-destructive-foreground hover:ring-transparent hover:ring-0">

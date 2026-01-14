@@ -68,6 +68,22 @@ export function getMenuList(pathname: string, t: any): Group[] {
           submenus: [],
         },
         {
+          id: "contract",
+          href: "/contract",
+          label: t("contract"),
+          active: pathname.includes("/contract"),
+          icon: "heroicons-outline:clipboard-document-list",
+          submenus: [],
+        },
+        {
+          id: "invoice",
+          href: "/invoice",
+          label: t("invoice"),
+          active: pathname.includes("/invoice"),
+          icon: "heroicons-outline:clipboard-document-list",
+          submenus: [],
+        },
+        {
           id: "report",
           href: "/report",
           label: t("report"),
@@ -109,8 +125,8 @@ export function getMenuList(pathname: string, t: any): Group[] {
     //   ],
     // },
     {
-      groupLabel: t("master-data"),
-      id: "master-data",
+      groupLabel: t("setting"),
+      id: "setting",
       menus: [
         {
           id: "master-data",
