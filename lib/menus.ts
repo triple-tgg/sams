@@ -64,7 +64,7 @@ export function getMenuList(pathname: string, t: any): Group[] {
           href: "/flight",
           label: t("flightList"),
           active: pathname.includes("/flight"),
-          icon: "heroicons-outline:clipboard-document-list",
+          icon: "heroicons-outline:document-text",
           submenus: [],
         },
         {
@@ -72,7 +72,7 @@ export function getMenuList(pathname: string, t: any): Group[] {
           href: "/contract",
           label: t("contract"),
           active: pathname.includes("/contract"),
-          icon: "heroicons-outline:clipboard-document-list",
+          icon: "heroicons-outline:folder-open",
           submenus: [],
         },
         {
@@ -80,7 +80,7 @@ export function getMenuList(pathname: string, t: any): Group[] {
           href: "/invoice",
           label: t("invoice"),
           active: pathname.includes("/invoice"),
-          icon: "heroicons-outline:clipboard-document-list",
+          icon: "heroicons-outline:document-chart-bar",
           submenus: [],
         },
         {
