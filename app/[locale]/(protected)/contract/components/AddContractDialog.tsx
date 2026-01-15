@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { Check, ChevronRight } from "lucide-react";
-import { ContractFormData } from "./types";
+import { ContractFormData, PricingRate } from "./types";
 import { defaultFormData, FORM_STEPS } from "./data";
 import { GeneralInfoStep } from "./GeneralInfoStep";
 import { ServicePricingStep } from "./ServicePricingStep";
@@ -28,6 +28,10 @@ export const AddContractDialog = ({ open, onOpenChange }: AddContractDialogProps
 
     const handleFormChange = (field: keyof ContractFormData, value: string | number) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const handlePricingRatesChange = (pricingRates: PricingRate[]) => {
+        setFormData((prev) => ({ ...prev, pricingRates }));
     };
 
     const handleStepClick = (stepId: number) => {
@@ -66,7 +70,7 @@ export const AddContractDialog = ({ open, onOpenChange }: AddContractDialogProps
             case 1:
                 return <GeneralInfoStep formData={formData} onFormChange={handleFormChange} files={files} onFilesChange={setFiles} />;
             case 2:
-                return <ServicePricingStep formData={formData} onFormChange={handleFormChange} />;
+                return <ServicePricingStep formData={formData} onPricingRatesChange={handlePricingRatesChange} />;
             default:
                 return null;
         }

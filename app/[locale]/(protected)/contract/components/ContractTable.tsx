@@ -55,12 +55,12 @@ export const ContractTable = ({
             <TableHeader>
                 <TableRow>
                     <TableHead>Contract No.</TableHead>
+                    <TableHead>Contract Type</TableHead>
                     <TableHead>Customer Airline</TableHead>
                     <TableHead>Effective</TableHead>
                     <TableHead>Expires</TableHead>
                     <TableHead className="text-center">No Expiry</TableHead>
                     <TableHead>Location</TableHead>
-                    <TableHead>Station</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-center">Action</TableHead>
                 </TableRow>
@@ -76,6 +76,7 @@ export const ContractTable = ({
                     contracts.map((contract) => (
                         <TableRow key={contract.id}>
                             <TableCell className="font-medium">{contract.contractNo}</TableCell>
+                            <TableCell>{contract.contractType}</TableCell>
                             <TableCell>{contract.customerAirline}</TableCell>
                             <TableCell>{formatDate(contract.effective)}</TableCell>
                             <TableCell>{formatDate(contract.expires)}</TableCell>
@@ -89,7 +90,6 @@ export const ContractTable = ({
                                 </div>
                             </TableCell>
                             <TableCell>{contract.location}</TableCell>
-                            <TableCell>{contract.station}</TableCell>
                             <TableCell>{getStatusBadge(contract.status)}</TableCell>
                             <TableCell>
                                 <div className="flex items-center justify-center">

@@ -5,6 +5,7 @@ export type ContractStatus = "all" | "active" | "on-hold" | "terminated";
 export interface Contract {
     id: number;
     contractNo: string;
+    contractType: string;
     contractName: string;
     customerAirline: string;
     effective: string;
@@ -16,33 +17,21 @@ export interface Contract {
     status: "active" | "on-hold" | "terminated";
 }
 
-// Contract Form Data interface
-export interface ContractFormData {
-    // General Info
-    referenceDocument: string;
-    contractType: string;
-    contractCode: string;
-    station: string;
-    // Handler Company
-    handlerCompanyName: string;
-    handlerCompanyAddress: string;
-    // Carrier
-    carrierName: string;
-    carrierAddress: string;
-    // Duration
-    effectiveFrom: string;
-    validFrom: string;
-    expiresOn: string;
-    serviceLocation: string;
-    status: "active" | "on-hold" | "terminated";
+// Pricing Rate interface for multi-rate pricing
+export interface PricingRate {
+    id: string;
+    serviceLocation: string[];
+    aircraftTypes: string[];
     // Service Rates - Transit Checks
     tsChkUnder2hrsCert: number;
     tsChk2to3hrsNoCert: number;
     tsChk3to4hrsNoCert: number;
     tsChkUnder2hrsNoCert: number;
     tsChkOver2hrsNoCert: number;
-    // Service Rates - Routine Checks
     standbyPerCheck: number;
+    onCallPerCheck: number;
+    // Service Rates - Routine Checks
+    dailyCheck: number;
     preFlightCheck: number;
     weeklyCheck: number;
     // Service Rates - Labor
@@ -69,6 +58,28 @@ export interface ContractFormData {
     // Service Rates - Other
     defectRectificationTools: number;
     materialHandlingFee: number;
+}
+
+// Contract Form Data interface
+export interface ContractFormData {
+    // General Info
+    referenceDocument: string;
+    contractType: string;
+    contractCode: string;
+    station: string;
+    // Handler Company
+    handlerCompanyName: string;
+    handlerCompanyAddress: string;
+    // Carrier
+    carrierName: string;
+    carrierAddress: string;
+    // Duration
+    effectiveFrom: string;
+    validFrom: string;
+    expiresOn: string;
+    status: "active" | "on-hold" | "terminated";
+    // Pricing Rates (multi-rate)
+    pricingRates: PricingRate[];
     yearlyIncreaseRate: string;
     // Billing
     billingAttn: string;

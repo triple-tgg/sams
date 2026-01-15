@@ -3,7 +3,6 @@
 import { useState, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import {
     Select,
@@ -12,17 +11,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Upload, FileText, X, ChevronDown, Check } from "lucide-react";
+import { Upload, FileText, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StepProps } from "./types";
 import { useAirlineOptions } from "@/lib/api/hooks/useAirlines";
-import { useStationsOptions } from "@/lib/api/hooks/useStations";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover";
 
 interface GeneralInfoStepProps extends StepProps {
     files: File[];
@@ -33,20 +26,6 @@ export const GeneralInfoStep = ({ formData, onFormChange, files, onFilesChange }
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isDragOver, setIsDragOver] = useState(false);
     const { options: airlineOptions, isLoading: isLoadingAirlines } = useAirlineOptions();
-    const { options: stationOptions, isLoading: isLoadingStations } = useStationsOptions();
-
-    // Parse serviceLocation string to array
-    const selectedStations = formData.serviceLocation ? formData.serviceLocation.split(", ").filter(Boolean) : [];
-
-    const handleStationToggle = (stationCode: string, checked: boolean) => {
-        let newStations: string[];
-        if (checked) {
-            newStations = [...selectedStations, stationCode];
-        } else {
-            newStations = selectedStations.filter(s => s !== stationCode);
-        }
-        onFormChange("serviceLocation", newStations.join(", "));
-    };
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
@@ -160,54 +139,21 @@ export const GeneralInfoStep = ({ formData, onFormChange, files, onFilesChange }
                     </div>
                 </div>
                 <div className="space-y-2">
-                    <Label>Service Location</Label>
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button
-                                variant="outline"
-                                className="w-full justify-between h-auto min-h-9 py-2"
-                                disabled={isLoadingStations}
-                            >
-                                <span className="flex flex-wrap gap-1">
-                                    {selectedStations.length > 0 ? (
-                                        selectedStations.map((station) => (
-                                            <span
-                                                key={station}
-                                                className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs"
-                                            >
-                                                {station}
-                                            </span>
-                                        ))
-                                    ) : (
-                                        <span className="text-muted-foreground">
-                                            {isLoadingStations ? "Loading..." : "Select Locations"}
-                                        </span>
-                                    )}
-                                </span>
-                                <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[300px] p-2" align="start">
-                            <div className="space-y-1 max-h-[200px] overflow-y-auto">
-                                {stationOptions.map((station) => (
-                                    <div
-                                        key={station.value}
-                                        className="flex items-center space-x-2 p-2 hover:bg-muted rounded cursor-pointer"
-                                        onClick={() => handleStationToggle(station.value, !selectedStations.includes(station.value))}
-                                    >
-                                        <Checkbox
-                                            checked={selectedStations.includes(station.value)}
-                                            onCheckedChange={(checked) => handleStationToggle(station.value, checked as boolean)}
-                                        />
-                                        <span className="text-sm flex-1">{station.label}</span>
-                                        {selectedStations.includes(station.value) && (
-                                            <Check className="h-4 w-4 text-primary" />
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        </PopoverContent>
-                    </Popover>
+                    <Label htmlFor="contractType">Contract Type</Label>
+                    <Select
+                        value={formData.contractType}
+                        onValueChange={(value) => onFormChange("contractType", value)}
+                    >
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select Contract Type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="MSA">MSA</SelectItem>
+                            <SelectItem value="SGHA">SGHA</SelectItem>
+                            <SelectItem value="Reciprocal Contract">Reciprocal Contract</SelectItem>
+                            <SelectItem value="MOU">MOU</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="creditTerms">Credit Terms</Label>

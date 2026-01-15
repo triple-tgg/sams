@@ -1,10 +1,11 @@
-import { Contract, ContractFormData, ContractStatus } from "./types";
+import { Contract, ContractFormData, ContractStatus, PricingRate } from "./types";
 
 // Mock data for demonstration
 export const mockContracts: Contract[] = [
     {
         id: 1,
         contractNo: "SAMS-SM-THA-001-2024",
+        contractType: "MSA",
         contractName: "Line Maintenance Support",
         customerAirline: "Thai Airways",
         effective: "2024-01-01",
@@ -18,6 +19,7 @@ export const mockContracts: Contract[] = [
     {
         id: 2,
         contractNo: "SAMS-SM-EVA-002-2024",
+        contractType: "GHS",
         contractName: "Ground Handling Support",
         customerAirline: "EVA Airways",
         effective: "2024-02-15",
@@ -31,6 +33,7 @@ export const mockContracts: Contract[] = [
     {
         id: 3,
         contractNo: "SAMS-SM-SIA-003-2024",
+        contractType: "MSA",
         contractName: "MSA Agreement",
         customerAirline: "Singapore Airlines",
         effective: "2024-03-01",
@@ -44,6 +47,7 @@ export const mockContracts: Contract[] = [
     {
         id: 4,
         contractNo: "SAMS-SM-CPA-004-2023",
+        contractType: "LMS",
         contractName: "Transit Maintenance",
         customerAirline: "Cathay Pacific",
         effective: "2023-06-01",
@@ -57,6 +61,7 @@ export const mockContracts: Contract[] = [
     {
         id: 5,
         contractNo: "SAMS-SM-JAL-005-2024",
+        contractType: "MSA",
         contractName: "Full Service Agreement",
         customerAirline: "Japan Airlines",
         effective: "2024-04-01",
@@ -70,6 +75,7 @@ export const mockContracts: Contract[] = [
     {
         id: 6,
         contractNo: "SAMS-SM-ANA-006-2024",
+        contractType: "LMS",
         contractName: "Line Maintenance",
         customerAirline: "All Nippon Airways",
         effective: "2024-05-01",
@@ -92,28 +98,20 @@ export const airlines = [
     "All Nippon Airways",
 ];
 
-export const defaultFormData: ContractFormData = {
-    referenceDocument: "",
-    contractType: "Maintenance Service Agreement: Line Maintenance Support and Ground Handling Support Services",
-    contractCode: "SAMS-SM-AIRLINE CODE-000-2024",
-    station: "BKK",
-    handlerCompanyName: "SAMS Engineering Co., Ltd. (SAMS)",
-    handlerCompanyAddress: "999 Moo 1, Room TW6-059, 6th Floor, Main Terminal Building, Suvarnabhumi International Airport, Nong Prue, Bang Phli, Samut Prakan 10540 Thailand",
-    carrierName: "",
-    carrierAddress: "",
-    effectiveFrom: "",
-    validFrom: "",
-    expiresOn: "",
-    serviceLocation: "BKK, HKT, CNX",
-    status: "active",
+// Default pricing rate with all fields
+export const defaultPricingRate: Omit<PricingRate, 'id'> = {
+    serviceLocation: [],
+    aircraftTypes: [],
     // Service Rates - Transit Checks
     tsChkUnder2hrsCert: 0,
     tsChk2to3hrsNoCert: 35,
     tsChk3to4hrsNoCert: 0,
     tsChkUnder2hrsNoCert: 0,
     tsChkOver2hrsNoCert: 35,
-    // Service Rates - Routine Checks
     standbyPerCheck: 0,
+    onCallPerCheck: 0,
+    // Service Rates - Routine Checks
+    dailyCheck: 0,
     preFlightCheck: 0,
     weeklyCheck: 0,
     // Service Rates - Labor
@@ -140,6 +138,23 @@ export const defaultFormData: ContractFormData = {
     // Service Rates - Other
     defectRectificationTools: 0,
     materialHandlingFee: 0,
+};
+
+export const defaultFormData: ContractFormData = {
+    referenceDocument: "",
+    contractType: "Maintenance Service Agreement: Line Maintenance Support and Ground Handling Support Services",
+    contractCode: "SAMS-SM-AIRLINE CODE-000-2024",
+    station: "BKK",
+    handlerCompanyName: "SAMS Engineering Co., Ltd. (SAMS)",
+    handlerCompanyAddress: "999 Moo 1, Room TW6-059, 6th Floor, Main Terminal Building, Suvarnabhumi International Airport, Nong Prue, Bang Phli, Samut Prakan 10540 Thailand",
+    carrierName: "",
+    carrierAddress: "",
+    effectiveFrom: "",
+    validFrom: "",
+    expiresOn: "",
+    status: "active",
+    // Pricing Rates (multi-rate)
+    pricingRates: [],
     yearlyIncreaseRate: "6%",
     // Billing
     billingAttn: "",
@@ -155,3 +170,4 @@ export const FORM_STEPS = [
     { id: 1, title: "General Info", titleEn: "Contract Details" },
     { id: 2, title: "Pricing", titleEn: "Service Rates" },
 ];
+
