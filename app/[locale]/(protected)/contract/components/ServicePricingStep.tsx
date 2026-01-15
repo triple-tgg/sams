@@ -148,58 +148,126 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange }: ServicePr
         return (
             <div className="space-y-6 pt-4">
                 {/* Transit Checks */}
-                <div className="bg-muted/30 p-4 rounded-lg space-y-3">
+                <div className="bg-muted/30 p-4 rounded-lg space-y-4">
                     <h4 className="text-sm font-semibold text-primary">Transit Checks</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                        <PriceInput
-                            id={`${rate.id}-tsChkUnder2hrsCert`}
-                            label="T/S CHK < 2hrs with Cert."
-                            value={rate.tsChkUnder2hrsCert}
-                            onChange={handleNumberChange("tsChkUnder2hrsCert")}
-                            suffix="/Check"
-                        />
-                        <PriceInput
-                            id={`${rate.id}-tsChk2to3hrsNoCert`}
-                            label="T/S CHK ≥2 but <3hrs w/o Cert."
-                            value={rate.tsChk2to3hrsNoCert}
-                            onChange={handleNumberChange("tsChk2to3hrsNoCert")}
-                            suffix="/Check"
-                        />
-                        <PriceInput
-                            id={`${rate.id}-tsChk3to4hrsNoCert`}
-                            label="T/S CHK ≥3 but <4hrs w/o Cert."
-                            value={rate.tsChk3to4hrsNoCert}
-                            onChange={handleNumberChange("tsChk3to4hrsNoCert")}
-                            suffix="/Check"
-                        />
-                        <PriceInput
-                            id={`${rate.id}-tsChkUnder2hrsNoCert`}
-                            label="T/S CHK ≤2hrs w/o Cert."
-                            value={rate.tsChkUnder2hrsNoCert}
-                            onChange={handleNumberChange("tsChkUnder2hrsNoCert")}
-                            suffix="/Check"
-                        />
-                        <PriceInput
-                            id={`${rate.id}-tsChkOver2hrsNoCert`}
-                            label="T/S CHK >2hrs w/o Cert."
-                            value={rate.tsChkOver2hrsNoCert}
-                            onChange={handleNumberChange("tsChkOver2hrsNoCert")}
-                            suffix="/Check"
-                        />
-                        <PriceInput
-                            id={`${rate.id}-standbyPerCheck`}
-                            label="Stand-by"
-                            value={rate.standbyPerCheck}
-                            onChange={handleNumberChange("standbyPerCheck")}
-                            suffix="/Check"
-                        />
-                        <PriceInput
-                            id={`${rate.id}-onCallPerCheck`}
-                            label="On Call"
-                            value={rate.onCallPerCheck}
-                            onChange={handleNumberChange("onCallPerCheck")}
-                            suffix="/Check"
-                        />
+
+                    {/* With Certificate */}
+                    <div className="space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground">With Certificate</p>
+                        <div className="grid grid-cols-2 gap-3">
+                            <PriceInput
+                                id={`${rate.id}-tsChkUnder2hrsCert`}
+                                label="Transit Check <2hrs"
+                                value={rate.tsChkUnder2hrsCert}
+                                onChange={handleNumberChange("tsChkUnder2hrsCert")}
+                                suffix="/Check"
+                            />
+                            <PriceInput
+                                id={`${rate.id}-tsChk2to3hrsCert`}
+                                label="Transit Check ≥2hrs and <3hrs"
+                                value={rate.tsChk2to3hrsCert}
+                                onChange={handleNumberChange("tsChk2to3hrsCert")}
+                                suffix="/Check"
+                            />
+                            <PriceInput
+                                id={`${rate.id}-tsChk3to4hrsCert`}
+                                label="Transit Check ≥3hrs and <4hrs"
+                                value={rate.tsChk3to4hrsCert}
+                                onChange={handleNumberChange("tsChk3to4hrsCert")}
+                                suffix="/Check"
+                            />
+                            <PriceInput
+                                id={`${rate.id}-tsChk4to5hrsCert`}
+                                label="Transit Check ≥4hrs and <5hrs"
+                                value={rate.tsChk4to5hrsCert}
+                                onChange={handleNumberChange("tsChk4to5hrsCert")}
+                                suffix="/Check"
+                            />
+                            <PriceInput
+                                id={`${rate.id}-tsChk5to6hrsCert`}
+                                label="Transit Check ≥5hrs and <6hrs"
+                                value={rate.tsChk5to6hrsCert}
+                                onChange={handleNumberChange("tsChk5to6hrsCert")}
+                                suffix="/Check"
+                            />
+                            <PriceInput
+                                id={`${rate.id}-additionalFee6hrsPlusCert`}
+                                label="Additional Fee ≥6hrs"
+                                value={rate.additionalFee6hrsPlusCert}
+                                onChange={handleNumberChange("additionalFee6hrsPlusCert")}
+                                suffix="/Check"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Without Certificate */}
+                    <div className="space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground">Without Certificate</p>
+                        <div className="grid grid-cols-2 gap-3">
+                            <PriceInput
+                                id={`${rate.id}-tsChkUnder2hrsNoCert`}
+                                label="Transit Check <2hrs"
+                                value={rate.tsChkUnder2hrsNoCert}
+                                onChange={handleNumberChange("tsChkUnder2hrsNoCert")}
+                                suffix="/Check"
+                            />
+                            <PriceInput
+                                id={`${rate.id}-tsChk2to3hrsNoCert`}
+                                label="Transit Check ≥2hrs and <3hrs"
+                                value={rate.tsChk2to3hrsNoCert}
+                                onChange={handleNumberChange("tsChk2to3hrsNoCert")}
+                                suffix="/Check"
+                            />
+                            <PriceInput
+                                id={`${rate.id}-tsChk3to4hrsNoCert`}
+                                label="Transit Check ≥3hrs and <4hrs"
+                                value={rate.tsChk3to4hrsNoCert}
+                                onChange={handleNumberChange("tsChk3to4hrsNoCert")}
+                                suffix="/Check"
+                            />
+                            <PriceInput
+                                id={`${rate.id}-tsChk4to5hrsNoCert`}
+                                label="Transit Check ≥4hrs and <5hrs"
+                                value={rate.tsChk4to5hrsNoCert}
+                                onChange={handleNumberChange("tsChk4to5hrsNoCert")}
+                                suffix="/Check"
+                            />
+                            <PriceInput
+                                id={`${rate.id}-tsChk5to6hrsNoCert`}
+                                label="Transit Check ≥5hrs and <6hrs"
+                                value={rate.tsChk5to6hrsNoCert}
+                                onChange={handleNumberChange("tsChk5to6hrsNoCert")}
+                                suffix="/Check"
+                            />
+                            <PriceInput
+                                id={`${rate.id}-additionalFee6hrsPlusNoCert`}
+                                label="Additional Fee ≥6hrs"
+                                value={rate.additionalFee6hrsPlusNoCert}
+                                onChange={handleNumberChange("additionalFee6hrsPlusNoCert")}
+                                suffix="/Check"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Other */}
+                    <div className="space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground">Other</p>
+                        <div className="grid grid-cols-2 gap-3">
+                            <PriceInput
+                                id={`${rate.id}-standbyPerCheck`}
+                                label="Stand-by"
+                                value={rate.standbyPerCheck}
+                                onChange={handleNumberChange("standbyPerCheck")}
+                                suffix="/Check"
+                            />
+                            <PriceInput
+                                id={`${rate.id}-onCallPerCheck`}
+                                label="On Call"
+                                value={rate.onCallPerCheck}
+                                onChange={handleNumberChange("onCallPerCheck")}
+                                suffix="/Check"
+                            />
+                        </div>
                     </div>
                 </div>
 

@@ -102,12 +102,21 @@ export const airlines = [
 export const defaultPricingRate: Omit<PricingRate, 'id'> = {
     serviceLocation: [],
     aircraftTypes: [],
-    // Service Rates - Transit Checks
+    // Service Rates - Transit Checks (with Certificate)
     tsChkUnder2hrsCert: 0,
-    tsChk2to3hrsNoCert: 35,
-    tsChk3to4hrsNoCert: 0,
+    tsChk2to3hrsCert: 0,
+    tsChk3to4hrsCert: 0,
+    tsChk4to5hrsCert: 0,
+    tsChk5to6hrsCert: 0,
+    additionalFee6hrsPlusCert: 0,
+    // Service Rates - Transit Checks (without Certificate)
     tsChkUnder2hrsNoCert: 0,
-    tsChkOver2hrsNoCert: 35,
+    tsChk2to3hrsNoCert: 0,
+    tsChk3to4hrsNoCert: 0,
+    tsChk4to5hrsNoCert: 0,
+    tsChk5to6hrsNoCert: 0,
+    additionalFee6hrsPlusNoCert: 0,
+    // Service Rates - Transit Checks (Other)
     standbyPerCheck: 0,
     onCallPerCheck: 0,
     // Service Rates - Routine Checks

@@ -22,12 +22,21 @@ export interface PricingRate {
     id: string;
     serviceLocation: string[];
     aircraftTypes: string[];
-    // Service Rates - Transit Checks
+    // Service Rates - Transit Checks (with Certificate)
     tsChkUnder2hrsCert: number;
+    tsChk2to3hrsCert: number;
+    tsChk3to4hrsCert: number;
+    tsChk4to5hrsCert: number;
+    tsChk5to6hrsCert: number;
+    additionalFee6hrsPlusCert: number;
+    // Service Rates - Transit Checks (without Certificate)
+    tsChkUnder2hrsNoCert: number;
     tsChk2to3hrsNoCert: number;
     tsChk3to4hrsNoCert: number;
-    tsChkUnder2hrsNoCert: number;
-    tsChkOver2hrsNoCert: number;
+    tsChk4to5hrsNoCert: number;
+    tsChk5to6hrsNoCert: number;
+    additionalFee6hrsPlusNoCert: number;
+    // Service Rates - Transit Checks (Other)
     standbyPerCheck: number;
     onCallPerCheck: number;
     // Service Rates - Routine Checks
