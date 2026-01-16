@@ -19,9 +19,10 @@ export interface Contract {
 
 // Pricing Rate interface for multi-rate pricing
 export interface PricingRate {
-    id: string;
+    id: number | string; // 0 for new, actual ID for existing
     serviceLocation: string[];
-    aircraftTypes: string[];
+    aircraftTypes: string[]; // For display (codes)
+    aircraftTypeId: number; // For API submission
     // Service Rates - Transit Checks (with Certificate)
     tsChkUnder2hrsCert: number;
     tsChk2to3hrsCert: number;
@@ -71,6 +72,11 @@ export interface PricingRate {
 
 // Contract Form Data interface
 export interface ContractFormData {
+    // IDs for API
+    contractId: number; // 0 for new, actual ID for edit
+    airlineId: number;
+    contractTypeId: number;
+    contractStatusId: number;
     // General Info
     referenceDocument: string;
     contractType: string;
@@ -86,7 +92,8 @@ export interface ContractFormData {
     effectiveFrom: string;
     validFrom: string;
     expiresOn: string;
-    status: "active" | "on-hold" | "terminated";
+    isNoExpiryDate: boolean;
+    status: string;
     // Pricing Rates (multi-rate)
     pricingRates: PricingRate[];
     yearlyIncreaseRate: string;
@@ -98,10 +105,13 @@ export interface ContractFormData {
     paymentTerms: string;
     latePenalty: string;
     creditTerms: string;
+    // Contract Document
+    contractDocumentPath: string;
+    contractDocumentName: string;
 }
 
 // Step component props
 export interface StepProps {
     formData: ContractFormData;
-    onFormChange: (field: keyof ContractFormData, value: string | number) => void;
+    onFormChange: (field: keyof ContractFormData, value: string | number | boolean) => void;
 }

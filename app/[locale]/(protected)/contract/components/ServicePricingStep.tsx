@@ -32,6 +32,7 @@ import {
 interface ServicePricingStepProps {
     formData: ContractFormData;
     onPricingRatesChange: (pricingRates: PricingRate[]) => void;
+    mode?: "create" | "edit" | "view";
 }
 
 // Reusable Price Input with combined USD suffix
@@ -66,14 +67,14 @@ const PriceInput = ({
     </div>
 );
 
-export const ServicePricingStep = ({ formData, onPricingRatesChange }: ServicePricingStepProps) => {
-    const [expandedRates, setExpandedRates] = useState<Set<string>>(new Set());
+export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "create" }: ServicePricingStepProps) => {
+    const [expandedRates, setExpandedRates] = useState<Set<number | string>>(new Set());
     const { options: stationOptions, isLoading: isLoadingStations } = useStationsOptions();
     const { options: aircraftTypeOptions, isLoading: isLoadingAircraftTypes } = useAircraftTypes();
 
     const handleAddPricing = () => {
         const newRate: PricingRate = {
-            id: `rate-${Date.now()}`,
+            id: Date.now(),
             ...defaultPricingRate,
         };
         const updatedRates = [...formData.pricingRates, newRate];
@@ -82,7 +83,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange }: ServicePr
         setExpandedRates(prev => new Set(Array.from(prev).concat(newRate.id)));
     };
 
-    const handleDeleteRate = (rateId: string) => {
+    const handleDeleteRate = (rateId: number | string) => {
         const updatedRates = formData.pricingRates.filter(rate => rate.id !== rateId);
         onPricingRatesChange(updatedRates);
         setExpandedRates(prev => {
@@ -92,7 +93,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange }: ServicePr
         });
     };
 
-    const handleRateChange = (rateId: string, field: keyof PricingRate, value: string | number | string[]) => {
+    const handleRateChange = (rateId: number | string, field: keyof PricingRate, value: string | number | string[]) => {
         const updatedRates = formData.pricingRates.map(rate => {
             if (rate.id === rateId) {
                 return { ...rate, [field]: value };
@@ -102,7 +103,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange }: ServicePr
         onPricingRatesChange(updatedRates);
     };
 
-    const toggleExpanded = (rateId: string) => {
+    const toggleExpanded = (rateId: number | string) => {
         setExpandedRates(prev => {
             const newSet = new Set(prev);
             if (newSet.has(rateId)) {
@@ -114,7 +115,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange }: ServicePr
         });
     };
 
-    const handleAircraftTypeToggle = (rateId: string, aircraftCode: string, checked: boolean) => {
+    const handleAircraftTypeToggle = (rateId: number | string, aircraftCode: string, checked: boolean) => {
         const rate = formData.pricingRates.find(r => r.id === rateId);
         if (!rate) return;
 
@@ -127,7 +128,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange }: ServicePr
         handleRateChange(rateId, "aircraftTypes", newTypes);
     };
 
-    const handleServiceLocationToggle = (rateId: string, locationCode: string, checked: boolean) => {
+    const handleServiceLocationToggle = (rateId: number | string, locationCode: string, checked: boolean) => {
         const rate = formData.pricingRates.find(r => r.id === rateId);
         if (!rate) return;
 
@@ -153,7 +154,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange }: ServicePr
 
                     {/* With Certificate */}
                     <div className="space-y-2">
-                        <p className="text-xs font-medium text-muted-foreground">With Certificate</p>
+                        <p className="text-xs font-bold text-muted-foreground">With Certificate</p>
                         <div className="grid grid-cols-2 gap-3">
                             <PriceInput
                                 id={`${rate.id}-tsChkUnder2hrsCert`}
@@ -202,7 +203,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange }: ServicePr
 
                     {/* Without Certificate */}
                     <div className="space-y-2">
-                        <p className="text-xs font-medium text-muted-foreground">Without Certificate</p>
+                        <p className="text-xs font-bold text-muted-foreground">Without Certificate</p>
                         <div className="grid grid-cols-2 gap-3">
                             <PriceInput
                                 id={`${rate.id}-tsChkUnder2hrsNoCert`}
@@ -251,7 +252,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange }: ServicePr
 
                     {/* Other */}
                     <div className="space-y-2">
-                        <p className="text-xs font-medium text-muted-foreground">Other</p>
+                        <p className="text-xs font-bold text-muted-foreground">Other</p>
                         <div className="grid grid-cols-2 gap-3">
                             <PriceInput
                                 id={`${rate.id}-standbyPerCheck`}
@@ -476,19 +477,26 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange }: ServicePr
             {formData.pricingRates.length === 0 ? (
                 <div className="border-2 border-dashed rounded-lg p-8 text-center">
                     <div className="flex flex-col items-center gap-3">
-                        <div className="rounded-full bg-primary/10 p-3">
-                            <Plus className="h-6 w-6 text-primary" />
-                        </div>
+                        {mode !== "view" && (
+                            <div className="rounded-full bg-primary/10 p-3">
+                                <Plus className="h-6 w-6 text-primary" />
+                            </div>
+                        )}
                         <div>
                             <h3 className="font-semibold text-lg">No Pricing Rates</h3>
                             <p className="text-sm text-muted-foreground mt-1">
-                                Add pricing rates for different service locations and aircraft types
+                                {mode === "view"
+                                    ? "This contract has no pricing rates configured."
+                                    : "Add pricing rates for different service locations and aircraft types"
+                                }
                             </p>
                         </div>
-                        <Button onClick={handleAddPricing} className="mt-2">
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Pricing
-                        </Button>
+                        {mode !== "view" && (
+                            <Button onClick={handleAddPricing} className="mt-2">
+                                <Plus className="h-4 w-4 mr-2" />
+                                Add Pricing
+                            </Button>
+                        )}
                     </div>
                 </div>
             ) : (
@@ -562,7 +570,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange }: ServicePr
                                                         <PopoverTrigger asChild>
                                                             <Button
                                                                 variant="outline"
-                                                                className="w-full justify-between h-auto min-h-9 py-2"
+                                                                className="w-full justify-between h-auto min-h-9 py-2 hover:bg-transparent border-slate-300"
                                                                 disabled={isLoadingStations}
                                                             >
                                                                 <span className="flex flex-wrap gap-1">
@@ -581,7 +589,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange }: ServicePr
                                                                         </span>
                                                                     )}
                                                                 </span>
-                                                                <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                                                                <ChevronDown className="h-4 w-4 shrink-0 opacity-50 text-slate-500" />
                                                             </Button>
                                                         </PopoverTrigger>
                                                         <PopoverContent className="w-[300px] p-2" align="start">
@@ -597,6 +605,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange }: ServicePr
                                                                         )}
                                                                     >
                                                                         <Checkbox
+                                                                            color="primary"
                                                                             checked={rate.serviceLocation.includes(station.value)}
                                                                             onCheckedChange={(checked) => handleServiceLocationToggle(
                                                                                 rate.id,
@@ -622,7 +631,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange }: ServicePr
                                                         <PopoverTrigger asChild>
                                                             <Button
                                                                 variant="outline"
-                                                                className="w-full justify-between h-auto min-h-9 py-2"
+                                                                className="w-full justify-between h-auto min-h-9 py-2 hover:bg-transparent border-slate-300"
                                                                 disabled={isLoadingAircraftTypes}
                                                             >
                                                                 <span className="flex flex-wrap gap-1">
@@ -641,7 +650,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange }: ServicePr
                                                                         </span>
                                                                     )}
                                                                 </span>
-                                                                <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                                                                <ChevronDown className="h-4 w-4 shrink-0 opacity-50 text-slate-500" />
                                                             </Button>
                                                         </PopoverTrigger>
                                                         <PopoverContent className="w-[300px] p-2" align="start">
@@ -652,20 +661,21 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange }: ServicePr
                                                                         className="flex items-center space-x-2 p-2 hover:bg-muted rounded cursor-pointer"
                                                                         onClick={() => handleAircraftTypeToggle(
                                                                             rate.id,
-                                                                            aircraft.value,
-                                                                            !rate.aircraftTypes.includes(aircraft.value)
+                                                                            String(aircraft.value),
+                                                                            !rate.aircraftTypes.includes(String(aircraft.value))
                                                                         )}
                                                                     >
                                                                         <Checkbox
-                                                                            checked={rate.aircraftTypes.includes(aircraft.value)}
+                                                                            color="primary"
+                                                                            checked={rate.aircraftTypes.includes(String(aircraft.value))}
                                                                             onCheckedChange={(checked) => handleAircraftTypeToggle(
                                                                                 rate.id,
-                                                                                aircraft.value,
+                                                                                String(aircraft.value),
                                                                                 checked as boolean
                                                                             )}
                                                                         />
                                                                         <span className="text-sm flex-1">{aircraft.label}</span>
-                                                                        {rate.aircraftTypes.includes(aircraft.value) && (
+                                                                        {rate.aircraftTypes.includes(String(aircraft.value)) && (
                                                                             <Check className="h-4 w-4 text-primary" />
                                                                         )}
                                                                     </div>

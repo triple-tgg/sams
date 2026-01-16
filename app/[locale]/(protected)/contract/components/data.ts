@@ -102,6 +102,7 @@ export const airlines = [
 export const defaultPricingRate: Omit<PricingRate, 'id'> = {
     serviceLocation: [],
     aircraftTypes: [],
+    aircraftTypeId: 0,
     // Service Rates - Transit Checks (with Certificate)
     tsChkUnder2hrsCert: 0,
     tsChk2to3hrsCert: 0,
@@ -150,29 +151,42 @@ export const defaultPricingRate: Omit<PricingRate, 'id'> = {
 };
 
 export const defaultFormData: ContractFormData = {
+    // IDs for API
+    contractId: 0,
+    airlineId: 0,
+    contractTypeId: 0,
+    contractStatusId: 0,
+    // General Info
     referenceDocument: "",
-    contractType: "Maintenance Service Agreement: Line Maintenance Support and Ground Handling Support Services",
-    contractCode: "SAMS-SM-AIRLINE CODE-000-2024",
-    station: "BKK",
-    handlerCompanyName: "SAMS Engineering Co., Ltd. (SAMS)",
-    handlerCompanyAddress: "999 Moo 1, Room TW6-059, 6th Floor, Main Terminal Building, Suvarnabhumi International Airport, Nong Prue, Bang Phli, Samut Prakan 10540 Thailand",
+    contractType: "",
+    contractCode: "",
+    station: "",
+    // Handler Company
+    handlerCompanyName: "",
+    handlerCompanyAddress: "",
+    // Carrier
     carrierName: "",
     carrierAddress: "",
+    // Duration
     effectiveFrom: "",
     validFrom: "",
     expiresOn: "",
+    isNoExpiryDate: false,
     status: "active",
     // Pricing Rates (multi-rate)
     pricingRates: [],
-    yearlyIncreaseRate: "6%",
+    yearlyIncreaseRate: "",
     // Billing
     billingAttn: "",
     billingEmail: "",
     billingPhone: "",
     billingAddress: "",
-    paymentTerms: "Within thirty (30) days from the invoice date",
-    latePenalty: "1.0% per month of the outstanding balance",
+    paymentTerms: "",
+    latePenalty: "",
     creditTerms: "",
+    // Contract Document
+    contractDocumentPath: "",
+    contractDocumentName: "",
 };
 
 export const FORM_STEPS = [

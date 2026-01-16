@@ -23,6 +23,8 @@ const InvoicePage = () => {
     const [selectedAirline, setSelectedAirline] = useState<string>("");
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
+    const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+    const [selectedAircraftTypes, setSelectedAircraftTypes] = useState<string[]>([]);
 
     // Check if all required filters are filled
     const filtersComplete = selectedAirline !== "" && startDate !== "" && endDate !== "";
@@ -240,6 +242,10 @@ const InvoicePage = () => {
                         onStartDateChange={setStartDate}
                         endDate={endDate}
                         onEndDateChange={setEndDate}
+                        selectedLocations={selectedLocations}
+                        onLocationsChange={setSelectedLocations}
+                        selectedAircraftTypes={selectedAircraftTypes}
+                        onAircraftTypesChange={setSelectedAircraftTypes}
                     />
 
                     {/* Show content only when all filters are filled */}

@@ -34,14 +34,15 @@ const formatDate = (dateString: string) => {
     });
 };
 
-const getStatusBadge = (status: Contract["status"]) => {
-    const config = {
+const getStatusBadge = (status: string) => {
+    const config: Record<string, { className: string; label: string }> = {
         active: { className: "bg-success/10 text-success border-success/20", label: "Active" },
-        "on-hold": { className: "bg-warning/10 text-warning border-warning/20", label: "On Hold" },
+        "on hold": { className: "bg-warning/10 text-warning border-warning/20", label: "On Hold" },
         terminated: { className: "bg-destructive/10 text-destructive border-destructive/20", label: "Terminated" },
     };
-    const { className, label } = config[status];
-    return <Badge className={className}>{label}</Badge>;
+    // Fallback for unknown status
+    const statusConfig = config[status] || { className: "bg-muted/10 text-muted-foreground border-muted/20", label: status || "Unknown" };
+    return <Badge className={statusConfig.className}>{statusConfig.label}</Badge>;
 };
 
 export const ContractTable = ({

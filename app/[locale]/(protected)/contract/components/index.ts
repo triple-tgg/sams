@@ -8,7 +8,7 @@ export * from "./data";
 export { ContractTable } from "./ContractTable";
 export { ContractFilters } from "./ContractFilters";
 export { ContractTabs } from "./ContractTabs";
-export { AddContractDialog } from "./AddContractDialog";
+export { ContractDialog } from "./ContractDialog";
 
 // Step Components
 export { GeneralInfoStep } from "./GeneralInfoStep";
