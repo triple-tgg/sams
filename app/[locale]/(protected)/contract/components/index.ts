@@ -9,8 +9,8 @@ export { ContractTable } from "./ContractTable";
 export { ContractFilters } from "./ContractFilters";
 export { ContractTabs } from "./ContractTabs";
 export { ContractDialog } from "./ContractDialog";
+export { ContractViewA4 } from "./ContractViewA4";
 
 // Step Components
 export { GeneralInfoStep } from "./GeneralInfoStep";
 export { ServicePricingStep } from "./ServicePricingStep";
-

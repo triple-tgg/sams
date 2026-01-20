@@ -3,7 +3,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import type { FlightItem } from "@/lib/api/flight/filghtlist.interface";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { CircleOff, EllipsisVertical, FileCheck, FilePenLine, Paperclip, SquarePen } from "lucide-react";
+import { CircleOff, MoreHorizontal, FileCheck, FilePenLine, Paperclip, SquarePen, Eye } from "lucide-react";
 import clsx from "clsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatForDisplay, formatForDisplayDateTime, formatForValue, formatFromPicker } from "@/lib/utils/formatPicker";
@@ -72,87 +72,61 @@ export function getFlightColumns({
       cell: ({ row }) => {
         const flight = row.original;
         return (
-          <div className="flex items-center gap-2 justify-start">
+          <div className="flex items-center justify-center">
             <DropdownMenu>
               <DropdownMenuTrigger asChild disabled={flight.statusObj?.code === "Cancel" || isCancelLoading}>
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="icon"
-                  className="w-7 h-7 ring-offset-transparent border-default-300 text-default-500"
+                  className="h-8 w-8"
                   disabled={flight.statusObj?.code === "Cancel" || isCancelLoading}
                 >
-                  <EllipsisVertical className="w-4" />
+                  <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="center">
-                {/* <DropdownMenuSeparator /> */}
+              <DropdownMenuContent align="end">
                 <DropdownMenuItem
+                  className="cursor-pointer"
                   disabled={flight.statusObj?.code === "Cancel"}
-                  onClick={() => {
-                    onEditFlight?.(flight)
-                  }}
+                  onClick={() => onEditFlight?.(flight)}
                 >
-                  <SquarePen className="w-4 h-4 me-4" /> <p>Edit Flight</p>
+                  <SquarePen className="h-4 w-4 mr-2" />
+                  Edit Flight
                 </DropdownMenuItem>
                 <DropdownMenuItem
+                  className="cursor-pointer"
                   disabled={flight.statusObj?.code === "Cancel"}
-                  onClick={() => {
-                    onCreateTHF?.(flight)
-                  }}
+                  onClick={() => onCreateTHF?.(flight)}
                 >
-                  <FilePenLine className="w-4 h-4 me-4" /> {flight.state === "plan" ? <p>Create THF</p> : <p>Edit THF</p>}
+                  <FilePenLine className="h-4 w-4 mr-2" />
+                  {flight.state === "plan" ? "Create THF" : "Edit THF"}
                 </DropdownMenuItem>
+                {flight.isFiles && (
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    onClick={() => onAttach?.(flight.filePath)}
+                  >
+                    <Paperclip className="h-4 w-4 mr-2" />
+                    View Attachment
+                  </DropdownMenuItem>
+                )}
+                {flight.state !== "plan" && (
+                  <DropdownMenuItem className="cursor-pointer" disabled>
+                    <FileCheck className="h-4 w-4 mr-2" />
+                    {flight.state === "save" ? `Done (THF:${flight.thfNumber})` : `Draft (THF:${flight.thfNumber})`}
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  className="bg-red-700 text-white hover:bg-red-800 focus:bg-red-800 hover:text-white focus:text-white"
+                  className="cursor-pointer text-destructive focus:text-destructive"
                   disabled={flight.statusObj?.code === "Cancel"}
                   onClick={() => onCancel?.(flight)}
                 >
-                  <CircleOff className="w-4 h-4 me-4" /> <p>Cancel Flight</p>
+                  <CircleOff className="h-4 w-4 mr-2" />
+                  Cancel Flight
                 </DropdownMenuItem>
-
               </DropdownMenuContent>
             </DropdownMenu>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    disabled={!flight.isFiles}
-                    variant="outline"
-                    size="icon"
-                    className="w-7 h-7 ring-offset-transparent border-default-300 text-default-500"
-                    color="secondary"
-                    onClick={() => onAttach?.(flight.filePath)}
-                  >
-                    <Paperclip className="w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top">
-                  {flight.isFiles ? <p>Attach file</p> : <p>No file attached</p>}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            {flight.state !== "plan" && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      // disabled={flight.state !== "save"}
-                      variant="outline"
-                      size="icon"
-                      className="w-7 h-7 ring-offset-transparent border-default-300 text-default-500"
-                      color="secondary"
-                    // onClick={() => onAttach?.(flight)}
-                    >
-                      {flight.state === "save" ? <FileCheck className="w-4" /> : <FilePenLine className="w-4" />}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">
-                    {flight.state === "save" ? <p>Done (THF:{flight.thfNumber})</p> : <p>Draft (THF:{flight.thfNumber})</p>}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
-
           </div>
         );
       },

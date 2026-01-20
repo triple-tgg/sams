@@ -27,15 +27,15 @@ const transformContractData = (apiData: ContractListItem[]): Contract[] => {
   return apiData.map((item) => ({
     id: item.id,
     contractNo: item.contractNo,
-    contractType: "", // Not in API response yet
+    contractType: item.contractTypeObj?.name || "-",
     contractName: "", // Not in API response yet  
-    customerAirline: item.airlineObj?.name || "",
+    customerAirline: item.airlineObj?.name || "-",
     effective: item.effectiveFrom,
     valid: item.validFrom,
     expires: item.expiresOn,
     noExpiry: item.isNoExpiryDate ?? false,
-    location: item.serviceStation?.join(", ") || "",
-    station: item.serviceStation?.[0] || "",
+    location: item.serviceStation?.join(", ") || "-",
+    station: item.serviceStation?.[0] || "-",
     status: (item.contractStatusObj?.code?.toLowerCase() || "active") as Contract["status"],
   }));
 };

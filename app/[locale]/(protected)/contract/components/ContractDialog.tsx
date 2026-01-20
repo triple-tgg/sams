@@ -10,11 +10,12 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { Check, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
 import { ContractFormData, PricingRate } from "./types";
 import { defaultFormData, FORM_STEPS } from "./data";
 import { GeneralInfoStep } from "./GeneralInfoStep";
 import { ServicePricingStep } from "./ServicePricingStep";
+import { ContractViewA4 } from "./ContractViewA4";
 import { useUpsertContract, useContractById } from "@/lib/api/hooks/useContractOperations";
 import { useReduxAuth } from "@/lib/api/hooks/useReduxAuth";
 import { ContractUpsertRequest, ContractPricingDataRequest } from "@/lib/api/contract/upsertContract";
@@ -56,8 +57,8 @@ const transformApiToFormData = (data: ContractDetail): ContractFormData => {
         pricingRates: data.pricingDataList?.map((p) => ({
             id: p.id,
             serviceLocation: p.stationCodeList || [],
-            aircraftTypes: [p.aircraftTypeObj?.code || ""],
-            aircraftTypeId: p.aircraftTypeObj?.id || 0,
+            aircraftTypes: p.aircraftTypeCodeList || [], // Use aircraft type codes from API
+            aircraftTypeId: 0, // Deprecated, kept for backwards compatibility
             tsChkUnder2hrsCert: p.tsChkUnder2hrsCert || 0,
             tsChk2to3hrsCert: p.tsChk2to3hrsCert || 0,
             tsChk3to4hrsCert: p.tsChk3to4hrsCert || 0,
@@ -108,7 +109,6 @@ const transformApiToFormData = (data: ContractDetail): ContractFormData => {
     };
 };
 
-// Transform form data to API request
 const transformFormDataToRequest = (
     formData: ContractFormData,
     userName: string,
@@ -118,7 +118,7 @@ const transformFormDataToRequest = (
         // For create mode, always set id = 0; for update mode, use the existing id
         id: isCreate ? 0 : rate.id,
         stationCodeList: rate.serviceLocation,
-        aircraftTypeId: rate.aircraftTypeId,
+        aircraftTypeCodeList: rate.aircraftTypes, // Use aircraft type codes from form
         tsChkUnder2hrsCert: rate.tsChkUnder2hrsCert,
         tsChk2to3hrsCert: rate.tsChk2to3hrsCert,
         tsChk3to4hrsCert: rate.tsChk3to4hrsCert,
@@ -188,6 +188,7 @@ export const ContractDialog = ({
     const [formData, setFormData] = useState<ContractFormData>(defaultFormData);
     const [file, setFile] = useState<File | null>(null);
     const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
     // Get user info for userName field
     const { getUserName } = useReduxAuth();
@@ -246,12 +247,58 @@ export const ContractDialog = ({
         }
     };
 
+    // Validation for Step 1 (Contract Info)
+    const validateStep1 = (): Record<string, string> => {
+        const errors: Record<string, string> = {};
+        if (!formData.contractCode.trim()) {
+            errors.contractCode = "Contract No. is required";
+        }
+        if (!formData.carrierName) {
+            errors.carrierName = "Customer Airline is required";
+        }
+        if (!formData.effectiveFrom) {
+            errors.effectiveFrom = "Effective From date is required";
+        }
+        if (!formData.isNoExpiryDate && !formData.expiresOn) {
+            errors.expiresOn = "Expires On date is required";
+        }
+        return errors;
+    };
+
+    // Validation for Step 2 (Service Rates)
+    const validateStep2 = (): Record<string, string> => {
+        const errors: Record<string, string> = {};
+        if (formData.pricingRates.length > 0) {
+            formData.pricingRates.forEach((rate, index) => {
+                if (rate.serviceLocation.length === 0) {
+                    errors[`rate_${rate.id}_serviceLocation`] = "Service Location is required";
+                }
+                if (rate.aircraftTypes.length === 0) {
+                    errors[`rate_${rate.id}_aircraftTypes`] = "Aircraft Types is required";
+                }
+            });
+        }
+        return errors;
+    };
+
     const handleNext = () => {
         if (currentStep < FORM_STEPS.length) {
+            // File upload check
             if (currentStep === 1 && file && uploadStatus !== "uploaded") {
                 alert("Please upload the selected file before proceeding.");
                 return;
             }
+
+            // Validate Step 1
+            if (currentStep === 1) {
+                const errors = validateStep1();
+                if (Object.keys(errors).length > 0) {
+                    setFieldErrors(errors);
+                    return;
+                }
+            }
+
+            setFieldErrors({});
             setCurrentStep(currentStep + 1);
         }
     };
@@ -264,6 +311,13 @@ export const ContractDialog = ({
 
     const handleSubmit = async () => {
         try {
+            // Validate Step 2 before submit
+            const step2Errors = validateStep2();
+            if (Object.keys(step2Errors).length > 0) {
+                setFieldErrors(step2Errors);
+                return;
+            }
+
             // Pass isCreate = true when mode is "create" to set pricingDataList id = 0
             const isCreate = mode === "create";
             const requestData = transformFormDataToRequest(formData, userName, isCreate);
@@ -283,6 +337,7 @@ export const ContractDialog = ({
         setFormData(defaultFormData);
         setFile(null);
         setUploadStatus("idle");
+        setFieldErrors({});
         onOpenChange(false);
     };
 
@@ -324,15 +379,51 @@ export const ContractDialog = ({
                         onFileChange={setFile}
                         uploadStatus={uploadStatus}
                         onUploadStatusChange={setUploadStatus}
+                        fieldErrors={fieldErrors}
                     />
                 );
             case 2:
-                return <ServicePricingStep formData={formData} onPricingRatesChange={handlePricingRatesChange} mode={mode} />;
+                return <ServicePricingStep formData={formData} onPricingRatesChange={handlePricingRatesChange} mode={mode} fieldErrors={fieldErrors} />;
             default:
                 return null;
         }
     };
 
+    // Render A4 view for view mode
+    if (isViewMode) {
+        return (
+            <Dialog open={open} onOpenChange={handleClose}>
+                <DialogContent size="lg" className="max-h-[95vh] overflow-hidden p-0">
+                    <div className="h-[90vh] flex flex-col">
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b bg-background">
+                            <div>
+                                <h2 className="text-lg font-semibold">View Contract</h2>
+                                <p className="text-sm text-muted-foreground">Contract details and pricing information</p>
+                            </div>
+                            {/* <Button variant="ghost" size="icon" onClick={handleClose}>
+                                <X className="h-4 w-4" />
+                            </Button> */}
+                        </div>
+
+                        {/* A4 Content */}
+                        <div className="flex-1 overflow-y-auto">
+                            <ContractViewA4 formData={formData} isLoading={isLoadingContract} />
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-6 py-4 border-t bg-background flex justify-end">
+                            <Button variant="outline" onClick={handleClose}>
+                                Close
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+        );
+    }
+
+    // Render step wizard for create/edit mode
     return (
         <Dialog open={open} onOpenChange={handleClose}>
             <DialogContent size="md" className="max-h-[90vh] overflow-hidden p-0">
@@ -354,7 +445,7 @@ export const ContractDialog = ({
                                 {FORM_STEPS.map((step) => {
                                     const isCompleted = currentStep > step.id;
                                     const isActive = currentStep === step.id;
-                                    const isClickable = isViewMode || step.id <= currentStep + 1;
+                                    const isClickable = step.id <= currentStep + 1;
 
                                     return (
                                         <button
@@ -435,35 +526,24 @@ export const ContractDialog = ({
                             </div>
                             <div className="flex gap-2">
                                 <Button variant="outline" onClick={handleClose}>
-                                    {isViewMode ? "Close" : "Cancel"}
+                                    Cancel
                                 </Button>
-                                {isViewMode ? (
-                                    // View mode: show Next button to navigate between steps
-                                    currentStep < FORM_STEPS.length && (
-                                        <Button onClick={handleNext}>
-                                            Next
-                                            <ChevronRight className="h-4 w-4 ml-1" />
-                                        </Button>
-                                    )
+                                {currentStep < FORM_STEPS.length ? (
+                                    <Button onClick={handleNext}>
+                                        Next
+                                        <ChevronRight className="h-4 w-4 ml-1" />
+                                    </Button>
                                 ) : (
-                                    // Create/Edit mode: show Next or Save button
-                                    currentStep < FORM_STEPS.length ? (
-                                        <Button onClick={handleNext}>
-                                            Next
-                                            <ChevronRight className="h-4 w-4 ml-1" />
-                                        </Button>
-                                    ) : (
-                                        <Button onClick={handleSubmit} disabled={isSubmitting}>
-                                            {isSubmitting ? (
-                                                <>
-                                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                    Saving...
-                                                </>
-                                            ) : (
-                                                mode === "edit" ? "Update Contract" : "Save Contract"
-                                            )}
-                                        </Button>
-                                    )
+                                    <Button onClick={handleSubmit} disabled={isSubmitting}>
+                                        {isSubmitting ? (
+                                            <>
+                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                Saving...
+                                            </>
+                                        ) : (
+                                            mode === "edit" ? "Update Contract" : "Save Contract"
+                                        )}
+                                    </Button>
                                 )}
                             </div>
                         </DialogFooter>
@@ -473,3 +553,4 @@ export const ContractDialog = ({
         </Dialog>
     );
 };
+

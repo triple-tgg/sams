@@ -28,6 +28,7 @@ interface GeneralInfoStepProps extends StepProps {
     onFileChange: (file: File | null) => void;
     uploadStatus: UploadStatus;
     onUploadStatusChange: (status: UploadStatus) => void;
+    fieldErrors?: Record<string, string>;
 }
 
 export const GeneralInfoStep = ({
@@ -36,7 +37,8 @@ export const GeneralInfoStep = ({
     file,
     onFileChange,
     uploadStatus,
-    onUploadStatusChange
+    onUploadStatusChange,
+    fieldErrors = {}
 }: GeneralInfoStepProps) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isDragOver, setIsDragOver] = useState(false);
@@ -127,16 +129,20 @@ export const GeneralInfoStep = ({
                 <h4 className="text-sm font-semibold text-primary">Contract Info</h4>
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                        <Label htmlFor="contractCode">Contract No.</Label>
+                        <Label htmlFor="contractCode">Contract No. <span className="text-destructive">*</span></Label>
                         <Input
                             id="contractCode"
                             placeholder="SAMS-SM-AIRLINE CODE-000-2024"
                             value={formData.contractCode}
                             onChange={(e) => onFormChange("contractCode", e.target.value)}
+                            className={fieldErrors.contractCode ? "border-destructive" : ""}
                         />
+                        {fieldErrors.contractCode && (
+                            <p className="text-xs text-destructive">{fieldErrors.contractCode}</p>
+                        )}
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="carrierName">Customer Airline</Label>
+                        <Label htmlFor="carrierName">Customer Airline <span className="text-destructive">*</span></Label>
                         <Select
                             value={formData.carrierName}
                             onValueChange={(value) => {
@@ -149,7 +155,7 @@ export const GeneralInfoStep = ({
                             }}
                             disabled={isLoadingAirlines}
                         >
-                            <SelectTrigger>
+                            <SelectTrigger className={fieldErrors.carrierName ? "border-destructive" : ""}>
                                 <SelectValue placeholder={isLoadingAirlines ? "Loading..." : "Select Airline"} />
                             </SelectTrigger>
                             <SelectContent>
@@ -160,17 +166,24 @@ export const GeneralInfoStep = ({
                                 ))}
                             </SelectContent>
                         </Select>
+                        {fieldErrors.carrierName && (
+                            <p className="text-xs text-destructive">{fieldErrors.carrierName}</p>
+                        )}
                     </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                        <Label htmlFor="effectiveFrom">Effective From</Label>
+                        <Label htmlFor="effectiveFrom">Effective From <span className="text-destructive">*</span></Label>
                         <Input
                             id="effectiveFrom"
                             type="date"
                             value={formData.effectiveFrom}
                             onChange={(e) => onFormChange("effectiveFrom", e.target.value)}
+                            className={fieldErrors.effectiveFrom ? "border-destructive" : ""}
                         />
+                        {fieldErrors.effectiveFrom && (
+                            <p className="text-xs text-destructive">{fieldErrors.effectiveFrom}</p>
+                        )}
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="validFrom">Valid From</Label>
@@ -183,14 +196,18 @@ export const GeneralInfoStep = ({
                     </div>
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor="expiresOn">Expires On</Label>
+                    <Label htmlFor="expiresOn">Expires On <span className="text-destructive">*</span></Label>
                     <Input
                         id="expiresOn"
                         type="date"
                         value={formData.isNoExpiryDate ? "" : formData.expiresOn}
                         onChange={(e) => onFormChange("expiresOn", e.target.value)}
                         disabled={formData.isNoExpiryDate}
+                        className={fieldErrors.expiresOn && !formData.isNoExpiryDate ? "border-destructive" : ""}
                     />
+                    {fieldErrors.expiresOn && !formData.isNoExpiryDate && (
+                        <p className="text-xs text-destructive">{fieldErrors.expiresOn}</p>
+                    )}
                     <div className="flex items-center space-x-2">
                         <Checkbox
                             id="neverExpires"

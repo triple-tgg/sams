@@ -4,9 +4,9 @@ import {
     getCoreRowModel, getFilteredRowModel, getSortedRowModel, useReactTable,
 } from "@tanstack/react-table"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, Download, Plus, AlignStartVertical } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Controller, FormProvider, SubmitHandler, useForm } from "react-hook-form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -26,6 +26,9 @@ import { useAirlineOptions } from "@/lib/api/hooks/useAirlines"
 import { routerPushNewTab } from "@/lib/utils/navigation"
 import { Pagination } from "./Pagination"
 import TableSkeleton from "@/components/skeketon/TableSkeleton"
+import { ExcelImportButton } from "@/components/excel-import-button"
+import { useTemplateDownload } from "@/hooks/use-template-download"
+import CreateProject from "../../create-project"
 
 interface Option {
     value: string; label: string; image?: string;
@@ -83,7 +86,10 @@ const ListTable = ({
 
     const router = useRouter()
     const { locale } = useParams()
+    const { handleDownloadTemplate } = useTemplateDownload()
+
     // const { page, perPage, total, onPageChange, onPerPageChange } = pagination
+    const [open, setOpen] = React.useState<boolean>(false);
     const [openEditFlight, setOpenEditFlight] = React.useState<boolean>(false);
     const [editFlightId, setEditFlightId] = React.useState<number | null>(null);
 
@@ -245,23 +251,48 @@ const ListTable = ({
     return (
         <Card>
             <EditFlight open={openEditFlight} setOpen={setOpenEditFlight} flightInfosId={editFlightId} onClose={onEditFlightClose} />
+            <CreateProject open={open} setOpen={setOpen} />
+            {/* Header Section with Title and Buttons */}
+            <CardHeader className="pb-4">
+                <CardTitle>Flight List</CardTitle>
+                <CardDescription>
+                    Manage flight schedules and maintenance service records.
+                </CardDescription>
+                <div className="flex items-center gap-2 ml-auto">
+                    <Button variant="outline" color="success" onClick={() => handleDownloadTemplate()}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Template
+                    </Button>
+                    <ExcelImportButton onImportSuccess={() => { }} />
+                    <Button color="primary" onClick={() => setOpen(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Flight
+                    </Button>
+                    <Button color="default" onClick={() => window.open(`/${locale}/views-flight-timeline`, '_blank')}>
+                        <AlignStartVertical className="h-4 w-4 mr-2" />
+                        Timeline
+                    </Button>
+                </div>
+            </CardHeader>
+
+            {/* Filter Section */}
             <FormProvider {...{ register, handleSubmit, control, watch, setValue, getValues, ...props }}>
                 <form onSubmit={handleSubmit(onSubmit)}>
-                    <CardHeader className="flex flex-row items-center space-x-2 justify-between">
-                        <div className="flex space-x-2">
-                            <Input
-                                className="max-w-[250px]"
-                                type="text"
-                                placeholder="Search Flight No..."
-                                {...register("search")}
-                                onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                        e.preventDefault()
-                                        handleSubmit(onSubmit)()
-                                    }
-                                }}
-                            />
-                            <div className="flex min-w-[180px]">
+                    <div className="px-6 pb-4">
+                        <div className="flex flex-wrap items-center justify-between gap-4 py-4 px-4 rounded-lg bg-slate-100 shadow-sm">
+                            <div className="flex items-center gap-2">
+                                <Input
+                                    className="w-48"
+                                    type="text"
+                                    placeholder="Flight No."
+                                    {...register("search")}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                            e.preventDefault()
+                                            handleSubmit(onSubmit)()
+                                        }
+                                    }}
+                                />
                                 <Controller
                                     name="stationCode"
                                     control={control}
@@ -269,10 +300,9 @@ const ListTable = ({
                                         <Select value={field.value} onValueChange={(value) => {
                                             field.onChange(value);
                                             handleSubmit(onSubmit)();
-                                            // Auto-submit when station changes
                                         }}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select Station Code" />
+                                            <SelectTrigger className="w-48">
+                                                <SelectValue placeholder="Station" />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {stationOptionsWithAll.map((option) => (
@@ -284,8 +314,6 @@ const ListTable = ({
                                         </Select>
                                     )}
                                 />
-                            </div>
-                            <div className="flex min-w-[180px]">
                                 <Controller
                                     name="airlineId"
                                     control={control}
@@ -293,10 +321,9 @@ const ListTable = ({
                                         <Select value={String(field.value)} onValueChange={(value) => {
                                             field.onChange(value);
                                             handleSubmit(onSubmit)();
-                                            // Auto-submit when station changes
                                         }}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select Airline" />
+                                            <SelectTrigger className="w-48">
+                                                <SelectValue placeholder="Airline" />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {airlinesOptionsWithAll.map((option) => (
@@ -309,39 +336,38 @@ const ListTable = ({
                                     )}
                                 />
                             </div>
-                        </div>
 
-                        <div className="flex items-center justify-end flex-1 gap-2">
-                            <Controller
-                                name="dateRange"
-                                control={control}
-                                render={({ field }) => (
-                                    <DateRangeFilter
-                                        value={field.value}
-                                        onChange={(dateRange) => {
-                                            field.onChange(dateRange);
-                                            // Auto-submit when date range changes
-                                            setTimeout(() => {
-                                                handleSubmit(onSubmit)();
-                                            }, 100);
-                                        }}
-                                        placeholder="Select date range"
-                                    />
-                                )}
-                            />
-                            <FilterRange
-                                value={dateRangeValue}
-                                onClick={() => handleSubmit(onSubmit)()}
-                            />
+                            <div className="flex items-center gap-2">
+                                <Controller
+                                    name="dateRange"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <DateRangeFilter
+                                            value={field.value}
+                                            onChange={(dateRange) => {
+                                                field.onChange(dateRange);
+                                                setTimeout(() => {
+                                                    handleSubmit(onSubmit)();
+                                                }, 100);
+                                            }}
+                                            placeholder="Select date range"
+                                        />
+                                    )}
+                                />
+                                <FilterRange
+                                    value={dateRangeValue}
+                                    onClick={() => handleSubmit(onSubmit)()}
+                                />
+                            </div>
                         </div>
-                    </CardHeader>
+                    </div>
                 </form>
             </FormProvider>
             {(isLoading || isFetching) && <TableSkeleton columns={7} rows={5} />}
             {!isLoading && !isFetching && (
                 <CardContent className="p-0">
                     <Table>
-                        <TableHeader className="px-3 bg-primary-50">
+                        <TableHeader>
                             {table.getHeaderGroups().map((hg) => (
                                 <TableRow key={hg.id}>
                                     {hg.headers.map((h) => (
@@ -358,15 +384,12 @@ const ListTable = ({
                                 table.getRowModel().rows.map((row) => {
                                     const flight = row.original;
                                     const isCancelled = flight.statusObj?.code === "Cancel";
-                                    console.log("isCancelled", isCancelled);
                                     return (
                                         <TableRow
                                             key={row.id}
                                             data-state={row.getIsSelected() && "selected"}
                                             className={clsx(
-                                                "even:bg-default-100 px-6 h-20",
-                                                row.getIsSelected() && "bg-primary/10",
-                                                isCancelled ? "bg-primary/10 border-l-4 border-l-red-600" : ""
+                                                isCancelled && "bg-destructive/5 border-l-4 border-l-destructive"
                                             )}
                                         >
                                             {row.getVisibleCells().map((cell) => (

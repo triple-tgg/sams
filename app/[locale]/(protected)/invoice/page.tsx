@@ -227,7 +227,7 @@ const InvoicePage = () => {
                             <Upload className="h-4 w-4 mr-2" />
                             Import
                         </Button>
-                        <Button variant="outline" color="info" onClick={handlePrint} disabled={!filtersComplete}>
+                        <Button variant="outline" color="info" onClick={handlePrint} disabled={!filtersComplete || activeTab === "pre-invoice"}>
                             <Printer className="h-4 w-4 mr-2" />
                             Print
                         </Button>

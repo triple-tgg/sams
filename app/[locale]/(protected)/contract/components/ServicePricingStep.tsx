@@ -33,6 +33,7 @@ interface ServicePricingStepProps {
     formData: ContractFormData;
     onPricingRatesChange: (pricingRates: PricingRate[]) => void;
     mode?: "create" | "edit" | "view";
+    fieldErrors?: Record<string, string>;
 }
 
 // Reusable Price Input with combined USD suffix
@@ -67,10 +68,77 @@ const PriceInput = ({
     </div>
 );
 
-export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "create" }: ServicePricingStepProps) => {
+// Form group keys for collapsible sections
+const FORM_GROUPS = [
+    "transitChecks",
+    "routineChecks",
+    "laborRates",
+    "wheelServices",
+    "groundServices",
+    "fluidsNitrogen",
+    "otherCharges",
+] as const;
+
+type FormGroupKey = typeof FORM_GROUPS[number];
+
+export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "create", fieldErrors = {} }: ServicePricingStepProps) => {
     const [expandedRates, setExpandedRates] = useState<Set<number | string>>(new Set());
+    const [expandedFormGroups, setExpandedFormGroups] = useState<Map<number | string, Set<FormGroupKey>>>(new Map());
+
+    // Toggle form group expansion for a specific rate
+    const toggleFormGroup = (rateId: number | string, groupKey: FormGroupKey) => {
+        setExpandedFormGroups(prev => {
+            const newMap = new Map(prev);
+            const currentGroups = newMap.get(rateId) || new Set<FormGroupKey>();
+            const newGroups = new Set(currentGroups);
+            if (newGroups.has(groupKey)) {
+                newGroups.delete(groupKey);
+            } else {
+                newGroups.add(groupKey);
+            }
+            newMap.set(rateId, newGroups);
+            return newMap;
+        });
+    };
+
+    // Check if a form group is expanded for a specific rate
+    const isFormGroupExpanded = (rateId: number | string, groupKey: FormGroupKey): boolean => {
+        const groups = expandedFormGroups.get(rateId);
+        return groups ? groups.has(groupKey) : false;
+    };
     const { options: stationOptions, isLoading: isLoadingStations } = useStationsOptions();
     const { options: aircraftTypeOptions, isLoading: isLoadingAircraftTypes } = useAircraftTypes();
+
+    // Check if a rate combination would be duplicate with other rates
+    const checkDuplicateRate = (
+        rateId: number | string,
+        newServiceLocations: string[],
+        newAircraftTypes: string[]
+    ): { isDuplicate: boolean; conflictingRateIndex: number | null } => {
+        // Skip if either is empty (validation will handle required fields)
+        if (newServiceLocations.length === 0 || newAircraftTypes.length === 0) {
+            return { isDuplicate: false, conflictingRateIndex: null };
+        }
+
+        for (let i = 0; i < formData.pricingRates.length; i++) {
+            const otherRate = formData.pricingRates[i];
+            if (otherRate.id === rateId) continue;
+
+            // Check if there's any overlap in both service locations AND aircraft types
+            const hasLocationOverlap = newServiceLocations.some(loc =>
+                otherRate.serviceLocation.includes(loc)
+            );
+            const hasAircraftOverlap = newAircraftTypes.some(type =>
+                otherRate.aircraftTypes.includes(type)
+            );
+
+            if (hasLocationOverlap && hasAircraftOverlap) {
+                return { isDuplicate: true, conflictingRateIndex: i + 1 };
+            }
+        }
+
+        return { isDuplicate: false, conflictingRateIndex: null };
+    };
 
     const handleAddPricing = () => {
         const newRate: PricingRate = {
@@ -125,6 +193,20 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
         } else {
             newTypes = rate.aircraftTypes.filter(t => t !== aircraftCode);
         }
+
+        // Check for duplicate combination when adding
+        if (checked) {
+            const { isDuplicate, conflictingRateIndex } = checkDuplicateRate(
+                rateId,
+                rate.serviceLocation,
+                newTypes
+            );
+            if (isDuplicate) {
+                alert(`Cannot select this Aircraft Type. The combination of Service Location and Aircraft Type already exists in Rate #${conflictingRateIndex}. Please select different values.`);
+                return;
+            }
+        }
+
         handleRateChange(rateId, "aircraftTypes", newTypes);
     };
 
@@ -138,6 +220,20 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
         } else {
             newLocations = rate.serviceLocation.filter(l => l !== locationCode);
         }
+
+        // Check for duplicate combination when adding
+        if (checked) {
+            const { isDuplicate, conflictingRateIndex } = checkDuplicateRate(
+                rateId,
+                newLocations,
+                rate.aircraftTypes
+            );
+            if (isDuplicate) {
+                alert(`Cannot select this Service Location. The combination of Service Location and Aircraft Type already exists in Rate #${conflictingRateIndex}. Please select different values.`);
+                return;
+            }
+        }
+
         handleRateChange(rateId, "serviceLocation", newLocations);
     };
 
@@ -147,326 +243,458 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
         };
 
         return (
-            <div className="space-y-6 pt-4">
-                {/* Transit Checks */}
-                <div className="bg-muted/30 p-4 rounded-lg space-y-4">
-                    <h4 className="text-sm font-semibold text-primary">Transit Checks</h4>
+            <div className="space-y-3 pt-4">
+                {/* Transit Checks - Collapsible */}
+                <Collapsible
+                    open={isFormGroupExpanded(rate.id, "transitChecks")}
+                    onOpenChange={() => toggleFormGroup(rate.id, "transitChecks")}
+                >
+                    <div className="bg-muted/30 rounded-lg overflow-hidden">
+                        <CollapsibleTrigger asChild>
+                            <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                                <h4 className="text-sm font-semibold">Transit Checks</h4>
+                                <ChevronDown
+                                    className={cn(
+                                        "h-4 w-4 text-muted-foreground transition-transform",
+                                        isFormGroupExpanded(rate.id, "transitChecks") && "rotate-180"
+                                    )}
+                                />
+                            </div>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                            <div className="px-4 pb-4 space-y-4">
+                                {/* With Certificate */}
+                                <div className="space-y-2">
+                                    <p className="text-xs font-bold text-muted-foreground">With Certificate</p>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <PriceInput
+                                            id={`${rate.id}-tsChkUnder2hrsCert`}
+                                            label="Transit Check <2hrs"
+                                            value={rate.tsChkUnder2hrsCert}
+                                            onChange={handleNumberChange("tsChkUnder2hrsCert")}
+                                            suffix="/Check"
+                                        />
+                                        <PriceInput
+                                            id={`${rate.id}-tsChk2to3hrsCert`}
+                                            label="Transit Check ≥2hrs and <3hrs"
+                                            value={rate.tsChk2to3hrsCert}
+                                            onChange={handleNumberChange("tsChk2to3hrsCert")}
+                                            suffix="/Check"
+                                        />
+                                        <PriceInput
+                                            id={`${rate.id}-tsChk3to4hrsCert`}
+                                            label="Transit Check ≥3hrs and <4hrs"
+                                            value={rate.tsChk3to4hrsCert}
+                                            onChange={handleNumberChange("tsChk3to4hrsCert")}
+                                            suffix="/Check"
+                                        />
+                                        <PriceInput
+                                            id={`${rate.id}-tsChk4to5hrsCert`}
+                                            label="Transit Check ≥4hrs and <5hrs"
+                                            value={rate.tsChk4to5hrsCert}
+                                            onChange={handleNumberChange("tsChk4to5hrsCert")}
+                                            suffix="/Check"
+                                        />
+                                        <PriceInput
+                                            id={`${rate.id}-tsChk5to6hrsCert`}
+                                            label="Transit Check ≥5hrs and <6hrs"
+                                            value={rate.tsChk5to6hrsCert}
+                                            onChange={handleNumberChange("tsChk5to6hrsCert")}
+                                            suffix="/Check"
+                                        />
+                                        <PriceInput
+                                            id={`${rate.id}-additionalFee6hrsPlusCert`}
+                                            label="Additional Fee ≥6hrs"
+                                            value={rate.additionalFee6hrsPlusCert}
+                                            onChange={handleNumberChange("additionalFee6hrsPlusCert")}
+                                            suffix="/Check"
+                                        />
+                                    </div>
+                                </div>
 
-                    {/* With Certificate */}
-                    <div className="space-y-2">
-                        <p className="text-xs font-bold text-muted-foreground">With Certificate</p>
-                        <div className="grid grid-cols-2 gap-3">
-                            <PriceInput
-                                id={`${rate.id}-tsChkUnder2hrsCert`}
-                                label="Transit Check <2hrs"
-                                value={rate.tsChkUnder2hrsCert}
-                                onChange={handleNumberChange("tsChkUnder2hrsCert")}
-                                suffix="/Check"
-                            />
-                            <PriceInput
-                                id={`${rate.id}-tsChk2to3hrsCert`}
-                                label="Transit Check ≥2hrs and <3hrs"
-                                value={rate.tsChk2to3hrsCert}
-                                onChange={handleNumberChange("tsChk2to3hrsCert")}
-                                suffix="/Check"
-                            />
-                            <PriceInput
-                                id={`${rate.id}-tsChk3to4hrsCert`}
-                                label="Transit Check ≥3hrs and <4hrs"
-                                value={rate.tsChk3to4hrsCert}
-                                onChange={handleNumberChange("tsChk3to4hrsCert")}
-                                suffix="/Check"
-                            />
-                            <PriceInput
-                                id={`${rate.id}-tsChk4to5hrsCert`}
-                                label="Transit Check ≥4hrs and <5hrs"
-                                value={rate.tsChk4to5hrsCert}
-                                onChange={handleNumberChange("tsChk4to5hrsCert")}
-                                suffix="/Check"
-                            />
-                            <PriceInput
-                                id={`${rate.id}-tsChk5to6hrsCert`}
-                                label="Transit Check ≥5hrs and <6hrs"
-                                value={rate.tsChk5to6hrsCert}
-                                onChange={handleNumberChange("tsChk5to6hrsCert")}
-                                suffix="/Check"
-                            />
-                            <PriceInput
-                                id={`${rate.id}-additionalFee6hrsPlusCert`}
-                                label="Additional Fee ≥6hrs"
-                                value={rate.additionalFee6hrsPlusCert}
-                                onChange={handleNumberChange("additionalFee6hrsPlusCert")}
-                                suffix="/Check"
-                            />
-                        </div>
-                    </div>
+                                {/* Without Certificate */}
+                                <div className="space-y-2">
+                                    <p className="text-xs font-bold text-muted-foreground">Without Certificate</p>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <PriceInput
+                                            id={`${rate.id}-tsChkUnder2hrsNoCert`}
+                                            label="Transit Check <2hrs"
+                                            value={rate.tsChkUnder2hrsNoCert}
+                                            onChange={handleNumberChange("tsChkUnder2hrsNoCert")}
+                                            suffix="/Check"
+                                        />
+                                        <PriceInput
+                                            id={`${rate.id}-tsChk2to3hrsNoCert`}
+                                            label="Transit Check ≥2hrs and <3hrs"
+                                            value={rate.tsChk2to3hrsNoCert}
+                                            onChange={handleNumberChange("tsChk2to3hrsNoCert")}
+                                            suffix="/Check"
+                                        />
+                                        <PriceInput
+                                            id={`${rate.id}-tsChk3to4hrsNoCert`}
+                                            label="Transit Check ≥3hrs and <4hrs"
+                                            value={rate.tsChk3to4hrsNoCert}
+                                            onChange={handleNumberChange("tsChk3to4hrsNoCert")}
+                                            suffix="/Check"
+                                        />
+                                        <PriceInput
+                                            id={`${rate.id}-tsChk4to5hrsNoCert`}
+                                            label="Transit Check ≥4hrs and <5hrs"
+                                            value={rate.tsChk4to5hrsNoCert}
+                                            onChange={handleNumberChange("tsChk4to5hrsNoCert")}
+                                            suffix="/Check"
+                                        />
+                                        <PriceInput
+                                            id={`${rate.id}-tsChk5to6hrsNoCert`}
+                                            label="Transit Check ≥5hrs and <6hrs"
+                                            value={rate.tsChk5to6hrsNoCert}
+                                            onChange={handleNumberChange("tsChk5to6hrsNoCert")}
+                                            suffix="/Check"
+                                        />
+                                        <PriceInput
+                                            id={`${rate.id}-additionalFee6hrsPlusNoCert`}
+                                            label="Additional Fee ≥6hrs"
+                                            value={rate.additionalFee6hrsPlusNoCert}
+                                            onChange={handleNumberChange("additionalFee6hrsPlusNoCert")}
+                                            suffix="/Check"
+                                        />
+                                    </div>
+                                </div>
 
-                    {/* Without Certificate */}
-                    <div className="space-y-2">
-                        <p className="text-xs font-bold text-muted-foreground">Without Certificate</p>
-                        <div className="grid grid-cols-2 gap-3">
-                            <PriceInput
-                                id={`${rate.id}-tsChkUnder2hrsNoCert`}
-                                label="Transit Check <2hrs"
-                                value={rate.tsChkUnder2hrsNoCert}
-                                onChange={handleNumberChange("tsChkUnder2hrsNoCert")}
-                                suffix="/Check"
-                            />
-                            <PriceInput
-                                id={`${rate.id}-tsChk2to3hrsNoCert`}
-                                label="Transit Check ≥2hrs and <3hrs"
-                                value={rate.tsChk2to3hrsNoCert}
-                                onChange={handleNumberChange("tsChk2to3hrsNoCert")}
-                                suffix="/Check"
-                            />
-                            <PriceInput
-                                id={`${rate.id}-tsChk3to4hrsNoCert`}
-                                label="Transit Check ≥3hrs and <4hrs"
-                                value={rate.tsChk3to4hrsNoCert}
-                                onChange={handleNumberChange("tsChk3to4hrsNoCert")}
-                                suffix="/Check"
-                            />
-                            <PriceInput
-                                id={`${rate.id}-tsChk4to5hrsNoCert`}
-                                label="Transit Check ≥4hrs and <5hrs"
-                                value={rate.tsChk4to5hrsNoCert}
-                                onChange={handleNumberChange("tsChk4to5hrsNoCert")}
-                                suffix="/Check"
-                            />
-                            <PriceInput
-                                id={`${rate.id}-tsChk5to6hrsNoCert`}
-                                label="Transit Check ≥5hrs and <6hrs"
-                                value={rate.tsChk5to6hrsNoCert}
-                                onChange={handleNumberChange("tsChk5to6hrsNoCert")}
-                                suffix="/Check"
-                            />
-                            <PriceInput
-                                id={`${rate.id}-additionalFee6hrsPlusNoCert`}
-                                label="Additional Fee ≥6hrs"
-                                value={rate.additionalFee6hrsPlusNoCert}
-                                onChange={handleNumberChange("additionalFee6hrsPlusNoCert")}
-                                suffix="/Check"
-                            />
-                        </div>
+                                {/* Other */}
+                                <div className="space-y-2">
+                                    <p className="text-xs font-bold text-muted-foreground">Other</p>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <PriceInput
+                                            id={`${rate.id}-standbyPerCheck`}
+                                            label="Stand-by"
+                                            value={rate.standbyPerCheck}
+                                            onChange={handleNumberChange("standbyPerCheck")}
+                                            suffix="/Check"
+                                        />
+                                        <PriceInput
+                                            id={`${rate.id}-onCallPerCheck`}
+                                            label="On Call"
+                                            value={rate.onCallPerCheck}
+                                            onChange={handleNumberChange("onCallPerCheck")}
+                                            suffix="/Check"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </CollapsibleContent>
                     </div>
+                </Collapsible>
 
-                    {/* Other */}
-                    <div className="space-y-2">
-                        <p className="text-xs font-bold text-muted-foreground">Other</p>
-                        <div className="grid grid-cols-2 gap-3">
-                            <PriceInput
-                                id={`${rate.id}-standbyPerCheck`}
-                                label="Stand-by"
-                                value={rate.standbyPerCheck}
-                                onChange={handleNumberChange("standbyPerCheck")}
-                                suffix="/Check"
-                            />
-                            <PriceInput
-                                id={`${rate.id}-onCallPerCheck`}
-                                label="On Call"
-                                value={rate.onCallPerCheck}
-                                onChange={handleNumberChange("onCallPerCheck")}
-                                suffix="/Check"
-                            />
-                        </div>
+                {/* Routine Checks - Collapsible */}
+                <Collapsible
+                    open={isFormGroupExpanded(rate.id, "routineChecks")}
+                    onOpenChange={() => toggleFormGroup(rate.id, "routineChecks")}
+                >
+                    <div className="bg-muted/30 rounded-lg overflow-hidden">
+                        <CollapsibleTrigger asChild>
+                            <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                                <h4 className="text-sm font-semibold">Routine Checks</h4>
+                                <ChevronDown
+                                    className={cn(
+                                        "h-4 w-4 text-muted-foreground transition-transform",
+                                        isFormGroupExpanded(rate.id, "routineChecks") && "rotate-180"
+                                    )}
+                                />
+                            </div>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                            <div className="px-4 pb-4">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <PriceInput
+                                        id={`${rate.id}-dailyCheck`}
+                                        label="Daily Check"
+                                        value={rate.dailyCheck}
+                                        onChange={handleNumberChange("dailyCheck")}
+                                        suffix="/Check"
+                                    />
+                                    <PriceInput
+                                        id={`${rate.id}-preFlightCheck`}
+                                        label="Pre-Flight Check"
+                                        value={rate.preFlightCheck}
+                                        onChange={handleNumberChange("preFlightCheck")}
+                                        suffix="/Check"
+                                    />
+                                    <PriceInput
+                                        id={`${rate.id}-weeklyCheck`}
+                                        label="Weekly Check"
+                                        value={rate.weeklyCheck}
+                                        onChange={handleNumberChange("weeklyCheck")}
+                                        suffix="/Check"
+                                    />
+                                </div>
+                            </div>
+                        </CollapsibleContent>
                     </div>
-                </div>
+                </Collapsible>
 
-                {/* Routine Checks */}
-                <div className="bg-muted/30 p-4 rounded-lg space-y-3">
-                    <h4 className="text-sm font-semibold text-primary">Routine Checks</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                        <PriceInput
-                            id={`${rate.id}-dailyCheck`}
-                            label="Daily Check"
-                            value={rate.dailyCheck}
-                            onChange={handleNumberChange("dailyCheck")}
-                            suffix="/Check"
-                        />
-                        <PriceInput
-                            id={`${rate.id}-preFlightCheck`}
-                            label="Pre-Flight Check"
-                            value={rate.preFlightCheck}
-                            onChange={handleNumberChange("preFlightCheck")}
-                            suffix="/Check"
-                        />
-                        <PriceInput
-                            id={`${rate.id}-weeklyCheck`}
-                            label="Weekly Check"
-                            value={rate.weeklyCheck}
-                            onChange={handleNumberChange("weeklyCheck")}
-                            suffix="/Check"
-                        />
+                {/* Labor Rates - Collapsible */}
+                <Collapsible
+                    open={isFormGroupExpanded(rate.id, "laborRates")}
+                    onOpenChange={() => toggleFormGroup(rate.id, "laborRates")}
+                >
+                    <div className="bg-muted/30 rounded-lg overflow-hidden">
+                        <CollapsibleTrigger asChild>
+                            <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                                <h4 className="text-sm font-semibold">Labor Rates</h4>
+                                <ChevronDown
+                                    className={cn(
+                                        "h-4 w-4 text-muted-foreground transition-transform",
+                                        isFormGroupExpanded(rate.id, "laborRates") && "rotate-180"
+                                    )}
+                                />
+                            </div>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                            <div className="px-4 pb-4">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <PriceInput
+                                        id={`${rate.id}-additionalLaeMhHr`}
+                                        label="Additional LAE MH"
+                                        value={rate.additionalLaeMhHr}
+                                        onChange={handleNumberChange("additionalLaeMhHr")}
+                                        suffix="/Hr"
+                                    />
+                                    <PriceInput
+                                        id={`${rate.id}-additionalMechMhHr`}
+                                        label="Additional Mechanic MH"
+                                        value={rate.additionalMechMhHr}
+                                        onChange={handleNumberChange("additionalMechMhHr")}
+                                        suffix="/Hr"
+                                    />
+                                </div>
+                            </div>
+                        </CollapsibleContent>
                     </div>
-                </div>
+                </Collapsible>
 
-                {/* Labor Rates */}
-                <div className="bg-muted/30 p-4 rounded-lg space-y-3">
-                    <h4 className="text-sm font-semibold text-primary">Labor Rates</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                        <PriceInput
-                            id={`${rate.id}-additionalLaeMhHr`}
-                            label="Additional LAE MH"
-                            value={rate.additionalLaeMhHr}
-                            onChange={handleNumberChange("additionalLaeMhHr")}
-                            suffix="/Hr"
-                        />
-                        <PriceInput
-                            id={`${rate.id}-additionalMechMhHr`}
-                            label="Additional Mechanic MH"
-                            value={rate.additionalMechMhHr}
-                            onChange={handleNumberChange("additionalMechMhHr")}
-                            suffix="/Hr"
-                        />
+                {/* Wheel Services - Collapsible */}
+                <Collapsible
+                    open={isFormGroupExpanded(rate.id, "wheelServices")}
+                    onOpenChange={() => toggleFormGroup(rate.id, "wheelServices")}
+                >
+                    <div className="bg-muted/30 rounded-lg overflow-hidden">
+                        <CollapsibleTrigger asChild>
+                            <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                                <h4 className="text-sm font-semibold">Wheel Services</h4>
+                                <ChevronDown
+                                    className={cn(
+                                        "h-4 w-4 text-muted-foreground transition-transform",
+                                        isFormGroupExpanded(rate.id, "wheelServices") && "rotate-180"
+                                    )}
+                                />
+                            </div>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                            <div className="px-4 pb-4">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <PriceInput
+                                        id={`${rate.id}-lhOrRhNoseWheelRpl`}
+                                        label="LH or RH Nose Wheel RPL"
+                                        value={rate.lhOrRhNoseWheelRpl}
+                                        onChange={handleNumberChange("lhOrRhNoseWheelRpl")}
+                                        suffix="/Service"
+                                    />
+                                    <PriceInput
+                                        id={`${rate.id}-lhAndRhNoseWheelRpl`}
+                                        label="LH & RH Nose Wheel RPL"
+                                        value={rate.lhAndRhNoseWheelRpl}
+                                        onChange={handleNumberChange("lhAndRhNoseWheelRpl")}
+                                        suffix="/Service"
+                                    />
+                                    <PriceInput
+                                        id={`${rate.id}-mainWheelRpl`}
+                                        label="Main Wheel RPL"
+                                        value={rate.mainWheelRpl}
+                                        onChange={handleNumberChange("mainWheelRpl")}
+                                        suffix="/Service"
+                                    />
+                                    <PriceInput
+                                        id={`${rate.id}-twoMwRplNoReposition`}
+                                        label="2 MW RPL (Jack not reposition)"
+                                        value={rate.twoMwRplNoReposition}
+                                        onChange={handleNumberChange("twoMwRplNoReposition")}
+                                        suffix="/Service"
+                                    />
+                                    <PriceInput
+                                        id={`${rate.id}-twoMwRplReposition`}
+                                        label="2 MW RPL (Jack reposition)"
+                                        value={rate.twoMwRplReposition}
+                                        onChange={handleNumberChange("twoMwRplReposition")}
+                                        suffix="/Service"
+                                    />
+                                    <PriceInput
+                                        id={`${rate.id}-brakeRpl`}
+                                        label="Brake RPL"
+                                        value={rate.brakeRpl}
+                                        onChange={handleNumberChange("brakeRpl")}
+                                        suffix="/Service"
+                                    />
+                                </div>
+                            </div>
+                        </CollapsibleContent>
                     </div>
-                </div>
+                </Collapsible>
 
-                {/* Wheel Services */}
-                <div className="bg-muted/30 p-4 rounded-lg space-y-3">
-                    <h4 className="text-sm font-semibold text-primary">Wheel Services</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                        <PriceInput
-                            id={`${rate.id}-lhOrRhNoseWheelRpl`}
-                            label="LH or RH Nose Wheel RPL"
-                            value={rate.lhOrRhNoseWheelRpl}
-                            onChange={handleNumberChange("lhOrRhNoseWheelRpl")}
-                            suffix="/Service"
-                        />
-                        <PriceInput
-                            id={`${rate.id}-lhAndRhNoseWheelRpl`}
-                            label="LH & RH Nose Wheel RPL"
-                            value={rate.lhAndRhNoseWheelRpl}
-                            onChange={handleNumberChange("lhAndRhNoseWheelRpl")}
-                            suffix="/Service"
-                        />
-                        <PriceInput
-                            id={`${rate.id}-mainWheelRpl`}
-                            label="Main Wheel RPL"
-                            value={rate.mainWheelRpl}
-                            onChange={handleNumberChange("mainWheelRpl")}
-                            suffix="/Service"
-                        />
-                        <PriceInput
-                            id={`${rate.id}-twoMwRplNoReposition`}
-                            label="2 MW RPL (Jack not reposition)"
-                            value={rate.twoMwRplNoReposition}
-                            onChange={handleNumberChange("twoMwRplNoReposition")}
-                            suffix="/Service"
-                        />
-                        <PriceInput
-                            id={`${rate.id}-twoMwRplReposition`}
-                            label="2 MW RPL (Jack reposition)"
-                            value={rate.twoMwRplReposition}
-                            onChange={handleNumberChange("twoMwRplReposition")}
-                            suffix="/Service"
-                        />
-                        <PriceInput
-                            id={`${rate.id}-brakeRpl`}
-                            label="Brake RPL"
-                            value={rate.brakeRpl}
-                            onChange={handleNumberChange("brakeRpl")}
-                            suffix="/Service"
-                        />
+                {/* Ground Services - Collapsible */}
+                <Collapsible
+                    open={isFormGroupExpanded(rate.id, "groundServices")}
+                    onOpenChange={() => toggleFormGroup(rate.id, "groundServices")}
+                >
+                    <div className="bg-muted/30 rounded-lg overflow-hidden">
+                        <CollapsibleTrigger asChild>
+                            <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                                <h4 className="text-sm font-semibold">Ground Services</h4>
+                                <ChevronDown
+                                    className={cn(
+                                        "h-4 w-4 text-muted-foreground transition-transform",
+                                        isFormGroupExpanded(rate.id, "groundServices") && "rotate-180"
+                                    )}
+                                />
+                            </div>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                            <div className="px-4 pb-4">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <PriceInput
+                                        id={`${rate.id}-towingPerService`}
+                                        label="Towing"
+                                        value={rate.towingPerService}
+                                        onChange={handleNumberChange("towingPerService")}
+                                        suffix="/Service"
+                                    />
+                                    <PriceInput
+                                        id={`${rate.id}-storageFeeMonth`}
+                                        label="Storage Fee"
+                                        value={rate.storageFeeMonth}
+                                        onChange={handleNumberChange("storageFeeMonth")}
+                                        suffix="/Sq.M./Month"
+                                    />
+                                    <PriceInput
+                                        id={`${rate.id}-storageHandlingFee`}
+                                        label="Storage Handling Fee"
+                                        value={rate.storageHandlingFee}
+                                        onChange={handleNumberChange("storageHandlingFee")}
+                                        suffix="/Service"
+                                    />
+                                    <PriceInput
+                                        id={`${rate.id}-maintStepHr`}
+                                        label="Maint. Step"
+                                        value={rate.maintStepHr}
+                                        onChange={handleNumberChange("maintStepHr")}
+                                        suffix="/Hr"
+                                    />
+                                    <PriceInput
+                                        id={`${rate.id}-marshalling`}
+                                        label="Marshalling"
+                                        value={rate.marshalling}
+                                        onChange={handleNumberChange("marshalling")}
+                                        suffix="/Service"
+                                    />
+                                </div>
+                            </div>
+                        </CollapsibleContent>
                     </div>
-                </div>
+                </Collapsible>
 
-                {/* Ground Services */}
-                <div className="bg-muted/30 p-4 rounded-lg space-y-3">
-                    <h4 className="text-sm font-semibold text-primary">Ground Services</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                        <PriceInput
-                            id={`${rate.id}-towingPerService`}
-                            label="Towing"
-                            value={rate.towingPerService}
-                            onChange={handleNumberChange("towingPerService")}
-                            suffix="/Service"
-                        />
-                        <PriceInput
-                            id={`${rate.id}-storageFeeMonth`}
-                            label="Storage Fee"
-                            value={rate.storageFeeMonth}
-                            onChange={handleNumberChange("storageFeeMonth")}
-                            suffix="/Sq.M./Month"
-                        />
-                        <PriceInput
-                            id={`${rate.id}-storageHandlingFee`}
-                            label="Storage Handling Fee"
-                            value={rate.storageHandlingFee}
-                            onChange={handleNumberChange("storageHandlingFee")}
-                            suffix="/Service"
-                        />
-                        <PriceInput
-                            id={`${rate.id}-maintStepHr`}
-                            label="Maint. Step"
-                            value={rate.maintStepHr}
-                            onChange={handleNumberChange("maintStepHr")}
-                            suffix="/Hr"
-                        />
-                        <PriceInput
-                            id={`${rate.id}-marshalling`}
-                            label="Marshalling"
-                            value={rate.marshalling}
-                            onChange={handleNumberChange("marshalling")}
-                            suffix="/Service"
-                        />
+                {/* Fluids & N2 - Collapsible */}
+                <Collapsible
+                    open={isFormGroupExpanded(rate.id, "fluidsNitrogen")}
+                    onOpenChange={() => toggleFormGroup(rate.id, "fluidsNitrogen")}
+                >
+                    <div className="bg-muted/30 rounded-lg overflow-hidden">
+                        <CollapsibleTrigger asChild>
+                            <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                                <h4 className="text-sm font-semibold">Fluids & Nitrogen</h4>
+                                <ChevronDown
+                                    className={cn(
+                                        "h-4 w-4 text-muted-foreground transition-transform",
+                                        isFormGroupExpanded(rate.id, "fluidsNitrogen") && "rotate-180"
+                                    )}
+                                />
+                            </div>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                            <div className="px-4 pb-4">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <PriceInput
+                                        id={`${rate.id}-engineOilQuad`}
+                                        label="Engine Oil"
+                                        value={rate.engineOilQuad}
+                                        onChange={handleNumberChange("engineOilQuad")}
+                                        suffix="/Quart"
+                                    />
+                                    <PriceInput
+                                        id={`${rate.id}-hydraulicFluidQuad`}
+                                        label="Hydraulic Fluid"
+                                        value={rate.hydraulicFluidQuad}
+                                        onChange={handleNumberChange("hydraulicFluidQuad")}
+                                        suffix="/Quart"
+                                    />
+                                    <PriceInput
+                                        id={`${rate.id}-lowPressureN2`}
+                                        label="Low Pressure N2"
+                                        value={rate.lowPressureN2}
+                                        onChange={handleNumberChange("lowPressureN2")}
+                                        suffix="/Service"
+                                    />
+                                    <PriceInput
+                                        id={`${rate.id}-highPressureN2`}
+                                        label="High Pressure N2"
+                                        value={rate.highPressureN2}
+                                        onChange={handleNumberChange("highPressureN2")}
+                                        suffix="/Service"
+                                    />
+                                </div>
+                            </div>
+                        </CollapsibleContent>
                     </div>
-                </div>
+                </Collapsible>
 
-                {/* Fluids & N2 */}
-                <div className="bg-muted/30 p-4 rounded-lg space-y-3">
-                    <h4 className="text-sm font-semibold text-primary">Fluids & Nitrogen</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                        <PriceInput
-                            id={`${rate.id}-engineOilQuad`}
-                            label="Engine Oil"
-                            value={rate.engineOilQuad}
-                            onChange={handleNumberChange("engineOilQuad")}
-                            suffix="/Quart"
-                        />
-                        <PriceInput
-                            id={`${rate.id}-hydraulicFluidQuad`}
-                            label="Hydraulic Fluid"
-                            value={rate.hydraulicFluidQuad}
-                            onChange={handleNumberChange("hydraulicFluidQuad")}
-                            suffix="/Quart"
-                        />
-                        <PriceInput
-                            id={`${rate.id}-lowPressureN2`}
-                            label="Low Pressure N2"
-                            value={rate.lowPressureN2}
-                            onChange={handleNumberChange("lowPressureN2")}
-                            suffix="/Service"
-                        />
-                        <PriceInput
-                            id={`${rate.id}-highPressureN2`}
-                            label="High Pressure N2"
-                            value={rate.highPressureN2}
-                            onChange={handleNumberChange("highPressureN2")}
-                            suffix="/Service"
-                        />
+                {/* Other Charges - Collapsible */}
+                <Collapsible
+                    open={isFormGroupExpanded(rate.id, "otherCharges")}
+                    onOpenChange={() => toggleFormGroup(rate.id, "otherCharges")}
+                >
+                    <div className="bg-muted/30 rounded-lg overflow-hidden">
+                        <CollapsibleTrigger asChild>
+                            <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                                <h4 className="text-sm font-semibold">Other Charges</h4>
+                                <ChevronDown
+                                    className={cn(
+                                        "h-4 w-4 text-muted-foreground transition-transform",
+                                        isFormGroupExpanded(rate.id, "otherCharges") && "rotate-180"
+                                    )}
+                                />
+                            </div>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                            <div className="px-4 pb-4">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <PriceInput
+                                        id={`${rate.id}-defectRectificationTools`}
+                                        label="Defect Rectification Tools"
+                                        value={rate.defectRectificationTools}
+                                        onChange={handleNumberChange("defectRectificationTools")}
+                                        suffix="/Invoice"
+                                    />
+                                    <PriceInput
+                                        id={`${rate.id}-materialHandlingFee`}
+                                        label="Material Handling Fee"
+                                        value={rate.materialHandlingFee}
+                                        onChange={handleNumberChange("materialHandlingFee")}
+                                        suffix="/Invoice"
+                                    />
+                                </div>
+                            </div>
+                        </CollapsibleContent>
                     </div>
-                </div>
-
-                {/* Other Charges */}
-                <div className="bg-muted/30 p-4 rounded-lg space-y-3">
-                    <h4 className="text-sm font-semibold text-primary">Other Charges</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                        <PriceInput
-                            id={`${rate.id}-defectRectificationTools`}
-                            label="Defect Rectification Tools"
-                            value={rate.defectRectificationTools}
-                            onChange={handleNumberChange("defectRectificationTools")}
-                            suffix="/Invoice"
-                        />
-                        <PriceInput
-                            id={`${rate.id}-materialHandlingFee`}
-                            label="Material Handling Fee"
-                            value={rate.materialHandlingFee}
-                            onChange={handleNumberChange("materialHandlingFee")}
-                            suffix="/Invoice"
-                        />
-                    </div>
-                </div>
+                </Collapsible>
             </div>
         );
     };
@@ -565,12 +793,15 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                             <div className="grid grid-cols-2 gap-4">
                                                 {/* Service Location */}
                                                 <div className="space-y-2">
-                                                    <Label>Service Location</Label>
+                                                    <Label>Service Location <span className="text-destructive">*</span></Label>
                                                     <Popover>
                                                         <PopoverTrigger asChild>
                                                             <Button
                                                                 variant="outline"
-                                                                className="w-full justify-between h-auto min-h-9 py-2 hover:bg-transparent border-slate-300"
+                                                                className={cn(
+                                                                    "w-full justify-between h-auto min-h-9 py-2 hover:bg-transparent border-slate-300",
+                                                                    fieldErrors[`rate_${rate.id}_serviceLocation`] && "border-destructive"
+                                                                )}
                                                                 disabled={isLoadingStations}
                                                             >
                                                                 <span className="flex flex-wrap gap-1">
@@ -622,16 +853,22 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                                             </div>
                                                         </PopoverContent>
                                                     </Popover>
+                                                    {fieldErrors[`rate_${rate.id}_serviceLocation`] && (
+                                                        <p className="text-xs text-destructive">{fieldErrors[`rate_${rate.id}_serviceLocation`]}</p>
+                                                    )}
                                                 </div>
 
                                                 {/* Aircraft Types */}
                                                 <div className="space-y-2">
-                                                    <Label>Aircraft Types</Label>
+                                                    <Label>Aircraft Types <span className="text-destructive">*</span></Label>
                                                     <Popover>
                                                         <PopoverTrigger asChild>
                                                             <Button
                                                                 variant="outline"
-                                                                className="w-full justify-between h-auto min-h-9 py-2 hover:bg-transparent border-slate-300"
+                                                                className={cn(
+                                                                    "w-full justify-between h-auto min-h-9 py-2 hover:bg-transparent border-slate-300",
+                                                                    fieldErrors[`rate_${rate.id}_aircraftTypes`] && "border-destructive"
+                                                                )}
                                                                 disabled={isLoadingAircraftTypes}
                                                             >
                                                                 <span className="flex flex-wrap gap-1">
@@ -683,6 +920,9 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                                             </div>
                                                         </PopoverContent>
                                                     </Popover>
+                                                    {fieldErrors[`rate_${rate.id}_aircraftTypes`] && (
+                                                        <p className="text-xs text-destructive">{fieldErrors[`rate_${rate.id}_aircraftTypes`]}</p>
+                                                    )}
                                                 </div>
                                             </div>
 

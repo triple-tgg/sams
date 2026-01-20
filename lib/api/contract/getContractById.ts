@@ -69,7 +69,7 @@ export interface ContractDetailAircraftTypeObj {
 export interface ContractDetailPricingData {
     id: number;
     stationCodeList: string[];
-    aircraftTypeObj: ContractDetailAircraftTypeObj;
+    aircraftTypeCodeList: string[]; // Array of aircraft type codes (e.g., ["A318", "A319", "A320"])
     tsChkUnder2hrsCert: number;
     tsChk2to3hrsCert: number;
     tsChk3to4hrsCert: number;

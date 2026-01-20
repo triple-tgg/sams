@@ -8,10 +8,8 @@ import { useTemplateDownload } from "@/hooks/use-template-download";
 import { useDashboardFlight } from "@/lib/api/hooks/useDashboardFlight";
 import { Download, Plus, CalendarPlus, CalendarCheck, CalendarX, AlignStartVertical } from "lucide-react";
 import CreateProject from "./create-project";
-import { useRouter } from "next/navigation";
 
 const ProjectWrapper = ({ children }: { children: React.ReactNode }) => {
-    const router = useRouter();
     const [open, setOpen] = useState<boolean>(false);
 
     const { handleDownloadTemplate } = useTemplateDownload();
@@ -82,41 +80,7 @@ const ProjectWrapper = ({ children }: { children: React.ReactNode }) => {
                     </CardContent>
                 </Card>
             </div>
-            <div className="flex w-full flex-wrap items-center gap-4 mb-6 ">
-                <h4 className="flex-1 font-medium lg:text-2xl text-xl capitalize text-default-900">
-                    Flight List
-                </h4>
-                <div className="flex items-center gap-4 flex-wrap">
-                    <Button
-                        color="success"
-                        variant="outline"
-                        onClick={() => handleDownloadTemplate()}
-                    >
-                        <Download className="w-3.5 h-3.5 me-1" />
-                        <span>Template</span>
-                    </Button>
-                    <ExcelImportButton
-                        onImportSuccess={handleImportSuccess}
-                    />
-                    <Button
-                        className="flex-none"
-                        color="primary"
-                        onClick={() => setOpen(true)}
-                    >
-                        <Plus className="w-4 h-4 me-1" />
-                        <span>Add Flight</span>
-                    </Button>
-                    <Button
-                        className="flex-none"
-                        color="default"
-                        onClick={() => window.open(`/en/views-flight-timeline`, '_blank')}
-                    >
-                        {/* <Plus className="w-4 h-4 me-1" /> */}
-                        <AlignStartVertical className="w-4 h-4 me-1" />
-                        <span>Timeline</span>
-                    </Button>
-                </div>
-            </div>
+
             {children}
         </div>
     );

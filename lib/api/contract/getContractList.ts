@@ -28,6 +28,19 @@ export interface ContractStatusObj {
     updatedby: string;
 }
 
+// Interface for Contract Type object in contract response
+export interface ContractTypeObj {
+    id: number;
+    code: string;
+    name: string;
+    description: string;
+    isdelete: boolean;
+    createddate: string;
+    createdby: string;
+    updateddate: string;
+    updatedby: string;
+}
+
 // Interface for Contract item from API
 export interface ContractListItem {
     id: number;
@@ -40,6 +53,7 @@ export interface ContractListItem {
     serviceStation: string[];
     creditTerms: string;
     contractStatusObj: ContractStatusObj;
+    contractTypeObj: ContractTypeObj;
 }
 
 // Interface for Contract list request
