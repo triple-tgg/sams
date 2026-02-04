@@ -15,7 +15,7 @@ import {
 import { useFlightListQuery } from '@/lib/api/hooks/useFlightListQuery';
 import { GetFlightListParams } from "@/lib/api/flight/getFlightList";
 import { FlightItem } from "@/lib/api/flight/filghtlist.interface";
-import { AlignStartVertical, ArrowLeftFromLine, ArrowRightFromLine, ChevronLeft, ChevronRight, Table, Maximize2, Minimize2, X, Plus, AlarmClockOff, AlarmClock } from "lucide-react";
+import { AlignStartVertical, ArrowLeftFromLine, ArrowRightFromLine, ChevronLeft, ChevronRight, Table, Maximize2, Minimize2, X, Plus, AlarmClockOff, AlarmClock, Upload, FileUp, Download } from "lucide-react";
 import { FlightTimeline } from "./FlightTimeline";
 import { FlightPlanbyItem, useFlightListPlanbyQuery } from "@/lib/api/hooks/useFlightListPlanbyQuery";
 import dayjs from "dayjs";
@@ -23,6 +23,8 @@ import CreateProject from "@/app/[locale]/(protected)/flight/create-project";
 import { Button } from "@/components/ui/button";
 import EditFlight from "@/app/[locale]/(protected)/flight/edit-project";
 import { mockData } from "./mockData";
+import { ExcelImportModal } from "./ExcelImportModal";
+import { useFlightExcelImport } from "@/hooks/use-flight-excel-import";
 
 
 
@@ -43,6 +45,19 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
     const contentRef = useRef<HTMLDivElement>(null);
     const timelineContainerRef = useRef<HTMLDivElement>(null);
     const [openAddFlight, setOpenAddFlight] = useState<boolean>(false);
+
+    // Download template handler
+    const handleDownloadTemplate = () => {
+        const link = document.createElement('a');
+        link.href = '/flie/Template Aircraft Sched-Mapping.xlsx';
+        link.download = 'Template Aircraft Sched-Mapping.xlsx';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    // Excel import hook with preview, validation, and upload
+    const excelImport = useFlightExcelImport();
 
     // Update current time every minute
     useEffect(() => {
@@ -313,7 +328,6 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                     </div> */}
 
                     <div className="flex items-center gap-2">
-                        {/* Current Time Badge */}
                         {viewMode === 'table' && <Button
                             onClick={() => setIsAlarm(!isAlarm)}
                             color={isAlarm ? "warning" : "destructive"}
@@ -324,6 +338,38 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                             {isAlarm ? <span className="text-sm font-bold">{formattedCurrentTime}</span> : <span className="text-sm font-bold">OFF</span>}
                         </Button>
                         }
+
+                        {/* Download Template Button */}
+                        <Button
+                            className="flex-none"
+                            color="secondary"
+                            variant="outline"
+                            onClick={handleDownloadTemplate}
+                            size="md"
+                        >
+                            <Download className="w-4 h-4 mr-2" />
+                            <span>Template</span>
+                        </Button>
+
+                        {/* Import Button with Excel Preview Modal */}
+                        <input
+                            type="file"
+                            ref={excelImport.fileInputRef}
+                            onChange={excelImport.handleFileSelect}
+                            accept=".xlsx,.xls"
+                            className="hidden"
+                        />
+                        <Button
+                            className="flex-none"
+                            color="primary"
+                            variant="outline"
+                            onClick={excelImport.openFilePicker}
+                            disabled={excelImport.isParsing}
+                            size="md"
+                        >
+                            <FileUp className="w-4 h-4 mr-2" />
+                            <span>{excelImport.isParsing ? 'Loading...' : 'Import'}</span>
+                        </Button>
                         <Button
                             className="flex-none"
                             color="primary"
@@ -333,6 +379,7 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                             <Plus className="w-4 h-4" />
                             <span>Add Flight</span>
                         </Button>
+
                     </div>
                     {/* View Toggle */}
                     <div className="flex items-center gap-2">
@@ -441,6 +488,27 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                     <p>No flights found for {selectedDate.toLocaleDateString()}</p>
                 </div>
             )}
+
+            {/* Excel Import Modal with Preview and Validation */}
+            <ExcelImportModal
+                isOpen={excelImport.isModalOpen}
+                onClose={excelImport.closeModal}
+                sheets={excelImport.sheets}
+                activeSheetIndex={excelImport.activeSheetIndex}
+                onSheetChange={excelImport.setActiveSheetIndex}
+                validatedRows={excelImport.validatedRows}
+                hasValidated={excelImport.hasValidated}
+                validRows={excelImport.validRows}
+                invalidRows={excelImport.invalidRows}
+                canUpload={excelImport.canUpload}
+                isValidating={excelImport.isValidating}
+                isUploading={excelImport.isUploading}
+                onValidate={excelImport.validateData}
+                onUpload={excelImport.uploadData}
+                onDeleteRow={excelImport.deleteRow}
+                onEditRow={excelImport.editRow}
+                onUpdateSheetName={excelImport.updateSheetName}
+            />
         </div>
     );
 }
