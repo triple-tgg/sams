@@ -42,7 +42,7 @@ export function transformFlightsToEpg(flights: FlightItem[]): FlightEpgItem[] {
                 // flightType: 'arrival',
                 acReg: flight.acReg,
                 bayNo: flight.bayNo,
-                status: flight.statusObj?.code,
+                status: flight.statusObj?.code ?? '',
                 flightNo: flight.arrivalFlightNo,
                 arrivalDate: flight.arrivalDate,
                 departureDate: flight.departureDate ?? '',
@@ -117,12 +117,13 @@ export function transformAirlinesToChannels(flights: FlightItem[]): AirlineChann
     const uniqueAirlines = new Map<string, AirlineChannel>();
 
     flights.forEach((flight, index) => {
-        if (!uniqueAirlines.has(flight?.airlineObj?.code)) {
-            uniqueAirlines.set(flight?.airlineObj?.code, {
-                uuid: flight?.airlineObj?.code || "unknown",
-                logo: getAirlineLogo(flight?.airlineObj?.code),
-                name: flight?.airlineObj?.name,
-                airlineCode: flight?.airlineObj?.code || "unknown",
+        const airlineCode = flight?.airlineObj?.code ?? "unknown";
+        if (!uniqueAirlines.has(airlineCode)) {
+            uniqueAirlines.set(airlineCode, {
+                uuid: airlineCode,
+                logo: getAirlineLogo(airlineCode),
+                name: flight?.airlineObj?.name ?? '',
+                airlineCode: airlineCode,
             });
         }
     });

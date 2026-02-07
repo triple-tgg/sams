@@ -104,7 +104,7 @@ export function getFlightColumns({
                 {flight.isFiles && (
                   <DropdownMenuItem
                     className="cursor-pointer"
-                    onClick={() => onAttach?.(flight.filePath)}
+                    onClick={() => flight.filePath && onAttach?.(flight.filePath)}
                   >
                     <Paperclip className="h-4 w-4 mr-2" />
                     View Attachment
