@@ -115,6 +115,33 @@ export const AdditionalDefectsSection: React.FC<{
 
                   <FormField
                     control={form.control}
+                    name={`additionalDefects.${index}.acDefect` as FieldPath<ServicesFormInputs>}
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-1">
+                        <FormLabel>A/C Defect</FormLabel>
+                        <FormControl>
+                          <Textarea placeholder="Enter A/C defect details..." {...field} value={(field.value as unknown as string) ?? ''} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name={`additionalDefects.${index}.action` as FieldPath<ServicesFormInputs>}
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-1">
+                        <FormLabel>Action</FormLabel>
+                        <FormControl>
+                          <Textarea placeholder="Enter action taken..." {...field} value={(field.value as unknown as string) ?? ''} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
                     name={`additionalDefects.${index}.laeMH` as FieldPath<ServicesFormInputs>}
                     render={({ field }) => (
                       <FormItem>
@@ -140,22 +167,28 @@ export const AdditionalDefectsSection: React.FC<{
                       </FormItem>
                     )}
                   />
-
-                  <PhotoUploadField
-                    thfNumber={thfNumber}
-                    form={form}
-                    fieldName={`additionalDefects.${index}.attachFiles`}
-                    label="Attach Files"
-                    value={getActiveFile(form.getValues(`additionalDefects.${index}.attachFiles` as FieldPath<ServicesFormInputs>) as AdditionalDefectAttachFile[] | null) || null}
-                  />
                   {/* 
                   <PhotoUploadField
                     thfNumber={thfNumber}
                     form={form}
                     fieldName={`additionalDefects.${index}.attachFiles`}
                     label="Attach Files"
-                    value={form.getValues(`additionalDefects.${index}.attachFiles`) || null}
+                    value={getActiveFile(form.getValues(`additionalDefects.${index}.attachFiles` as FieldPath<ServicesFormInputs>) as AdditionalDefectAttachFile[] | null) || null}
                   /> */}
+
+                  <FormField
+                    control={form.control}
+                    name={`additionalDefects.${index}.technicalDelay` as FieldPath<ServicesFormInputs>}
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-1">
+                        <FormLabel>Technical Delay</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter technical delay..." {...field} value={(field.value as unknown as string) ?? ''} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
                 <div className="flex justify-end"></div>
               </div>

@@ -4,6 +4,7 @@ import axiosInstance from '@/lib/axios.config';
 export interface Equipment {
   id: number;
   code: string;
+  name: string | null;
 }
 
 export interface EquipmentApiResponse {
@@ -64,7 +65,7 @@ export const getEquipmentByCodes = async (equipmentCodes: string[]): Promise<Equ
 
     // Filter out empty codes
     const validCodes = equipmentCodes.filter(code => code && code.trim() !== '');
-    
+
     if (validCodes.length === 0) {
       return [];
     }

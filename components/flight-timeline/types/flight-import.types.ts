@@ -27,6 +27,7 @@ export interface ValidatedRow {
     data: Record<string, any>;
     isValid: boolean;
     errors: ValidationError[];
+    warnings: ValidationError[]; // Master data mismatch warnings (amber)
 }
 
 /**
@@ -109,6 +110,7 @@ export const EXCEL_COLUMN_MAPPING: Record<string, keyof FlightImportData> = {
  * API validate request item
  */
 export interface FlightValidateRequestItem {
+    rowId: number;
     airlinesId: number;
     acTypeId: number;
     acReg: string;
@@ -124,6 +126,7 @@ export interface FlightValidateRequestItem {
     mechIdList: number[];
     checkStatusId: number;
     note: string;
+    userName?: string;
 }
 
 /**
@@ -134,6 +137,7 @@ export interface FlightValidateResponse {
     responseData: {
         flagPass: boolean;
         validateFilghtList: {
+            rowId: number;
             arrivalFlightNo: string;
             statusText: string;
         }[];

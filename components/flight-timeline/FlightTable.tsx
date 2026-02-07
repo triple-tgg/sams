@@ -1,11 +1,18 @@
 'use client';
 
-import { FlightItem } from '@/lib/api/flight/filghtlist.interface';
-import { Edit } from 'lucide-react';
+import { FlightItem, StaffItem } from '@/lib/api/flight/filghtlist.interface';
+import { Edit, FileCheck, MoreHorizontal, SquarePen } from 'lucide-react';
 import Tooltip from '../ui/c-tooltip';
 import dayjs from 'dayjs';
 import EditFlight from '@/app/[locale]/(protected)/flight/edit-project';
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { Button } from '../ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
+
+// Type guard to check if item is a StaffItem object (not just a number ID)
+const isStaffItem = (item: number | StaffItem): item is StaffItem => {
+    return typeof item === 'object' && item !== null && 'id' in item && 'displayName' in item;
+};
 
 // Filter function: extracted for reusability
 const filterFlightsByAlarm = (flights: FlightItem[], currentTime: Date): FlightItem[] => {
@@ -113,9 +120,10 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                             <th className="px-4 py-3 text-sm font-semibold ">CS</th>
                             <th className="px-4 py-3 text-sm font-semibold ">MECH</th>
                             <th className="px-4 py-3 text-sm font-semibold ">Status</th>
+                            <th className="px-4 py-3 text-sm font-semibold ">Check</th>
                             <th className="px-4 py-3 text-sm font-semibold ">Remarks</th>
                             {!isFullscreen && (
-                                <th className="px-4 py-3 text-sm font-semibold  flex items-center justify-center">action</th>
+                                <th className="px-4 py-3 text-sm font-semibold w-[100px]">action</th>
                             )}
                         </tr>
                     </thead>
@@ -190,9 +198,9 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                                 </td>
                                 {/* ETA */}
                                 <td className="px-4 py-3 text-sm w-[60px]">
-                                    <Tooltip content={dayjs(`${flight.arrivalDate} ${flight.arrivalAtaTime}`).format('DD-MMM-YYYY, HH:mm') || '-'}>
+                                    <Tooltip content={dayjs(`${flight.etaDate} ${flight.etaTime}`).format('DD-MMM-YYYY, HH:mm') || '-'}>
                                         <div className="">
-                                            {dayjs(`${flight.arrivalDate} ${flight.arrivalAtaTime}`).format('HH:mm') || '-'}
+                                            {dayjs(`${flight.etaDate} ${flight.etaTime}`).format('HH:mm') || '-'}
                                         </div>
                                     </Tooltip>
                                 </td>
@@ -214,13 +222,24 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                                 <td className="px-4 py-3 text-sm w-[100px]">
                                     <div className="flex flex-wrap gap-1 items-start justify-start h-full flex-1 flex-col">
                                         {flight.csList?.length ? (
-                                            flight.csList?.map((cs) => (
-                                                <Tooltip key={cs.id} content={cs.name || ''}>
-                                                    <span className="bg-cyan-500 text-white dark:text-slate-900 px-2 py-1 rounded">
-                                                        {cs.displayName}
+                                            flight.csList?.map((cs, csIndex) => {
+                                                // Handle case where cs is StaffItem object
+                                                if (isStaffItem(cs)) {
+                                                    return (
+                                                        <Tooltip key={cs.id} content={cs.name || ''}>
+                                                            <span className="bg-cyan-500 text-white dark:text-slate-900 px-2 py-1 rounded">
+                                                                {cs.displayName}
+                                                            </span>
+                                                        </Tooltip>
+                                                    );
+                                                }
+                                                // Handle case where cs is just a number (ID)
+                                                return (
+                                                    <span key={`cs-${csIndex}-${cs}`} className="bg-cyan-500 text-white dark:text-slate-900 px-2 py-1 rounded">
+                                                        ID: {cs}
                                                     </span>
-                                                </Tooltip>
-                                            ))
+                                                );
+                                            })
                                         ) : '-'}
                                     </div>
                                 </td>
@@ -228,13 +247,24 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                                 <td className="px-4 py-3 text-sm w-[100px]">
                                     <div className="flex flex-wrap gap-1 items-start h-full flex-1 grow-0">
                                         {flight.mechList?.length ? (
-                                            flight.mechList?.map((mech) => (
-                                                <Tooltip key={mech.id} content={mech.name || ''}>
-                                                    <span className="bg-amber-600 text-white dark:text-slate-900 px-2 py-1 rounded">
-                                                        {mech.displayName}
+                                            flight.mechList?.map((mech, mechIndex) => {
+                                                // Handle case where mech is StaffItem object
+                                                if (isStaffItem(mech)) {
+                                                    return (
+                                                        <Tooltip key={mech.id} content={mech.name || ''}>
+                                                            <span className="bg-amber-600 text-white dark:text-slate-900 px-2 py-1 rounded">
+                                                                {mech.displayName}
+                                                            </span>
+                                                        </Tooltip>
+                                                    );
+                                                }
+                                                // Handle case where mech is just a number (ID)
+                                                return (
+                                                    <span key={`mech-${mechIndex}-${mech}`} className="bg-amber-600 text-white dark:text-slate-900 px-2 py-1 rounded">
+                                                        ID: {mech}
                                                     </span>
-                                                </Tooltip>
-                                            ))
+                                                );
+                                            })
                                         ) : '-'}
                                     </div>
                                 </td>
@@ -250,6 +280,20 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                                         {flight.statusObj?.code || flight.statusObj?.name || '-'}
                                     </span>
                                 </td>
+                                {/* Check (Maintenance Status) */}
+                                <td className="px-4 py-3 text-sm w-[100px]">
+                                    <span className={`
+                                        inline-flex items-center rounded px-2 py-1 text-xs font-medium
+                                        ${flight.maintenanceStatusObj?.code === 'Scheduled' ? 'dark:bg-blue-900/50 bg-blue-700 dark:text-blue-400 text-blue-100' : ''}
+                                        ${flight.maintenanceStatusObj?.code === 'In-Proress' ? 'dark:bg-amber-900/50 bg-amber-700 dark:text-amber-400 text-amber-100' : ''}
+                                        ${flight.maintenanceStatusObj?.code === 'Cancelled' ? 'dark:bg-red-900/50 bg-red-700 dark:text-red-400 text-red-100' : ''}
+                                        ${flight.maintenanceStatusObj?.code === 'Completed' ? 'dark:bg-green-900/50 bg-green-700 dark:text-green-400 text-green-100' : ''}
+                                        ${flight.maintenanceStatusObj?.code === 'Delayed' ? 'dark:bg-orange-900/50 bg-orange-700 dark:text-orange-400 text-orange-100' : ''}
+                                        ${!flight.maintenanceStatusObj || !['Scheduled', 'In-Proress', 'Cancelled', 'Completed', 'Delayed'].includes(flight.maintenanceStatusObj?.code || '') ? 'dark:bg-slate-700/50 bg-slate-700 dark:text-slate-300 text-slate-100' : ''}
+                                    `}>
+                                        {flight.maintenanceStatusObj?.code || flight.maintenanceStatusObj?.name || '-'}
+                                    </span>
+                                </td>
                                 {/* Remarks */}
                                 <td className="px-4 py-3 text-sm w-[100px] text-slate-900 dark:text-slate-300">
                                     {flight.note ? <Tooltip content={flight.note || ''}>
@@ -259,15 +303,58 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                                     </Tooltip> : '-'}
                                 </td>
                                 {!isFullscreen && (
-                                    <td className="px-2 py-2 text-sm w-[50px] text-slate-900 dark:text-slate-300 text-center">
-                                        <button
-                                            className="bg-slate-300 hover:bg-slate-500 text-slate-700 hover:text-slate-300 dark:text-slate-300 py-2 px-2 rounded-md cursor-pointer hover:scale-110 transition-all "
-                                            onClick={() => {
-                                                setEditFlightId(flight.flightInfosId);
-                                                setOpenEditFlight(true);
-                                            }} >
-                                            <Edit className='w-4 h-4' />
-                                        </button>
+                                    <td className="px-2 py-2 text-sm text-slate-900 dark:text-slate-300">
+                                        <div className="flex items-center justify-end gap-2 w-full"    >
+                                            {flight.state !== "plan" && (
+                                                <Tooltip content={flight.state === "save" ? `Done (THF:${flight.thfNumber})` : `Draft (THF:${flight.thfNumber})` || ''}>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        color="success"
+                                                        className="p-2 cursor-pointer hover:scale-110 transition-all "
+                                                    >
+                                                        <FileCheck className="h-8 w-8" />
+                                                    </Button>
+                                                </Tooltip>
+                                            )}
+                                            <div className="flex items-center justify-center">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild >
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8"
+                                                        >
+                                                            <MoreHorizontal className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem
+                                                            className="cursor-pointer"
+                                                            disabled={flight.statusObj?.code === "Cancel"}
+                                                            onClick={() => {
+                                                                setEditFlightId(flight.flightInfosId);
+                                                                setOpenEditFlight(true);
+                                                            }}
+                                                        >
+                                                            <SquarePen className="h-4 w-4 mr-2" />
+                                                            Edit Flight
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </div>
+                                        </div>
+                                        {/* <Tooltip content={"Edit Flight"}>
+                                            <button
+                                                className="bg-slate-300 hover:bg-slate-500 text-slate-700 hover:text-slate-300 dark:text-slate-300 py-2 px-2 rounded-md cursor-pointer hover:scale-110 transition-all "
+                                                onClick={() => {
+                                                    setEditFlightId(flight.flightInfosId);
+                                                    setOpenEditFlight(true);
+                                                }} >
+                                                <Edit className='w-4 h-4' />
+                                            </button>
+                                        </Tooltip> */}
+
                                     </td>
                                 )}
 

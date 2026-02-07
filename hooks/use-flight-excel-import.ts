@@ -35,7 +35,7 @@ export const useFlightExcelImport = () => {
     const [isUploading, setIsUploading] = useState(false);
     const [sheets, setSheets] = useState<ParsedSheet[]>([]);
     const [activeSheetIndex, setActiveSheetIndex] = useState(0);
-    const [validatedRows, setValidatedRows] = useState<ValidatedRow[]>([]);
+    const [validatedRowsBySheet, setValidatedRowsBySheet] = useState<Record<number, ValidatedRow[]>>({});
     const [hasValidated, setHasValidated] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -416,7 +416,7 @@ export const useFlightExcelImport = () => {
 
         setIsParsing(true);
         setHasValidated(false);
-        setValidatedRows([]);
+        setValidatedRowsBySheet({});
 
         try {
             const parsedSheets = await parseExcelFile(file);
@@ -442,8 +442,8 @@ export const useFlightExcelImport = () => {
     }, [parseExcelFile]);
 
     /**
-     * Validate all rows in the active sheet via API
-     * Sends data to backend for validation
+     * Validate all rows in ALL sheets via API
+     * Sends data from all sheets to backend for validation
      */
     const validateData = useCallback(async () => {
         if (sheets.length === 0) return;
@@ -451,18 +451,17 @@ export const useFlightExcelImport = () => {
         setIsValidating(true);
 
         try {
-            const activeSheet = sheets[activeSheetIndex];
-            const sheetDate = activeSheet.sheetDate;
-
-            // Check if sheet name is a valid date
-            if (!sheetDate) {
-                toast.error(`Sheet name "${activeSheet.name}" is not a valid date format. Please rename the sheet to a date (e.g., "05-02-2026").`);
+            // Check all sheets have valid dates first
+            const invalidSheets = sheets.filter(sheet => !sheet.sheetDate);
+            if (invalidSheets.length > 0) {
+                const names = invalidSheets.map(s => `"${s.name}"`).join(', ');
+                toast.error(`Sheet names ${names} are not valid date formats. Please rename them to dates (e.g., "05-02-2026").`);
                 setIsValidating(false);
                 return;
             }
 
-            // Build validation request data
-            const validateRequestData: FlightValidateRequestItem[] = activeSheet.rows.map((row) => {
+            // Helper function to build request item from row
+            const buildRequestItem = (row: Record<string, any>, sheetDate: string, rowId: number): FlightValidateRequestItem => {
                 // Get airline ID
                 const airlineValue = row['AIRLINE'];
                 const airlineMatch = findOptionMatch(airlineValue, airlineOptions, 'label');
@@ -473,10 +472,8 @@ export const useFlightExcelImport = () => {
                 const acTypeMatch = findOptionMatch(acTypeValue, aircraftTypeOptions, 'value');
                 const acTypeId = acTypeMatch?.id || 0;
 
-                // Get Route From (station code)
+                // Get Route From/To
                 const routeFromValue = row['ROUTE FROM'] || '';
-
-                // Get Route To (station code)  
                 const routeToValue = row['ROUTE TO'] || '';
 
                 // Get staff IDs
@@ -495,13 +492,11 @@ export const useFlightExcelImport = () => {
                 );
                 const checkStatusId = checkMatch?.id || 0;
 
-                // Format dates - combine sheet date with time
+                // Format datetime with sheet date context
                 const formatFullDateTime = (timeValue: any): string => {
                     if (!timeValue) return '';
-
                     const dateFormatted = dayjs(sheetDate).format('YYYY-MM-DD');
 
-                    // Handle Excel time serial number (decimal like 0.5625 = 13:30)
                     if (typeof timeValue === 'number' && timeValue < 1) {
                         const totalMinutes = Math.round(timeValue * 24 * 60);
                         const hours = Math.floor(totalMinutes / 60);
@@ -511,33 +506,27 @@ export const useFlightExcelImport = () => {
                     }
 
                     const timeStr = String(timeValue).trim();
-
-                    // Already has date and time
                     if (timeStr.includes('/') || timeStr.includes('-')) {
-                        // Parse existing datetime and reformat
                         const parsed = dayjs(timeStr, ['DD/MM/YYYY HH:mm', 'YYYY-MM-DD HH:mm', 'DD-MM-YYYY HH:mm']);
-                        if (parsed.isValid()) {
-                            return parsed.format('YYYY-MM-DD HH:mm');
-                        }
+                        if (parsed.isValid()) return parsed.format('YYYY-MM-DD HH:mm');
                         return formatDateTime(timeValue, sheetDate);
                     }
 
-                    // HH:mm format
                     if (/^\d{1,2}:\d{2}$/.test(timeStr)) {
                         const parts = timeStr.split(':');
-                        const formattedTime = `${parts[0].padStart(2, '0')}:${parts[1]}`;
-                        return `${dateFormatted} ${formattedTime}`;
+                        return `${dateFormatted} ${parts[0].padStart(2, '0')}:${parts[1]}`;
                     }
 
                     return `${dateFormatted} ${timeStr}`;
                 };
 
                 return {
+                    rowId,
                     airlinesId,
                     acTypeId,
                     acReg: row['A/C REG'] || '',
-                    arrivalFlightNo: row['ARR FLT'] || row['ARRIVAL FLT'] || '',
-                    departureFlightNo: row['DEP FLT'] || row['DEPARTURE FLT'] || '',
+                    arrivalFlightNo: row['FLT NO. ARRIVAL'] || row['ARR FLT'] || row['ARRIVAL FLT'] || '',
+                    departureFlightNo: row['FLT NO. DEOARTURE'] || row['DEP FLT'] || row['DEPARTURE FLT'] || '',
                     routeFrom: routeFromValue,
                     routeTo: routeToValue,
                     arrivalStaDate: formatFullDateTime(row['STA'] || row['ETA']),
@@ -549,67 +538,153 @@ export const useFlightExcelImport = () => {
                     checkStatusId,
                     note: row['NOTE'] || row['REMARK'] || '',
                 };
+            };
+
+            // Build combined request data from ALL sheets with global rowId (1-indexed)
+            const allRequestData: FlightValidateRequestItem[] = [];
+            const rowToSheetMap: { sheetIndex: number; rowIndex: number; rowId: number }[] = [];
+            let globalRowId = 1;
+
+            sheets.forEach((sheet, sheetIndex) => {
+                sheet.rows.forEach((row, rowIndex) => {
+                    allRequestData.push(buildRequestItem(row, sheet.sheetDate!, globalRowId));
+                    rowToSheetMap.push({ sheetIndex, rowIndex, rowId: globalRowId });
+                    globalRowId++;
+                });
             });
 
-            // Call validate API
+            // Call validate API with all rows
             const response = await axios.post<FlightValidateResponse>(
                 '/flight/importlist-filghtinfo-validate',
-                validateRequestData
+                allRequestData
             );
 
             const validateResult = response.data.responseData;
 
-            // Map API response to validated rows
-            const validated: ValidatedRow[] = activeSheet.rows.map((row, index) => {
-                const mappedRow = mapRowToApiFormat(row, sheetDate);
-                const arrivalFlightNo = row['ARR FLT'] || row['ARRIVAL FLT'] || '';
+            // Build validated rows grouped by sheet
+            const newValidatedRowsBySheet: Record<number, ValidatedRow[]> = {};
 
-                // Find validation result from API
-                const apiValidation = validateResult.validateFilghtList.find(
-                    v => v.arrivalFlightNo === arrivalFlightNo
-                ) || validateResult.validateFilghtList[index];
+            sheets.forEach((sheet, sheetIndex) => {
+                newValidatedRowsBySheet[sheetIndex] = sheet.rows.map((row, rowIndex) => {
+                    const mappedRow = mapRowToApiFormat(row, sheet.sheetDate);
 
-                const errors: { row: number; column: string; message: string }[] = [];
+                    // Find the rowId for this row from the map
+                    const rowMapping = rowToSheetMap.find(
+                        m => m.sheetIndex === sheetIndex && m.rowIndex === rowIndex
+                    );
+                    const rowId = rowMapping?.rowId || 0;
 
-                // Add API validation errors
-                if (apiValidation && apiValidation.statusText) {
-                    errors.push({
-                        row: index + 2,
-                        column: 'API',
-                        message: apiValidation.statusText,
-                    });
-                }
+                    // Find validation result using rowId for accurate matching
+                    const apiValidation = validateResult.validateFilghtList.find(
+                        v => v.rowId === rowId
+                    );
 
-                // Get matched IDs for upload
-                const airlineMatch = findOptionMatch(row['AIRLINE'], airlineOptions, 'label');
-                const acTypeMatch = findOptionMatch(row['A/C TYPE'], aircraftTypeOptions, 'value');
+                    const errors: { row: number; column: string; message: string }[] = [];
+                    const warnings: { row: number; column: string; message: string }[] = [];
 
-                const mappedWithIds = {
-                    ...mappedRow,
-                    airlineId: airlineMatch?.id,
-                    acTypeId: acTypeMatch?.id,
-                };
+                    if (apiValidation && apiValidation.statusText) {
+                        errors.push({
+                            row: rowId,
+                            column: 'API',
+                            message: apiValidation.statusText,
+                        });
+                    }
 
-                const isValid = errors.length === 0;
+                    // Check master data matches and collect warnings
+                    const airlineMatch = findOptionMatch(row['AIRLINE'], airlineOptions, 'label');
+                    const acTypeMatch = findOptionMatch(row['A/C TYPE'], aircraftTypeOptions, 'value');
+                    const routeFromMatch = findOptionMatch(row['ROUTE FROM'], stationOptions, 'value');
+                    const routeToMatch = findOptionMatch(row['ROUTE TO'], stationOptions, 'value');
+                    const checkMatch = findOptionMatch(row['CHECK'], checkStatusOptions, 'value');
 
-                return {
-                    originalIndex: index + 2,
-                    data: { ...row, _mapped: mappedWithIds },
-                    isValid,
-                    errors,
-                };
+                    // Add warnings for missing master data
+                    if (row['AIRLINE'] && !airlineMatch) {
+                        warnings.push({
+                            row: rowId,
+                            column: 'AIRLINE',
+                            message: `Airline "${row['AIRLINE']}" not found in database`,
+                        });
+                    }
+                    if (row['A/C TYPE'] && !acTypeMatch) {
+                        warnings.push({
+                            row: rowId,
+                            column: 'A/C TYPE',
+                            message: `A/C Type "${row['A/C TYPE']}" not found in database`,
+                        });
+                    }
+                    if (row['ROUTE FROM'] && !routeFromMatch) {
+                        warnings.push({
+                            row: rowId,
+                            column: 'ROUTE FROM',
+                            message: `Station "${row['ROUTE FROM']}" not found in database`,
+                        });
+                    }
+                    if (row['ROUTE TO'] && !routeToMatch) {
+                        warnings.push({
+                            row: rowId,
+                            column: 'ROUTE TO',
+                            message: `Station "${row['ROUTE TO']}" not found in database`,
+                        });
+                    }
+                    if (row['CHECK'] && !checkMatch) {
+                        warnings.push({
+                            row: rowId,
+                            column: 'CHECK',
+                            message: `Status "${row['CHECK']}" not found in database`,
+                        });
+                    }
+
+                    // Check staff columns
+                    if (row['CS']) {
+                        const csResult = parseAndMatchStaff(String(row['CS']), 'CS');
+                        if (csResult.notFound.length > 0) {
+                            warnings.push({
+                                row: rowId,
+                                column: 'CS',
+                                message: `Staff not found: ${csResult.notFound.join(', ')}`,
+                            });
+                        }
+                    }
+                    if (row['MECH']) {
+                        const mechResult = parseAndMatchStaff(String(row['MECH']), 'MECH');
+                        if (mechResult.notFound.length > 0) {
+                            warnings.push({
+                                row: rowId,
+                                column: 'MECH',
+                                message: `Staff not found: ${mechResult.notFound.join(', ')}`,
+                            });
+                        }
+                    }
+
+                    const mappedWithIds = {
+                        ...mappedRow,
+                        airlineId: airlineMatch?.id,
+                        acTypeId: acTypeMatch?.id,
+                    };
+
+                    return {
+                        originalIndex: rowIndex + 2,
+                        data: { ...row, _mapped: mappedWithIds, _sheetIndex: sheetIndex },
+                        isValid: errors.length === 0,
+                        errors,
+                        warnings,
+                    };
+                });
             });
 
-            setValidatedRows(validated);
+            setValidatedRowsBySheet(newValidatedRowsBySheet);
             setHasValidated(true);
 
-            const validCount = validated.filter((r) => r.isValid).length;
-            const invalidCount = validated.filter((r) => !r.isValid).length;
+            // Count totals across all sheets
+            const allValidated = Object.values(newValidatedRowsBySheet).flat();
+            const validCount = allValidated.filter((r) => r.isValid).length;
+            const invalidCount = allValidated.filter((r) => !r.isValid).length;
+            const totalSheets = sheets.length;
 
             if (validateResult.flagPass) {
-                toast.success(`All ${validCount} rows passed validation!`);
+                toast.success(`All ${validCount} rows from ${totalSheets} sheet(s) passed validation!`);
             } else {
-                toast.warning(`${validCount} valid, ${invalidCount} invalid rows found`);
+                toast.warning(`${validCount} valid, ${invalidCount} invalid rows found across ${totalSheets} sheet(s)`);
             }
         } catch (error) {
             console.error('Validation error:', error);
@@ -617,32 +692,32 @@ export const useFlightExcelImport = () => {
         } finally {
             setIsValidating(false);
         }
-    }, [sheets, activeSheetIndex, mapRowToApiFormat, findOptionMatch, airlineOptions, aircraftTypeOptions, stationOptions, parseAndMatchStaff, checkStatusOptions, formatDateTime]);
+    }, [sheets, mapRowToApiFormat, findOptionMatch, airlineOptions, aircraftTypeOptions, stationOptions, parseAndMatchStaff, checkStatusOptions, formatDateTime]);
 
     /**
-     * Upload valid rows to the API
+     * Upload valid rows from ALL sheets to the API
      */
     const uploadData = useCallback(async () => {
-        const validRows = validatedRows.filter((r) => r.isValid);
-        if (validRows.length === 0) {
+        // Collect valid rows from ALL sheets
+        const allValidatedRows = Object.values(validatedRowsBySheet).flat();
+        const allValidRows = allValidatedRows.filter((r) => r.isValid);
+
+        if (allValidRows.length === 0) {
             toast.error('No valid rows to upload');
-            return;
-        }
-
-        const activeSheet = sheets[activeSheetIndex];
-        const sheetDate = activeSheet?.sheetDate;
-
-        if (!sheetDate) {
-            toast.error('Sheet date not found');
             return;
         }
 
         setIsUploading(true);
 
         try {
-            // Build upload data in same format as validate API + userName
-            const uploadRequestData = validRows.map((validRow) => {
+            // Build upload data from all valid rows across all sheets
+            const uploadRequestData = allValidRows.map((validRow, index) => {
                 const row = validRow.data;
+                // Use index+1 as rowId (1-indexed)
+                const rowId = index + 1;
+                // Get sheet date from the row's _sheetIndex
+                const sheetIndex = row._sheetIndex ?? 0;
+                const sheetDate = sheets[sheetIndex]?.sheetDate || '';
 
                 // Get airline ID
                 const airlineValue = row['AIRLINE'];
@@ -674,9 +749,9 @@ export const useFlightExcelImport = () => {
                 );
                 const checkStatusId = checkMatch?.id || 0;
 
-                // Format dates - same logic as validate
+                // Format dates - use the row's specific sheet date
                 const formatFullDateTime = (timeValue: any): string => {
-                    if (!timeValue) return '';
+                    if (!timeValue || !sheetDate) return '';
 
                     const dateFormatted = dayjs(sheetDate).format('YYYY-MM-DD');
 
@@ -707,11 +782,12 @@ export const useFlightExcelImport = () => {
                 };
 
                 return {
+                    rowId,
                     airlinesId,
                     acTypeId,
                     acReg: row['A/C REG'] || '',
-                    arrivalFlightNo: row['ARR FLT'] || row['ARRIVAL FLT'] || '',
-                    departureFlightNo: row['DEP FLT'] || row['DEPARTURE FLT'] || '',
+                    arrivalFlightNo: row['FLT NO. ARRIVAL'] || row['ARR FLT'] || row['ARRIVAL FLT'] || '',
+                    departureFlightNo: row['FLT NO. DEPARTURE'] || row['DEP FLT'] || row['DEPARTURE FLT'] || '',
                     routeFrom: routeFromValue,
                     routeTo: routeToValue,
                     arrivalStaDate: formatFullDateTime(row['STA'] || row['ETA']),
@@ -729,7 +805,8 @@ export const useFlightExcelImport = () => {
             // Call upload API
             await axios.post('/flight/importlist-filghtinfo', uploadRequestData);
 
-            toast.success(`Successfully imported ${uploadRequestData.length} flight records`);
+            const sheetsCount = Object.keys(validatedRowsBySheet).length;
+            toast.success(`Successfully imported ${uploadRequestData.length} flight records from ${sheetsCount} sheet(s)`);
 
             // Refresh flight list data
             queryClient.invalidateQueries({ queryKey: ['flightList'] });
@@ -743,7 +820,7 @@ export const useFlightExcelImport = () => {
         } finally {
             setIsUploading(false);
         }
-    }, [validatedRows, sheets, activeSheetIndex, queryClient, findOptionMatch, airlineOptions, aircraftTypeOptions, parseAndMatchStaff, checkStatusOptions]);
+    }, [validatedRowsBySheet, sheets, queryClient, findOptionMatch, airlineOptions, aircraftTypeOptions, parseAndMatchStaff, checkStatusOptions]);
 
     /**
      * Open file picker
@@ -764,9 +841,23 @@ export const useFlightExcelImport = () => {
             return updatedSheets;
         });
 
-        // Reset validation when rows change
-        setValidatedRows([]);
-        setHasValidated(false);
+        // Update validation state: remove deleted row and adjust indices
+        setValidatedRowsBySheet((prev) => {
+            const updated = { ...prev };
+            const sheetValidation = updated[activeSheetIndex];
+            if (sheetValidation) {
+                // Filter out the deleted row and adjust originalIndex for remaining rows
+                updated[activeSheetIndex] = sheetValidation
+                    .filter((v) => v.originalIndex !== rowIndex + 2) // originalIndex is Excel row (2-based)
+                    .map((v) => ({
+                        ...v,
+                        originalIndex: v.originalIndex > rowIndex + 2
+                            ? v.originalIndex - 1
+                            : v.originalIndex,
+                    }));
+            }
+            return updated;
+        });
     }, [activeSheetIndex]);
 
     /**
@@ -783,12 +874,69 @@ export const useFlightExcelImport = () => {
             return updatedSheets;
         });
 
-        // Reset validation when rows change
-        setValidatedRows([]);
-        setHasValidated(false);
+        // Recalculate validation for the edited row only, preserving other rows' validation
+        setValidatedRowsBySheet((prev) => {
+            const updated = { ...prev };
+            const sheetValidation = updated[activeSheetIndex];
+            if (sheetValidation) {
+                // Find and update the edited row's validation
+                updated[activeSheetIndex] = sheetValidation.map((v) => {
+                    if (v.originalIndex === rowIndex + 2) {
+                        // Recalculate warnings for the edited row
+                        const warnings: { row: number; column: string; message: string }[] = [];
+                        const rowId = v.originalIndex;
+
+                        // Check master data matches (simplified check based on column values)
+                        const airlineMatch = findOptionMatch(updatedData['AIRLINE'], airlineOptions, 'label');
+                        const acTypeMatch = findOptionMatch(updatedData['A/C TYPE'], aircraftTypeOptions, 'value');
+                        const routeFromMatch = findOptionMatch(updatedData['ROUTE FROM'], stationOptions, 'value');
+                        const routeToMatch = findOptionMatch(updatedData['ROUTE TO'], stationOptions, 'value');
+                        const checkMatch = findOptionMatch(updatedData['CHECK'], checkStatusOptions, 'value');
+
+                        if (updatedData['AIRLINE'] && !airlineMatch) {
+                            warnings.push({ row: rowId, column: 'AIRLINE', message: `Airline "${updatedData['AIRLINE']}" not found in database` });
+                        }
+                        if (updatedData['A/C TYPE'] && !acTypeMatch) {
+                            warnings.push({ row: rowId, column: 'A/C TYPE', message: `A/C Type "${updatedData['A/C TYPE']}" not found in database` });
+                        }
+                        if (updatedData['ROUTE FROM'] && !routeFromMatch) {
+                            warnings.push({ row: rowId, column: 'ROUTE FROM', message: `Station "${updatedData['ROUTE FROM']}" not found in database` });
+                        }
+                        if (updatedData['ROUTE TO'] && !routeToMatch) {
+                            warnings.push({ row: rowId, column: 'ROUTE TO', message: `Station "${updatedData['ROUTE TO']}" not found in database` });
+                        }
+                        if (updatedData['CHECK'] && !checkMatch) {
+                            warnings.push({ row: rowId, column: 'CHECK', message: `Status "${updatedData['CHECK']}" not found in database` });
+                        }
+
+                        // Check staff columns
+                        if (updatedData['CS']) {
+                            const csResult = parseAndMatchStaff(String(updatedData['CS']), 'CS');
+                            if (csResult.notFound.length > 0) {
+                                warnings.push({ row: rowId, column: 'CS', message: `Staff not found: ${csResult.notFound.join(', ')}` });
+                            }
+                        }
+                        if (updatedData['MECH']) {
+                            const mechResult = parseAndMatchStaff(String(updatedData['MECH']), 'MECH');
+                            if (mechResult.notFound.length > 0) {
+                                warnings.push({ row: rowId, column: 'MECH', message: `Staff not found: ${mechResult.notFound.join(', ')}` });
+                            }
+                        }
+
+                        return {
+                            ...v,
+                            data: { ...v.data, ...updatedData },
+                            warnings,
+                        };
+                    }
+                    return v;
+                });
+            }
+            return updated;
+        });
 
         toast.success('Row updated successfully');
-    }, [activeSheetIndex]);
+    }, [activeSheetIndex, findOptionMatch, airlineOptions, aircraftTypeOptions, stationOptions, checkStatusOptions, parseAndMatchStaff]);
 
     /**
      * Update sheet name and re-parse as date
@@ -808,7 +956,7 @@ export const useFlightExcelImport = () => {
         });
 
         // Reset validation when sheet name changes
-        setValidatedRows([]);
+        setValidatedRowsBySheet({});
         setHasValidated(false);
 
         if (newSheetDate) {
@@ -824,16 +972,22 @@ export const useFlightExcelImport = () => {
     const closeModal = useCallback(() => {
         setIsModalOpen(false);
         setSheets([]);
-        setValidatedRows([]);
+        setValidatedRowsBySheet({});
         setHasValidated(false);
         setActiveSheetIndex(0);
     }, []);
 
     // Computed values
     const activeSheet = sheets[activeSheetIndex] || null;
-    const validRows = validatedRows.filter((r) => r.isValid);
-    const invalidRows = validatedRows.filter((r) => !r.isValid);
-    const canUpload = hasValidated && invalidRows.length === 0 && validRows.length > 0;
+    // Aggregate validated rows from all sheets
+    const allValidatedRows = Object.values(validatedRowsBySheet).flat();
+    const validatedRows = validatedRowsBySheet[activeSheetIndex] || [];
+    const validRows = allValidatedRows.filter((r) => r.isValid);
+    const invalidRows = allValidatedRows.filter((r) => !r.isValid);
+    // Rows with warnings (master data mismatches)
+    const warningRows = allValidatedRows.filter((r) => r.warnings && r.warnings.length > 0);
+    // Block upload if there are errors OR warnings
+    const canUpload = hasValidated && invalidRows.length === 0 && warningRows.length === 0 && validRows.length > 0;
 
     return {
         // State
@@ -845,9 +999,11 @@ export const useFlightExcelImport = () => {
         activeSheetIndex,
         activeSheet,
         validatedRows,
+        validatedRowsBySheet,
         hasValidated,
         validRows,
         invalidRows,
+        warningRows,
         canUpload,
 
         // Actions
@@ -863,3 +1019,4 @@ export const useFlightExcelImport = () => {
         updateSheetName,
     };
 };
+

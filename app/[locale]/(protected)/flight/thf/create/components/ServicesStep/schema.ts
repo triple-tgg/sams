@@ -196,26 +196,6 @@ export const servicesFormSchema = z.object({
   message: "Aircraft towing information is required when towing option is enabled",
   path: ["aircraftTowingInfo"],
 }).refine((data) => {
-  // Validation 4: If servicingPerformed is enabled, fluid type must be selected
-  if (data.servicingPerformed && !data.fluid.fluidName) {
-    return false;
-  }
-  return true;
-}, {
-  message: "Fluid type must be selected when servicing is performed",
-  path: ["fluid", "fluidName"],
-}).refine((data) => {
-  // Validation 5: If fluid type is "ENG Oil", at least one engine oil set is required
-  if (data.servicingPerformed &&
-    data.fluid.fluidName?.value === "ENG Oil" &&
-    (!data.fluid.engOilSets || data.fluid.engOilSets.length === 0)) {
-    return false;
-  }
-  return true;
-}, {
-  message: "At least one engine oil set is required when ENG Oil is selected",
-  path: ["fluid", "engOilSets"],
-}).refine((data) => {
   // Validation 6: Check for duplicate personnel (same staffId)
   if (data.personnel && data.personnel.length > 1) {
     const staffIds = data.personnel.map(p => p.staffId).filter(Boolean);

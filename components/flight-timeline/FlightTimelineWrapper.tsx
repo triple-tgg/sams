@@ -338,17 +338,14 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                             {isAlarm ? <span className="text-sm font-bold">{formattedCurrentTime}</span> : <span className="text-sm font-bold">OFF</span>}
                         </Button>
                         }
-
-                        {/* Download Template Button */}
                         <Button
                             className="flex-none"
-                            color="secondary"
-                            variant="outline"
-                            onClick={handleDownloadTemplate}
+                            color="primary"
+                            onClick={() => setOpenAddFlight(true)}
                             size="md"
                         >
-                            <Download className="w-4 h-4 mr-2" />
-                            <span>Template</span>
+                            <Plus className="w-4 h-4" />
+                            <span>Add Flight</span>
                         </Button>
 
                         {/* Import Button with Excel Preview Modal */}
@@ -370,16 +367,17 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                             <FileUp className="w-4 h-4 mr-2" />
                             <span>{excelImport.isParsing ? 'Loading...' : 'Import'}</span>
                         </Button>
+                        {/* Download Template Button */}
                         <Button
                             className="flex-none"
-                            color="primary"
-                            onClick={() => setOpenAddFlight(true)}
+                            color="secondary"
+                            variant="outline"
+                            onClick={handleDownloadTemplate}
                             size="md"
                         >
-                            <Plus className="w-4 h-4" />
-                            <span>Add Flight</span>
+                            <Download className="w-4 h-4 mr-2" />
+                            <span>Template</span>
                         </Button>
-
                     </div>
                     {/* View Toggle */}
                     <div className="flex items-center gap-2">
@@ -497,9 +495,11 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                 activeSheetIndex={excelImport.activeSheetIndex}
                 onSheetChange={excelImport.setActiveSheetIndex}
                 validatedRows={excelImport.validatedRows}
+                validatedRowsBySheet={excelImport.validatedRowsBySheet}
                 hasValidated={excelImport.hasValidated}
                 validRows={excelImport.validRows}
                 invalidRows={excelImport.invalidRows}
+                warningRows={excelImport.warningRows}
                 canUpload={excelImport.canUpload}
                 isValidating={excelImport.isValidating}
                 isUploading={excelImport.isUploading}

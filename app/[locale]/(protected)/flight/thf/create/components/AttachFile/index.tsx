@@ -1,165 +1,187 @@
-"use client"
+'use client'
 
-import React, { useEffect, useMemo } from "react"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useQueryClient } from "@tanstack/react-query"
-import { Form } from "@/components/ui/form"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Form } from '@/components/ui/form'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Progress } from '@/components/ui/progress'
+import { Badge } from '@/components/ui/badge'
+import {
+  Upload, X, FileText, Check, Loader2,
+  Trash2, AlertCircle, Eye
+} from 'lucide-react'
 
-import { useStep } from "../step-context"
-import CardContentStep from "../CardContentStep"
-import FlightTimeCard from "./FlightTimeCard"
-import { FormActions, StatusMessages } from "../shared"
+import { useStep } from '../step-context'
+import { StatusMessages } from '../shared'
+import { FlightTimeCard } from './FlightTimeCard'
 
 // Types and utilities
-import { AttachFileFormInputs } from './types'
+import { AttachFileFormInputs, validateFile, mapApiDataToAttachFileForm } from './types'
 import { attachFileFormSchema } from './schema'
-import { getDefaultValues, mapDataThfToAttachFileStep } from './utils'
+import { getDefaultValues, mapDataThfToAttachFileStep, formatFileSize, getFileExtension } from './utils'
+import { useAttachFileSubmission } from './useAttachFileSubmission'
 import { useAttachFileUpload } from '@/lib/api/hooks/useAttachFileUpload'
-import { usePutAttachFileOtherWithLoading } from '@/lib/api/hooks/usePutAttachfileOther'
-import { LineMaintenanceThfResponse } from "@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId"
-import { formatFromPicker } from "@/lib/utils/formatPicker"
-import { AttachFileOtherData } from "@/lib/api/lineMaintenances/attachfile-other/putAttachfileOther"
 
-// Icons
-import {
-  Upload,
-  X,
-  FileText,
-  Check,
-  Loader2,
-  ExternalLink,
-  Trash2,
-  AlertCircle,
-  Download,
-  Eye
-} from "lucide-react"
-import { useParams, useRouter } from "next/navigation"
-import { toast } from "sonner"
+import { FlightFormData } from '@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId'
+import { LineMaintenanceThfResponse } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
 
-/**
- * AttachFile Step component for THF form
- * Comprehensive file upload with drag & drop, progress tracking, and preview
- */
-type Props = {
-  lineMaintenanceId?: number | null
-  flightInfosId?: number | null
+interface AttachFileStepProps {
   initialData?: LineMaintenanceThfResponse | null
-  loading?: boolean
+  flightInfosId?: number | null
+  lineMaintenanceId?: number | null
   flightError?: Error | null
+  loading?: boolean
   thfNumber: string
 }
 
-const AttachFileStep: React.FC<Props> = ({
-  lineMaintenanceId,
-  flightInfosId,
+/**
+ * Attach File Step component for THF modal (Step 5 — final step)
+ * Drag & drop upload, file preview grid, upload progress, and API submission
+ */
+const AttachFileStep: React.FC<AttachFileStepProps> = ({
   initialData,
-  loading,
+  flightInfosId,
+  lineMaintenanceId,
   flightError,
-  thfNumber
+  loading,
+  thfNumber,
 }) => {
-  const { goNext, onSave, goBack } = useStep()
-  const queryClient = useQueryClient()
+  const { goNext, goBack, onSave, setSubmitHandler, setIsSubmitting } = useStep()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [fileErrors, setFileErrors] = useState<string[]>([])
 
-  // Memoize default values
+  // Default values
   const memoizedDefaultValues = useMemo(() => getDefaultValues(), [])
 
-  // Transform existing data for form
+  // Transform existing API data
   const transformedData = useMemo(() => {
-    if (!initialData || loading) return null
+    if (!initialData) return null
     return mapDataThfToAttachFileStep(initialData)
-  }, [initialData, loading])
+  }, [initialData])
 
   // Initialize form
   const form = useForm<AttachFileFormInputs>({
     resolver: zodResolver(attachFileFormSchema),
     defaultValues: transformedData || memoizedDefaultValues,
-    mode: "onChange",
+    mode: 'onChange',
   })
 
-  // File upload management hook
+  // File upload hook
   const {
     files,
     addFiles,
     removeFile,
-    updateFileName,
     uploadFile,
     uploadAllFiles,
     getCompletedFilesData,
     hasFiles,
     hasCompletedFiles,
-    isUploading
+    isUploading,
   } = useAttachFileUpload(form, transformedData || memoizedDefaultValues, thfNumber)
 
-  const router = useRouter()
-  const { locale } = useParams()
-
-  // Submit mutation
+  // Submission hook
   const {
-    updateAttachFileOther,
-    isLoading: isSubmitting,
-    isSuccess: isSubmitSuccess,
-    isError: isSubmitError,
-    error: submitError,
-    reset: resetMutation
-  } = usePutAttachFileOtherWithLoading({
-    lineMaintenancesId: lineMaintenanceId || 0,
-    onSuccess: async () => {
-      console.log('✅ Attach files updated successfully')
-      await queryClient.invalidateQueries({ queryKey: ['flightList'] })
-      onSave({})
-      toast.success(`Attach file data prepared successfully`)
-      // goNext()
-      router.push(`/${locale}/flight/list`)
-    },
-    onError: (error) => {
-      toast.error(`Failed to prepare attach file data ${error}`)
-      console.error('❌ Failed to update attach files:', error)
-    }
+    handleSubmit,
+    handleOnBackStep,
+    isSubmitting: isSubmittingMutation,
+    isSubmitSuccess,
+    isSubmitError,
+    submitError,
+    resetMutation,
+    hasLineMaintenanceId,
+  } = useAttachFileSubmission({
+    form,
+    onNextStep: goNext,
+    onBackStep: goBack,
+    onUpdateData: () => onSave({}),
+    existingFlightData: initialData,
+    lineMaintenanceId: lineMaintenanceId || null,
   })
 
-  // Load initial data when available
+  // Load initial data
   useEffect(() => {
-    if (transformedData) {
+    if (transformedData && transformedData.attachFiles.length > 0) {
       form.reset(transformedData)
-    } else if (!loading && !flightError) {
-      form.reset(memoizedDefaultValues)
     }
-  }, [transformedData, loading, flightError, form, memoizedDefaultValues])
+  }, [transformedData, form])
 
-  // Computed states
-  const hasLineMaintenanceId = !!lineMaintenanceId
-  // const hasActiveFiles = files.some(f => !f.isDelete)
-  const hasPendingFiles = files.some(f => f.status === 'pending' && !f.isDelete)
-  const allFilesUploaded = files.every(f => f.isDelete || f.status === 'completed')
-  const canSubmit = hasLineMaintenanceId && form.formState.isValid && !isSubmitting && allFilesUploaded
+  // Register submit handler for modal wrapper
+  useEffect(() => {
+    if (setSubmitHandler) {
+      setSubmitHandler(async () => {
+        // First upload any pending files
+        const pendingFiles = files.filter(f => f.status === 'pending')
+        if (pendingFiles.length > 0) {
+          await uploadAllFiles()
+          // After upload, re-check and submit
+          return
+        }
 
-  // Handle file drop
-  const handleDrop = (e: React.DragEvent) => {
+        // Submit via form validation → handleSubmit
+        form.handleSubmit(
+          (data) => handleSubmit(data),
+          (errors) => console.log('AttachFile validation errors:', errors)
+        )()
+      })
+    }
+  }, [setSubmitHandler, form, handleSubmit, files, uploadAllFiles])
+
+  // Sync submitting state
+  useEffect(() => {
+    if (setIsSubmitting) {
+      setIsSubmitting(isSubmittingMutation || isUploading)
+    }
+  }, [isSubmittingMutation, isUploading, setIsSubmitting])
+
+  // ─── Drag & Drop Handlers ───
+  const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      addFiles(e.dataTransfer.files)
-    }
-  }
+    setIsDragging(true)
+  }, [])
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault()
-  }
+    setIsDragging(false)
+  }, [])
 
-  // Handle file selection from input
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      addFiles(e.target.files)
+  const processFiles = useCallback((fileList: FileList | File[]) => {
+    const errors: string[] = []
+    const validFiles: File[] = []
+
+    Array.from(fileList).forEach(file => {
+      const validation = validateFile(file)
+      if (validation.valid) {
+        validFiles.push(file)
+      } else {
+        errors.push(`${file.name}: ${validation.error}`)
+      }
+    })
+
+    if (errors.length > 0) setFileErrors(errors)
+    if (validFiles.length > 0) addFiles(validFiles)
+  }, [addFiles])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    if (e.dataTransfer.files?.length > 0) {
+      processFiles(e.dataTransfer.files)
     }
-  }
+  }, [processFiles])
 
-  // Preview file
-  const handlePreviewFile = (file: typeof files[0]) => {
+  const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files?.length) {
+      processFiles(e.target.files)
+      // Reset input so same file can be selected again
+      e.target.value = ''
+    }
+  }, [processFiles])
+
+  // ─── File Preview ───
+  const handlePreviewFile = useCallback((file: typeof files[0]) => {
     if (file.storagePath) {
       window.open(file.storagePath, '_blank')
     } else if (file.file) {
@@ -167,111 +189,91 @@ const AttachFileStep: React.FC<Props> = ({
       window.open(url, '_blank')
       setTimeout(() => URL.revokeObjectURL(url), 1000)
     }
-  }
+  }, [])
 
-  // Handle form submission
-  const onSubmit = async (formData: AttachFileFormInputs) => {
-    // Check if all files are uploaded
-    if (!allFilesUploaded) {
-      // toast({
-      //   variant: "destructive",
-      //   title: "Upload Required",
-      //   description: "Please upload all files before submitting"
-      // })
-      // Automatically upload pending files
-      await uploadAllFiles()
-      return
+  // ─── Status Badge ───
+  const renderStatusBadge = (file: typeof files[0]) => {
+    if (file.isDelete) {
+      return <Badge color="destructive" className="text-xs">Deleted</Badge>
     }
 
-    // Prepare data for API
-    const completedFiles = getCompletedFilesData()
-    const submitData: AttachFileOtherData[] = completedFiles.map(file => ({
-      id: file.id?.startsWith('uploaded') ? null : file.id,
-      storagePath: file.storagePath,
-      realName: file.realName,
-      fileType: file.fileType,
-      isDelete: file.isDelete || false
-    }))
-
-    console.log('📤 Submitting files:', submitData)
-    updateAttachFileOther(submitData)
+    switch (file.status) {
+      case 'pending':
+        return <Badge color="secondary" className="text-xs">Pending</Badge>
+      case 'uploading':
+        return (
+          <Badge color="default" className="text-xs bg-blue-500">
+            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+            Uploading
+          </Badge>
+        )
+      case 'completed':
+        return (
+          <Badge color="default" className="text-xs bg-green-500">
+            <Check className="h-3 w-3 mr-1" />
+            Uploaded
+          </Badge>
+        )
+      case 'error':
+        return <Badge color="destructive" className="text-xs">Failed</Badge>
+      default:
+        return null
+    }
   }
 
-  // Handle back navigation
-  const handleOnBackStep = () => {
-    goBack()
+  // ─── File Icon by Extension ───
+  const getFileIcon = (name: string, fileType: string) => {
+    if (fileType.startsWith('image/')) {
+      return <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center"><FileText className="h-5 w-5 text-purple-600" /></div>
+    }
+    if (fileType === 'application/pdf') {
+      return <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center"><FileText className="h-5 w-5 text-red-600" /></div>
+    }
+    return <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center"><FileText className="h-5 w-5 text-blue-600" /></div>
   }
+
+  // ─── Flight info from API data ───
+  const flight = initialData?.responseData?.flight
+
+  // Derived states
+  const pendingCount = files.filter(f => f.status === 'pending').length
+  const canAddMore = files.filter(f => !f.isDelete).length < 10
 
   return (
-    <CardContentStep
-      stepNumber={5}
-      title="Attach Files"
-      description="Upload and manage supporting documents for this maintenance record"
-    >
-      {/* Loading State */}
-      {loading && (
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin mr-2" />
-          <span>Loading attach file data...</span>
-        </div>
-      )}
+    <Form {...form}>
+      <form className="space-y-6">
 
-      {/* Error State */}
-      {flightError && (
-        <StatusMessages
-          isError={true}
-          errorTitle="Error loading data"
-          errorMessage={flightError.message || 'Failed to load attach file information'}
-        />
-      )}
+        {/* Flight Time Info Cards */}
+        {flight && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FlightTimeCard
+              title="Arrival (UTC Time)"
+              flightNo={flight.arrivalFlightNo || ''}
+              date={flight.arrivalDate || ''}
+              timeLabels={['STA (UTC)', 'ATA (UTC)']}
+              times={[flight.arrivalStatime || '', flight.arrivalAtaTime || '']}
+            />
+            <FlightTimeCard
+              title="Departure (UTC Time)"
+              flightNo={flight.departureFlightNo || ''}
+              date={flight.departureDate || ''}
+              timeLabels={['STD (UTC)', 'ATD (UTC)']}
+              times={[flight.departureStdTime || '', flight.departureAtdtime || '']}
+            />
+          </div>
+        )}
 
-      {/* Warning: Missing Line Maintenance ID */}
-      {!hasLineMaintenanceId && !loading && (
-        <StatusMessages
-          isWarning={true}
-          warningTitle="Line Maintenance ID Missing"
-          warningMessage="Line maintenance information is required to save attach file data."
-        />
-      )}
-
-      {/* Flight Time Cards */}
-      <div className="grid lg:grid-cols-2 gap-4 mb-6">
-        <FlightTimeCard
-          title="Arrival (UTC Time)"
-          flightNo={initialData?.responseData?.flight.arrivalFlightNo || ""}
-          date={initialData?.responseData?.flight.arrivalDate ? formatFromPicker(initialData.responseData.flight.arrivalDate) : ""}
-          timeLabels={["STA (UTC)", "ATA (UTC)"]}
-          times={[
-            initialData?.responseData?.flight.arrivalStatime ?? "",
-            initialData?.responseData?.flight.arrivalAtaTime ?? ""
-          ]}
-        />
-        <FlightTimeCard
-          title="Departure (UTC Time)"
-          flightNo={initialData?.responseData?.flight.departureFlightNo || ""}
-          date={initialData?.responseData?.flight.departureDate ? formatFromPicker(initialData.responseData.flight.departureDate) : ""}
-          timeLabels={["STD (UTC)", "ATD (UTC)"]}
-          times={[
-            initialData?.responseData?.flight.departureStdTime ?? "",
-            initialData?.responseData?.flight.departureAtdtime ?? ""
-          ]}
-        />
-      </div>
-
-      {/* Main Form */}
-      {!loading && !flightError && (
-        <Form {...form}>
-          <form className="space-y-6">
-            {/* Upload Section Header */}
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Upload Files</h3>
-              {hasPendingFiles && (
+        {/* Upload Zone */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Upload Files</h3>
+              {pendingCount > 0 && (
                 <Button
                   type="button"
-                  variant="outline"
-                  onClick={uploadAllFiles}
-                  disabled={isUploading || isSubmitting}
-                  size="sm"
+                  onClick={() => uploadAllFiles()}
+                  disabled={isUploading}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   {isUploading ? (
                     <>
@@ -281,267 +283,194 @@ const AttachFileStep: React.FC<Props> = ({
                   ) : (
                     <>
                       <Upload className="mr-2 h-4 w-4" />
-                      Upload All
+                      Upload All ({pendingCount})
                     </>
                   )}
                 </Button>
               )}
             </div>
 
-            {/* File Drop Zone */}
-            <Card>
-              <CardContent className="p-6">
-                <div
-                  onDrop={handleDrop}
-                  onDragOver={handleDragOver}
-                  className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer bg-gray-50/50"
-                  onClick={() => document.getElementById('file-input')?.click()}
-                >
-                  <Upload className="mx-auto h-12 w-12 text-gray-400 mb-3" />
-                  <p className="text-sm font-medium text-gray-700">
-                    Drop files here or click to browse
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Support for images, PDF, Word, Excel (Max 10MB per file)
-                  </p>
-                  <input
-                    id="file-input"
-                    type="file"
-                    multiple
-                    className="hidden"
-                    onChange={handleFileInputChange}
-                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* File List */}
-            {hasFiles && (
-              <div className="space-y-3">
-                <h4 className="font-medium text-gray-900">
-                  Files ({files.filter(f => !f.isDelete).length}/{files.length})
-                </h4>
-                <div className="grid gap-2 grid-cols-3">
-                  {files.map(file => (
-                    <Card
-                      key={file.id}
-                      className={`transition-all ${file.isDelete ? 'opacity-50 bg-gray-50' : ''}`}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-4">
-                          {/* File Icon */}
-                          <div className="flex-shrink-0">
-                            <FileText className={`h-8 w-8 ${file.isDelete ? 'text-gray-400' : 'text-primary'}`} />
-                          </div>
-
-                          {/* File Info */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1 flex-wrap">
-                              {/* File Name (Editable for completed files) */}
-                              <p className="font-medium truncate">{file.name || file.realName}</p>
-
-                              {/* Status Badge */}
-                              {file.isDelete ? (
-                                <Badge className="shrink-0 bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                  <X className="h-3 w-3 mr-1" />
-                                  Deleted
-                                </Badge>
-                              ) : file.status === 'completed' ? (
-                                <Badge className="bg-green-500 hover:bg-green-600 shrink-0">
-                                  <Check className="h-3 w-3 mr-1" />
-                                  Uploaded
-                                </Badge>
-                              ) : file.status === 'uploading' ? (
-                                <Badge className="shrink-0 bg-secondary text-secondary-foreground">
-                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                  Uploading
-                                </Badge>
-                              ) : file.status === 'error' ? (
-                                <Badge className="shrink-0 bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                  <AlertCircle className="h-3 w-3 mr-1" />
-                                  Failed
-                                </Badge>
-                              ) : (
-                                <Badge className="shrink-0 border border-border bg-background text-gray-500">
-                                  Pending
-                                </Badge>
-                              )}
-                            </div>
-
-                            <p className="text-xs text-muted-foreground truncate">
-                              {file.realName || 'No filename'}
-                            </p>
-
-                            {/* Progress Bar */}
-                            {file.status === 'uploading' && (
-                              <Progress value={file.progress} className="mt-2 h-1" />
-                            )}
-
-                            {/* Error Message */}
-                            {file.status === 'error' && file.error && (
-                              <p className="text-xs text-red-500 mt-1">{file.error}</p>
-                            )}
-                          </div>
-
-                          {/* Action Buttons */}
-                          <div className="flex items-center gap-1 shrink-0">
-                            {/* Preview Button */}
-                            {(file.storagePath || file.file) && !file.isDelete && (
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handlePreviewFile(file)}
-                                title="Preview file"
-                              >
-                                {/* <ExternalLink className="h-4 w-4" /> */}
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            )}
-
-                            {/* Upload Button (for pending files) */}
-                            {file.status === 'pending' && !file.isDelete && (
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                onClick={() => uploadFile(file.id || '')}
-                                disabled={isUploading}
-                                title="Upload this file"
-                              >
-                                <Upload className="h-4 w-4" />
-                              </Button>
-                            )}
-
-                            {/* Delete Button */}
-                            {!file.isDelete && (
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => removeFile(file.id || '')}
-                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                title="Remove file"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+            {/* Drag & Drop Zone */}
+            {canAddMore && (
+              <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`
+                  border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all
+                  ${isDragging
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
+                  }
+                `}
+              >
+                <Upload className={`mx-auto h-10 w-10 mb-3 ${isDragging ? 'text-blue-500' : 'text-gray-400'}`} />
+                <p className="text-sm font-medium text-gray-700">
+                  Drop files here or click to browse
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Images, PDF, Word, Excel (Max 10MB per file, up to 10 files)
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={handleFileInputChange}
+                  accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                />
               </div>
             )}
 
-            {/* Summary Card */}
-            {/* {hasCompletedFiles && (
-              <Card className="border-green-200 bg-green-50">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2">
-                    <Check className="h-5 w-5 text-green-600" />
-                    <span className="text-sm font-medium text-green-800">
-                      {getCompletedFilesData().length} file(s) ready for submission
-                    </span>
+            {/* File Validation Errors */}
+            {fileErrors.length > 0 && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-red-800">File validation errors:</p>
+                    <ul className="text-xs text-red-700 list-disc list-inside mt-1">
+                      {fileErrors.map((err, i) => (
+                        <li key={i}>{err}</li>
+                      ))}
+                    </ul>
                   </div>
-                </CardContent>
-              </Card>
-            )} */}
-
-            {/* Validation Warning */}
-            {hasPendingFiles && (
-              <Card className="border-blue-200 bg-blue-50">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-5 w-5 text-blue-600" />
-                    <span className="text-sm text-blue-800">
-                      Please upload all files before submitting
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
+                  <button onClick={() => setFileErrors([])} className="text-red-400 hover:text-red-600">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
             )}
+          </CardContent>
+        </Card>
 
-            {/* Form Validation Errors */}
-            {Object.keys(form.formState.errors).length > 0 && (
-              <Card className="border-red-200 bg-red-50">
+        {/* File List Grid */}
+        {hasFiles && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {files.filter(f => !f.isDelete).map((file) => (
+              <Card
+                key={file.id}
+                className={`relative overflow-hidden transition-all ${file.status === 'error' ? 'border-red-200 bg-red-50' : ''
+                  }`}
+              >
                 <CardContent className="p-4">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-red-800 mb-1">
-                        Please fix the following errors:
+                  {/* File Header */}
+                  <div className="flex items-start gap-3 mb-3">
+                    {getFileIcon(file.name, file.fileType)}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {file.name}
+                        {file.realName && (
+                          <span className="text-gray-400">.{getFileExtension(file.realName)}</span>
+                        )}
                       </p>
-                      <ul className="text-sm text-red-700 list-disc list-inside space-y-1">
-                        {form.formState.errors.attachFiles?.message && (
-                          <li>{form.formState.errors.attachFiles.message}</li>
+                      <div className="flex items-center gap-2 mt-1">
+                        {renderStatusBadge(file)}
+                        {file.file && (
+                          <span className="text-xs text-gray-500">
+                            {formatFileSize(file.file.size)}
+                          </span>
                         )}
-                        {form.formState.errors.root?.message && (
-                          <li>{form.formState.errors.root.message}</li>
-                        )}
-                      </ul>
+                      </div>
                     </div>
                   </div>
+
+                  {/* Upload Progress */}
+                  {file.status === 'uploading' && (
+                    <Progress value={file.progress} className="h-1.5 mb-3" />
+                  )}
+
+                  {/* Error Message */}
+                  {file.status === 'error' && file.error && (
+                    <p className="text-xs text-red-600 mb-3">{file.error}</p>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex items-center justify-end gap-2">
+                    {/* Upload single file (pending) */}
+                    {file.status === 'pending' && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => file.id && uploadFile(file.id)}
+                        disabled={isUploading}
+                        className="h-8 text-xs"
+                      >
+                        <Upload className="h-3 w-3 mr-1" />
+                        Upload
+                      </Button>
+                    )}
+
+                    {/* Preview (completed or has local file) */}
+                    {(file.storagePath || file.file) && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePreviewFile(file)}
+                        className="h-8 text-xs"
+                      >
+                        <Eye className="h-3 w-3 mr-1" />
+                        View
+                      </Button>
+                    )}
+
+                    {/* Delete */}
+                    <Button
+                      type="button"
+                      variant="soft"
+                      size="icon"
+                      color="destructive"
+                      onClick={() => file.id && removeFile(file.id)}
+                      className="h-8 w-8"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
-            )}
+            ))}
+          </div>
+        )}
 
-            {/* Debug Information (Development Only) */}
-            {process.env.NODE_ENV === 'development' && (
-              <Card className="bg-gray-100 border-gray-300">
-                <CardContent className="p-4 text-xs space-y-1 font-mono">
-                  <div className="font-semibold text-sm mb-2">Debug Info:</div>
-                  <div>Line Maintenance ID: {lineMaintenanceId || 'N/A'}</div>
-                  <div>Has Line Maintenance ID: {hasLineMaintenanceId ? 'Yes' : 'No'}</div>
-                  <div>Form Valid: {form.formState.isValid ? 'Yes' : 'No'}</div>
-                  <div>Is Submitting: {isSubmitting ? 'Yes' : 'No'}</div>
-                  <div>Is Uploading: {isUploading ? 'Yes' : 'No'}</div>
-                  <div>Total Files: {files.length}</div>
-                  <div>Active Files: {files.filter(f => !f.isDelete).length}</div>
-                  <div>Completed Files: {hasCompletedFiles ? getCompletedFilesData().length : 0}</div>
-                  <div>Pending Files: {files.filter(f => f.status === 'pending').length}</div>
-                  <div>All Uploaded: {allFilesUploaded ? 'Yes' : 'No'}</div>
-                  <div>Can Submit: {canSubmit ? 'Yes' : 'No'}</div>
-                </CardContent>
-              </Card>
-            )}
+        {/* No Files - Empty State */}
+        {!hasFiles && (
+          <div className="border-2 border-dashed border-gray-200 rounded-lg p-12">
+            <div className="flex flex-col items-center justify-center text-center">
+              <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center mb-4">
+                <Upload className="h-6 w-6 text-blue-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                No Files Attached
+              </h3>
+              <p className="text-sm text-gray-500 mb-2 max-w-md">
+                Upload supporting documents for this THF (optional)
+              </p>
+            </div>
+          </div>
+        )}
 
-            {/* Form Actions */}
-            <FormActions
-              onBack={handleOnBackStep}
-              onSubmit={form.handleSubmit(onSubmit)}
-              backText="← Back to Parts & Tools"
-              submitText={isSubmitting ? 'Saving...' : 'Save & Continue'}
-              isSubmitting={isSubmitting}
-              disableBack={isSubmitting}
-              disableSubmit={!canSubmit}
-              showReset={false}
-            />
+        {/* Status Messages */}
+        {isSubmitError && submitError && (
+          <StatusMessages
+            isError={true}
+            errorTitle="Error Saving Files"
+            errorMessage={submitError.message || 'Failed to save attach file data. Please try again.'}
+            onDismissError={resetMutation}
+          />
+        )}
 
-            {/* Status Messages */}
-            {isSubmitError && submitError && (
-              <StatusMessages
-                isError={true}
-                errorTitle="Error Saving Files"
-                errorMessage={submitError.message || 'Failed to save attach file data. Please try again.'}
-                onDismissError={resetMutation}
-              />
-            )}
-
-            {isSubmitSuccess && (
-              <StatusMessages
-                isSuccess={true}
-                successTitle="Files Saved Successfully"
-                successMessage="Your files have been saved and the maintenance record is now complete."
-              />
-            )}
-          </form>
-        </Form>
-      )
-      }
-    </CardContentStep >
+        {isSubmitSuccess && (
+          <StatusMessages
+            isSuccess={true}
+            successTitle="Files Saved Successfully"
+            successMessage="Your attach file data has been saved."
+          />
+        )}
+      </form>
+    </Form>
   )
 }
 

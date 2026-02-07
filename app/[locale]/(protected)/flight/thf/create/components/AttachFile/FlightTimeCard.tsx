@@ -1,15 +1,14 @@
 "use client";
 
 import React from "react";
-import { Input } from "@/components/ui/input";
-import { Clock } from "lucide-react";
+import { Plane, Clock, Calendar } from "lucide-react";
 
 interface FlightTimeCardProps {
-  title: string; // เช่น "Arrival (UTC Time)"
+  title: string;
   flightNo: string;
   date: string;
-  timeLabels: [string, string]; // เช่น ["STA (UTC)", "ATA (UTC)"]
-  times: [string, string]; // เช่น ["12:05", "02:29"]
+  timeLabels: [string, string];
+  times: [string, string];
 }
 
 export const FlightTimeCard: React.FC<FlightTimeCardProps> = ({
@@ -19,57 +18,60 @@ export const FlightTimeCard: React.FC<FlightTimeCardProps> = ({
   timeLabels,
   times,
 }) => {
-  return (
-    <div className="w-full rounded-xl border border-blue-200 bg-white p-6 shadow-sm">
-      {/* Title */}
-      <h2 className="text-xl font-bold text-gray-900 mb-6">{title}</h2>
+  const isArrival = title.toLowerCase().includes("arrival");
 
-      {/* Flight Info */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div>
-          <label className="text-sm font-medium text-gray-700">Flight No</label>
-          <Input
-            value={flightNo}
-            readOnly
-            className="mt-1 bg-gray-50 focus-visible:ring-0 focus-visible:ring-offset-0"
-          />
+  return (
+    <div className="w-full rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
+      {/* Header */}
+      <div className={`px-4 py-2.5 flex items-center gap-2 ${isArrival
+          ? 'bg-gradient-to-r from-blue-50 to-blue-100/50 border-b border-blue-100'
+          : 'bg-gradient-to-r from-emerald-50 to-emerald-100/50 border-b border-emerald-100'
+        }`}>
+        <div className={`w-7 h-7 rounded-full flex items-center justify-center ${isArrival ? 'bg-blue-500' : 'bg-emerald-500'
+          }`}>
+          <Plane className={`h-3.5 w-3.5 text-white ${isArrival ? 'rotate-90' : '-rotate-90'}`} />
         </div>
-        <div>
-          <label className="text-sm font-medium text-gray-700">Date</label>
-          <Input
-            value={date}
-            readOnly
-            className="mt-1 bg-gray-50 focus-visible:ring-0 focus-visible:ring-offset-0"
-          />
-        </div>
+        <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
       </div>
 
-      {/* Time Info */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="text-sm font-medium text-gray-700">{timeLabels[0]}</label>
-          <div className="relative mt-1">
-            <Input
-              value={times[0]}
-              readOnly
-              className="pr-8 bg-gray-50 focus-visible:ring-0 focus-visible:ring-offset-0"
-            />
-            <Clock className="absolute right-2 top-2.5 h-4 w-4 text-gray-400" />
+      {/* Content */}
+      <div className="p-4">
+        {/* Flight No & Date Row */}
+        <div className="grid grid-cols-2 gap-4 mb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500 whitespace-nowrap">Flight No</span>
+            <span className="text-sm font-semibold text-gray-900">{flightNo || '-'}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Calendar className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+            <span className="text-sm font-medium text-gray-700">{date || '-'}</span>
           </div>
         </div>
-        <div>
-          <label className="text-sm font-medium text-gray-700">{timeLabels[1]}</label>
-          <div className="relative mt-1">
-            <Input
-              value={times[1]}
-              readOnly
-              className="pr-8 bg-gray-50 focus-visible:ring-0 focus-visible:ring-offset-0"
-            />
-            <Clock className="absolute right-2 top-2.5 h-4 w-4 text-gray-400" />
+
+        {/* Time Row */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className={`flex items-center gap-2 rounded-lg px-3 py-2 ${isArrival ? 'bg-blue-50/70' : 'bg-emerald-50/70'
+            }`}>
+            <Clock className={`h-3.5 w-3.5 shrink-0 ${isArrival ? 'text-blue-500' : 'text-emerald-500'
+              }`} />
+            <div className="flex flex-col">
+              <span className="text-[10px] uppercase tracking-wider text-gray-500 leading-none">{timeLabels[0]}</span>
+              <span className="text-sm font-bold text-gray-900 mt-0.5">{times[0] || '--:--'}</span>
+            </div>
+          </div>
+          <div className={`flex items-center gap-2 rounded-lg px-3 py-2 ${isArrival ? 'bg-blue-50/70' : 'bg-emerald-50/70'
+            }`}>
+            <Clock className={`h-3.5 w-3.5 shrink-0 ${isArrival ? 'text-blue-500' : 'text-emerald-500'
+              }`} />
+            <div className="flex flex-col">
+              <span className="text-[10px] uppercase tracking-wider text-gray-500 leading-none">{timeLabels[1]}</span>
+              <span className="text-sm font-bold text-gray-900 mt-0.5">{times[1] || '--:--'}</span>
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
 };
+
 export default FlightTimeCard;

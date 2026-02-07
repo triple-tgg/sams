@@ -124,7 +124,7 @@ export const useEquipmentSubmission = ({
   // Remove equipment
   const handleRemoveEquipment = (index: number) => {
     const currentEquipments = form.getValues('equipments')
-    if (currentEquipments.length <= 1) {
+    if (currentEquipments.length <= 0) {
       toast({
         variant: "destructive",
         title: "Cannot Remove",

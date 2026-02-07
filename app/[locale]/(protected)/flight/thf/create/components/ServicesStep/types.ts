@@ -41,6 +41,9 @@ export type ServicesFormInputs = {
     attachFiles: AdditionalDefectAttachFile[] | null
     laeMH?: string
     mechMH?: string
+    acDefect?: string
+    action?: string
+    technicalDelay?: string
   }[]
   servicingPerformed: boolean
   fluid: {
@@ -53,6 +56,8 @@ export type ServicesFormInputs = {
     hydOilB?: number
     hydOilSTBY?: number
     otherOil?: number
+    rampFuelKgs?: number
+    actualUpliftLts?: number
   }
   addPersonnels: boolean
   personnel?: Personnel[] | null
@@ -71,6 +76,7 @@ export type ServicesFormInputs = {
     bayFrom: string;
     bayTo: string;
   }[] | null
+  marshallingServicePerFlight?: number
 }
 
 // Mock data - should be moved to API calls in the future

@@ -1,94 +1,92 @@
 "use client"
 
-import React, { useMemo } from "react"
-import { StatusMessages } from "../shared"
-
-import { getDefaultValues, mapDataThfToServicesStep } from './utils'
-
-import { LineMaintenanceThfResponse } from "@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId"
-import { FlightFormData } from "@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId"
+import React, { useMemo } from 'react'
+import CardFormServicesStep from './CardFormServicesStep'
+import { useStep } from '../step-context'
+import { useLineMaintenancesQueryThfByFlightId } from '@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId'
 import { useAircraftCheckMasterData } from '@/lib/api/hooks/useAircraftCheckMasterData'
-import CardContentStep from "../CardContentStep"
-import CardFormServicesStep from "./CardFormServicesStep"
-import { useStaffsTypesOptions } from "@/lib/api/hooks/useStaffsTypes"
+import { useStaffsTypesOptions } from '@/lib/api/hooks/useStaffsTypes'
+import { mapDataThfToServicesStep } from './utils'
+import { ServicesFormInputs } from './types'
 
-/**
- * Props for ServicesStep component
- */
 interface ServicesStepProps {
-  initialData?: LineMaintenanceThfResponse | null
   flightInfosId: number | null
-  formData: FlightFormData | null;
-  loading: boolean;
-  flightError: Error | null;
-  lineMaintenanceId: number | null;
-  thfNumber: string;
-
-  acType?: string;
+  thfNumber: string
+  [key: string]: any
 }
 
-const ServicesStep = (props: ServicesStepProps) => {
-
-  // Get aircraft check master data
-  const { checkTypes, checkSubTypes, isLoadingCheckTypes, checkSubTypesError, checkTypesError, isLoadingCheckSubTypes } = useAircraftCheckMasterData()
-  const { options: staffsTypesOptions, isLoading: isLoadingStaffsTypes, hasOptions: hasOptionsStaffsTypes, error: staffsTypesError } = useStaffsTypesOptions()
-
-  const checkTypesValuesOption = useMemo(() => { return { checkTypes, isLoadingCheckTypes, checkTypesError } }, [checkTypes, checkTypesError, isLoadingCheckTypes])
-  const checkSubTypesValuesOption = useMemo(() => { return { checkSubTypes, isLoadingCheckSubTypes, checkSubTypesError } }, [checkSubTypes, checkSubTypesError, isLoadingCheckSubTypes])
-  const staffsTypesValuesOptions = useMemo(() => { return { staffsTypesOptions, isLoadingStaffsTypes, hasOptionsStaffsTypes, staffsTypesError } }, [staffsTypesOptions, isLoadingStaffsTypes, hasOptionsStaffsTypes, staffsTypesError])
+const ServicesStep = ({ flightInfosId, thfNumber, ...props }: ServicesStepProps) => {
 
 
-  // const memoizedDefaultValues = useMemo(() => {
-  //   return getDefaultValues(checkTypes)
-  // }, [checkTypes])
+  // 1. Fetch Line Maintenance / Flight Data
+  const {
+    data: queryData,
+    isLoading,
+    error,
+    formData,
+    lineMaintenanceData, // Contains actual lineMaintenanceId if exists
+    aircraftData
+  } = useLineMaintenancesQueryThfByFlightId({ flightInfosId })
+
+  // 2. Fetch Master Data - Aircraft Check Types
+  const {
+    checkTypes,
+    checkSubTypes,
+    isLoading: isLoadingCheckData,
+    error: checkDataError,
+    isLoadingCheckTypes, // specific loading states if needed
+    isLoadingCheckSubTypes,
+    checkTypesError,
+    checkSubTypesError
+  } = useAircraftCheckMasterData()
+
+  // 3. Fetch Master Data - Staff Types
+  const {
+    options: staffsTypesOptions,
+    isLoading: isLoadingStaffsTypes,
+    error: staffsTypesError,
+    hasOptions: hasOptionsStaffsTypes
+  } = useStaffsTypesOptions()
 
 
-  // Don't render form until we have aircraft check types data
-  const isDataReady = !isLoadingCheckTypes && !checkTypesError
+  // 4. Transform API data to Form Initial Data
+  const initialData: ServicesFormInputs | null = useMemo(() => {
+    if (!queryData) return null
+    return mapDataThfToServicesStep(queryData)
+  }, [queryData])
 
-  const transformedData = useMemo(() => {
-    if (props.initialData) {
-      return mapDataThfToServicesStep(props.initialData)
+  // Prepare props for the card form
+  const cardProps = {
+    thfNumber: thfNumber || formData?.thfNumber || "",
+    initialData,
+    flightInfosId: flightInfosId,
+    formData: formData,
+    loading: isLoading,
+    flightError: error,
+    acType: formData?.acTypeCode?.value || undefined,
+    lineMaintenanceId: lineMaintenanceData?.id || null, // Important: pass lineMaintenanceId
+
+    // Master Data Props
+    checkTypesValuesOption: {
+      checkTypes,
+      isLoadingCheckTypes,
+      checkTypesError
+    },
+    checkSubTypesValuesOption: {
+      checkSubTypes,
+      isLoadingCheckSubTypes,
+      checkSubTypesError
+    },
+    staffsTypesValuesOptions: {
+      staffsTypesOptions,
+      isLoadingStaffsTypes,
+      staffsTypesError,
+      hasOptionsStaffsTypes
     }
-    return null
-  }, [props.initialData])
+  }
 
   return (
-    <CardContentStep
-      stepNumber={2}
-      title={"Services Information"}
-      description={"Manage aircraft checks, defect rectification, fluid servicing, personnel assignments, and operational activities for maintenance procedures"}
-    >
-      {(props.loading) && (
-        <div className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-          <span className="ml-2">
-            {props.loading ? 'Loading services data...' : 'Loading aircraft check types...'}
-          </span>
-        </div>
-      )}
-
-      {(props.flightError) && (
-        <StatusMessages
-          isError={true}
-          errorTitle="Error loading data"
-          errorMessage={props.flightError?.message || 'Failed to load required information'}
-        />
-      )}
-      <CardFormServicesStep
-        thfNumber={props.thfNumber}
-        flightInfosId={props.flightInfosId}
-        flightError={props.flightError}
-        loading={props.loading}
-        formData={props.formData}
-        initialData={transformedData}
-        acType={props.acType}
-        lineMaintenanceId={props.lineMaintenanceId}
-        checkTypesValuesOption={checkTypesValuesOption}
-        staffsTypesValuesOptions={staffsTypesValuesOptions}
-        checkSubTypesValuesOption={checkSubTypesValuesOption}
-      />
-    </CardContentStep>
+    <CardFormServicesStep {...cardProps} />
   )
 }
 

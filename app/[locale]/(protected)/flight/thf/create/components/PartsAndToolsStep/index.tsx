@@ -1,173 +1,234 @@
-"use client"
+'use client'
 
-import React, { useEffect, useMemo } from "react"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { Form } from "@/components/ui/form"
-import { useStep } from "../step-context"
-import { FormActions, StatusMessages } from "../shared"
+import React, { useEffect, useMemo } from 'react'
+import { useForm, useFieldArray } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Form } from '@/components/ui/form'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { AlertCircle, Plus } from 'lucide-react'
 
-// Import modular components
-import { PartsToolsFormInputs } from './types'
+import { useStep } from '../step-context'
+import { StatusMessages } from '../shared'
+import { PartsToolsTable } from './PartsToolsTable'
+
+// Types and utilities
+import { PartsToolsFormInputs, defaultPartToolItem } from './types'
 import { partsToolsFormSchema } from './schema'
 import { getDefaultValues, mapDataThfToPartsToolsStep } from './utils'
 import { usePartsToolsSubmission } from './usePartsToolsSubmission'
-import { PartsToolsCard } from './PartsToolsCard'
-import { LineMaintenanceThfResponse } from "@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId"
-import CardContentStep from "../CardContentStep"
-import { FlightFormData } from "@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId"
 
-/**
- * Props for PartsAndToolsStep component
- */
+import { FlightFormData } from '@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId'
+import { LineMaintenanceThfResponse } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
+import { formatFromPicker } from '@/lib/utils/formatPicker'
+import { dateTimeUtils } from '@/lib/dayjs'
+
 interface PartsAndToolsStepProps {
-  infoData: FlightFormData | null;
-  initialData?: LineMaintenanceThfResponse | null;
-  flightInfosId?: number | null;
-  lineMaintenanceId?: number | null;
-  flightError?: Error | null;
-  loading?: boolean;
+  infoData: FlightFormData | null
+  initialData?: LineMaintenanceThfResponse | null
+  flightInfosId?: number | null
+  lineMaintenanceId?: number | null
+  flightError?: Error | null
+  loading?: boolean
 }
 
-const PartsAndToolsStep: React.FC<PartsAndToolsStepProps> = (props) => {
+/**
+ * Parts & Tools Step component for THF modal
+ * Matches Equipment step layout: table-based inline editing with toggle, empty state, add/remove
+ */
+const PartsAndToolsStep: React.FC<PartsAndToolsStepProps> = ({
+  infoData,
+  initialData,
+  flightInfosId,
+  lineMaintenanceId,
+  flightError,
+  loading
+}) => {
+  const { goNext, goBack, onSave, setSubmitHandler, setIsSubmitting } = useStep()
 
-  const { goNext, onSave, goBack } = useStep()
+  // Memoize default values
+  const memoizedDefaultValues = useMemo(() => getDefaultValues(), [])
 
-  // Memoize default values to prevent unnecessary re-calculations
-  const memoizedDefaultValues = useMemo(() => {
-    return props.initialData ? mapDataThfToPartsToolsStep(props.initialData) : getDefaultValues()
-  }, [props.initialData])
+  // Transform existing API data for form
+  const transformedData = useMemo(() => {
+    if (!initialData) return null
+    return mapDataThfToPartsToolsStep(initialData)
+  }, [initialData])
 
-  // Initialize form with validation
+  // Initialize form
   const form = useForm<PartsToolsFormInputs>({
     resolver: zodResolver(partsToolsFormSchema),
-    defaultValues: memoizedDefaultValues,
-    mode: "onChange",
+    defaultValues: transformedData || memoizedDefaultValues,
+    mode: 'onChange',
   })
 
-  // Console log form errors for debugging
-  useEffect(() => {
-    if (Object.keys(form.formState.errors).length > 0) {
-      console.log('🔴 PartsAndToolsStep Form Errors:', form.formState.errors)
-    }
-  }, [form.formState.errors])
+  // Field array for add/remove
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: 'partsTools',
+  })
 
-  // Console log form values for debugging
-  useEffect(() => {
-    const subscription = form.watch((value, { name, type }) => {
-      if (type === 'change') {
-        console.log('📝 Form field changed:', { name, value: value[name as keyof PartsToolsFormInputs] })
-      }
+  // Watch partsTools for state checks
+  const partsTools = form.watch('partsTools')
+
+  // Add new item with flight info defaults
+  const handleAddItem = () => {
+    append({
+      ...defaultPartToolItem,
+      formDate: formatFromPicker(infoData?.arrivalDate || dateTimeUtils.getCurrentDate()),
+      formTime: infoData?.ata || dateTimeUtils.getCurrentTime(),
+      toDate: formatFromPicker(infoData?.departureDate || dateTimeUtils.getCurrentDate()),
+      toTime: infoData?.atd || dateTimeUtils.getCurrentTime()
     })
-    return () => subscription.unsubscribe()
-  }, [form])
+  }
 
-  // Custom submission hook
-  const handleOnSave = () => { onSave }
+  // Remove item
+  const handleRemoveItem = (index: number) => {
+    remove(index)
+  }
+
+  // Use parts/tools submission hook
   const {
     handleSubmit,
     handleSaveDraft,
     handleOnBackStep,
-    // Mutation states for loading and feedback
-    isSubmitting,
+    isSubmitting: isSubmittingMutation,
     isSubmitSuccess,
     isSubmitError,
     submitError,
     resetMutation,
     hasLineMaintenanceId,
-    lineMaintenanceId
   } = usePartsToolsSubmission({
     form,
     onNextStep: goNext,
     onBackStep: goBack,
-    onUpdateData: handleOnSave,
-    existingFlightData: props.initialData,
-    lineMaintenanceId: props.lineMaintenanceId || 0
+    onUpdateData: () => onSave({}),
+    existingFlightData: initialData,
+    lineMaintenanceId: lineMaintenanceId || 0,
   })
 
+  // Load initial data when available
+  useEffect(() => {
+    if (transformedData && transformedData.partsTools.length > 0) {
+      form.reset(transformedData)
+    } else {
+      form.reset(memoizedDefaultValues)
+    }
+  }, [transformedData, form, memoizedDefaultValues])
+
+  // Register submit handler for modal wrapper's "Next Step" button
+  useEffect(() => {
+    if (setSubmitHandler) {
+      setSubmitHandler(() => {
+        form.handleSubmit(
+          (data) => {
+            handleSubmit(data)
+          },
+          (errors) => {
+            console.log('Parts/Tools validation errors:', errors)
+          }
+        )()
+      })
+    }
+  }, [setSubmitHandler, form, handleSubmit])
+
+  // Sync submitting state with modal wrapper
+  useEffect(() => {
+    if (setIsSubmitting) {
+      setIsSubmitting(isSubmittingMutation)
+    }
+  }, [isSubmittingMutation, setIsSubmitting])
+
+  // Computed states
+  const hasPartsTools = partsTools && partsTools.length > 0
+  const canAddMore = (partsTools?.length || 0) < 20
+
+  // Get form errors for display
+  const formErrors = form.formState.errors
+
   return (
+    <Form {...form}>
+      <form className="space-y-6">
+        {/* Parts/Tools Table (when items exist) */}
+        {hasPartsTools && (
+          <PartsToolsTable
+            control={form.control}
+            watch={form.watch}
+            setValue={form.setValue}
+            onAddItem={handleAddItem}
+            onRemoveItem={handleRemoveItem}
+            canAddMore={canAddMore}
+          />
+        )}
 
-    <CardContentStep
-      stepNumber={4}
-      title={"Parts & Tools Information"}
-      description={"Manage parts and tools usage, tracking, and operational details for maintenance activities"}
-    >
-      {props.loading && (
-        <div className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-          <span className="ml-2">Loading parts & tools data...</span>
-        </div>
-      )}
-
-      {props.flightError && (
-        <StatusMessages
-          isError={true}
-          errorTitle="Error loading data"
-          errorMessage={props.flightError.message || 'Failed to load parts & tools information'}
-        />
-      )}
-
-      {!hasLineMaintenanceId && !props.loading && (
-        <StatusMessages
-          isWarning={true}
-          warningTitle="Line Maintenance ID Missing"
-          warningMessage="Line maintenance information is required to save parts & tools data."
-        />
-      )}
-
-      {!props.loading && !props.flightError && (
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-            {/* Form Validation Debug Info */}
-            {process.env.NODE_ENV === 'development' && Object.keys(form.formState.errors).length > 0 && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 mb-4">
-                <h4 className="text-sm font-medium text-yellow-800 mb-2">Form Validation Errors (Debug):</h4>
-                <pre className="text-xs text-yellow-700 overflow-auto max-h-32">
-                  {JSON.stringify(form.formState.errors, null, 2)}
-                </pre>
+        {/* No Parts/Tools - Empty State (matches Equipment empty state) */}
+        {!hasPartsTools && (
+          <div className="border-2 border-dashed border-gray-200 rounded-lg p-12">
+            <div className="flex flex-col items-center justify-center text-center">
+              <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center mb-4">
+                <Plus className="h-6 w-6 text-blue-500" />
               </div>
-            )}
-            {/* Parts & Tools Card */}
-            <PartsToolsCard form={form} infoData={props.infoData} />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                No Parts & Tools
+              </h3>
+              <p className="text-sm text-gray-500 mb-6 max-w-md">
+                Add parts and tools used during this maintenance activity
+              </p>
+              <Button
+                type="button"
+                onClick={handleAddItem}
+                className="bg-gray-900 hover:bg-gray-800 text-white"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Parts/Tools
+              </Button>
+            </div>
+          </div>
+        )}
 
-            {/* Form Actions */}
-            <FormActions
-              onBack={handleOnBackStep}
-              onReset={() => {
-                form.reset(memoizedDefaultValues)
-              }}
-              onSubmit={() => form.handleSubmit(handleSubmit)()}
-              backText="← Back to Equipment"
-              submitText={isSubmitting ? 'Saving...' : 'Next Step →'}
-              resetText="Reset"
-              isSubmitting={isSubmitting}
-              disableBack={isSubmitting}
-              disableSubmit={isSubmitting || !hasLineMaintenanceId}
-              disableReset={isSubmitting}
-              showReset={true}
-            />
+        {/* Validation Errors Summary */}
+        {Object.keys(formErrors).length > 0 && formErrors.partsTools && (
+          <Card className="border-red-200 bg-red-50">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-red-800 mb-1">
+                    Please fix the following errors:
+                  </p>
+                  <ul className="text-sm text-red-700 list-disc list-inside space-y-1">
+                    {typeof formErrors.partsTools?.message === 'string' && (
+                      <li>{formErrors.partsTools.message}</li>
+                    )}
+                    {formErrors.partsTools?.root?.message && (
+                      <li>{formErrors.partsTools.root.message}</li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-            {/* Status Messages */}
-            {isSubmitError && submitError && (
-              <StatusMessages
-                isError={true}
-                errorTitle="Error Saving Parts & Tools"
-                errorMessage={submitError.message || 'Failed to save parts & tools data. Please try again.'}
-                onDismissError={resetMutation}
-              />
-            )}
+        {/* Status Messages */}
+        {isSubmitError && submitError && (
+          <StatusMessages
+            isError={true}
+            errorTitle="Error Saving Parts/Tools"
+            errorMessage={submitError.message || 'Failed to save parts/tools data. Please try again.'}
+            onDismissError={resetMutation}
+          />
+        )}
 
-            {isSubmitSuccess && (
-              <StatusMessages
-                isSuccess={true}
-                successTitle="Parts & Tools Saved Successfully"
-                successMessage="Your parts & tools data has been saved and you can proceed to the next step."
-              />
-            )}
-          </form>
-        </Form>
-      )}
-    </CardContentStep>
+        {isSubmitSuccess && (
+          <StatusMessages
+            isSuccess={true}
+            successTitle="Parts/Tools Saved Successfully"
+            successMessage="Your parts/tools data has been saved."
+          />
+        )}
+      </form>
+    </Form>
   )
 }
 

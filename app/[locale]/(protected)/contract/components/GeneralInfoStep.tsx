@@ -257,6 +257,15 @@ export const GeneralInfoStep = ({
                     />
                 </div>
                 <div className="space-y-2">
+                    <Label htmlFor="domicileCountry">Domicile Country</Label>
+                    <Input
+                        id="domicileCountry"
+                        placeholder="Enter domicile country"
+                        value={formData.domicileCountry}
+                        onChange={(e) => onFormChange("domicileCountry", e.target.value)}
+                    />
+                </div>
+                <div className="space-y-2">
                     <Label htmlFor="status">Status</Label>
                     <Select
                         value={formData.status}

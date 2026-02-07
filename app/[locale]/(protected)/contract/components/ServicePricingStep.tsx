@@ -427,6 +427,13 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                         onChange={handleNumberChange("weeklyCheck")}
                                         suffix="/Check"
                                     />
+                                    <PriceInput
+                                        id={`${rate.id}-nightStop`}
+                                        label="Night Stop"
+                                        value={rate.nightStop}
+                                        onChange={handleNumberChange("nightStop")}
+                                        suffix="/Check"
+                                    />
                                 </div>
                             </div>
                         </CollapsibleContent>

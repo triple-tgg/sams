@@ -1,6 +1,15 @@
 // Contract status type
 export type ContractStatus = "all" | "active" | "on-hold" | "terminated";
 
+// Operational Contact interface
+export interface OperationalContact {
+    id: number | string;
+    name: string;
+    title: string;
+    phoneNo: string;
+    email: string;
+}
+
 // Contract interface
 export interface Contract {
     id: number;
@@ -44,6 +53,7 @@ export interface PricingRate {
     dailyCheck: number;
     preFlightCheck: number;
     weeklyCheck: number;
+    nightStop: number;
     // Service Rates - Labor
     additionalLaeMhHr: number;
     additionalMechMhHr: number;
@@ -93,6 +103,7 @@ export interface ContractFormData {
     validFrom: string;
     expiresOn: string;
     isNoExpiryDate: boolean;
+    domicileCountry: string;
     status: string;
     // Pricing Rates (multi-rate)
     pricingRates: PricingRate[];
@@ -105,6 +116,8 @@ export interface ContractFormData {
     paymentTerms: string;
     latePenalty: string;
     creditTerms: string;
+    // Operational Contacts
+    operationalContacts: OperationalContact[];
     // Contract Document
     contractDocumentPath: string;
     contractDocumentName: string;

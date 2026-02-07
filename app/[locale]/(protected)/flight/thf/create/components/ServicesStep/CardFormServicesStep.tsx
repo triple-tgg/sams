@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect } from "react"
+import React, { useEffect, useState } from "react"
 import { Form } from "@/components/ui/form"
 import { Separator } from "@/components/ui/separator"
 import { FormActions, StatusMessages } from "../shared"
@@ -58,7 +58,7 @@ interface Props {
 
 const CardFormServicesStep = (props: Props) => {
   // Initialize form with validation
-  const { goNext, onSave, goBack } = useStep()
+  const { goNext, onSave, goBack, isModal, setSubmitHandler, setIsSubmitting } = useStep()
 
   // const isDataReady = !isLoadingCheckTypes && !checkTypesError
 
@@ -125,6 +125,40 @@ const CardFormServicesStep = (props: Props) => {
     lineMaintenanceId: props.lineMaintenanceId
   })
 
+
+  // Track if component is mounted to guard against stale mutation state
+  const [isMounted, setIsMounted] = useState(false)
+
+  // Reset mutation state on component mount to clear any stale state
+  useEffect(() => {
+    resetMutation()
+    // Small delay to ensure mutation state is fully reset before allowing button interaction
+    const timer = setTimeout(() => setIsMounted(true), 100)
+    return () => clearTimeout(timer)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Only show isSubmitting after component is properly mounted
+  const actualIsSubmitting = isMounted ? isSubmitting : false
+
+  // Register submit handler for Modal Footer
+  const handleSubmitRef = React.useRef(handleSubmit)
+  handleSubmitRef.current = handleSubmit
+
+  useEffect(() => {
+    if (isModal && setSubmitHandler) {
+      setSubmitHandler(() => {
+        // Trigger form validation and submission
+        form.handleSubmit((data) => handleSubmitRef.current(data))()
+      })
+    }
+  }, [isModal, setSubmitHandler, form, props.lineMaintenanceId])
+
+  // Sync submitting state with modal context
+  useEffect(() => {
+    if (isModal && setIsSubmitting) {
+      setIsSubmitting(isSubmitting)
+    }
+  }, [isModal, setIsSubmitting, isSubmitting])
 
   return (
 
@@ -197,25 +231,27 @@ const CardFormServicesStep = (props: Props) => {
         />
 
         {/* Form Actions */}
-        <FormActions
-          onBack={handleOnBackStep}
-          onReset={() => {
-            // Reset to original transformed data if available, otherwise use defaults
-            if (props.initialData) {
-              console.log('Reset to original transformed data')
-              form.reset(props.initialData)
-            }
-          }}
-          onSubmit={() => form.handleSubmit(handleSubmit)()}
-          backText="← Back to flight"
-          submitText="Next Step →"
-          resetText="Reset"
-          isSubmitting={isSubmitting}
-          disableBack={isSubmitting}
-          disableSubmit={isSubmitting || props.loading}
-          disableReset={isSubmitting}
-          showReset={true}
-        />
+        {!isModal && (
+          <FormActions
+            onBack={handleOnBackStep}
+            onReset={() => {
+              // Reset to original transformed data if available, otherwise use defaults
+              if (props.initialData) {
+                console.log('Reset to original transformed data')
+                form.reset(props.initialData)
+              }
+            }}
+            onSubmit={() => form.handleSubmit(handleSubmit)()}
+            backText="← Back to flight"
+            submitText="Next Step →"
+            resetText="Reset"
+            isSubmitting={actualIsSubmitting}
+            disableBack={actualIsSubmitting}
+            disableSubmit={actualIsSubmitting || props.loading || !isMounted}
+            disableReset={actualIsSubmitting}
+            showReset={true}
+          />
+        )}
 
         {/* Submission Status Messages */}
         {isSubmitError && submitError && (

@@ -29,6 +29,7 @@ import TableSkeleton from "@/components/skeketon/TableSkeleton"
 import { ExcelImportButton } from "@/components/excel-import-button"
 import { useTemplateDownload } from "@/hooks/use-template-download"
 import CreateProject from "../../create-project"
+import CreateThfModal from "../../thf/create/components/CreateThfModal"
 
 interface Option {
     value: string; label: string; image?: string;
@@ -93,6 +94,10 @@ const ListTable = ({
     const [openEditFlight, setOpenEditFlight] = React.useState<boolean>(false);
     const [editFlightId, setEditFlightId] = React.useState<number | null>(null);
 
+    // Create THF Modal State
+    const [createThfOpen, setCreateThfOpen] = React.useState(false)
+    const [selectedFlightThfId, setSelectedFlightThfId] = React.useState<number | null>(null)
+
     const [sorting, setSorting] = React.useState<SortingState>([])
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
     const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
@@ -133,9 +138,15 @@ const ListTable = ({
     const dateRangeValue = watch("dateRange")
     const columns = getFlightColumns({
         onCreateTHF: (flight) => {
-            const q = new URLSearchParams({ flightInfosId: String(flight.flightInfosId ?? "") })
+            // const q = new URLSearchParams({ flightInfosId: String(flight.flightInfosId ?? "") })
             // router.push(`/${locale}/flight/thf/create?${q.toString()}`)
-            routerPushNewTab(`/${locale}/flight/thf/create?${q.toString()}`)
+            // routerPushNewTab(`/${locale}/flight/thf/create?${q.toString()}`)
+
+            // Open Modal
+            if (flight.flightInfosId) {
+                setSelectedFlightThfId(flight.flightInfosId)
+                setCreateThfOpen(true)
+            }
         },
         onEditFlight: (flight) => {
             setEditFlightId(flight.flightInfosId || null);
@@ -252,6 +263,13 @@ const ListTable = ({
         <Card>
             <EditFlight open={openEditFlight} setOpen={setOpenEditFlight} flightInfosId={editFlightId} onClose={onEditFlightClose} />
             <CreateProject open={open} setOpen={setOpen} />
+
+            <CreateThfModal
+                open={createThfOpen}
+                onOpenChange={setCreateThfOpen}
+                flightInfosId={selectedFlightThfId}
+                onClose={() => setSelectedFlightThfId(null)}
+            />
             {/* Header Section with Title and Buttons */}
             <CardHeader className="pb-4">
                 <CardTitle>Flight List</CardTitle>

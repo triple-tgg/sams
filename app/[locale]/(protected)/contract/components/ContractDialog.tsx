@@ -11,10 +11,11 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { Check, ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
-import { ContractFormData, PricingRate } from "./types";
+import { ContractFormData, PricingRate, OperationalContact } from "./types";
 import { defaultFormData, FORM_STEPS } from "./data";
 import { GeneralInfoStep } from "./GeneralInfoStep";
 import { ServicePricingStep } from "./ServicePricingStep";
+import { OperationalContactStep } from "./OperationalContactStep";
 import { ContractViewA4 } from "./ContractViewA4";
 import { useUpsertContract, useContractById } from "@/lib/api/hooks/useContractOperations";
 import { useReduxAuth } from "@/lib/api/hooks/useReduxAuth";
@@ -53,6 +54,7 @@ const transformApiToFormData = (data: ContractDetail): ContractFormData => {
         validFrom: data.validFrom,
         expiresOn: data.expiresOn,
         isNoExpiryDate: data.isNoExpiryDate ?? false,
+        domicileCountry: "",
         status: data.contractStatusObj?.code || "",
         pricingRates: data.pricingDataList?.map((p) => ({
             id: p.id,
@@ -76,6 +78,7 @@ const transformApiToFormData = (data: ContractDetail): ContractFormData => {
             dailyCheck: p.dailyCheck || 0,
             preFlightCheck: p.preFlightCheck || 0,
             weeklyCheck: p.weeklyCheck || 0,
+            nightStop: (p as any).nightStop || 0,
             additionalLaeMhHr: p.additionalLaeMhHr || 0,
             additionalMechMhHr: p.additionalMechMhHr || 0,
             lhOrRhNoseWheelRpl: p.lhOrRhNoseWheelRpl || 0,
@@ -104,6 +107,7 @@ const transformApiToFormData = (data: ContractDetail): ContractFormData => {
         paymentTerms: "",
         latePenalty: "",
         creditTerms: data.creditTerms || "",
+        operationalContacts: [],
         contractDocumentPath: data.attachContractObj?.storagePath || "",
         contractDocumentName: data.attachContractObj?.realName || "",
     };
@@ -229,6 +233,10 @@ export const ContractDialog = ({
 
     const handlePricingRatesChange = (pricingRates: PricingRate[]) => {
         setFormData((prev) => ({ ...prev, pricingRates }));
+    };
+
+    const handleContactsChange = (operationalContacts: OperationalContact[]) => {
+        setFormData((prev) => ({ ...prev, operationalContacts }));
     };
 
     const handleStepClick = (stepId: number) => {
@@ -384,6 +392,8 @@ export const ContractDialog = ({
                 );
             case 2:
                 return <ServicePricingStep formData={formData} onPricingRatesChange={handlePricingRatesChange} mode={mode} fieldErrors={fieldErrors} />;
+            case 3:
+                return <OperationalContactStep formData={formData} onContactsChange={handleContactsChange} />;
             default:
                 return null;
         }
@@ -445,7 +455,11 @@ export const ContractDialog = ({
                                 {FORM_STEPS.map((step) => {
                                     const isCompleted = currentStep > step.id;
                                     const isActive = currentStep === step.id;
-                                    const isClickable = step.id <= currentStep + 1;
+                                    // In create mode: only allow clicking on completed steps (going back)
+                                    // In edit mode: allow clicking on any step up to currentStep + 1
+                                    const isClickable = mode === "create"
+                                        ? step.id < currentStep  // Only go back in create mode
+                                        : step.id <= currentStep + 1;
 
                                     return (
                                         <button

@@ -8,6 +8,10 @@ type StepContextType = {
   goNext: () => void
   goBack: () => void
   onSave: (data: any) => void
+  setSubmitHandler?: (handler: () => void) => void
+  isModal?: boolean
+  setIsSubmitting?: (isSubmitting: boolean) => void
+  closeModal?: () => void
 }
 
 export const StepContext = createContext<StepContextType | undefined>(undefined)

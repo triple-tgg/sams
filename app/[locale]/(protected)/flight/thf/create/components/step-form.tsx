@@ -86,22 +86,6 @@ const StepForm = () => {
           loading={loadingFlight}
           flightError={flightError}
           flightInfosId={flightInfosId}
-          customerOptions={customerOptions || []}
-          stationOptions={stationOptions || []}
-          loadingAirlines={loadingAirlines}
-          loadingStations={loadingStations}
-          airlinesError={airlinesError}
-          stationsError={stationsError}
-          airlinesUsingFallback={!!airlinesUsingFallback}
-          stationsUsingFallback={!!stationsUsingFallback}
-          aircraftOptions={aircraftOptions || []}
-          isLoadingAircraft={isLoadingAircraft}
-          acTypeCodeUsingFallback={!!acTypeCodeUsingFallback}
-          acTypeCodeError={acTypeCodeError}
-          statusOptions={statusOptions || []}
-          loadingStatus={loadingStatus}
-          statusError={statusError}
-          statusUsingFallback={statusUsingFallback}
         />
         <ServicesStep
           flightInfosId={flightInfosId}

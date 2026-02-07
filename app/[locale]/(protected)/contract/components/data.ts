@@ -124,6 +124,7 @@ export const defaultPricingRate: Omit<PricingRate, 'id'> = {
     dailyCheck: 0,
     preFlightCheck: 0,
     weeklyCheck: 0,
+    nightStop: 0,
     // Service Rates - Labor
     additionalLaeMhHr: 0,
     additionalMechMhHr: 0,
@@ -172,6 +173,7 @@ export const defaultFormData: ContractFormData = {
     validFrom: "",
     expiresOn: "",
     isNoExpiryDate: false,
+    domicileCountry: "",
     status: "active",
     // Pricing Rates (multi-rate)
     pricingRates: [],
@@ -184,6 +186,8 @@ export const defaultFormData: ContractFormData = {
     paymentTerms: "",
     latePenalty: "",
     creditTerms: "",
+    // Operational Contacts
+    operationalContacts: [],
     // Contract Document
     contractDocumentPath: "",
     contractDocumentName: "",
@@ -192,5 +196,6 @@ export const defaultFormData: ContractFormData = {
 export const FORM_STEPS = [
     { id: 1, title: "General Info", titleEn: "Contract Details" },
     { id: 2, title: "Pricing", titleEn: "Service Rates" },
+    { id: 3, title: "Operational Contact", titleEn: "Contact Information" },
 ];
 
