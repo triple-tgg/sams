@@ -164,6 +164,23 @@ export const useServicesSubmission = ({
     }
   }
 
+  const handleAddCsdIdgVsfgSet = () => {
+    const currentSets = form.getValues('fluid.csdIdgVsfgSets')
+    if (currentSets.length < 4) {
+      form.setValue('fluid.csdIdgVsfgSets', [
+        ...currentSets,
+        { quantity: 0 }
+      ])
+    }
+  }
+
+  const handleRemoveCsdIdgVsfgSet = (index: number) => {
+    const currentSets = form.getValues('fluid.csdIdgVsfgSets')
+    if (currentSets.length > 1) {
+      form.setValue('fluid.csdIdgVsfgSets', currentSets.filter((_, i) => i !== index))
+    }
+  }
+
   // const handleAddFlightDeckInfo = () => {
   //   const currentInfo = form.getValues('flightDeckInfo') || []
 
@@ -219,6 +236,8 @@ export const useServicesSubmission = ({
     handleRemovePersonnel,
     handleAddEngineOilSet,
     handleRemoveEngineOilSet,
+    handleAddCsdIdgVsfgSet,
+    handleRemoveCsdIdgVsfgSet,
     // handleAddFlightDeckInfo,
     // handleRemoveFlightDeckInfo,
     handleAddTowingInfo,

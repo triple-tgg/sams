@@ -104,6 +104,8 @@ const CardFormServicesStep = (props: Props) => {
     handleRemovePersonnel,
     handleAddEngineOilSet,
     handleRemoveEngineOilSet,
+    handleAddCsdIdgVsfgSet,
+    handleRemoveCsdIdgVsfgSet,
     // handleAddFlightDeckInfo,
     // handleRemoveFlightDeckInfo,
     handleAddTowingInfo,
@@ -205,6 +207,8 @@ const CardFormServicesStep = (props: Props) => {
           form={form}
           onAddEngineOilSet={handleAddEngineOilSet}
           onRemoveEngineOilSet={handleRemoveEngineOilSet}
+          onAddCsdIdgVsfgSet={handleAddCsdIdgVsfgSet}
+          onRemoveCsdIdgVsfgSet={handleRemoveCsdIdgVsfgSet}
           acType={props.formData?.acTypeCode?.value || undefined}
         />
 

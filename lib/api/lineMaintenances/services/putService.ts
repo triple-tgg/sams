@@ -45,6 +45,7 @@ export interface FluidServicing {
   hydraulicB: number;
   hydraulicSTBY: number;
   engOil: EngOil[];
+  csdIdgVsfg: EngOil[];
   otherOil: number;
 }
 
@@ -165,6 +166,12 @@ const createFluidServicing = (fluidData: any): FluidServicing => {
     rightOil: safeParseFloat(oilSet.right || oilSet.rightOil)
   }));
 
+  // Create CSD/IDG/VSFG array from quantity sets
+  const createCsdIdgVsfgArray = () => (fluidData.csdIdgVsfgSets || []).map((set: any) => ({
+    leftOil: safeParseFloat(set.quantity),
+    rightOil: 0
+  }));
+
   // Apply conditional logic based on fluid type for optimal performance
   switch (fluidType) {
     case 'ENG Oil':
@@ -174,6 +181,7 @@ const createFluidServicing = (fluidData: any): FluidServicing => {
         hydraulicB: 0,
         hydraulicSTBY: 0,
         engOil: createEngOilArray(),
+        csdIdgVsfg: createCsdIdgVsfgArray(),
         otherOil: 0
       };
 
@@ -184,6 +192,7 @@ const createFluidServicing = (fluidData: any): FluidServicing => {
         hydraulicB: baseHydraulicB,
         hydraulicSTBY: baseHydraulicSTBY,
         engOil: [],
+        csdIdgVsfg: [],
         otherOil: 0
       };
 
@@ -194,6 +203,7 @@ const createFluidServicing = (fluidData: any): FluidServicing => {
         hydraulicB: 0,
         hydraulicSTBY: 0,
         engOil: [],
+        csdIdgVsfg: [],
         otherOil: baseOtherOil
       };
 
@@ -204,6 +214,7 @@ const createFluidServicing = (fluidData: any): FluidServicing => {
         hydraulicB: baseHydraulicB,
         hydraulicSTBY: baseHydraulicSTBY,
         engOil: createEngOilArray(),
+        csdIdgVsfg: createCsdIdgVsfgArray(),
         otherOil: baseOtherOil
       };
   }

@@ -26,6 +26,7 @@ export const getDefaultValues = (checkTypes?: AircraftCheckType[]): ServicesForm
     fluid: {
       fluidName: null,
       engOilSets: [],
+      csdIdgVsfgSets: [],
       hydOilBlue: 0,
       hydOilGreen: 0,
       hydOilYellow: 0,
@@ -215,12 +216,17 @@ export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse |
     right: oil.rightOil || 0,
   })) || [];
 
+  const csdIdgVsfgSets = fluidServicing?.csdIdgVsfg?.map(oil => ({
+    quantity: oil.leftOil || 0,
+  })) || [];
+
   const fluid = {
     fluidName: fluidServicing?.fluidName ? {
       value: fluidServicing.fluidName,
       label: fluidServicing.fluidName
     } : null,
     engOilSets,
+    csdIdgVsfgSets,
     hydOilBlue: fluidServicing?.hydraulicA || 0,
     hydOilGreen: fluidServicing?.hydraulicB || 0,
     hydOilYellow: fluidServicing?.hydraulicSTBY || 0,

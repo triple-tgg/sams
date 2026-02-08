@@ -49,6 +49,7 @@ export type ServicesFormInputs = {
   fluid: {
     fluidName: FluidOption | null
     engOilSets: { left: number; right: number }[]
+    csdIdgVsfgSets: { quantity?: number }[]
     hydOilBlue?: number
     hydOilGreen?: number
     hydOilYellow?: number

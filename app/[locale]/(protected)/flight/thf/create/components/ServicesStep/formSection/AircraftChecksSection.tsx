@@ -2,11 +2,12 @@ import React, { useMemo } from 'react'
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { UseFormReturn } from 'react-hook-form'
-import { PlusIcon, TrashIcon } from 'lucide-react'
+import { PlusIcon, ClipboardCheck, XIcon, TrashIcon } from 'lucide-react'
 import { AircraftCheckSubType, AircraftCheckType } from '@/lib/api/master/aircraft-check-types/airlines.interface'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form"
+import { Badge } from "@/components/ui/badge"
 import { ServicesFormInputs, transformAircraftCheckTypesToOptions, transformAircraftCheckSubTypesToOptions } from '../types'
 
 const AircraftChecksSection: React.FC<{
@@ -17,7 +18,6 @@ const AircraftChecksSection: React.FC<{
   checkSubTypes: AircraftCheckSubType[]
   isLoadingCheckTypes: boolean
   isLoadingCheckSubTypes: boolean
-
 }> = ({ form, onAdd, onRemove, ...props }) => {
   const maintenanceOptions = useMemo(() =>
     transformAircraftCheckTypesToOptions(props.checkTypes || []), [props.checkTypes]
@@ -29,17 +29,19 @@ const AircraftChecksSection: React.FC<{
 
   const aircraftChecks = form.watch('aircraftChecks')
 
-  // Don't render if still loading critical data
   if (props.isLoadingCheckTypes) {
     return (
-      <Card className='border border-blue-200'>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Aircraft Checks</CardTitle>
+      <Card className="rounded-xl shadow-sm border-l-4 border-l-emerald-500 border border-gray-200">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <ClipboardCheck className="h-5 w-5 text-emerald-500" />
+            Aircraft Checks
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
-            <span className="ml-2">Loading aircraft check types...</span>
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-emerald-500"></div>
+            <span className="ml-2 text-sm text-muted-foreground">Loading check types...</span>
           </div>
         </CardContent>
       </Card>
@@ -47,128 +49,150 @@ const AircraftChecksSection: React.FC<{
   }
 
   return (
-    <Card className='border border-blue-200'>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Aircraft Checks</CardTitle>
-        <Button type="button" onClick={onAdd} size="sm" color='primary'>
-          <PlusIcon className="h-4 w-4 mr-1" />
+    <Card className="rounded-xl shadow-sm border-l-4 border-l-emerald-500 border border-gray-200">
+      <CardHeader className="flex flex-row items-center justify-between pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <ClipboardCheck className="h-5 w-5 text-emerald-500" />
+          Aircraft Checks
+          {aircraftChecks.length > 0 && (
+            <Badge color="default" className="ml-1 text-xs px-1.5 py-0 h-5">
+              {aircraftChecks.length}
+            </Badge>
+          )}
+        </CardTitle>
+        <Button
+          type="button"
+          color="primary"
+          variant="soft"
+          size="sm"
+          onClick={onAdd}
+        >
+          <PlusIcon className="h-3.5 w-3.5 mr-1" />
           Add Check
         </Button>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3">
         {aircraftChecks.map((_, index) => (
-          <div key={index} className="border rounded-lg p-4 space-y-4">
-            <div className="flex justify-between items-center">
-              <h4 className="font-medium">Check {index + 1}</h4>
+          <div
+            key={index}
+            className="bg-gray-50/80 rounded-lg p-4 space-y-4 hover:bg-gray-100/80 transition-colors"
+          >
+            <div className="flex items-start gap-3">
+              <Badge color="secondary" className="h-6 w-6 p-0 flex items-center justify-center text-xs font-semibold shrink-0 mt-7">
+                {index + 1}
+              </Badge>
+
+              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <FormField
+                  control={form.control}
+                  name={`aircraftChecks.${index}.maintenanceTypes`}
+                  render={({ field }) => (
+                    <FormItem className="space-y-1">
+                      <FormLabel className="text-xs text-muted-foreground">Maintenance Type *</FormLabel>
+                      <Select
+                        onValueChange={(value) => {
+                          field.onChange(value)
+                          if (value !== "TR") {
+                            form.setValue(`aircraftChecks.${index}.maintenanceSubTypes`, [])
+                          }
+                        }}
+                        value={field.value || ""}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {maintenanceOptions?.length > 0 ? (
+                            maintenanceOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="" disabled>
+                              No types available
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name={`aircraftChecks.${index}.maintenanceSubTypes`}
+                  render={({ field }) => {
+                    const selectedMaintenanceType = form.watch(`aircraftChecks.${index}.maintenanceTypes`)
+                    const isSubTypesDisabled = selectedMaintenanceType !== "TR"
+
+                    return (
+                      <FormItem className="space-y-1">
+                        <FormLabel className="text-xs text-muted-foreground">Sub Types</FormLabel>
+                        <div className="flex flex-wrap gap-2">
+                          {subTypeOptions.map((option) => (
+                            <label
+                              key={option.value}
+                              className={`
+                                flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border transition-all cursor-pointer select-none
+                                ${isSubTypesDisabled
+                                  ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                  : field.value?.includes(option.value)
+                                    ? 'bg-primary/10 text-primary border-primary/30'
+                                    : 'bg-white text-gray-600 border-gray-200 hover:border-primary/30 hover:text-primary'
+                                }
+                              `}
+                            >
+                              <Checkbox
+                                className="h-3.5 w-3.5"
+                                color='primary'
+                                disabled={isSubTypesDisabled}
+                                checked={field.value?.includes(option.value)}
+                                onCheckedChange={(checked) => {
+                                  if (isSubTypesDisabled) return
+                                  const updatedValue = checked
+                                    ? [...(field.value || []), option.value]
+                                    : (field.value || []).filter((v) => v !== option.value)
+                                  field.onChange(updatedValue)
+                                }}
+                              />
+                              {option.label}
+                            </label>
+                          ))}
+                        </div>
+                        {isSubTypesDisabled && (
+                          <p className="text-[10px] text-muted-foreground mt-1">
+                            Subtypes available with TR type only.
+                          </p>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    )
+                  }}
+                />
+              </div>
+
               {aircraftChecks.length > 1 && (
                 <Button
                   type="button"
                   variant="soft"
-                  size="sm"
-                  color="destructive"
+                  color='destructive'
+                  size="icon"
+                  className="h-8 w-8 p-0 mt-6"
                   onClick={() => onRemove(index)}
                 >
                   <TrashIcon className="h-4 w-4" />
                 </Button>
               )}
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name={`aircraftChecks.${index}.maintenanceTypes`}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Maintenance Type *</FormLabel>
-                    <Select
-                      onValueChange={(value) => {
-                        console.log("field.value:", field.value)
-                        field.onChange(value)
-                        // Clear sub types if TR is selected
-                        if (value !== "TR") {
-                          form.setValue(`aircraftChecks.${index}.maintenanceSubTypes`, [])
-                        }
-                      }}
-                      value={field.value || ""}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select maintenance type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {maintenanceOptions && maintenanceOptions.length > 0 ? (
-                          maintenanceOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="" disabled>
-                            No maintenance types available
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name={`aircraftChecks.${index}.maintenanceSubTypes`}
-                render={({ field }) => {
-                  const selectedMaintenanceType = form.watch(`aircraftChecks.${index}.maintenanceTypes`)
-                  const isSubTypesDisabled = selectedMaintenanceType !== "TR"
-
-                  return (
-                    <FormItem>
-                      <FormLabel>Sub Types</FormLabel>
-                      <div className="space-y-2">
-                        {subTypeOptions.map((option) => (
-                          <div key={option.value} className="flex items-center space-x-2">
-                            <Checkbox
-                              className=''
-                              color='primary'
-                              disabled={isSubTypesDisabled}
-                              id={`${index}-${option.value}`}
-                              checked={field.value?.includes(option.value)}
-                              onCheckedChange={(checked) => {
-                                console.log("onCheckedChange field.value:", checked, field.value)
-
-                                if (isSubTypesDisabled) return
-                                const updatedValue = checked
-                                  ? [...(field.value || []), option.value]
-                                  : (field.value || []).filter((value) => value !== option.value)
-                                field.onChange(updatedValue)
-                              }}
-                            />
-                            <label
-                              htmlFor={`${index}-${option.value}`}
-                              className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${isSubTypesDisabled ? 'text-gray-400' : ''
-                                }`}
-                            >
-                              {option.label}
-                            </label>
-                          </div>
-                        ))}
-                      </div>
-                      {isSubTypesDisabled && (
-                        <p className="text-xs text-gray-400 mt-2">
-                          **Subtypes can be used with TR maintenance types.
-                        </p>
-                      )}
-                      <FormMessage />
-                    </FormItem>
-                  )
-                }}
-              />
-            </div>
           </div>
         ))}
       </CardContent>
-    </Card>
+    </Card >
   )
 }
+
 export default AircraftChecksSection

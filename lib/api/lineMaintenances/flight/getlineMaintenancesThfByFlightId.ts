@@ -51,6 +51,7 @@ export interface FluidServicing {
   hydraulicB: number | null; // Changed from optional to explicit null
   hydraulicSTBY: number | null; // Changed from optional to explicit null
   engOil: EngOil[];
+  csdIdgVsfg: EngOil[];
   otherOil: number | null; // Changed from optional to explicit null
 }
 
