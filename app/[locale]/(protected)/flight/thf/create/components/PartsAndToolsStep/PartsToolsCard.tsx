@@ -17,6 +17,7 @@ import { CustomDateInput } from '@/components/ui/input-date/CustomDateInput'
 import { FlightFormData } from '@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId'
 import { formatFromPicker } from '@/lib/utils/formatPicker'
 import { dateTimeUtils } from '@/lib/dayjs'
+import dayjs from 'dayjs'
 
 interface PartsToolsCardProps {
   form: UseFormReturn<PartsToolsFormInputs>
@@ -34,12 +35,27 @@ export const PartsToolsCard: React.FC<PartsToolsCardProps> = ({ form, infoData }
   })
 
   const handleAddItem = () => {
+    // Resolve From defaults
+    const resolvedFromDate = infoData?.arrivalDate || dateTimeUtils.getCurrentDate()
+    const resolvedFromTime = infoData?.ata || dayjs().format('HH:mm')
+
+    // Resolve To defaults — ensure To is not before From
+    let resolvedToDate = infoData?.departureDate || resolvedFromDate
+    let resolvedToTime = infoData?.atd || resolvedFromTime
+
+    const fromDT = dayjs(`${resolvedFromDate} ${resolvedFromTime}`, 'YYYY-MM-DD HH:mm')
+    const toDT = dayjs(`${resolvedToDate} ${resolvedToTime}`, 'YYYY-MM-DD HH:mm')
+    if (toDT.isValid() && fromDT.isValid() && toDT.isBefore(fromDT)) {
+      resolvedToDate = resolvedFromDate
+      resolvedToTime = resolvedFromTime
+    }
+
     append({
       ...defaultPartToolItem,
-      formDate: formatFromPicker(infoData?.arrivalDate || dateTimeUtils.getCurrentDate()),
-      formTime: infoData?.ata || dateTimeUtils.getCurrentTime(),
-      toDate: formatFromPicker(infoData?.departureDate || dateTimeUtils.getCurrentDate()),
-      toTime: infoData?.atd || dateTimeUtils.getCurrentTime()
+      formDate: formatFromPicker(resolvedFromDate),
+      formTime: resolvedFromTime,
+      toDate: formatFromPicker(resolvedToDate),
+      toTime: resolvedToTime
     })
   }
 
@@ -60,7 +76,7 @@ export const PartsToolsCard: React.FC<PartsToolsCardProps> = ({ form, infoData }
 
   return (
     <div className="space-y-4">
-      <div className="bg-gradient-to-r from-slate-50 to-gray-50 rounded-lg p-4 border border-slate-200">
+      <div className="bg-linear-to-r from-slate-50 to-gray-50 rounded-lg p-4 border border-slate-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">

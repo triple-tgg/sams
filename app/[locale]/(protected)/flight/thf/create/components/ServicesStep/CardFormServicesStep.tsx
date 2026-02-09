@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useCallback, useEffect, useState } from "react"
 import { Form } from "@/components/ui/form"
 import { Separator } from "@/components/ui/separator"
 import { FormActions, StatusMessages } from "../shared"
@@ -16,6 +16,7 @@ import { servicesFormSchema } from "./schema"
 import { useServicesSubmission } from './useServicesSubmission'
 import { FluidSection, OperationalSections } from './FluidSection'
 import { AircraftCheckSubType, AircraftCheckType } from "@/lib/api/master/aircraft-check-types/airlines.interface"
+import { AircraftTypeFlags } from "@/lib/api/master/aircraft-types/getAircraftTypeById"
 import PersonnelSection from "./formSection/PersonnelSection"
 import AircraftChecksSection from "./formSection/AircraftChecksSection"
 import AdditionalDefectsSection from "./formSection/AdditionalDefectsSection"
@@ -38,6 +39,8 @@ interface Props {
   flightError: Error | null;
   acType?: string;
   lineMaintenanceId: number | null;
+  aircraftTypeFlags?: AircraftTypeFlags | null;
+  isLoadingAircraftTypeFlags?: boolean;
   checkSubTypesValuesOption: {
     checkSubTypes: AircraftCheckSubType[];
     isLoadingCheckSubTypes: boolean;
@@ -90,8 +93,150 @@ const CardFormServicesStep = (props: Props) => {
         console.log("value", value)
       }
     })
-    return () => subscription.unsubscribe()
   }, [form])
+
+  // Auto-set servicingPerformed and initialize fluid sets when aircraft type flags load
+  useEffect(() => {
+    const flags = props.aircraftTypeFlags
+    if (!flags) return
+    const hasAnyFlag =
+      flags.engineCount > 0 ||
+      flags.csdCount > 0 ||
+      flags.flagHydrolicGreen ||
+      flags.flagHydrolicBlue ||
+      flags.flagHydrolicYellow ||
+      flags.flagApu
+    if (hasAnyFlag) {
+      form.setValue('servicingPerformed', true)
+
+      // Auto-initialize Engine Oil sets to match flag count
+      const currentEngSets = form.getValues('fluid.engOilSets')
+      if (flags.engineCount > 0 && (!currentEngSets || currentEngSets.length === 0)) {
+        const engSets = Array.from({ length: flags.engineCount }, () => ({ left: 0, right: 0 }))
+        form.setValue('fluid.engOilSets', engSets)
+      }
+
+      // Auto-initialize CSD/IDG/VSFG sets to match flag count
+      const currentCsdSets = form.getValues('fluid.csdIdgVsfgSets')
+      if (flags.csdCount > 0 && (!currentCsdSets || currentCsdSets.length === 0)) {
+        const csdSets = Array.from({ length: flags.csdCount }, () => ({ quantity: 0 }))
+        form.setValue('fluid.csdIdgVsfgSets', csdSets)
+      }
+    }
+  }, [props.aircraftTypeFlags, form])
+
+  // Flag-based validation: check required fluid fields before submission
+  const validateAircraftTypeFlags = useCallback((): boolean => {
+    const flags = props.aircraftTypeFlags
+    if (!flags) return true // No flags = skip validation
+
+    const servicingPerformed = form.getValues('servicingPerformed')
+    if (!servicingPerformed) return true // Servicing not enabled = skip
+
+    let isValid = true
+
+    // Validate Engine Oil sets
+    if (flags.engineCount > 0) {
+      const engSets = form.getValues('fluid.engOilSets')
+      if (!engSets || engSets.length < flags.engineCount) {
+        form.setError('fluid.engOilSets', {
+          type: 'manual',
+          message: `At least ${flags.engineCount} engine oil set(s) required for this aircraft type`,
+        })
+        isValid = false
+      }
+    }
+
+    // Validate CSD/IDG/VSFG sets
+    if (flags.csdCount > 0) {
+      const csdSets = form.getValues('fluid.csdIdgVsfgSets')
+      if (!csdSets || csdSets.length < flags.csdCount) {
+        form.setError('fluid.csdIdgVsfgSets', {
+          type: 'manual',
+          message: `At least ${flags.csdCount} CSD/IDG/VSFG set(s) required for this aircraft type`,
+        })
+        isValid = false
+      }
+    }
+
+    // Validate Hydraulic oils
+    if (flags.flagHydrolicBlue) {
+      const val = form.getValues('fluid.hydOilBlue')
+      if (val === undefined || val === null) {
+        form.setError('fluid.hydOilBlue', { type: 'manual', message: 'Hyd Oil Blue is required' })
+        isValid = false
+      }
+    }
+    if (flags.flagHydrolicGreen) {
+      const val = form.getValues('fluid.hydOilGreen')
+      if (val === undefined || val === null) {
+        form.setError('fluid.hydOilGreen', { type: 'manual', message: 'Hyd Oil Green is required' })
+        isValid = false
+      }
+    }
+    if (flags.flagHydrolicYellow) {
+      const val = form.getValues('fluid.hydOilYellow')
+      if (val === undefined || val === null) {
+        form.setError('fluid.hydOilYellow', { type: 'manual', message: 'Hyd Oil Yellow is required' })
+        isValid = false
+      }
+    }
+
+    // Validate APU Oil
+    if (flags.flagApu) {
+      const val = form.getValues('fluid.apuOil')
+      if (val === undefined || val === null) {
+        form.setError('fluid.apuOil', { type: 'manual', message: 'APU Oil is required' })
+        isValid = false
+      }
+    }
+
+    return isValid
+  }, [props.aircraftTypeFlags, form])
+
+  // Wrapper: validate flags then run form submission
+  const handleSubmitWithFlagValidation = useCallback(() => {
+    // Clear previous manual errors first
+    form.clearErrors([
+      'fluid.engOilSets', 'fluid.csdIdgVsfgSets',
+      'fluid.hydOilBlue', 'fluid.hydOilGreen', 'fluid.hydOilYellow',
+      'fluid.apuOil'
+    ])
+    const flagsValid = validateAircraftTypeFlags()
+    if (!flagsValid) {
+      // Auto-focus the first errored field after React re-renders with errors
+      setTimeout(() => {
+        const errorFieldOrder = [
+          'fluid.engOilSets', 'fluid.csdIdgVsfgSets',
+          'fluid.hydOilBlue', 'fluid.hydOilGreen', 'fluid.hydOilYellow',
+          'fluid.apuOil'
+        ]
+        for (const fieldName of errorFieldOrder) {
+          // Try data-error-field elements (for section-level errors)
+          const errorEl = document.querySelector(`[data-error-field="${fieldName}"]`)
+          if (errorEl) {
+            errorEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            // Try to focus the nearest input in the same section
+            const section = errorEl.closest('.space-y-3')
+            const input = section?.querySelector('input')
+            if (input) input.focus()
+            return
+          }
+          // Try input by name (for individual fields like hydraulic / APU)
+          const input = document.querySelector<HTMLInputElement>(`input[name="${fieldName}"]`)
+          if (input) {
+            input.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            input.focus()
+            return
+          }
+        }
+      }, 100)
+      return
+    }
+    // Proceed with normal Zod validation + submit
+    form.handleSubmit((data) => handleSubmitRef.current(data))()
+  }, [form, validateAircraftTypeFlags])
+
   // Custom submission hook
   const handleOnSave = () => { onSave }
   const {
@@ -149,11 +294,11 @@ const CardFormServicesStep = (props: Props) => {
   useEffect(() => {
     if (isModal && setSubmitHandler) {
       setSubmitHandler(() => {
-        // Trigger form validation and submission
-        form.handleSubmit((data) => handleSubmitRef.current(data))()
+        // Trigger flag validation then form validation and submission
+        handleSubmitWithFlagValidation()
       })
     }
-  }, [isModal, setSubmitHandler, form, props.lineMaintenanceId])
+  }, [isModal, setSubmitHandler, form, props.lineMaintenanceId, handleSubmitWithFlagValidation])
 
   // Sync submitting state with modal context
   useEffect(() => {
@@ -165,7 +310,7 @@ const CardFormServicesStep = (props: Props) => {
   return (
 
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+      <form onSubmit={(e) => { e.preventDefault(); handleSubmitWithFlagValidation() }} className="space-y-6">
 
         {/* Form Validation Debug Info */}
         {process.env.NODE_ENV === 'development' && Object.keys(form.formState.errors).length > 0 && (
@@ -210,6 +355,8 @@ const CardFormServicesStep = (props: Props) => {
           onAddCsdIdgVsfgSet={handleAddCsdIdgVsfgSet}
           onRemoveCsdIdgVsfgSet={handleRemoveCsdIdgVsfgSet}
           acType={props.formData?.acTypeCode?.value || undefined}
+          aircraftTypeFlags={props.aircraftTypeFlags || null}
+          isLoadingFlags={props.isLoadingAircraftTypeFlags || false}
         />
 
         <Separator />
@@ -245,7 +392,7 @@ const CardFormServicesStep = (props: Props) => {
                 form.reset(props.initialData)
               }
             }}
-            onSubmit={() => form.handleSubmit(handleSubmit)()}
+            onSubmit={() => handleSubmitWithFlagValidation()}
             backText="← Back to flight"
             submitText="Next Step →"
             resetText="Reset"

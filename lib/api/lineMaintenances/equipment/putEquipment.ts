@@ -3,22 +3,22 @@ import apiClient from '../../../axios.config'
 
 // Interface สำหรับ Equipment data ที่จะส่งไป
 export interface PutEquipmentRequest {
-  lineMaintenancesId?: number
   isSamsTool: boolean
   isLoan: boolean
   equipmentName: string
   svc: number
   formDate: string // YYYY-MM-DD format
-  toDate: string | null
+  toDate: string
   formTime: string // HH:mm format
-  toTime: string | null
+  toTime: string
   hrs: number
+  loanRemark: string
 }
 
 // Interface สำหรับ Response
 export interface PutEquipmentResponse {
   message: string
-  responseData: any | null
+  responseData: null
   error: string
 }
 
@@ -58,24 +58,22 @@ export const putEquipment = async (
 /**
  * Transform form data to API format
  * @param formData - Equipment form data
- * @param lineMaintenancesId - Line Maintenance ID
  * @returns Transformed data for API
  */
 export const transformEquipmentDataForAPI = (
-  formData: any[],
-  lineMaintenancesId: number
+  formData: any[]
 ): PutEquipmentRequest[] => {
-  return formData.map((equipment, index) => ({
-    ...(index > 0 && { lineMaintenancesId }), // Add lineMaintenancesId for items after first
+  return formData.map((equipment) => ({
     isSamsTool: equipment.isSamsTool || false,
     isLoan: equipment.isLoan || false,
-    loanRemark: equipment.loanRemark || '',
     equipmentName: equipment.equipmentName || '',
     svc: equipment.svc || 0,
     formDate: equipment.fromDate ? convertDateToBackend(equipment.fromDate) : '',
-    toDate: equipment.toDate ? convertDateToBackend(equipment.toDate) : "",
+    toDate: equipment.toDate ? convertDateToBackend(equipment.toDate) : '',
     formTime: equipment.fromTime || '',
-    toTime: equipment.toTime || null,
-    hrs: equipment.hrs || 0
+    toTime: equipment.toTime || '',
+    hrs: equipment.hrs || 0,
+    loanRemark: equipment.loanRemark || '',
   }))
 }
+

@@ -15,6 +15,7 @@ export interface UseAttachFileSubmissionParams {
   onUpdateData?: () => void
   existingFlightData?: LineMaintenanceThfResponse | null
   lineMaintenanceId: number | null
+  closeModal?: () => void
 }
 
 export interface UseAttachFileSubmissionReturn {
@@ -38,7 +39,8 @@ export const useAttachFileSubmission = ({
   onNextStep,
   onBackStep,
   onUpdateData,
-  lineMaintenanceId
+  lineMaintenanceId,
+  closeModal
 }: UseAttachFileSubmissionParams): UseAttachFileSubmissionReturn => {
   const { locale } = useParams()
   // Get line maintenance ID from existing data
@@ -62,8 +64,8 @@ export const useAttachFileSubmission = ({
       onUpdateData?.()
       toast.success(`Attach file data prepared successfully`)
 
-      // Navigate to flight list page
-      // router.push(`/${locale}/flight/list`)
+      // Close the modal
+      closeModal?.()
     },
     onError: (error) => {
       console.error('❌ Failed to update attach files:', error)

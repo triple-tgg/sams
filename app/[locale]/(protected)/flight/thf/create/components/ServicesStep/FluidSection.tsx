@@ -12,6 +12,7 @@ import {
   Droplets, Fuel, Gauge, PlaneTakeoff, Truck, Wrench
 } from 'lucide-react'
 import { ServicesFormInputs } from './types'
+import { AircraftTypeFlags } from '@/lib/api/master/aircraft-types/getAircraftTypeById'
 import { CustomDateInput } from '@/components/ui/input-date/CustomDateInput'
 import { FieldError } from '@/components/ui/field-error'
 
@@ -94,6 +95,8 @@ interface FluidSectionProps {
   onAddCsdIdgVsfgSet: () => void
   onRemoveCsdIdgVsfgSet: (index: number) => void
   acType?: string
+  aircraftTypeFlags?: AircraftTypeFlags | null
+  isLoadingFlags?: boolean
 }
 
 export const FluidSection: React.FC<FluidSectionProps> = ({
@@ -103,10 +106,22 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
   onAddCsdIdgVsfgSet,
   onRemoveCsdIdgVsfgSet,
   acType,
+  aircraftTypeFlags,
+  isLoadingFlags,
 }) => {
   const servicingPerformed = form.watch('servicingPerformed')
   const engOilSets = form.watch('fluid.engOilSets')
   const csdIdgVsfgSets = form.watch('fluid.csdIdgVsfgSets')
+
+  // Compute max counts from flags (fallback to 4 if no flags)
+  const maxEngineOilSets = 4
+  const maxCsdSets = 4
+  const minEngineOilSets = aircraftTypeFlags ? aircraftTypeFlags.engineCount : 0
+  const minCsdSets = aircraftTypeFlags ? aircraftTypeFlags.csdCount : 0
+  const showHydGreen = aircraftTypeFlags ? aircraftTypeFlags.flagHydrolicGreen : true
+  const showHydBlue = aircraftTypeFlags ? aircraftTypeFlags.flagHydrolicBlue : true
+  const showHydYellow = aircraftTypeFlags ? aircraftTypeFlags.flagHydrolicYellow : true
+  const showApu = aircraftTypeFlags ? aircraftTypeFlags.flagApu : true
 
   return (
     <Card className="rounded-xl shadow-sm border-l-4 border-l-sky-500 border border-gray-200">
@@ -129,11 +144,9 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                   onCheckedChange={(value) => {
                     field.onChange(value)
                     if (field.value) {
-                      form.setValue('fluid.engOilSets', [])
-                      form.setValue('fluid.csdIdgVsfgSets', [])
+
                     } else {
-                      onAddEngineOilSet()
-                      onAddCsdIdgVsfgSet()
+
                     }
                   }}
                 />
@@ -149,134 +162,150 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
           <div className="space-y-6">
 
             {/* ── Engine Oil Sets ── */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <SectionHeader
-                  icon={<Gauge className="h-4 w-4" />}
-                  title="Engine Oil"
-                  count={engOilSets.length}
-                />
-                {engOilSets.length < 4 && (
-                  <AddItemButton onClick={onAddEngineOilSet} label="Add Set" />
+            {maxEngineOilSets > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <SectionHeader
+                    icon={<Gauge className="h-4 w-4" />}
+                    title="Engine Oil"
+                    count={engOilSets.length}
+                  />
+                  {engOilSets.length < maxEngineOilSets && (
+                    <AddItemButton onClick={onAddEngineOilSet} label="Add Set" />
+                  )}
+                </div>
+
+                {engOilSets.length === 0 && (
+                  <p className="text-xs text-muted-foreground italic">No engine oil sets added.</p>
                 )}
-              </div>
 
-              {engOilSets.length === 0 && (
-                <p className="text-xs text-muted-foreground italic">No engine oil sets added.</p>
-              )}
+                {/* Error message for engine oil sets */}
+                {form.formState.errors.fluid?.engOilSets?.message && (
+                  <p className="text-xs text-red-500 font-medium" data-error-field="fluid.engOilSets">
+                    {form.formState.errors.fluid.engOilSets.message}
+                  </p>
+                )}
 
-              <div className="space-y-2">
-                {engOilSets.map((_, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-3 bg-gray-50/80 rounded-lg px-3 py-2.5 group hover:bg-gray-100/80 transition-colors"
-                  >
-                    <Badge color="secondary" className="h-6 w-6 p-0 flex items-center justify-center text-xs font-semibold shrink-0">
-                      {index + 1}
-                    </Badge>
+                <div className="space-y-2">
+                  {engOilSets.map((_, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-3 bg-gray-50/80 rounded-lg px-3 py-2.5 group hover:bg-gray-100/80 transition-colors"
+                    >
+                      <Badge color="secondary" className="h-6 w-6 p-0 flex items-center justify-center text-xs font-semibold shrink-0">
+                        {index + 1}
+                      </Badge>
 
-                    <div className="flex-1 grid grid-cols-2 gap-3">
-                      <FormField
-                        control={form.control}
-                        name={`fluid.engOilSets.${index}.left`}
-                        render={({ field: { value, onChange, ...field } }) => (
-                          <FormItem className="space-y-0">
-                            <FormLabel className="text-xs text-muted-foreground">Left Engine</FormLabel>
-                            <FormControl>
-                              <NumberInput value={value} onChange={onChange} field={field} />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name={`fluid.engOilSets.${index}.right`}
-                        render={({ field: { value, onChange, ...field } }) => (
-                          <FormItem className="space-y-0">
-                            <FormLabel className="text-xs text-muted-foreground">Right Engine</FormLabel>
-                            <FormControl>
-                              <NumberInput value={value} onChange={onChange} field={field} />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
+                      <div className="flex-1 grid grid-cols-2 gap-3">
+                        <FormField
+                          control={form.control}
+                          name={`fluid.engOilSets.${index}.left`}
+                          render={({ field: { value, onChange, ...field } }) => (
+                            <FormItem className="space-y-0">
+                              <FormLabel className="text-xs text-muted-foreground">Left Engine</FormLabel>
+                              <FormControl>
+                                <NumberInput value={value} onChange={onChange} field={field} />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`fluid.engOilSets.${index}.right`}
+                          render={({ field: { value, onChange, ...field } }) => (
+                            <FormItem className="space-y-0">
+                              <FormLabel className="text-xs text-muted-foreground">Right Engine</FormLabel>
+                              <FormControl>
+                                <NumberInput value={value} onChange={onChange} field={field} />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      {engOilSets.length > minEngineOilSets && (
+                        <RemoveItemButton onClick={() => onRemoveEngineOilSet(index)} />
+                      )}
                     </div>
-
-                    {engOilSets.length > 1 && (
-                      <RemoveItemButton onClick={() => onRemoveEngineOilSet(index)} />
-                    )}
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* ── CSD/IDG/VSFG ── */}
-            <div className="space-y-3 pt-4 border-t border-dashed">
-              <div className="flex items-center justify-between">
-                <SectionHeader
-                  icon={<Gauge className="h-4 w-4" />}
-                  title="CSD/IDG/VSFG 1"
-                  count={csdIdgVsfgSets.length}
-                />
-                {csdIdgVsfgSets.length < 4 && (
-                  <AddItemButton onClick={onAddCsdIdgVsfgSet} label="Add Set" />
+            {maxCsdSets > 0 && (
+              <div className="space-y-3 pt-4 border-t border-dashed">
+                <div className="flex items-center justify-between">
+                  <SectionHeader
+                    icon={<Gauge className="h-4 w-4" />}
+                    title="CSD/IDG/VSFG"
+                    count={csdIdgVsfgSets.length}
+                  />
+                  {csdIdgVsfgSets.length < maxCsdSets && (
+                    <AddItemButton onClick={onAddCsdIdgVsfgSet} label="Add Set" />
+                  )}
+                </div>
+
+                {csdIdgVsfgSets.length === 0 && (
+                  <p className="text-xs text-muted-foreground italic">No CSD/IDG/VSFG sets added.</p>
                 )}
-              </div>
 
-              {csdIdgVsfgSets.length === 0 && (
-                <p className="text-xs text-muted-foreground italic">No CSD/IDG/VSFG sets added.</p>
-              )}
+                {/* Error message for CSD/IDG/VSFG sets */}
+                {form.formState.errors.fluid?.csdIdgVsfgSets?.message && (
+                  <p className="text-xs text-red-500 font-medium" data-error-field="fluid.csdIdgVsfgSets">
+                    {form.formState.errors.fluid.csdIdgVsfgSets.message}
+                  </p>
+                )}
 
-              <div className="space-y-2">
-                {csdIdgVsfgSets.map((_, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-3 bg-gray-50/80 rounded-lg px-3 py-2.5 group hover:bg-gray-100/80 transition-colors"
-                  >
-                    <Badge color="secondary" className="h-6 w-6 p-0 flex items-center justify-center text-xs font-semibold shrink-0">
-                      {index + 1}
-                    </Badge>
+                <div className="space-y-2">
+                  {csdIdgVsfgSets.map((_, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-3 bg-gray-50/80 rounded-lg px-3 py-2.5 group hover:bg-gray-100/80 transition-colors"
+                    >
+                      <Badge color="secondary" className="h-6 w-6 p-0 flex items-center justify-center text-xs font-semibold shrink-0">
+                        {index + 1}
+                      </Badge>
 
-                    <div className="flex-1">
-                      <FormField
-                        control={form.control}
-                        name={`fluid.csdIdgVsfgSets.${index}.quantity`}
-                        render={({ field: { value, onChange, ...field } }) => (
-                          <FormItem className="space-y-0">
-                            <FormLabel className="text-xs text-muted-foreground">Quantity</FormLabel>
-                            <FormControl>
-                              <NumberInput value={value} onChange={onChange} field={field} />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
+                      <div className="flex-1">
+                        <FormField
+                          control={form.control}
+                          name={`fluid.csdIdgVsfgSets.${index}.quantity`}
+                          render={({ field: { value, onChange, ...field } }) => (
+                            <FormItem className="space-y-0">
+                              <FormLabel className="text-xs text-muted-foreground">Quantity</FormLabel>
+                              <FormControl>
+                                <NumberInput value={value} onChange={onChange} field={field} />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      {csdIdgVsfgSets.length > minCsdSets && (
+                        <RemoveItemButton onClick={() => onRemoveCsdIdgVsfgSet(index)} />
+                      )}
                     </div>
-
-                    {csdIdgVsfgSets.length > 1 && (
-                      <RemoveItemButton onClick={() => onRemoveCsdIdgVsfgSet(index)} />
-                    )}
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* ── Hydraulic Oils ── */}
-            <div className="space-y-3 pt-4 border-t border-dashed">
-              <SectionHeader
-                icon={<Droplets className="h-4 w-4" />}
-                title="Hydraulic Oils"
-              />
+            {(showHydGreen || showHydBlue || showHydYellow) && (
+              <div className="space-y-3 pt-4 border-t border-dashed">
+                <SectionHeader
+                  icon={<Droplets className="h-4 w-4" />}
+                  title="Hydraulic Oils"
+                />
 
-              {!acType ? (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700 flex items-start gap-2">
-                  <span className="text-amber-500 mt-0.5">⚠</span>
-                  <span>Please fill in the <strong>Aircraft Type</strong> in the flight information to display Hydraulic oil fields.</span>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {/* Airbus (A-type): Blue, Green, Yellow */}
-                  {acType.toLowerCase().startsWith('a') && (
-                    <>
+                {isLoadingFlags ? (
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-500 animate-pulse">
+                    Loading hydraulic oil configuration...
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {showHydBlue && (
                       <FormField
                         control={form.control}
                         name="fluid.hydOilBlue"
@@ -290,6 +319,8 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                           </FormItem>
                         )}
                       />
+                    )}
+                    {showHydGreen && (
                       <FormField
                         control={form.control}
                         name="fluid.hydOilGreen"
@@ -303,6 +334,8 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                           </FormItem>
                         )}
                       />
+                    )}
+                    {showHydYellow && (
                       <FormField
                         control={form.control}
                         name="fluid.hydOilYellow"
@@ -316,89 +349,37 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                           </FormItem>
                         )}
                       />
-                    </>
-                  )}
-
-                  {/* Boeing (B-type): A, B, STBY */}
-                  {acType.toLowerCase().startsWith('b') && (
-                    <>
-                      <FormField
-                        control={form.control}
-                        name="fluid.hydOilA"
-                        render={({ field: { onChange, value, ...field } }) => (
-                          <FormItem className="space-y-1">
-                            <FormLabel className="text-xs text-muted-foreground">Hyd Oil A</FormLabel>
-                            <FormControl>
-                              <NumberInput value={value} onChange={onChange} field={field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="fluid.hydOilB"
-                        render={({ field: { onChange, value, ...field } }) => (
-                          <FormItem className="space-y-1">
-                            <FormLabel className="text-xs text-muted-foreground">Hyd Oil B</FormLabel>
-                            <FormControl>
-                              <NumberInput value={value} onChange={onChange} field={field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="fluid.hydOilSTBY"
-                        render={({ field: { onChange, value, ...field } }) => (
-                          <FormItem className="space-y-1">
-                            <FormLabel className="text-xs text-muted-foreground">Hyd Oil STBY</FormLabel>
-                            <FormControl>
-                              <NumberInput value={value} onChange={onChange} field={field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </>
-                  )}
-
-                  {/* Unknown type */}
-                  {!acType.toLowerCase().startsWith('a') && !acType.toLowerCase().startsWith('b') && (
-                    <div className="md:col-span-3 bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-500">
-                      <strong>Aircraft Type:</strong> {acType} — Hydraulic oil configuration not defined.
-                      <br />
-                      <span className="text-xs">Supported: "A" (Blue/Green/Yellow) or "B" (A/B/STBY)</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* ── APU Oil + Fuel (grouped 3-col) ── */}
             <div className="space-y-3 pt-4 border-t border-dashed">
               <SectionHeader
                 icon={<Fuel className="h-4 w-4" />}
-                title="APU Oil & Fuel"
+                title={showApu ? "APU Oil & Fuel" : "Fuel"}
               />
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {showApu && (
+                  <FormField
+                    control={form.control}
+                    name="fluid.apuOil"
+                    render={({ field: { value, onChange, ...field } }) => (
+                      <FormItem className="space-y-1">
+                        <FormLabel className="text-xs text-muted-foreground">APU Oil (Qty)</FormLabel>
+                        <FormControl>
+                          <NumberInput value={value} onChange={onChange} field={field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
                 <FormField
                   control={form.control}
-                  name="fluid.otherOil"
-                  render={({ field: { value, onChange, ...field } }) => (
-                    <FormItem className="space-y-1">
-                      <FormLabel className="text-xs text-muted-foreground">APU Oil (Qty)</FormLabel>
-                      <FormControl>
-                        <NumberInput value={value} onChange={onChange} field={field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="fluid.rampFuelKgs"
+                  name="fluid.rampFuel"
                   render={({ field: { value, onChange, ...field } }) => (
                     <FormItem className="space-y-1">
                       <FormLabel className="text-xs text-muted-foreground">Ramp Fuel (KGs)</FormLabel>
@@ -411,7 +392,7 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                 />
                 <FormField
                   control={form.control}
-                  name="fluid.actualUpliftLts"
+                  name="fluid.actualUplift"
                   render={({ field: { value, onChange, ...field } }) => (
                     <FormItem className="space-y-1">
                       <FormLabel className="text-xs text-muted-foreground">Actual Uplift (LTs)</FormLabel>

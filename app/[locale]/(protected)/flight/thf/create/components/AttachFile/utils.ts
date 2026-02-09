@@ -23,11 +23,11 @@ export const mapDataThfToAttachFileStep = (
 
   // Transform AttachFile to AttachFileOtherData format
   const attachFileOtherData: AttachFileOtherData[] = data?.responseData?.attachFilesOthers.map(file => ({
-    id: file.id,
-    storagePath: file.storagePath,
-    realName: file.realName,
-    fileType: file.fileType,
-    isDelete: file.isDelete
+    id: file.id || "",
+    storagePath: file.storagePath || "",
+    realName: file.realName || "",
+    fileType: file.fileType || "",
+    isDelete: file.isDelete || false
   }))
   console.log("mapApiDataToAttachFileForm(attachFileOtherData)", mapApiDataToAttachFileForm(attachFileOtherData))
   return mapApiDataToAttachFileForm(attachFileOtherData)
@@ -49,7 +49,7 @@ export const prepareAttachFileDataForApi = (
   return formData.attachFiles
     .filter(file => file.status === 'completed' && file.storagePath && file.realName)
     .map(file => ({
-      id: file.id,
+      id: file.id && !String(file.id).startsWith('uploaded-') ? file.id : null,
       storagePath: file.storagePath!,
       realName: file.realName!,
       fileType: file.fileType,

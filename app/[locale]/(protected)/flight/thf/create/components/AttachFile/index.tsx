@@ -48,7 +48,7 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
   loading,
   thfNumber,
 }) => {
-  const { goNext, goBack, onSave, setSubmitHandler, setIsSubmitting } = useStep()
+  const { goNext, goBack, onSave, setSubmitHandler, setIsSubmitting, closeModal } = useStep()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [fileErrors, setFileErrors] = useState<string[]>([])
@@ -99,6 +99,7 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
     onUpdateData: () => onSave({}),
     existingFlightData: initialData,
     lineMaintenanceId: lineMaintenanceId || null,
+    closeModal,
   })
 
   // Load initial data
@@ -116,8 +117,7 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
         const pendingFiles = files.filter(f => f.status === 'pending')
         if (pendingFiles.length > 0) {
           await uploadAllFiles()
-          // After upload, re-check and submit
-          return
+          // After upload completes, wait a tick for state to settle, then submit
         }
 
         // Submit via form validation → handleSubmit
@@ -327,7 +327,7 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
             {fileErrors.length > 0 && (
               <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
                 <div className="flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                  <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
                   <div className="flex-1">
                     <p className="text-sm font-medium text-red-800">File validation errors:</p>
                     <ul className="text-xs text-red-700 list-disc list-inside mt-1">
@@ -453,7 +453,7 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
         )}
 
         {/* Status Messages */}
-        {isSubmitError && submitError && (
+        {/* {isSubmitError && submitError && (
           <StatusMessages
             isError={true}
             errorTitle="Error Saving Files"
@@ -468,7 +468,7 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
             successTitle="Files Saved Successfully"
             successMessage="Your attach file data has been saved."
           />
-        )}
+        )} */}
       </form>
     </Form>
   )

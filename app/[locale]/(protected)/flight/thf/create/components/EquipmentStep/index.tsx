@@ -29,7 +29,7 @@ export default function EquipmentStep({
   lineMaintenanceId,
   infoData
 }: EquipmentStepProps) {
-  const { goNext, goBack, onSave } = useStep()
+  const { goNext, goBack, onSave, setSubmitHandler, setIsSubmitting } = useStep()
 
   // Memoize default values
   const memoizedDefaultValues = useMemo(() => getDefaultValues(), [])
@@ -99,6 +99,29 @@ export default function EquipmentStep({
     }
   }, [transformedData, form, memoizedDefaultValues])
 
+  // Register submit handler for modal wrapper's "Next Step" button
+  useEffect(() => {
+    if (setSubmitHandler) {
+      setSubmitHandler(() => {
+        form.handleSubmit(
+          (data) => {
+            handleSubmit(data)
+          },
+          (errors) => {
+            console.log('Equipment validation errors:', errors)
+          }
+        )()
+      })
+    }
+  }, [setSubmitHandler, form, handleSubmit])
+
+  // Sync submitting state with modal wrapper
+  useEffect(() => {
+    if (setIsSubmitting) {
+      setIsSubmitting(isSubmitting)
+    }
+  }, [isSubmitting, setIsSubmitting])
+
   // Computed states
   const hasLineMaintenanceId = !!lineMaintenanceId
   const hasEquipments = equipments && equipments.length > 0
@@ -117,6 +140,8 @@ export default function EquipmentStep({
             control={form.control}
             watch={form.watch}
             setValue={form.setValue}
+            register={form.register}
+            errors={form.formState.errors}
             onAddEquipment={handleAddEquipment}
             onRemoveEquipment={handleRemoveEquipment}
             canAddMore={canAddMore}

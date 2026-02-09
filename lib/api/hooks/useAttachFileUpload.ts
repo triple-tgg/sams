@@ -62,14 +62,14 @@ export const useAttachFileUpload = (form: UseFormReturn<AttachFileFormInputs>, i
   // sync UI state -> form (ONLY serializable fields)
   const syncForm = (uiFiles: AttachFileData[]) => {
     console.log("uiFiles:", uiFiles)
-    // const payload = makeFormPayload(uiFiles);
-    // console.log("payload:", uiFiles)
+    const payload = makeFormPayload(uiFiles);
+    console.log("payload:", payload)
     // don't pass File objects into form
-    // form.setValue('attachFiles', payload, {
-    //   shouldValidate: true,
-    //   shouldDirty: true,
-    //   shouldTouch: true,
-    // });
+    form.setValue('attachFiles', payload, {
+      shouldValidate: true,
+      shouldDirty: true,
+      shouldTouch: true,
+    });
   };
 
   // Add files (keep File in UI state only)
@@ -194,12 +194,11 @@ export const useAttachFileUpload = (form: UseFormReturn<AttachFileFormInputs>, i
     }
   }, [files, uploadFile])
 
-  // Get completed files data for API submission
   const getCompletedFilesData = useCallback((): AttachFileOtherData[] => {
     return files
       .filter(file => file.status === 'completed' && file.storagePath && file.realName)
       .map(file => ({
-        id: file.id,
+        id: file.id && !String(file.id).startsWith('uploaded-') ? file.id : null,
         storagePath: file.storagePath!,
         realName: file.realName!,
         fileType: file.fileType,

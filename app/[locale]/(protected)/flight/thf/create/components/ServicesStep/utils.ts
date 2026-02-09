@@ -33,7 +33,9 @@ export const getDefaultValues = (checkTypes?: AircraftCheckType[]): ServicesForm
       hydOilA: 0,
       hydOilB: 0,
       hydOilSTBY: 0,
-      otherOil: 0,
+      apuOil: 0,
+      rampFuel: 0,
+      actualUplift: 0,
     },
     addPersonnels: false,
     personnel: [],
@@ -41,6 +43,7 @@ export const getDefaultValues = (checkTypes?: AircraftCheckType[]): ServicesForm
     // flightDeckInfo: [],
     aircraftTowing: false,
     aircraftTowingInfo: [],
+    marshallingServicePerFlight: 0,
   }
 }
 
@@ -88,7 +91,7 @@ export const transformFluidData = (fluidData: FluidFormData) => {
     hydOilA: fluidData.hydOilA || fluidData.hydOilBlue || null,
     hydOilB: fluidData.hydOilB || fluidData.hydOilGreen || null,
     hydOilSTBY: fluidData.hydOilSTBY || fluidData.hydOilYellow || null,
-    otherOil: fluidData.otherOil || null,
+    apuOil: fluidData.apuOil || null,
   }
 }
 export const transformFluidDataToAPI = (fluidData: FluidFormData) => {
@@ -105,7 +108,7 @@ export const transformFluidDataToAPI = (fluidData: FluidFormData) => {
     hydOilA: fluidData.hydOilA || fluidData.hydOilBlue || null,
     hydOilB: fluidData.hydOilB || fluidData.hydOilGreen || null,
     hydOilSTBY: fluidData.hydOilSTBY || fluidData.hydOilYellow || null,
-    otherOil: fluidData.otherOil || null,
+    apuOil: fluidData.apuOil || null,
   }
 }
 export const transformServicesDataToAPI = (data: ServicesFormInputs) => {
@@ -183,11 +186,11 @@ export const validateTimeRange = (from: string, to: string): boolean => {
 export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse | null): ServicesFormInputs | null => {
   if (!queryData?.responseData) return null;
 
-  const { aircraft, lineMaintenance } = queryData.responseData;
+  const { aircraft, lineMaintenance, marshalling, rampFuel, actualUplift } = queryData.responseData;
 
   // Map aircraft checks
-  const aircraftChecks = aircraft?.aircraftCheckType?.length > 0
-    ? aircraft.aircraftCheckType.map(check => ({
+  const aircraftChecks = (aircraft?.aircraftCheckType?.length ?? 0) > 0
+    ? aircraft.aircraftCheckType!.map(check => ({
       maintenanceTypes: check.checkType || "",
       maintenanceSubTypes: Array.isArray(check.checkSubType) ? check.checkSubType : [],
       laeMH: "",
@@ -216,15 +219,12 @@ export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse |
     right: oil.rightOil || 0,
   })) || [];
 
-  const csdIdgVsfgSets = fluidServicing?.csdIdgVsfg?.map(oil => ({
-    quantity: oil.leftOil || 0,
+  const csdIdgVsfgSets = fluidServicing?.csdOil?.map((qty: number) => ({
+    quantity: qty || 0,
   })) || [];
 
   const fluid = {
-    fluidName: fluidServicing?.fluidName ? {
-      value: fluidServicing.fluidName,
-      label: fluidServicing.fluidName
-    } : null,
+    fluidName: null,
     engOilSets,
     csdIdgVsfgSets,
     hydOilBlue: fluidServicing?.hydraulicA || 0,
@@ -235,7 +235,9 @@ export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse |
     hydOilB: fluidServicing?.hydraulicB || 0,
     hydOilSTBY: fluidServicing?.hydraulicSTBY || 0,
 
-    otherOil: fluidServicing?.otherOil || 0,
+    apuOil: 0,
+    rampFuel: rampFuel || 0,
+    actualUplift: actualUplift || 0,
   };
 
   // Map personnel
@@ -253,8 +255,8 @@ export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse |
 
 
   const aircraftTowingInfo = aircraft?.aircraftTowing?.map(towing => ({
-    onDate: formatFromPicker(towing.onDate) || "",
-    offDate: formatFromPicker(towing.offDate) || "",
+    onDate: formatFromPicker(towing.onDate || "") || "",
+    offDate: formatFromPicker(towing.offDate || "") || "",
     onTime: towing.onTime || "",
     offTime: towing.offTime || "",
     bayFrom: towing.bayFrom || "", // API field is bayFrom, mapping to bayFrom
@@ -273,5 +275,6 @@ export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse |
     // flightDeckInfo: lineMaintenance?.isFlightdeck ? flightDeckInfo : [],
     aircraftTowing: lineMaintenance?.isAircraftTowing || false,
     aircraftTowingInfo: lineMaintenance?.isAircraftTowing ? aircraftTowingInfo : [],
+    marshallingServicePerFlight: marshalling || 0,
   };
 };

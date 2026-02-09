@@ -1,6 +1,7 @@
 import { convertDateToBackend, formatFromPicker } from '@/lib/utils/formatPicker'
 import { PartsToolsFormInputs, PartToolItem, defaultPartToolItem } from './types'
 import { LineMaintenanceThfResponse } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
+import { PutPartsToolsRequestItem } from '@/lib/api/lineMaintenances/parts-tools/putPartsTools'
 
 /**
  * Get default values for the parts/tools form
@@ -48,11 +49,10 @@ export const mapDataThfToPartsToolsStep = (data: LineMaintenanceThfResponse): Pa
 /**
  * Transform form data to API format
  */
-export const transformPartsToolsForApi = (formData: PartsToolsFormInputs): PartToolItem[] => {
+export const transformPartsToolsForApi = (formData: PartsToolsFormInputs): PutPartsToolsRequestItem[] => {
   return formData.partsTools.map(item => ({
     isSamsTool: item.isSamsTool,
     isLoan: item.isLoan,
-    loanRemark: item.loanRemark.trim(),
     pathToolName: item.pathToolName.trim(),
     pathToolNo: item.pathToolNo.trim(),
     serialNoIn: item.serialNoIn.trim(),
@@ -60,9 +60,11 @@ export const transformPartsToolsForApi = (formData: PartsToolsFormInputs): PartT
     qty: item.qty,
     equipmentNo: item.equipmentNo.trim(),
     hrs: item.hrs,
-    formDate: item.formDate ? convertDateToBackend(item.formDate) : null,
-    toDate: item.toDate ? convertDateToBackend(item.toDate) : null,
-    formTime: item.formTime,
-    toTime: item.toTime,
+    formDate: item.formDate ? convertDateToBackend(item.formDate) : '',
+    toDate: item.toDate ? convertDateToBackend(item.toDate) : '',
+    formTime: item.formTime || '',
+    toTime: item.toTime || '',
+    loanRemark: item.loanRemark.trim(),
   }))
 }
+

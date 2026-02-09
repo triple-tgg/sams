@@ -50,6 +50,14 @@ export interface ContractPricingDataRequest {
     materialHandlingFee: number;
 }
 
+// Interface for personnel in request
+export interface ContractPersonnelRequest {
+    title: string;
+    name: string;
+    phoneNo: string;
+    email: string;
+}
+
 // Interface for contract upsert request
 export interface ContractUpsertRequest {
     contractId: number;
@@ -65,6 +73,7 @@ export interface ContractUpsertRequest {
     attachContractList: ContractAttachmentRequest | null;
     pricingDataList: ContractPricingDataRequest[];
     userName: string;
+    personnelList: ContractPersonnelRequest[];
 }
 
 // Interface for upsert response data

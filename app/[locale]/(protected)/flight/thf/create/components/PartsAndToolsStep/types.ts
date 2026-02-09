@@ -1,7 +1,6 @@
-// Types for PartsAndTools Step
-
 import { dateTimeUtils } from "@/lib/dayjs"
 import { formatFromPicker } from "@/lib/utils/formatPicker"
+import dayjs from "dayjs"
 
 export interface PartsToolsFormInputs {
   partsTools: PartToolItem[]
@@ -43,8 +42,8 @@ export const defaultPartToolItem: PartToolItem = {
   hrs: 0,
   formDate: formatFromPicker(dateTimeUtils.getCurrentDate()),
   toDate: formatFromPicker(dateTimeUtils.getCurrentDate()),
-  formTime: "",
-  toTime: null,
+  formTime: dayjs().format('HH:mm'),
+  toTime: dayjs().format('HH:mm'),
 }
 
 // Response interface for PUT API

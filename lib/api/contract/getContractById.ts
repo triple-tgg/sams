@@ -113,6 +113,16 @@ export interface ContractDetailPricingData {
     updatedBy: string | null;
 }
 
+// Interface for personnel in contract detail response
+export interface ContractDetailPersonnel {
+    id: string;
+    contractId: number;
+    title: string;
+    name: string;
+    phoneNo: string;
+    email: string;
+}
+
 // Interface for contract detail response data
 export interface ContractDetail {
     id: number;
@@ -128,6 +138,7 @@ export interface ContractDetail {
     attachContractObj: ContractDetailAttachmentObj | null;
     pricingDataList: ContractDetailPricingData[];
     contractTypeObj: ContractDetailContractTypeObj;
+    personnelList: ContractDetailPersonnel[] | null;
 }
 
 // Interface for get contract by ID API response

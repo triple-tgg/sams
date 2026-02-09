@@ -4,190 +4,264 @@ export interface LineMaintenanceThfParams {
   flightInfosId: number | string | null;
 }
 
-export interface StaffMember {
+// ── Base Objects ──
+
+export interface CodeObject {
   id: number;
-  code: string;
-  name: string;
-  staffsType: string;
-  staffTypeCode: string;
-  staffTypeId: string;
+  code: string | null;
+  name: string | null;
+  description: string | null;
+  isdelete: boolean | null;
+  createddate: string | null;
+  createdby: string | null;
+  updateddate: string | null;
+  updatedby: string | null;
+}
+
+export interface AirlineCodeObject extends CodeObject {
+  colorForeground: string | null;
+  colorBackground: string | null;
+}
+
+export interface AcTypeCodeObject {
+  id: number;
+  code: string | null;
+  name: string | null;
+  modelName: string | null;
+  modelSubName: string | null;
+  classicOrNeo: string | null;
+  flagEnging1: boolean | null;
+  flagEnging2: boolean | null;
+  flagEnging3: boolean | null;
+  flagEnging4: boolean | null;
+  flagCsd1: boolean | null;
+  flagCsd2: boolean | null;
+  flagCsd3: boolean | null;
+  flagCsd4: boolean | null;
+  flagHydrolicGreen: boolean | null;
+  flagHydrolicBlue: boolean | null;
+  flagHydrolicYellow: boolean | null;
+  flagApu: boolean | null;
+  isDelete: boolean | null;
+  createdDate: string | null;
+  createdBy: string | null;
+  updatedDate: string | null;
+  updatedBy: string | null;
+}
+
+export interface MaintenanceStatus {
+  id: number;
+  code: string | null;
+  name: string | null;
+  description: string | null;
+  isdelete: boolean | null;
+  createddate: string | null;
+  createdby: string | null;
+  updateddate: string | null;
+  updatedby: string | null;
+}
+
+export interface StaffDisplay {
+  id: number;
+  code: string | null;
+  name: string | null;
+  staffstypeid: number | null;
+  isdelete: boolean | null;
+  createddate: string | null;
+  createdby: string | null;
+  updateddate: string | null;
+  updatedby: string | null;
+  displayName: string | null;
+}
+
+// ── Flight ──
+
+export interface Flight {
+  flightsId: number | null;
+  flightInfosId: number | null;
+  airlineObj: AirlineCodeObject;
+  stationObj: CodeObject;
+  acReg: string | null;
+  arrivalFlightNo: string | null;
+  arrivalDate: string | null;
+  arrivalStatime: string | null;
+  arrivalAtaTime: string | null;
+  departureFlightNo: string | null;
+  departureDate: string | null;
+  departureStdTime: string | null;
+  departureAtdtime: string | null;
+  bayNo: string | null;
+  statusObj: CodeObject;
+  note: string | null;
+  datasource: string | null;
+  isDelete: boolean | null;
+  createdDate: string | null;
+  createdBy: string | null;
+  updatedDate: string | null;
+  updatedBy: string | null;
+  isFiles: boolean | null;
+  isLlineMaintenances: boolean | null;
+  state: string | null;
+  routeForm: string | null;
+  routeTo: string | null;
+  acTypeObj: AcTypeCodeObject | null;
+  filePath: string | null;
+  thfNumber: string | null;
+  csList: StaffDisplay[] | null;
+  mechList: StaffDisplay[] | null;
+  etaDate: string | null;
+  etaTime: string | null;
+  maintenanceStatusObj: MaintenanceStatus | null;
+}
+
+// ── Line Maintenance ──
+
+export interface LineMaintenance {
+  id: number;
+  flightInfosId: number | null;
+  flightsId: number | null;
+  thfNumber: string | null;
+  isPersonnels: boolean | null;
+  isAdditionalDefect: boolean | null;
+  isFluidServicing: boolean | null;
+  isFlightdeck: boolean | null;
+  isAircraftTowing: boolean | null;
+}
+
+// ── Aircraft Data ──
+
+export interface CheckType {
+  checkType: string | null;
+  checkSubType: string[] | null;
+}
+
+export interface StaffData {
+  id: number;
+  code: string | null;
+  name: string | null;
+  staffTypeId: number | null;
+  staffTypeCode: string | null;
 }
 
 export interface Personnel {
-  staff: StaffMember;
-  formDate: string;
-  toDate: string;
-  formTime: string;
-  toTime: string;
+  staff: StaffData;
+  formDate: string | null;
+  toDate: string | null;
+  formTime: string | null;
+  toTime: string | null;
   note: string | null;
 }
 
 export interface AdditionalDefectAttachFile {
-  id?: string | null
-  additionalDefectId: string;
-  storagePath: string;
-  realName: string;
-  isDelete: boolean
-  fileType: string;
+  id: string | null;
+  additionalDefectId: string | null;
+  storagePath: string | null;
+  realName: string | null;
+  fileType: string | null;
+  isDelete: boolean | null;
 }
 
 export interface AdditionalDefect {
-  details: string;
-  maintenancePerformed: string;
-  ataChapter: string;
-  lae: number;
-  mech: number;
-  attachFiles: AdditionalDefectAttachFile | null; // Changed to array type
+  details: string | null;
+  maintenancePerformed: string | null;
+  ataChapter: string | null;
+  lae: number | null;
+  mech: number | null;
+  attachFiles: AdditionalDefectAttachFile | null;
+  acDefect: string | null;
+  action: string | null;
+  technicalDelay: string | null;
 }
 
 export interface EngOil {
-  leftOil: number;
-  rightOil: number;
+  leftOil: number | null;
+  rightOil: number | null;
 }
 
 export interface FluidServicing {
-  fluidName: string;
-  hydraulicA: number | null; // Changed from optional to explicit null
-  hydraulicB: number | null; // Changed from optional to explicit null
-  hydraulicSTBY: number | null; // Changed from optional to explicit null
-  engOil: EngOil[];
-  csdIdgVsfg: EngOil[];
-  otherOil: number | null; // Changed from optional to explicit null
+  hydraulicA: number | null;
+  hydraulicB: number | null;
+  hydraulicSTBY: number | null;
+  engOil: EngOil[] | null;
+  csdOil: number[] | null;
 }
 
 export interface AircraftTowing {
-  bayFrom: string | null; // Changed from optional to explicit null
-  bayTo: string | null; // Changed from optional to explicit null
-  onDate: string;
-  offDate: string;
-  onTime: string;
-  offTime: string;
-}
-
-export interface CheckType {
-  checkType: string;
-  checkSubType: any[]; // Changed from string[] to any[] since it's empty array in response
+  bayFrom: string | null;
+  bayTo: string | null;
+  onDate: string | null;
+  offDate: string | null;
+  onTime: string | null;
+  offTime: string | null;
 }
 
 export interface Aircraft {
-  aircraftCheckType: CheckType[];
-  personnels: Personnel[];
-  additionalDefect: AdditionalDefect[];
-  fluidServicing: FluidServicing;
-  aircraftTowing: AircraftTowing[];
+  aircraftCheckType: CheckType[] | null;
+  personnels: Personnel[] | null;
+  additionalDefect: AdditionalDefect[] | null;
+  fluidServicing: FluidServicing | null;
+  aircraftTowing: AircraftTowing[] | null;
 }
 
+// ── Equipment & Parts ──
+
 export interface Equipment {
-  equipmentName: string;
-  hrs: number;
-  svc: number;
-  formDate: string;
-  formTime: string;
-  toDate: string | null; // Changed from optional to explicit null
-  toTime: string | null; // Changed from optional to explicit null
-  isLoan: boolean;
-  isSamsTool: boolean;
+  isSamsTool: boolean | null;
+  isLoan: boolean | null;
+  equipmentName: string | null;
+  svc: number | null;
+  formDate: string | null;
+  toDate: string | null;
+  formTime: string | null;
+  toTime: string | null;
+  hrs: number | null;
+  loanRemark: string | null;
 }
 
 export interface PartsTool {
-  isSamsTool: boolean;
-  isLoan: boolean;
-  pathToolName: string;
-  pathToolNo: string;
-  serialNoIn: string;
-  serialNoOut: string;
-  qty: number;
-  equipmentNo: string;
-  hrs: number;
-  formDate: string | null; // Changed from optional to explicit null
-  toDate: string | null; // Changed from optional to explicit null
-  formTime: string | null; // Changed from optional to explicit null
-  toTime: string | null; // Changed from optional to explicit null
+  isSamsTool: boolean | null;
+  isLoan: boolean | null;
+  pathToolName: string | null;
+  pathToolNo: string | null;
+  serialNoIn: string | null;
+  serialNoOut: string | null;
+  qty: number | null;
+  equipmentNo: string | null;
+  hrs: number | null;
+  formDate: string | null;
+  toDate: string | null;
+  formTime: string | null;
+  toTime: string | null;
+  loanRemark: string | null;
 }
 
 export interface AttachFile {
-  id: string;
-  additionalDefectId: string;
-  storagePath: string;
-  realName: string;
-  fileType: string;
-  isDelete: boolean;
+  id: string | null;
+  additionalDefectId: string | null;
+  storagePath: string | null;
+  realName: string | null;
+  fileType: string | null;
+  isDelete: boolean | null;
 }
 
-export interface CodeObject {
-  id: number;
-  code: string;
-  name: string;
-  description: string;
-  isdelete: boolean;
-  createddate: string;
-  createdby: string;
-  updateddate: string;
-  updatedby: string;
-}
-
-export interface Flight {
-  flightsId: number; // Changed from id to flightsId
-  flightInfosId: number | null; // Added this field
-  airlineObj: CodeObject;
-  stationObj: CodeObject;
-  acReg: string;
-  acTypeObj?: CodeObject; // Made optional since it's not in response
-  arrivalFlightNo: string;
-  arrivalDate: string;
-  arrivalStatime: string;
-  arrivalAtaTime: string;
-  departureFlightNo: string;
-  departureDate?: string | null; // Made explicitly nullable
-  departureStdTime?: string | null; // Made explicitly nullable
-  departureAtdtime?: string | null; // Made explicitly nullable
-  bayNo: string;
-  statusObj: CodeObject;
-  note: string;
-  datasource: string;
-  isDelete: boolean;
-  createdDate: string;
-  createdBy: string;
-  updatedDate: string;
-  updatedBy: string;
-  isFiles: boolean;
-  isLlineMaintenances: boolean;
-  state: string;
-  routeForm?: string | null; // Fixed typo from routeFrom
-  routeTo?: string | null; // Made explicitly nullable
-  acTypeId?: number | null; // Added this field from response
-  userName: string;
-  csIdList: number[] | null;
-  mechIdList: number[] | null;
-  csList: number[] | null;
-  mechList: number[] | null;
-}
-
-export interface LineMaintenance {
-  id: number;
-  flightInfosId: number; // Changed from flightSid
-  flightsId: number; // Added this field
-  thfNumber: string;
-  isPersonnels: boolean;
-  isAdditionalDefect: boolean;
-  isFluidServicing: boolean;
-  isFlightdeck: boolean;
-  isAircraftTowing: boolean;
-}
+// ── Top-level Response ──
 
 export interface LineMaintenanceThfData {
   flight: Flight;
-  lineMaintenance: LineMaintenance;
+  lineMaintenance: LineMaintenance | null;
   aircraft: Aircraft;
-  equipment: Equipment[];
-  partsTool: PartsTool[];
-  attachFilesOthers: AttachFile[];
+  equipment: Equipment[] | null;
+  partsTool: PartsTool[] | null;
+  attachFilesOthers: AttachFile[] | null;
+  marshalling: number | null;
+  rampFuel: number | null;
+  actualUplift: number | null;
 }
 
 export interface LineMaintenanceThfResponse {
-  message: string;
+  message: string | null;
   responseData: LineMaintenanceThfData;
-  error: string;
+  error: string | null;
 }
 
 export const getlineMaintenancesThfByFlightId = async (
@@ -201,3 +275,5 @@ export const getlineMaintenancesThfByFlightId = async (
     throw error;
   }
 };
+
+

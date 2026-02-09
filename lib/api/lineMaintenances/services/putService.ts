@@ -29,7 +29,10 @@ export interface AdditionalDefect {
   ataChapter: string;
   lae: number;
   mech: number;
-  attachFiles?: AttachFiles;
+  attachFiles?: AttachFiles[] | null;
+  acDefect?: string;
+  action?: string;
+  technicalDelay?: string;
 }
 
 // Interface for engine oil
@@ -40,13 +43,12 @@ export interface EngOil {
 
 // Interface for fluid servicing
 export interface FluidServicing {
-  fluidName: string;
   hydraulicA: number;
   hydraulicB: number;
   hydraulicSTBY: number;
   engOil: EngOil[];
-  csdIdgVsfg: EngOil[];
-  otherOil: number;
+  csdOil: number[];
+  apuOil: number;
 }
 
 // Interface for aircraft towing
@@ -61,10 +63,10 @@ export interface AircraftTowing {
 // Interface for aircraft data
 export interface AircraftData {
   aircraftCheckType: AircraftCheckType[];
-  personnels?: Personnel[];
-  additionalDefect?: AdditionalDefect[];
+  personnels?: Personnel[] | null;
+  additionalDefect?: AdditionalDefect[] | null;
   fluidServicing?: FluidServicing;
-  aircraftTowing?: AircraftTowing[];
+  aircraftTowing?: AircraftTowing[] | null;
 }
 
 // Interface for service request
@@ -75,6 +77,9 @@ export interface ServiceRequest {
   isFlightdeck: boolean;
   isAircraftTowing: boolean;
   aircraft: AircraftData;
+  marshalling: number;
+  rampFuel: number;
+  actualUplift: number;
 }
 
 // Interface for service response
@@ -131,9 +136,6 @@ export const putService = async (
 
 /**
  * Helper function to create a service request from form data
- * @param formData - Form data from Services Step
- * @param options - Additional options for data transformation
- * @returns ServiceRequest - Formatted service request data
  */
 // Helper function to safely parse number values
 const safeParseFloat = (value: any): number => {
@@ -142,82 +144,37 @@ const safeParseFloat = (value: any): number => {
   return isNaN(parsed) ? 0 : parsed;
 };
 
-// Helper function to safely parse integer values
-const safeParseInt = (value: any): number => {
-  if (value === null || value === undefined || value === '') return 0;
-  const parsed = parseInt(value, 10);
-  return isNaN(parsed) ? 0 : parsed;
-};
-
 // Helper function to create fluid servicing data
 const createFluidServicing = (fluidData: any): FluidServicing => {
-  const fluidType = fluidData?.fluidName?.value || "";
+  // Hydraulic oils
+  const hydraulicA = safeParseFloat(fluidData.hydOilA || fluidData.hydOilBlue);
+  const hydraulicB = safeParseFloat(fluidData.hydOilB || fluidData.hydOilGreen);
+  const hydraulicSTBY = safeParseFloat(fluidData.hydOilSTBY || fluidData.hydOilYellow);
 
-  // Base values calculation (only if needed)
-  const baseHydraulicA = safeParseFloat(fluidData.hydOilA || fluidData.hydOilBlue);
-  const baseHydraulicB = safeParseFloat(fluidData.hydOilB || fluidData.hydOilGreen);
-  const baseHydraulicSTBY = safeParseFloat(fluidData.hydOilSTBY || fluidData.hydOilYellow);
-  const baseOtherOil = safeParseFloat(fluidData.otherOil);
-
-  console.log("createFluidServicing", { fluidData, baseHydraulicA, baseHydraulicB, baseHydraulicSTBY, baseOtherOil });
-  // Create engine oil array only if needed
-  const createEngOilArray = () => (fluidData.engOilSets || []).map((oilSet: any) => ({
+  // Engine oil array
+  const engOil: EngOil[] = (fluidData.engOilSets || []).map((oilSet: any) => ({
     leftOil: safeParseFloat(oilSet.left || oilSet.leftOil),
     rightOil: safeParseFloat(oilSet.right || oilSet.rightOil)
   }));
 
-  // Create CSD/IDG/VSFG array from quantity sets
-  const createCsdIdgVsfgArray = () => (fluidData.csdIdgVsfgSets || []).map((set: any) => ({
-    leftOil: safeParseFloat(set.quantity),
-    rightOil: 0
-  }));
+  // CSD oil as number array (quantity values)
+  const csdOil: number[] = (fluidData.csdIdgVsfgSets || []).map((set: any) =>
+    safeParseFloat(set.quantity)
+  );
 
-  // Apply conditional logic based on fluid type for optimal performance
-  switch (fluidType) {
-    case 'ENG Oil':
-      return {
-        fluidName: fluidType,
-        hydraulicA: 0,
-        hydraulicB: 0,
-        hydraulicSTBY: 0,
-        engOil: createEngOilArray(),
-        csdIdgVsfg: createCsdIdgVsfgArray(),
-        otherOil: 0
-      };
+  // APU oil
+  const apuOil = safeParseFloat(fluidData.apuOil);
 
-    case 'Hydraulic':
-      return {
-        fluidName: fluidType,
-        hydraulicA: baseHydraulicA,
-        hydraulicB: baseHydraulicB,
-        hydraulicSTBY: baseHydraulicSTBY,
-        engOil: [],
-        csdIdgVsfg: [],
-        otherOil: 0
-      };
+  console.log("createFluidServicing", { fluidData, hydraulicA, hydraulicB, hydraulicSTBY, engOil, csdOil, apuOil });
 
-    case 'APU Oil':
-      return {
-        fluidName: fluidType,
-        hydraulicA: 0,
-        hydraulicB: 0,
-        hydraulicSTBY: 0,
-        engOil: [],
-        csdIdgVsfg: [],
-        otherOil: baseOtherOil
-      };
-
-    default:
-      return {
-        fluidName: fluidType,
-        hydraulicA: baseHydraulicA,
-        hydraulicB: baseHydraulicB,
-        hydraulicSTBY: baseHydraulicSTBY,
-        engOil: createEngOilArray(),
-        csdIdgVsfg: createCsdIdgVsfgArray(),
-        otherOil: baseOtherOil
-      };
-  }
+  return {
+    hydraulicA,
+    hydraulicB,
+    hydraulicSTBY,
+    engOil,
+    csdOil,
+    apuOil,
+  };
 };
 
 export const createServiceRequestFromForm = (
@@ -243,6 +200,12 @@ export const createServiceRequestFromForm = (
     isFluidServicing: options.enableFluidServicing ?? formData.servicingPerformed ?? false,
     isFlightdeck: options.enableFlightdeck ?? formData.flightDeck ?? false,
     isAircraftTowing: options.enableAircraftTowing ?? formData.aircraftTowing ?? false,
+
+    // Top-level fields
+    marshalling: safeParseFloat(formData.marshallingServicePerFlight),
+    rampFuel: safeParseFloat(formData.fluid?.rampFuel),
+    actualUplift: safeParseFloat(formData.fluid?.actualUplift),
+
     aircraft: {
       // Always include aircraft checks (required)
       aircraftCheckType: (formData.aircraftChecks || []).map((check: any) => ({
@@ -250,9 +213,9 @@ export const createServiceRequestFromForm = (
         checkSubType: check.maintenanceSubTypes || []
       })),
 
-      // Conditionally include other sections for better performance
-      ...(shouldIncludePersonnels && {
-        personnels: formData.personnel.map((person: any) => ({
+      // Conditionally include other sections
+      personnels: shouldIncludePersonnels
+        ? formData.personnel.map((person: any) => ({
           staffId: person.staffId || "",
           formTime: person.formTime || "",
           formDate: person.formDate ? convertDateToBackend(person.formDate) : "",
@@ -261,34 +224,28 @@ export const createServiceRequestFromForm = (
           staffTypeId: person.type ? Number(person.type) : undefined,
           note: person.remark || ""
         }))
-      }),
+        : null,
 
-      ...(shouldIncludeDefects && {
-        additionalDefect: formData.additionalDefects.map((defect: any) => ({
+      additionalDefect: shouldIncludeDefects
+        ? formData.additionalDefects.map((defect: any) => ({
           details: defect.defect || "",
           maintenancePerformed: defect.maintenancePerformed || "",
           ataChapter: defect.ataChapter || "",
           lae: safeParseFloat(defect.laeMH),
           mech: safeParseFloat(defect.mechMH),
-          attachFiles: defect?.attachFiles
-          // ...((defect.attachFiles?.length > 0 || defect?.attachFiles?.storagePath) && {
-          //   attachFiles: {
-          //     id: defect.attachFiles.id,
-          //     isDelete: defect.attachFiles.isDelete,
-          //     storagePath: defect.attachFiles.storagePath || defect?.attachFiles,
-          //     realName: defect.attachFiles.realName || "",
-          //     fileType: "service"
-          //   }
-          // })
+          attachFiles: defect?.attachFiles || null,
+          acDefect: defect.acDefect || "",
+          action: defect.action || "",
+          technicalDelay: defect.technicalDelay || "",
         }))
-      }),
+        : null,
 
       ...(shouldIncludeFluid && {
         fluidServicing: createFluidServicing(formData.fluid)
       }),
 
-      ...(shouldIncludeTowing && {
-        aircraftTowing: formData.aircraftTowingInfo.map((towing: any) => ({
+      aircraftTowing: shouldIncludeTowing
+        ? formData.aircraftTowingInfo.map((towing: any) => ({
           aircraftDate: towing.aircraftDate ? convertDateToBackend(towing.aircraftDate) : "",
           onDate: towing.onDate ? convertDateToBackend(towing.onDate) : "",
           onTime: towing.onTime || "",
@@ -297,7 +254,7 @@ export const createServiceRequestFromForm = (
           ...(towing.bayFrom && { bayFrom: towing.bayFrom }),
           ...(towing.bayTo && { bayTo: towing.bayTo })
         }))
-      })
+        : null
     }
   };
 };

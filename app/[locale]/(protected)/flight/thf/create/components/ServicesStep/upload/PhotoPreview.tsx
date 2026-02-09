@@ -32,11 +32,11 @@ export const PhotoPreview: React.FC<{
 
       <div className="relative flex items-center justify-between bg-green-50 border border-green-200 rounded-md p-3">
         <div className="flex items-center gap-3 flex-1 pr-8">
-          <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+          <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
           <div className="flex-1 min-w-0">
             <div className="text-sm font-medium text-green-800 truncate">{file.realName}</div>
             <div className="text-xs text-green-600 truncate">
-              <a href={file.storagePath} target="_blank" rel="noopener noreferrer" className="hover:underline">
+              <a href={file.storagePath || ''} target="_blank" rel="noopener noreferrer" className="hover:underline">
                 {file.storagePath}
               </a>
             </div>
@@ -49,7 +49,7 @@ export const PhotoPreview: React.FC<{
           size="icon"
           color="destructive"
           onClick={() => onRemove(file)}
-          className="absolute top-2 right-2 h-6 w-6 flex-shrink-0"
+          className="absolute top-2 right-2 h-6 w-6 shrink-0"
           title={`Remove ${file.realName}`}
         >
           <X className="h-3 w-3" />

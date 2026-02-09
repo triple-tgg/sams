@@ -22,6 +22,7 @@ import { FlightFormData } from '@/lib/api/hooks/uselineMaintenancesQueryThfByFli
 import { LineMaintenanceThfResponse } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
 import { formatFromPicker } from '@/lib/utils/formatPicker'
 import { dateTimeUtils } from '@/lib/dayjs'
+import dayjs from 'dayjs'
 
 interface PartsAndToolsStepProps {
   infoData: FlightFormData | null
@@ -73,12 +74,27 @@ const PartsAndToolsStep: React.FC<PartsAndToolsStepProps> = ({
 
   // Add new item with flight info defaults
   const handleAddItem = () => {
+    // Resolve From defaults
+    const resolvedFromDate = infoData?.arrivalDate || dateTimeUtils.getCurrentDate()
+    const resolvedFromTime = infoData?.ata || dayjs().format('HH:mm')
+
+    // Resolve To defaults — ensure To is not before From
+    let resolvedToDate = infoData?.departureDate || resolvedFromDate
+    let resolvedToTime = infoData?.atd || resolvedFromTime
+
+    const fromDT = dayjs(`${resolvedFromDate} ${resolvedFromTime}`, 'YYYY-MM-DD HH:mm')
+    const toDT = dayjs(`${resolvedToDate} ${resolvedToTime}`, 'YYYY-MM-DD HH:mm')
+    if (toDT.isValid() && fromDT.isValid() && toDT.isBefore(fromDT)) {
+      resolvedToDate = resolvedFromDate
+      resolvedToTime = resolvedFromTime
+    }
+
     append({
       ...defaultPartToolItem,
-      formDate: formatFromPicker(infoData?.arrivalDate || dateTimeUtils.getCurrentDate()),
-      formTime: infoData?.ata || dateTimeUtils.getCurrentTime(),
-      toDate: formatFromPicker(infoData?.departureDate || dateTimeUtils.getCurrentDate()),
-      toTime: infoData?.atd || dateTimeUtils.getCurrentTime()
+      formDate: formatFromPicker(resolvedFromDate),
+      formTime: resolvedFromTime,
+      toDate: formatFromPicker(resolvedToDate),
+      toTime: resolvedToTime
     })
   }
 
@@ -155,6 +171,8 @@ const PartsAndToolsStep: React.FC<PartsAndToolsStepProps> = ({
             control={form.control}
             watch={form.watch}
             setValue={form.setValue}
+            register={form.register}
+            errors={form.formState.errors}
             onAddItem={handleAddItem}
             onRemoveItem={handleRemoveItem}
             canAddMore={canAddMore}

@@ -23,7 +23,7 @@ export interface Contract {
     noExpiry: boolean;
     location: string;
     station: string;
-    status: "active" | "on-hold" | "terminated";
+    status: string;
 }
 
 // Pricing Rate interface for multi-rate pricing

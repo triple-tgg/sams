@@ -37,12 +37,18 @@ const formatDate = (dateString: string) => {
 const getStatusBadge = (status: string) => {
     const config: Record<string, { className: string; label: string }> = {
         active: { className: "bg-success/10 text-success border-success/20", label: "Active" },
+        draft: { className: "bg-slate-100 text-slate-600 border-slate-200", label: "Draft" },
+        "pending approval": { className: "bg-warning/10 text-warning border-warning/20", label: "Pending Approval" },
         "on hold": { className: "bg-warning/10 text-warning border-warning/20", label: "On Hold" },
+        "on-hold": { className: "bg-warning/10 text-warning border-warning/20", label: "On Hold" },
         terminated: { className: "bg-destructive/10 text-destructive border-destructive/20", label: "Terminated" },
+        expired: { className: "bg-destructive/10 text-destructive border-destructive/20", label: "Expired" },
+        suspended: { className: "bg-orange-100 text-orange-600 border-orange-200", label: "Suspended" },
+        "expiring soon": { className: "bg-amber-100 text-amber-600 border-amber-200", label: "Expiring Soon" },
     };
     // Fallback for unknown status
-    const statusConfig = config[status] || { className: "bg-muted/10 text-muted-foreground border-muted/20", label: status || "Unknown" };
-    return <Badge className={statusConfig.className}>{statusConfig.label}</Badge>;
+    const statusConfig = config[status.toLowerCase()] || { className: "bg-muted/10 text-muted-foreground border-muted/20", label: status || "Unknown" };
+    return <Badge className={`${statusConfig.className} min-w-[120px] text-center justify-center`}>{statusConfig.label}</Badge>;
 };
 
 export const ContractTable = ({

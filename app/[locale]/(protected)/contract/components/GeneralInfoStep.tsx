@@ -266,7 +266,7 @@ export const GeneralInfoStep = ({
                     />
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor="status">Status</Label>
+                    <Label htmlFor="status">Status <span className="text-destructive">*</span></Label>
                     <Select
                         value={formData.status}
                         onValueChange={(value) => {
@@ -279,7 +279,7 @@ export const GeneralInfoStep = ({
                         }}
                         disabled={isLoadingStatus}
                     >
-                        <SelectTrigger>
+                        <SelectTrigger className={fieldErrors.status ? "border-destructive" : ""}>
                             <SelectValue placeholder={isLoadingStatus ? "Loading..." : "Select Status"} />
                         </SelectTrigger>
                         <SelectContent>
@@ -290,6 +290,9 @@ export const GeneralInfoStep = ({
                             ))}
                         </SelectContent>
                     </Select>
+                    {fieldErrors.status && (
+                        <p className="text-xs text-destructive">{fieldErrors.status}</p>
+                    )}
                 </div>
             </div>
 

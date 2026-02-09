@@ -48,7 +48,7 @@ const FlightStep = (props: FlightStepProps) => {
   // Mutation Hook
   const pushThfMutation = usePushThf()
 
-  // Form setup
+  // Form setup — use existing data for defaults so remount on back-navigation is pre-populated
   const {
     handleSubmit,
     register,
@@ -57,7 +57,7 @@ const FlightStep = (props: FlightStepProps) => {
     formState: { errors },
   } = useForm<Step1FormInputs>({
     resolver: zodResolver(flightFormSchema),
-    defaultValues: getDefaultValues(),
+    defaultValues: props.formData ? sanitizeFormData(props.formData) : getDefaultValues(),
   })
 
   // Reset form when formData is loaded from API

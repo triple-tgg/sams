@@ -9,6 +9,7 @@ import { LineMaintenanceThfData } from '@/lib/api/lineMaintenances/flight/getlin
 import { FlightFormData } from '@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId'
 import { formatFromPicker } from '@/lib/utils/formatPicker'
 import { dateTimeUtils } from '@/lib/dayjs'
+import dayjs from 'dayjs'
 
 interface UseEquipmentSubmissionProps {
   form: UseFormReturn<EquipmentFormData>
@@ -102,15 +103,29 @@ export const useEquipmentSubmission = ({
       })
       return
     }
-    console.log("infoData?.departureDate ,", infoData?.departureDate)
+    // Resolve From defaults
+    const resolvedFromDate = infoData?.arrivalDate || dateTimeUtils.getCurrentDate()
+    const resolvedFromTime = infoData?.ata || dayjs().format('HH:mm')
+
+    // Resolve To defaults — ensure To is not before From
+    let resolvedToDate = infoData?.departureDate || resolvedFromDate
+    let resolvedToTime = infoData?.atd || resolvedFromTime
+
+    const fromDT = dayjs(`${resolvedFromDate} ${resolvedFromTime}`, 'YYYY-MM-DD HH:mm')
+    const toDT = dayjs(`${resolvedToDate} ${resolvedToTime}`, 'YYYY-MM-DD HH:mm')
+    if (toDT.isValid() && fromDT.isValid() && toDT.isBefore(fromDT)) {
+      resolvedToDate = resolvedFromDate
+      resolvedToTime = resolvedFromTime
+    }
+
     form.setValue('equipments', [
       ...currentEquipments,
       {
         ...defaultEquipment,
-        fromDate: formatFromPicker(infoData?.arrivalDate || dateTimeUtils.getCurrentDate()),
-        fromTime: infoData?.ata || dateTimeUtils.getCurrentTime(),
-        toDate: formatFromPicker(infoData?.departureDate || dateTimeUtils.getCurrentDate()),
-        toTime: infoData?.atd || dateTimeUtils.getCurrentTime()
+        fromDate: formatFromPicker(resolvedFromDate),
+        fromTime: resolvedFromTime,
+        toDate: formatFromPicker(resolvedToDate),
+        toTime: resolvedToTime
       }
     ])
 

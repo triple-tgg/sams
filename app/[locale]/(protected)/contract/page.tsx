@@ -34,9 +34,9 @@ const transformContractData = (apiData: ContractListItem[]): Contract[] => {
     valid: item.validFrom,
     expires: item.expiresOn,
     noExpiry: item.isNoExpiryDate ?? false,
-    location: item.serviceStation?.join(", ") || "-",
+    location: item.serviceStation ? Array.from(new Set(item.serviceStation)).join(", ") : "-",
     station: item.serviceStation?.[0] || "-",
-    status: (item.contractStatusObj?.code?.toLowerCase() || "active") as Contract["status"],
+    status: item.contractStatusObj?.code || item.contractStatusObj?.name || "-",
   }));
 };
 

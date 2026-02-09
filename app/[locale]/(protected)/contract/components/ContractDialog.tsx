@@ -107,7 +107,13 @@ const transformApiToFormData = (data: ContractDetail): ContractFormData => {
         paymentTerms: "",
         latePenalty: "",
         creditTerms: data.creditTerms || "",
-        operationalContacts: [],
+        operationalContacts: data.personnelList?.map((p) => ({
+            id: p.id || crypto.randomUUID(),
+            title: p.title || "",
+            name: p.name || "",
+            phoneNo: p.phoneNo || "",
+            email: p.email || "",
+        })) || [],
         contractDocumentPath: data.attachContractObj?.storagePath || "",
         contractDocumentName: data.attachContractObj?.realName || "",
     };
@@ -179,6 +185,12 @@ const transformFormDataToRequest = (
         } : null,
         pricingDataList,
         userName,
+        personnelList: formData.operationalContacts.map((contact) => ({
+            title: contact.title,
+            name: contact.name,
+            phoneNo: contact.phoneNo,
+            email: contact.email,
+        })),
     };
 };
 
@@ -270,6 +282,9 @@ export const ContractDialog = ({
         if (!formData.isNoExpiryDate && !formData.expiresOn) {
             errors.expiresOn = "Expires On date is required";
         }
+        if (!formData.status) {
+            errors.status = "Status is required";
+        }
         return errors;
     };
 
@@ -346,6 +361,7 @@ export const ContractDialog = ({
         setFile(null);
         setUploadStatus("idle");
         setFieldErrors({});
+        setViewTab("info");
         onOpenChange(false);
     };
 
@@ -399,6 +415,9 @@ export const ContractDialog = ({
         }
     };
 
+    // View tab state
+    const [viewTab, setViewTab] = useState<"info" | "contacts">("info");
+
     // Render A4 view for view mode
     if (isViewMode) {
         return (
@@ -411,14 +430,90 @@ export const ContractDialog = ({
                                 <h2 className="text-lg font-semibold">View Contract</h2>
                                 <p className="text-sm text-muted-foreground">Contract details and pricing information</p>
                             </div>
-                            {/* <Button variant="ghost" size="icon" onClick={handleClose}>
-                                <X className="h-4 w-4" />
-                            </Button> */}
                         </div>
 
-                        {/* A4 Content */}
+                        {/* Tabs */}
+                        <div className="flex border-b bg-background px-6">
+                            <button
+                                onClick={() => setViewTab("info")}
+                                className={cn(
+                                    "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors",
+                                    viewTab === "info"
+                                        ? "border-primary text-primary"
+                                        : "border-transparent text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                Contract Info
+                            </button>
+                            <button
+                                onClick={() => setViewTab("contacts")}
+                                className={cn(
+                                    "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors",
+                                    viewTab === "contacts"
+                                        ? "border-primary text-primary"
+                                        : "border-transparent text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                Operational Contacts
+                                {formData.operationalContacts.length > 0 && (
+                                    <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                                        {formData.operationalContacts.length}
+                                    </span>
+                                )}
+                            </button>
+                        </div>
+
+                        {/* Tab Content */}
                         <div className="flex-1 overflow-y-auto">
-                            <ContractViewA4 formData={formData} isLoading={isLoadingContract} />
+                            {viewTab === "info" ? (
+                                <ContractViewA4 formData={formData} isLoading={isLoadingContract} />
+                            ) : (
+                                <div className="p-6 space-y-4">
+                                    {isLoadingContract ? (
+                                        <div className="flex items-center justify-center h-32">
+                                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                                        </div>
+                                    ) : formData.operationalContacts.length === 0 ? (
+                                        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                                            <div className="rounded-full bg-muted p-4 mb-4">
+                                                <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                </svg>
+                                            </div>
+                                            <p className="text-sm font-medium">No Operational Contacts</p>
+                                            <p className="text-xs mt-1">No contacts have been assigned to this contract.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="grid gap-4">
+                                            {formData.operationalContacts.map((contact, index) => (
+                                                <div key={contact.id} className="border rounded-lg p-4 bg-muted/20">
+                                                    <div className="flex items-center gap-3 mb-3">
+                                                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm">
+                                                            {contact.name?.charAt(0)?.toUpperCase() || "#"}
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-medium text-sm">
+                                                                {contact.title && `${contact.title} `}{contact.name || "-"}
+                                                            </p>
+                                                            <p className="text-xs text-muted-foreground">Contact #{index + 1}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-3 text-sm">
+                                                        <div>
+                                                            <p className="text-xs text-muted-foreground mb-0.5">Phone</p>
+                                                            <p className="font-medium">{contact.phoneNo || "-"}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs text-muted-foreground mb-0.5">Email</p>
+                                                            <p className="font-medium">{contact.email || "-"}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Footer */}

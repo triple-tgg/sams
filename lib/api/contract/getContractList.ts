@@ -41,6 +41,16 @@ export interface ContractTypeObj {
     updatedby: string;
 }
 
+// Interface for personnel in contract list response
+export interface ContractPersonnel {
+    id: string;
+    contractId: number;
+    title: string;
+    name: string;
+    phoneNo: string;
+    email: string;
+}
+
 // Interface for Contract item from API
 export interface ContractListItem {
     id: number;
@@ -54,6 +64,7 @@ export interface ContractListItem {
     creditTerms: string;
     contractStatusObj: ContractStatusObj;
     contractTypeObj: ContractTypeObj;
+    personnelList: ContractPersonnel[] | null;
 }
 
 // Interface for Contract list request

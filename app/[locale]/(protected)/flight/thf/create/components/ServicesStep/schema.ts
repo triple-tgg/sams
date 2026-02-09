@@ -99,7 +99,9 @@ export const servicesFormSchema = z.object({
     hydOilA: z.number().optional(),
     hydOilB: z.number().optional(),
     hydOilSTBY: z.number().optional(),
-    otherOil: z.number().optional(),
+    apuOil: z.number().optional(),
+    rampFuel: z.number().optional(),
+    actualUplift: z.number().optional(),
   }),
 
   // Personnel
@@ -122,7 +124,7 @@ export const servicesFormSchema = z.object({
         const from = dayjs(`${convertDateToBackend(personnel.formDate)} ${personnel.formTime}`, "YYYY-MM-DD HH:mm");
         const to = dayjs(`${convertDateToBackend(personnel.toDate)} ${personnel.toTime}`, "YYYY-MM-DD HH:mm");
 
-        if (!to.isAfter(from)) {
+        if (to.isBefore(from)) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: "End datetime must be after start datetime",
@@ -143,6 +145,7 @@ export const servicesFormSchema = z.object({
 
   // Aircraft Towing
   aircraftTowing: z.boolean().default(false),
+  marshallingServicePerFlight: z.number().optional(),
   aircraftTowingInfo: z.array(z.object({
     onDate: dateSchema.refine((date) => date !== "", { message: "Date is required" }),
     offDate: dateSchema.refine((date) => date !== "", { message: "Date is required" }),

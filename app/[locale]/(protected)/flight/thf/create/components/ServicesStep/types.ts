@@ -56,9 +56,9 @@ export type ServicesFormInputs = {
     hydOilA?: number
     hydOilB?: number
     hydOilSTBY?: number
-    otherOil?: number
-    rampFuelKgs?: number
-    actualUpliftLts?: number
+    apuOil?: number
+    rampFuel?: number
+    actualUplift?: number
   }
   addPersonnels: boolean
   personnel?: Personnel[] | null

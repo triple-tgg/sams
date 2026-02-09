@@ -8,9 +8,6 @@ export interface AttachFileOtherData {
   isDelete: boolean
 }
 
-export interface PutAttachFileOtherPayload {
-  files: AttachFileOtherData[]
-}
 
 export interface PutAttachFileOtherResponse {
   message: string
@@ -30,8 +27,7 @@ export const putAttachfileOther = async (
 ): Promise<PutAttachFileOtherResponse> => {
   try {
     const response = await axios.put<PutAttachFileOtherResponse>(
-      `/lineMaintenances/${lineMaintenancesId}/attachfile-other`,
-      payload
+      `/lineMaintenances/${lineMaintenancesId}/attachfile-other`, payload
     )
 
     return response.data

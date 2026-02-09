@@ -35,8 +35,7 @@ export const usePutEquipment = (options: UsePutEquipmentOptions = {}) => {
   return useMutation<PutEquipmentResponse, Error, PutEquipmentParams>({
     mutationFn: async ({ lineMaintenancesId, equipmentData }) => {
       // Transform form data to API format
-      const transformedData = transformEquipmentDataForAPI(equipmentData, lineMaintenancesId)
-      console.log("transformedData", transformedData)
+      const transformedData = transformEquipmentDataForAPI(equipmentData)
       // Call API
       return await putEquipment(lineMaintenancesId, transformedData)
     },
@@ -135,7 +134,7 @@ export const useBatchPutEquipment = (options: UsePutEquipmentOptions = {}) => {
     mutationFn: async (batchData) => {
       // Process all equipment updates in parallel
       const promises = batchData.map(({ lineMaintenancesId, equipmentData }) => {
-        const transformedData = transformEquipmentDataForAPI(equipmentData, lineMaintenancesId)
+        const transformedData = transformEquipmentDataForAPI(equipmentData)
         return putEquipment(lineMaintenancesId, transformedData)
       })
 

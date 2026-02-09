@@ -6,6 +6,7 @@ import { useStep } from '../step-context'
 import { useLineMaintenancesQueryThfByFlightId } from '@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId'
 import { useAircraftCheckMasterData } from '@/lib/api/hooks/useAircraftCheckMasterData'
 import { useStaffsTypesOptions } from '@/lib/api/hooks/useStaffsTypes'
+import { useAircraftTypeById } from '@/lib/api/hooks/useAircraftTypeById'
 import { mapDataThfToServicesStep } from './utils'
 import { ServicesFormInputs } from './types'
 
@@ -48,8 +49,14 @@ const ServicesStep = ({ flightInfosId, thfNumber, ...props }: ServicesStepProps)
     hasOptions: hasOptionsStaffsTypes
   } = useStaffsTypesOptions()
 
+  // 4. Fetch Aircraft Type detail (flags) by ID
+  const acTypeId = queryData?.responseData?.flight?.acTypeObj?.id || null
+  const {
+    flags: aircraftTypeFlags,
+    isLoading: isLoadingAircraftTypeFlags,
+  } = useAircraftTypeById(acTypeId)
 
-  // 4. Transform API data to Form Initial Data
+  // 5. Transform API data to Form Initial Data
   const initialData: ServicesFormInputs | null = useMemo(() => {
     if (!queryData) return null
     return mapDataThfToServicesStep(queryData)
@@ -65,6 +72,8 @@ const ServicesStep = ({ flightInfosId, thfNumber, ...props }: ServicesStepProps)
     flightError: error,
     acType: formData?.acTypeCode?.value || undefined,
     lineMaintenanceId: lineMaintenanceData?.id || null, // Important: pass lineMaintenanceId
+    aircraftTypeFlags: aircraftTypeFlags || null,
+    isLoadingAircraftTypeFlags,
 
     // Master Data Props
     checkTypesValuesOption: {
@@ -91,3 +100,4 @@ const ServicesStep = ({ flightInfosId, thfNumber, ...props }: ServicesStepProps)
 }
 
 export default ServicesStep
+

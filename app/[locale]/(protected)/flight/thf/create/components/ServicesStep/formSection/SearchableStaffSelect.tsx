@@ -8,6 +8,7 @@ import { useStaff } from '@/lib/api/hooks/useStaff'
 import { FlightFormData } from '@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId'
 import { dateTimeUtils } from '@/lib/dayjs'
 import { formatFromPicker } from '@/lib/utils/formatPicker'
+import dayjs from 'dayjs'
 
 // Component for searchable staff selection
 const SearchableStaffSelect: React.FC<{
@@ -62,10 +63,26 @@ const SearchableStaffSelect: React.FC<{
       form.setValue(`personnel.${index}.name`, selectedStaff.name)
       form.setValue(`personnel.${index}.type`, selectedStaff.position.code)
 
-      form.setValue(`personnel.${index}.formDate`, formatFromPicker(infoData?.arrivalDate || dateTimeUtils.getCurrentDate()))
-      form.setValue(`personnel.${index}.formTime`, infoData?.ata || '')
-      form.setValue(`personnel.${index}.toDate`, formatFromPicker(infoData?.departureDate || dateTimeUtils.getCurrentDate()))
-      form.setValue(`personnel.${index}.toTime`, infoData?.atd || '')
+      // Resolve From defaults
+      const resolvedFromDate = infoData?.arrivalDate || dateTimeUtils.getCurrentDate()
+      const resolvedFromTime = infoData?.ata || dayjs().format('HH:mm')
+
+      // Resolve To defaults — ensure To is not before From
+      let resolvedToDate = infoData?.departureDate || resolvedFromDate
+      let resolvedToTime = infoData?.atd || resolvedFromTime
+
+      // Sanity check: if To datetime is before From datetime, fall back to From values
+      const fromDT = dayjs(`${resolvedFromDate} ${resolvedFromTime}`, 'YYYY-MM-DD HH:mm')
+      const toDT = dayjs(`${resolvedToDate} ${resolvedToTime}`, 'YYYY-MM-DD HH:mm')
+      if (toDT.isValid() && fromDT.isValid() && toDT.isBefore(fromDT)) {
+        resolvedToDate = resolvedFromDate
+        resolvedToTime = resolvedFromTime
+      }
+
+      form.setValue(`personnel.${index}.formDate`, formatFromPicker(resolvedFromDate))
+      form.setValue(`personnel.${index}.formTime`, resolvedFromTime)
+      form.setValue(`personnel.${index}.toDate`, formatFromPicker(resolvedToDate))
+      form.setValue(`personnel.${index}.toTime`, resolvedToTime)
 
       // Clear search
       setSearchTerm('')
