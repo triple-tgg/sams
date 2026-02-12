@@ -11,14 +11,22 @@ interface Step {
 interface VerticalStepperProps {
     steps: Step[]
     activeStep: number
+    title?: string
+    status?: string
+    onStepClick?: (stepIndex: number) => void
 }
 
-const VerticalStepper: React.FC<VerticalStepperProps> = ({ steps, activeStep }) => {
+const VerticalStepper: React.FC<VerticalStepperProps> = ({ steps, activeStep, title = "New THF", status, onStepClick }) => {
     return (
         <div className="flex flex-col gap-6 py-6 px-4">
             <div className='px-2'>
-                <div className='font-bold text-xl text-white'>New THF</div>
+                <div className='font-bold text-xl text-white'>{title}</div>
                 <div className='text-blue-100 text-sm'>Technical Handling Form</div>
+                {status && (
+                    <span className='inline-block mt-2 px-3 py-0.5 rounded-full text-xs font-semibold bg-white/20 text-white capitalize'>
+                        {status}
+                    </span>
+                )}
             </div>
 
             <div className="flex flex-col gap-4 mt-4">
@@ -33,8 +41,10 @@ const VerticalStepper: React.FC<VerticalStepperProps> = ({ steps, activeStep }) 
                                 "flex items-center gap-4 px-4 py-3 rounded-lg transition-all",
                                 isActive
                                     ? "bg-white/10 text-white"
-                                    : "text-blue-100/70"
+                                    : "text-blue-100/70",
+                                onStepClick && "cursor-pointer hover:bg-white/5"
                             )}
+                            onClick={() => onStepClick?.(index)}
                         >
                             {/* Step Circle */}
                             <div

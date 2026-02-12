@@ -17,10 +17,12 @@ type ModalStepWrapperProps = {
     steps: Step[]
     children: ReactNode
     title?: string
+    status?: string
     onClose?: () => void
+    canNavigate?: boolean
 }
 
-const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, title = "New THF", onClose }) => {
+const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, title = "New THF", status, onClose, canNavigate = false }) => {
     const [currentStep, setCurrentStep] = useState(0)
     const [activeStep, setActiveStep] = useState(1) // 1-based index for display/logic matching existing components
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -93,7 +95,13 @@ const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, ti
             <div className="flex h-[80vh] w-full overflow-hidden rounded-md border bg-white shadow-xl">
                 {/* Left Sidebar - Blue */}
                 <div className="w-1/4 min-w-[280px] bg-blue-600 h-full flex flex-col">
-                    <VerticalStepper steps={steps} activeStep={activeStep} />
+                    <VerticalStepper
+                        steps={steps}
+                        activeStep={activeStep}
+                        title={title}
+                        status={status}
+                        onStepClick={canNavigate ? (stepIndex: number) => goToStep(stepIndex) : undefined}
+                    />
 
                     {/* Bottom sidebar info or decoration */}
                     <div className="mt-auto p-6 text-blue-100/60 text-xs">

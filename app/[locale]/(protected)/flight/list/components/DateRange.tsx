@@ -1,10 +1,11 @@
 "use client";
 
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import React from 'react';
 import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
+import { CustomDateInput } from '@/components/ui/input-date/CustomDateInput';
+import dayjs from 'dayjs';
 
 interface DateRangeFilterProps {
   className?: string;
@@ -19,59 +20,45 @@ interface DateRangeFilterProps {
   required?: boolean;
 }
 
+// Convert Date to DD/MM/YYYY string (CustomDateInput internal format)
+const dateToString = (date: Date | undefined): string => {
+  if (!date) return '';
+  return dayjs(date).format('DD/MM/YYYY');
+};
+
+// Convert DD/MM/YYYY string to Date
+const stringToDate = (str: string): Date | undefined => {
+  if (!str) return undefined;
+  const parsed = dayjs(str, 'DD/MM/YYYY');
+  return parsed.isValid() ? parsed.toDate() : undefined;
+};
+
 const DateRangeFilter = ({
   className,
   value,
   onChange,
-  placeholder = "Select date range",
+  placeholder = "DD-MMM-YYYY",
   labels = { from: "From", to: "To" },
   disabled = false,
   required = false,
 }: DateRangeFilterProps) => {
 
-  // Handle start date change
-  const handleFromDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const dateValue = event.target.value;
-    if (dateValue) {
-      const fromDate = new Date(dateValue);
-      onChange?.({
-        from: fromDate,
-        to: value?.to
-      });
-    } else {
-      onChange?.({
-        from: undefined,
-        to: value?.to
-      });
-    }
+  // Handle start date change (receives DD/MM/YYYY from CustomDateInput)
+  const handleFromDateChange = (dateStr: string) => {
+    const fromDate = stringToDate(dateStr);
+    onChange?.({
+      from: fromDate,
+      to: value?.to
+    });
   };
 
-  // Handle end date change
-  const handleToDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const dateValue = event.target.value;
-    if (dateValue) {
-      const toDate = new Date(dateValue);
-      onChange?.({
-        from: value?.from,
-        to: toDate
-      });
-    } else {
-      onChange?.({
-        from: value?.from,
-        to: undefined
-      });
-    }
-  };
-
-  // Format date for input value (YYYY-MM-DD format)
-  const formatDateForInput = (date: Date | undefined): string => {
-    if (!date) return '';
-    try {
-      return date.toISOString().split('T')[0];
-    } catch (error) {
-      console.warn('Error formatting date:', error);
-      return '';
-    }
+  // Handle end date change (receives DD/MM/YYYY from CustomDateInput)
+  const handleToDateChange = (dateStr: string) => {
+    const toDate = stringToDate(dateStr);
+    onChange?.({
+      from: value?.from,
+      to: toDate
+    });
   };
 
   // Validate date range (from date should not be after to date)
@@ -90,19 +77,14 @@ const DateRangeFilter = ({
             {required && <span className="text-red-500 ml-1">*</span>}
           </Label>
         )}
-        <Input
-          id="from-date"
-          type="date"
-          value={formatDateForInput(value?.from)}
+        <CustomDateInput
+          value={dateToString(value?.from)}
           onChange={handleFromDateChange}
-          disabled={disabled}
-          required={required}
-          max={value?.to ? formatDateForInput(value.to) : undefined}
+          placeholder={placeholder}
           className={cn(
             "w-full",
             !isValidRange() && "border-red-500 focus:border-red-500"
           )}
-          placeholder={placeholder}
         />
       </div>
 
@@ -114,19 +96,14 @@ const DateRangeFilter = ({
             {required && <span className="text-red-500 ml-1">*</span>}
           </Label>
         )}
-        <Input
-          id="to-date"
-          type="date"
-          value={formatDateForInput(value?.to)}
+        <CustomDateInput
+          value={dateToString(value?.to)}
           onChange={handleToDateChange}
-          disabled={disabled}
-          required={required}
-          min={value?.from ? formatDateForInput(value.from) : undefined}
+          placeholder={placeholder}
           className={cn(
             "w-full",
             !isValidRange() && "border-red-500 focus:border-red-500"
           )}
-          placeholder={placeholder}
         />
       </div>
 

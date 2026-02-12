@@ -37,7 +37,7 @@ export const defaultPartToolItem: PartToolItem = {
   pathToolNo: '',
   serialNoIn: '',
   serialNoOut: '',
-  qty: 0,
+  qty: 1,
   equipmentNo: '',
   hrs: 0,
   formDate: formatFromPicker(dateTimeUtils.getCurrentDate()),

@@ -305,13 +305,13 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {showHydBlue && (
+                    {showHydGreen && (
                       <FormField
                         control={form.control}
-                        name="fluid.hydOilBlue"
+                        name="fluid.hydOilGreen"
                         render={({ field: { onChange, value, ...field } }) => (
                           <FormItem className="space-y-1">
-                            <FormLabel className="text-xs text-muted-foreground">Hyd Oil Blue</FormLabel>
+                            <FormLabel className="text-xs text-muted-foreground">Hyd Oil Green</FormLabel>
                             <FormControl>
                               <NumberInput value={value} onChange={onChange} field={field} />
                             </FormControl>
@@ -320,13 +320,13 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                         )}
                       />
                     )}
-                    {showHydGreen && (
+                    {showHydBlue && (
                       <FormField
                         control={form.control}
-                        name="fluid.hydOilGreen"
+                        name="fluid.hydOilBlue"
                         render={({ field: { onChange, value, ...field } }) => (
                           <FormItem className="space-y-1">
-                            <FormLabel className="text-xs text-muted-foreground">Hyd Oil Green</FormLabel>
+                            <FormLabel className="text-xs text-muted-foreground">Hyd Oil Blue</FormLabel>
                             <FormControl>
                               <NumberInput value={value} onChange={onChange} field={field} />
                             </FormControl>
@@ -495,6 +495,19 @@ export const OperationalSections: React.FC<OperationalSectionsProps> = ({
             )}
           />
 
+          {/* Array-level error (e.g., "required when enabled", "max 3") */}
+          {form.formState.errors.aircraftTowingInfo?.message && (
+            <p className="text-sm text-red-500 mt-2">
+              {form.formState.errors.aircraftTowingInfo.message}
+            </p>
+          )}
+          {/* Root-level refine error (shown as root error on the array) */}
+          {form.formState.errors.aircraftTowingInfo?.root?.message && (
+            <p className="text-sm text-red-500 mt-2">
+              {form.formState.errors.aircraftTowingInfo.root.message}
+            </p>
+          )}
+
           {aircraftTowing && (
             <div className="space-y-3">
               {aircraftTowingInfo.length >= 3 && (
@@ -585,6 +598,13 @@ export const OperationalSections: React.FC<OperationalSectionsProps> = ({
                       </div>
                     </div>
                   </div>
+
+                  {/* Cross-field error: Time off must be after time on */}
+                  {(form.formState.errors.aircraftTowingInfo as any)?.[index]?.timeOf?.message && (
+                    <p className="text-sm text-red-500">
+                      {(form.formState.errors.aircraftTowingInfo as any)?.[index]?.timeOf?.message}
+                    </p>
+                  )}
 
                   {/* Bay From / Bay To */}
                   <div className="grid grid-cols-2 gap-3">

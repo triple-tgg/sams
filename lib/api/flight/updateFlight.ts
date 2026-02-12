@@ -20,6 +20,8 @@ export interface UpdateFlightData {
   thfNo: string;
   statusCode: string;
   note: string;
+  maintenanceStatusCode?: string;
+  checkStatusId?: number;
 }
 
 // API Response Interface

@@ -51,6 +51,7 @@ export const CustomDateInput = React.forwardRef<
           onChange={handlePickerChange}
           onBlur={() => setIsPickerMode(false)}
           className={className}
+          format="DD/MM/YYYY"
           autoFocus
           {...props}
         />

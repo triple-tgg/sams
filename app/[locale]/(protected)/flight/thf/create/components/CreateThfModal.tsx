@@ -34,6 +34,12 @@ const CreateThfModal: React.FC<CreateThfModalProps> = ({
     // Separation of Concerns: Logic extracted to hook
     const { flightDataState, options } = useCreateThfModalController({ flightInfosId })
 
+    // Determine if this is an Edit (existing THF) vs New (no THF yet)
+    const isEdit = flightDataState.rawFlightData?.state !== 'plan'
+    const title = isEdit ? 'Edit THF' : 'New THF'
+    const status = flightDataState.rawFlightData?.state || undefined
+    const canNavigate = isEdit
+
     const handleClose = () => {
         onOpenChange(false)
         onClose?.()
@@ -50,8 +56,10 @@ const CreateThfModal: React.FC<CreateThfModalProps> = ({
             >
                 <ModalStepWrapper
                     steps={steps}
-                    title="Create THF"
+                    title={title}
+                    status={status}
                     onClose={handleClose}
+                    canNavigate={canNavigate}
                 >
                     {/* Step 1: Flight */}
                     <FlightStep

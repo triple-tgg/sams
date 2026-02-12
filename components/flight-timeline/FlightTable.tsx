@@ -8,6 +8,24 @@ import EditFlight from '@/app/[locale]/(protected)/flight/edit-project';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Button } from '../ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from '../ui/dialog';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '../ui/select';
+import { useMaintenanceStatus } from '@/lib/api/hooks/useMaintenanceStatus';
+import { updateCheckStatus } from '@/lib/api/flight/updateCheckStatus';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 // Type guard to check if item is a StaffItem object (not just a number ID)
 const isStaffItem = (item: number | StaffItem): item is StaffItem => {
@@ -54,6 +72,49 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
     const [openEditFlight, setOpenEditFlight] = useState<boolean>(false);
     const [editFlightId, setEditFlightId] = useState<number | null>(null);
     const [currentTime, setCurrentTime] = useState<Date>(new Date());
+
+    // Check (Maintenance Status) modal state
+    const [checkModalOpen, setCheckModalOpen] = useState(false);
+    const [checkModalFlight, setCheckModalFlight] = useState<FlightItem | null>(null);
+    const [selectedStatusId, setSelectedStatusId] = useState<number | null>(null);
+
+    // Hooks for maintenance status options and flight update
+    const { options: maintenanceStatusOptions } = useMaintenanceStatus();
+    const queryClient = useQueryClient();
+    const { mutate: updateCheckStatusMutation, isPending: isUpdatingStatus } = useMutation({
+        mutationFn: (data: { flightInfosId: number; checkStatusId: number }) =>
+            updateCheckStatus(data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['flightList'] });
+            queryClient.invalidateQueries({ queryKey: ['flights'] });
+            toast.success('Maintenance Status updated successfully');
+            setCheckModalOpen(false);
+            setCheckModalFlight(null);
+        },
+        onError: (error: Error) => {
+            toast.error(error.message || 'Failed to update');
+        },
+    });
+
+    const handleCheckCellClick = (flight: FlightItem) => {
+        setCheckModalFlight(flight);
+        setSelectedStatusId(flight.maintenanceStatusObj?.id ?? null);
+        setCheckModalOpen(true);
+    };
+
+    const handleCheckModalSave = () => {
+        if (!checkModalFlight || !checkModalFlight.flightInfosId || !selectedStatusId) return;
+
+        updateCheckStatusMutation({
+            flightInfosId: checkModalFlight.flightInfosId,
+            checkStatusId: selectedStatusId,
+        });
+    };
+
+    const handleCheckModalClose = () => {
+        setCheckModalOpen(false);
+        setSelectedStatusId(null);
+    };
 
     const onEditFlightClose = () => {
         setOpenEditFlight(false);
@@ -280,8 +341,12 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                                         {flight.statusObj?.code || flight.statusObj?.name || '-'}
                                     </span>
                                 </td>
-                                {/* Check (Maintenance Status) */}
-                                <td className="px-4 py-3 text-sm w-[100px]">
+                                {/* Check (Maintenance Status) - Clickable to open edit modal */}
+                                <td
+                                    className="px-4 py-3 text-sm w-[100px] cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                                    onClick={() => handleCheckCellClick(flight)}
+                                    title="Click to edit Maintenance Status"
+                                >
                                     <span className={`
                                         inline-flex items-center rounded px-2 py-1 text-xs font-medium
                                         ${flight.maintenanceStatusObj?.code === 'Scheduled' ? 'dark:bg-blue-900/50 bg-blue-700 dark:text-blue-400 text-blue-100' : ''}
@@ -310,10 +375,9 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        color="success"
-                                                        className="p-2 cursor-pointer hover:scale-110 transition-all "
-                                                    >
-                                                        <FileCheck className="h-8 w-8" />
+                                                        color={flight.state === "save" ? "success" : "secondary"}
+                                                        className="p-2 cursor-pointer hover:scale-110 transition-all bg-none hover:bg-transparent border-none  cursor-default">
+                                                        <FileCheck className="h-6 w-6" />
                                                     </Button>
                                                 </Tooltip>
                                             )}
@@ -375,6 +439,56 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                     </tbody>
                 </table>
             </div>
+
+            {/* Maintenance Status Edit Modal */}
+            <Dialog open={checkModalOpen} onOpenChange={(open) => { if (!open) handleCheckModalClose(); }}>
+                <DialogContent size="sm">
+                    <DialogHeader>
+                        <DialogTitle>Edit Maintenance Status</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4 space-y-3">
+                        {checkModalFlight && (
+                            <div className="text-sm text-muted-foreground">
+                                Flight: <span className="font-medium text-foreground">{checkModalFlight.arrivalFlightNo || '-'}</span>
+                            </div>
+                        )}
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Maintenance Status</label>
+                            <Select
+                                value={selectedStatusId != null ? String(selectedStatusId) : ''}
+                                onValueChange={(val) => setSelectedStatusId(Number(val))}
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Select Status..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {maintenanceStatusOptions.map((option) => (
+                                        <SelectItem key={option.id} value={String(option.id)}>
+                                            {option.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={handleCheckModalClose}
+                            disabled={isUpdatingStatus}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            color="primary"
+                            onClick={handleCheckModalSave}
+                            disabled={isUpdatingStatus || !selectedStatusId}
+                        >
+                            {isUpdatingStatus ? 'Saving...' : 'Save'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

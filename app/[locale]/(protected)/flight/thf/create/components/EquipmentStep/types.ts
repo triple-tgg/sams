@@ -33,7 +33,7 @@ export interface EquipmentStepProps {
 export const defaultEquipment: Equipment = {
   equipmentName: '',
   hrs: '',
-  svc: '',
+  svc: '1',
   loanRemark: '',
   fromDate: dayjs().format('YYYY-MM-DD'),
   fromTime: dayjs().format('HH:mm'),

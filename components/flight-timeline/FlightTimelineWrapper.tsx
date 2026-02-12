@@ -9,7 +9,7 @@ import { FlightTable } from './FlightTable';
 import { FlightSkeleton } from './FlightSkeleton';
 import { flightTimelineThemeDark, flightTimelineThemeLight } from './types';
 import {
-    formatDateForApi, transformFlightsToEpg, transformAirlinesToChannels, transformAirlinesToChannelsPlanby
+    formatDateForApi, transformFlightsToEpg, transformAirlinesToChannels, transformAirlinesToChannelsPlanby, sanitizeFlightsPlanby
 } from './utils';
 
 import { useFlightListQuery } from '@/lib/api/hooks/useFlightListQuery';
@@ -138,7 +138,10 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
     const { data: dataPlanby, isLoading: isLoadingPlanby, error: errorPlanby, isFetched: isFetchedPlanby } = useFlightListPlanbyQuery(params);
 
     const flights: FlightItem[] = data?.responseData || [];
-    const flightsPlanby: FlightPlanbyItem[] = dataPlanby?.responseData || [];
+    const flightsPlanbyRaw: FlightPlanbyItem[] = dataPlanby?.responseData || [];
+
+    // Sanitize: fix items where till <= since (invalid time ranges from API)
+    const flightsPlanby = useMemo(() => sanitizeFlightsPlanby(flightsPlanbyRaw), [flightsPlanbyRaw]);
 
     // const flightsPlanby = mockFlights
     // Transform data for Planby

@@ -47,6 +47,7 @@ export interface InputProps
   min?: number | string
   max?: number | string
   step?: number | string
+  format?: string
 }
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(

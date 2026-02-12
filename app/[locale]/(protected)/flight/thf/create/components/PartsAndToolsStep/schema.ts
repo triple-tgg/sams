@@ -9,7 +9,7 @@ export const partToolItemSchema = z.object({
   pathToolNo: z.string().optional().default(""),
   serialNoIn: z.string().optional().default(""),
   serialNoOut: z.string().optional().default(""),
-  qty: z.number().min(0, "Quantity must be 0 or greater").default(0),
+  qty: z.number().min(0, "Quantity must be 0 or greater").default(1),
   equipmentNo: z.string().optional().default(""),
   hrs: z.number().min(0, "Hours must be 0 or greater").default(0),
   formDate: z.string().nullable().default(null),

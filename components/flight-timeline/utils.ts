@@ -4,6 +4,25 @@ import { FlightItem } from '@/lib/api/flight/filghtlist.interface';
 import { FlightEpgItem, AirlineChannel, AirlineChannelPlanby } from './types';
 import { FlightPlanbyItem } from '@/lib/api/flight/getFlightListPlanby';
 
+/**
+ * Sanitize flight planby items: fix cases where till <= since
+ * (e.g. when departure date is invalid or in the past).
+ * Planby silently skips items where till < since.
+ */
+export function sanitizeFlightsPlanby(flights: FlightPlanbyItem[]): FlightPlanbyItem[] {
+    return flights.map(flight => {
+        const since = new Date(flight.since);
+        const till = new Date(flight.till);
+
+        if (till <= since) {
+            // Fix: set till to since + 1 hour
+            const fixedTill = new Date(since.getTime() + 60 * 60 * 1000);
+            return { ...flight, till: fixedTill.toISOString() };
+        }
+        return flight;
+    });
+}
+
 
 /**
  * Transform FlightItem array to Planby EPG format
