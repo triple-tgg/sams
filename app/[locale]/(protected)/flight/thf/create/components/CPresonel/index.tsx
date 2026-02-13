@@ -43,11 +43,11 @@ export const PersonnelSection = ({
         <div className="space-y-4">
             <h4 className="text-sm font-medium">Personnel Assignment</h4>
             <div className="grid lg:grid-cols-2 gap-6">
-                {/* CS (Customer Service) Selection */}
+                {/* CS (Certified Staff) Selection */}
                 <div className="space-y-2">
                     <Label className="flex items-center gap-2">
                         <User className="w-4 h-4 text-cyan-500" />
-                        CS (Customer Service)
+                        CS (Certified Staff)
                     </Label>
                     <StaffSearchSelect
                         staffType="CS"

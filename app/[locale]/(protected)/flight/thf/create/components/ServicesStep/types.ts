@@ -48,7 +48,7 @@ export type ServicesFormInputs = {
   servicingPerformed: boolean
   fluid: {
     fluidName: FluidOption | null
-    engOilSets: { left: number; right: number }[]
+    engOilSets: { left: number; right: number; selectedEngine: 'left' | 'right' }[]
     csdIdgVsfgSets: { quantity?: number }[]
     hydOilBlue?: number
     hydOilGreen?: number

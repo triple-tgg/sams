@@ -82,7 +82,7 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
     const { options: maintenanceStatusOptions } = useMaintenanceStatus();
     const queryClient = useQueryClient();
     const { mutate: updateCheckStatusMutation, isPending: isUpdatingStatus } = useMutation({
-        mutationFn: (data: { flightInfosId: number; checkStatusId: number }) =>
+        mutationFn: (data: { flightInfosId: number; maintenanceStatusId: number }) =>
             updateCheckStatus(data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['flightList'] });
@@ -107,7 +107,7 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
 
         updateCheckStatusMutation({
             flightInfosId: checkModalFlight.flightInfosId,
-            checkStatusId: selectedStatusId,
+            maintenanceStatusId: selectedStatusId,
         });
     };
 
@@ -376,7 +376,7 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                                                         variant="ghost"
                                                         size="icon"
                                                         color={flight.state === "save" ? "success" : "secondary"}
-                                                        className="p-2 cursor-pointer hover:scale-110 transition-all bg-none hover:bg-transparent border-none  cursor-default">
+                                                        className="p-2 hover:scale-110 transition-all bg-none hover:bg-transparent border-none  cursor-default">
                                                         <FileCheck className="h-6 w-6" />
                                                     </Button>
                                                 </Tooltip>

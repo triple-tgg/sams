@@ -49,7 +49,7 @@ const FilterRange = (props: Props) => {
   ]
 
   return (
-    <div className="border border-default-200 dark:border-default-300  rounded p-1 flex items-center bg-background">
+    <div className="border border-slate-200 dark:border-slate-600 rounded-lg p-1 flex items-center bg-white dark:bg-slate-700/50">
       {options.map((option) => (
         <ButtonFilter key={option.value} value={option.value} onClick={option.onClick}
           active={active === option.value}
@@ -63,13 +63,15 @@ export default FilterRange
 
 const ButtonFilter = (props: { active: boolean, value: string, onClick: () => void }) => {
   return (
-    // <Button>ButtonFilter</Button>
     <span
       className={cn(
-        "flex-1 text-sm font-normal px-3 py-1 transition-all duration-150 rounded cursor-pointer",
+        "flex-1 text-xs font-medium px-3 py-1.5 transition-all duration-200 rounded-md cursor-pointer text-center whitespace-nowrap",
+        "hover:bg-slate-100 dark:hover:bg-slate-600",
         {
-          "bg-default-900 text-primary-foreground dark:bg-default-300 dark:text-foreground ":
+          "bg-sky-500 text-white shadow-sm hover:bg-sky-600 dark:hover:bg-sky-600":
             !!props.active,
+          "text-slate-600 dark:text-slate-300":
+            !props.active,
         }
       )}
       onClick={props.onClick}

@@ -196,31 +196,82 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                         {index + 1}
                       </Badge>
 
-                      <div className="flex-1 grid grid-cols-2 gap-3">
+                      <div className="flex-1 flex items-end gap-3">
+                        {/* Engine Selector Toggle */}
                         <FormField
                           control={form.control}
-                          name={`fluid.engOilSets.${index}.left`}
-                          render={({ field: { value, onChange, ...field } }) => (
-                            <FormItem className="space-y-0">
-                              <FormLabel className="text-xs text-muted-foreground">Left Engine</FormLabel>
-                              <FormControl>
-                                <NumberInput value={value} onChange={onChange} field={field} />
-                              </FormControl>
+                          name={`fluid.engOilSets.${index}.selectedEngine`}
+                          render={({ field: { value, onChange } }) => (
+                            <FormItem className="space-y-1">
+                              <FormLabel className="text-xs text-muted-foreground">Engine</FormLabel>
+                              <div className="flex rounded-md border border-gray-300 overflow-hidden h-9">
+                                <button
+                                  type="button"
+                                  className={`px-3 text-xs font-medium transition-colors ${value === 'left'
+                                      ? 'bg-primary text-primary-foreground'
+                                      : 'bg-white text-muted-foreground hover:bg-gray-50'
+                                    }`}
+                                  onClick={() => {
+                                    if (value !== 'left') {
+                                      const currentRight = form.getValues(`fluid.engOilSets.${index}.right`) || 0
+                                      onChange('left')
+                                      form.setValue(`fluid.engOilSets.${index}.left`, currentRight)
+                                      form.setValue(`fluid.engOilSets.${index}.right`, 0)
+                                    }
+                                  }}
+                                >
+                                  Left
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`px-3 text-xs font-medium transition-colors border-l border-gray-300 ${value === 'right'
+                                      ? 'bg-primary text-primary-foreground'
+                                      : 'bg-white text-muted-foreground hover:bg-gray-50'
+                                    }`}
+                                  onClick={() => {
+                                    if (value !== 'right') {
+                                      const currentLeft = form.getValues(`fluid.engOilSets.${index}.left`) || 0
+                                      onChange('right')
+                                      form.setValue(`fluid.engOilSets.${index}.right`, currentLeft)
+                                      form.setValue(`fluid.engOilSets.${index}.left`, 0)
+                                    }
+                                  }}
+                                >
+                                  Right
+                                </button>
+                              </div>
                             </FormItem>
                           )}
                         />
-                        <FormField
-                          control={form.control}
-                          name={`fluid.engOilSets.${index}.right`}
-                          render={({ field: { value, onChange, ...field } }) => (
-                            <FormItem className="space-y-0">
-                              <FormLabel className="text-xs text-muted-foreground">Right Engine</FormLabel>
-                              <FormControl>
-                                <NumberInput value={value} onChange={onChange} field={field} />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
+
+                        {/* Single Quantity Input */}
+                        {form.watch(`fluid.engOilSets.${index}.selectedEngine`) === 'left' ? (
+                          <FormField
+                            control={form.control}
+                            name={`fluid.engOilSets.${index}.left`}
+                            render={({ field: { value, onChange, ...field } }) => (
+                              <FormItem className="space-y-1 flex-1">
+                                <FormLabel className="text-xs text-muted-foreground">Left Engine (Qty)</FormLabel>
+                                <FormControl>
+                                  <NumberInput value={value} onChange={onChange} field={field} />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        ) : (
+                          <FormField
+                            control={form.control}
+                            name={`fluid.engOilSets.${index}.right`}
+                            render={({ field: { value, onChange, ...field } }) => (
+                              <FormItem className="space-y-1 flex-1">
+                                <FormLabel className="text-xs text-muted-foreground">Right Engine (Qty)</FormLabel>
+                                <FormControl>
+                                  <NumberInput value={value} onChange={onChange} field={field} />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        )}
                       </div>
 
                       {engOilSets.length > minEngineOilSets && (

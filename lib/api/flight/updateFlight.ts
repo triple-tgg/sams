@@ -21,7 +21,7 @@ export interface UpdateFlightData {
   statusCode: string;
   note: string;
   maintenanceStatusCode?: string;
-  checkStatusId?: number;
+  maintenanceStatusId?: number;
 }
 
 // API Response Interface

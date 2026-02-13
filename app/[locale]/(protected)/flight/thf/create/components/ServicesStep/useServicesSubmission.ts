@@ -152,7 +152,7 @@ export const useServicesSubmission = ({
     if (currentSets.length < 4) {
       form.setValue('fluid.engOilSets', [
         ...currentSets,
-        { left: 0, right: 0 }
+        { left: 0, right: 0, selectedEngine: 'left' as const }
       ])
     }
   }

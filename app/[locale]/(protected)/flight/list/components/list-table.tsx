@@ -4,7 +4,7 @@ import {
     getCoreRowModel, getFilteredRowModel, getSortedRowModel, useReactTable,
 } from "@tanstack/react-table"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, ChevronRight, Download, Plus, AlignStartVertical } from "lucide-react"
+import { ChevronLeft, ChevronRight, Download, Plus, AlignStartVertical, FileUp, Search, MapPin, Plane, Calendar, Zap, RotateCcw } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -26,8 +26,8 @@ import { useAirlineOptions } from "@/lib/api/hooks/useAirlines"
 import { routerPushNewTab } from "@/lib/utils/navigation"
 import { Pagination } from "./Pagination"
 import TableSkeleton from "@/components/skeketon/TableSkeleton"
-import { ExcelImportButton } from "@/components/excel-import-button"
-import { useTemplateDownload } from "@/hooks/use-template-download"
+import { ExcelImportModal } from "@/components/flight-timeline/ExcelImportModal"
+import { useFlightExcelImport } from "@/hooks/use-flight-excel-import"
 import CreateProject from "../../create-project"
 import CreateThfModal from "../../thf/create/components/CreateThfModal"
 
@@ -87,7 +87,18 @@ const ListTable = ({
 
     const router = useRouter()
     const { locale } = useParams()
-    const { handleDownloadTemplate } = useTemplateDownload()
+    // Download template handler (same as Flight Timeline)
+    const handleDownloadTemplate = () => {
+        const link = document.createElement('a');
+        link.href = '/flie/Template Aircraft Sched-Mapping.xlsx';
+        link.download = 'Template Aircraft Sched-Mapping.xlsx';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    // Excel import hook with preview, validation, and upload (same as Flight Timeline)
+    const excelImport = useFlightExcelImport();
 
     // const { page, perPage, total, onPageChange, onPerPageChange } = pagination
     const [open, setOpen] = React.useState<boolean>(false);
@@ -277,18 +288,44 @@ const ListTable = ({
                     Manage flight schedules and maintenance service records.
                 </CardDescription>
                 <div className="flex items-center gap-2 ml-auto">
-                    <Button variant="outline" color="success" onClick={() => handleDownloadTemplate()}>
-                        <Download className="h-4 w-4 mr-2" />
-                        Template
+                    <Button color="primary" onClick={() => setOpen(true)} size="md">
+                        <Plus className="w-4 h-4 mr-2" />
+                        <span>Add Flight</span>
                     </Button>
-                    <ExcelImportButton onImportSuccess={() => { }} />
-                    <Button color="primary" onClick={() => setOpen(true)}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Flight
+
+                    {/* Import Button with Excel Preview Modal (same as Flight Timeline) */}
+                    <input
+                        type="file"
+                        ref={excelImport.fileInputRef}
+                        onChange={excelImport.handleFileSelect}
+                        accept=".xlsx,.xls"
+                        className="hidden"
+                    />
+                    <Button
+                        className="flex-none"
+                        color="primary"
+                        variant="outline"
+                        onClick={excelImport.openFilePicker}
+                        disabled={excelImport.isParsing}
+                        size="md"
+                    >
+                        <FileUp className="w-4 h-4 mr-2" />
+                        <span>{excelImport.isParsing ? 'Loading...' : 'Import'}</span>
                     </Button>
-                    <Button color="default" onClick={() => window.open(`/${locale}/views-flight-timeline`, '_blank')}>
-                        <AlignStartVertical className="h-4 w-4 mr-2" />
-                        Timeline
+                    {/* Download Template Button (same as Flight Timeline) */}
+                    <Button
+                        className="flex-none"
+                        color="secondary"
+                        variant="outline"
+                        onClick={handleDownloadTemplate}
+                        size="md"
+                    >
+                        <Download className="w-4 h-4 mr-2" />
+                        <span>Template</span>
+                    </Button>
+                    <Button color="default" onClick={() => window.open(`/${locale}/views-flight-timeline`, '_blank')} size="md">
+                        <AlignStartVertical className="w-4 h-4 mr-2" />
+                        <span>Timeline</span>
                     </Button>
                 </div>
             </CardHeader>
@@ -297,85 +334,141 @@ const ListTable = ({
             <FormProvider {...{ register, handleSubmit, control, watch, setValue, getValues, ...props }}>
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <div className="px-6 pb-4">
-                        <div className="flex flex-wrap items-center justify-between gap-4 py-4 px-4 rounded-lg bg-slate-100 shadow-sm">
-                            <div className="flex items-center gap-2">
-                                <Input
-                                    className="w-48"
-                                    type="text"
-                                    placeholder="Flight No."
-                                    {...register("search")}
-                                    onKeyDown={(e) => {
-                                        if (e.key === "Enter") {
-                                            e.preventDefault()
-                                            handleSubmit(onSubmit)()
-                                        }
-                                    }}
-                                />
-                                <Controller
-                                    name="stationCode"
-                                    control={control}
-                                    render={({ field }) => (
-                                        <Select value={field.value} onValueChange={(value) => {
-                                            field.onChange(value);
-                                            handleSubmit(onSubmit)();
-                                        }}>
-                                            <SelectTrigger className="w-48">
-                                                <SelectValue placeholder="Station" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {stationOptionsWithAll.map((option) => (
-                                                    <SelectItem key={option.value} value={option.value}>
-                                                        {option.label}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    )}
-                                />
-                                <Controller
-                                    name="airlineId"
-                                    control={control}
-                                    render={({ field }) => (
-                                        <Select value={String(field.value)} onValueChange={(value) => {
-                                            field.onChange(value);
-                                            handleSubmit(onSubmit)();
-                                        }}>
-                                            <SelectTrigger className="w-48">
-                                                <SelectValue placeholder="Airline" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {airlinesOptionsWithAll.map((option) => (
-                                                    <SelectItem key={String(option.id)} value={String(option.id)}>
-                                                        {option.label}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    )}
-                                />
+                        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 shadow-sm">
+                            {/* Filter Row */}
+                            <div className="flex flex-wrap items-end justify-between gap-4 p-4">
+                                <div className="flex gap-4">
+                                    {/* Flight No. */}
+                                    <div className="flex flex-col gap-1.5 min-w-[160px]">
+                                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                            <Search className="h-3 w-3" />
+                                            Flight No.
+                                        </label>
+                                        <Input
+                                            className="h-9 text-sm bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600"
+                                            type="text"
+                                            placeholder="Search..."
+                                            {...register("search")}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter") {
+                                                    e.preventDefault()
+                                                    handleSubmit(onSubmit)()
+                                                }
+                                            }}
+                                        />
+                                    </div>
+
+                                    {/* Station */}
+                                    <div className="flex flex-col gap-1.5 min-w-[160px]">
+                                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                            <MapPin className="h-3 w-3" />
+                                            Station
+                                        </label>
+                                        <Controller
+                                            name="stationCode"
+                                            control={control}
+                                            render={({ field }) => (
+                                                <Select value={field.value} onValueChange={(value) => {
+                                                    field.onChange(value);
+                                                    handleSubmit(onSubmit)();
+                                                }}>
+                                                    <SelectTrigger className="h-9 text-sm bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600">
+                                                        <SelectValue placeholder="All Stations" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {stationOptionsWithAll.map((option) => (
+                                                            <SelectItem key={option.value} value={option.value}>
+                                                                {option.label}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            )}
+                                        />
+                                    </div>
+
+                                    {/* Airline */}
+                                    <div className="flex flex-col gap-1.5 min-w-[160px]">
+                                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                            <Plane className="h-3 w-3" />
+                                            Airline
+                                        </label>
+                                        <Controller
+                                            name="airlineId"
+                                            control={control}
+                                            render={({ field }) => (
+                                                <Select value={String(field.value)} onValueChange={(value) => {
+                                                    field.onChange(value);
+                                                    handleSubmit(onSubmit)();
+                                                }}>
+                                                    <SelectTrigger className="h-9 text-sm bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600">
+                                                        <SelectValue placeholder="All Airlines" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {airlinesOptionsWithAll.map((option) => (
+                                                            <SelectItem key={String(option.id)} value={String(option.id)}>
+                                                                {option.label}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            )}
+                                        />
+                                    </div>
+
+                                </div>
+                                {/* Separator */}
+                                <div className="hidden lg:block w-px h-9 bg-slate-200 dark:bg-slate-600" />
+
+                                {/* Date Range */}
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                        <Calendar className="h-3 w-3" />
+                                        Date Range
+                                    </label>
+                                    <Controller
+                                        name="dateRange"
+                                        control={control}
+                                        render={({ field }) => (
+                                            <DateRangeFilter
+                                                value={field.value}
+                                                onChange={(dateRange) => {
+                                                    field.onChange(dateRange);
+                                                    setTimeout(() => {
+                                                        handleSubmit(onSubmit)();
+                                                    }, 100);
+                                                }}
+                                                placeholder="DD/MM/YYYY"
+                                            />
+                                        )}
+                                    />
+                                </div>
                             </div>
 
-                            <div className="flex items-center gap-2">
-                                <Controller
-                                    name="dateRange"
-                                    control={control}
-                                    render={({ field }) => (
-                                        <DateRangeFilter
-                                            value={field.value}
-                                            onChange={(dateRange) => {
-                                                field.onChange(dateRange);
-                                                setTimeout(() => {
-                                                    handleSubmit(onSubmit)();
-                                                }, 100);
-                                            }}
-                                            placeholder="Select date range"
-                                        />
-                                    )}
-                                />
-                                <FilterRange
-                                    value={dateRangeValue}
-                                    onClick={() => handleSubmit(onSubmit)()}
-                                />
+                            {/* Total Count Bar */}
+                            <div className="flex items-center justify-between px-4 py-2 border-t border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/30 rounded-b-xl">
+                                <div className="flex items-center gap-2">
+                                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+                                        Showing
+                                        <span className="inline-flex items-center justify-center min-w-[24px] px-1.5 py-0.5 rounded-full bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300 font-bold text-xs">
+                                            {total}
+                                        </span>
+                                        flights
+                                    </span>
+                                </div>
+                                {/* Quick Range */}
+                                <div className="flex gap-1.5">
+                                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                        <Zap className="h-3 w-3" />
+                                        Quick
+                                    </label>
+
+                                    <FilterRange
+                                        value={dateRangeValue}
+                                        onClick={() => handleSubmit(onSubmit)()}
+                                    />
+                                </div>
+
                             </div>
                         </div>
                     </div>
@@ -434,6 +527,28 @@ const ListTable = ({
                     />
                 </CardContent>
             )}
+            {/* Excel Import Modal with Preview and Validation (same as Flight Timeline) */}
+            <ExcelImportModal
+                isOpen={excelImport.isModalOpen}
+                onClose={excelImport.closeModal}
+                sheets={excelImport.sheets}
+                activeSheetIndex={excelImport.activeSheetIndex}
+                onSheetChange={excelImport.setActiveSheetIndex}
+                validatedRows={excelImport.validatedRows}
+                validatedRowsBySheet={excelImport.validatedRowsBySheet}
+                hasValidated={excelImport.hasValidated}
+                validRows={excelImport.validRows}
+                invalidRows={excelImport.invalidRows}
+                warningRows={excelImport.warningRows}
+                canUpload={excelImport.canUpload}
+                isValidating={excelImport.isValidating}
+                isUploading={excelImport.isUploading}
+                onValidate={excelImport.validateData}
+                onUpload={excelImport.uploadData}
+                onDeleteRow={excelImport.deleteRow}
+                onEditRow={excelImport.editRow}
+                onUpdateSheetName={excelImport.updateSheetName}
+            />
         </Card>
     )
 }

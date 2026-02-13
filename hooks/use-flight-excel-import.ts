@@ -303,7 +303,7 @@ export const useFlightExcelImport = () => {
         const checkMatch = checkStatusOptions.find(opt =>
             opt.value.toUpperCase() === String(checkValue).trim().toUpperCase()
         );
-        const checkStatusId = checkMatch?.id || 0;
+        const maintenanceStatusId = checkMatch?.id || 0;
 
         // Ensure all fields exist with defaults
         return {
@@ -325,7 +325,7 @@ export const useFlightExcelImport = () => {
             note: mapped.note || '',
             csStaffIds,
             mechStaffIds,
-            checkStatusId,
+            maintenanceStatusId,
         };
     }, [formatDate, formatDateTime, parseAndMatchStaff, checkStatusOptions]);
 
@@ -490,7 +490,7 @@ export const useFlightExcelImport = () => {
                 const checkMatch = checkStatusOptions.find(opt =>
                     opt.value.toUpperCase() === String(checkValue).trim().toUpperCase()
                 );
-                const checkStatusId = checkMatch?.id || 0;
+                const maintenanceStatusId = checkMatch?.id || 0;
 
                 // Format datetime with sheet date context
                 const formatFullDateTime = (timeValue: any): string => {
@@ -535,7 +535,7 @@ export const useFlightExcelImport = () => {
                     bayNo: row['BAY'] || row['PARKING'] || '',
                     csIdList,
                     mechIdList,
-                    checkStatusId,
+                    maintenanceStatusId,
                     note: row['NOTE'] || row['REMARK'] || '',
                 };
             };
@@ -747,7 +747,7 @@ export const useFlightExcelImport = () => {
                 const checkMatch = checkStatusOptions.find(opt =>
                     opt.value.toUpperCase() === String(checkValue).trim().toUpperCase()
                 );
-                const checkStatusId = checkMatch?.id || 0;
+                const maintenanceStatusId = checkMatch?.id || 0;
 
                 // Format dates - use the row's specific sheet date
                 const formatFullDateTime = (timeValue: any): string => {
@@ -796,7 +796,7 @@ export const useFlightExcelImport = () => {
                     bayNo: row['BAY'] || row['PARKING'] || '',
                     csIdList,
                     mechIdList,
-                    checkStatusId,
+                    maintenanceStatusId,
                     note: row['NOTE'] || row['REMARK'] || '',
                     userName: 'system', // TODO: Get from auth context
                 };

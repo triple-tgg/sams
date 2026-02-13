@@ -15,6 +15,7 @@ import { flightFormSchema } from './schema'
 import { getDefaultValues, sanitizeFormData, sendTime } from './utils'
 import { SelectField, InputField, TextareaField, InputFieldDate } from './FormFields'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { CreatableRouteSelect } from '@/components/ui/creatable-route-select'
 import { FlightFormData } from '@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId'
 import { Flight } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
 
@@ -208,26 +209,18 @@ const FlightStep = (props: FlightStepProps) => {
 
               {/* Row 3: Route From & Route To */}
               <div className="grid lg:grid-cols-2 gap-6">
-                <SelectField
+                <CreatableRouteSelect
                   name="routeFrom"
                   control={control}
                   label="Route From"
                   placeholder="Select Route From"
-                  options={stationOptions}
-                  isLoading={loadingStations}
-                  error={stationsError?.message}
-                  usingFallback={!!stationsUsingFallback}
                   errorMessage={errors.routeFrom?.message}
                 />
-                <SelectField
+                <CreatableRouteSelect
                   name="routeTo"
                   control={control}
                   label="Route To"
                   placeholder="Select Route To"
-                  options={stationOptions}
-                  isLoading={loadingStations}
-                  error={stationsError?.message}
-                  usingFallback={!!stationsUsingFallback}
                   errorMessage={errors.routeTo?.message}
                 />
               </div>

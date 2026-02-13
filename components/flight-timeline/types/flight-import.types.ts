@@ -52,7 +52,7 @@ export interface FlightImportData {
     note: string;
     csStaffIds: number[];  // CS staff IDs
     mechStaffIds: number[]; // MECH staff IDs
-    checkStatusId: number;  // CHECK column - MaintenanceStatus ID
+    maintenanceStatusId: number;  // CHECK column - MaintenanceStatus ID
 }
 
 /**
@@ -124,7 +124,7 @@ export interface FlightValidateRequestItem {
     bayNo: string;
     csIdList: number[];
     mechIdList: number[];
-    checkStatusId: number;
+    maintenanceStatusId: number;
     note: string;
     userName?: string;
 }

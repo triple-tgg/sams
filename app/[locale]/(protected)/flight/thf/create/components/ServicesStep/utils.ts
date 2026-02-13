@@ -99,7 +99,7 @@ export const transformFluidDataToAPI = (fluidData: FluidFormData) => {
 
   return {
     fluidName: fluidData.fluidName?.value || "",
-    engOil: engOilSets.map(set => ({ left: set.left || null, right: set.right || null })),
+    engOil: engOilSets.map(set => ({ left: set.left || null, right: set.right || null })),  // strip selectedEngine for API
 
     hydOilBlue: fluidData.hydOilBlue || null,
     hydOilGreen: fluidData.hydOilGreen || null,
@@ -217,6 +217,7 @@ export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse |
   const engOilSets = fluidServicing?.engOil?.map(oil => ({
     left: oil.leftOil || 0,
     right: oil.rightOil || 0,
+    selectedEngine: (oil.leftOil && oil.leftOil > 0 ? 'left' : 'right') as 'left' | 'right',
   })) || [];
 
   const csdIdgVsfgSets = fluidServicing?.csdOil?.map((qty: number) => ({

@@ -40,6 +40,7 @@ import { FieldError } from "@/components/ui/field-error";
 import { convertDateToBackend } from "@/lib/utils/formatPicker";
 import { CustomDateInput } from "@/components/ui/input-date/CustomDateInput";
 import { SearchableSelectField } from "@/components/ui/search-select";
+import { CreatableRouteSelect } from "@/components/ui/creatable-route-select";
 import { useAircraftTypes } from "@/lib/api/hooks/useAircraftTypes";
 import { toast } from "sonner";
 import { PersonnelSection } from "./thf/create/components/CPresonel";
@@ -358,84 +359,20 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
               </div>
               {/* Route From / Route To */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2 col-span-1">
-                  <Label htmlFor="routeFrom">Route From</Label>
-                  <Controller
-                    name="routeFrom"
-                    control={control}
-                    render={({ field }) => (
-                      <Select
-                        value={field.value?.value}
-                        onValueChange={(value) => {
-                          const option = stationOptions.find(opt => opt.value === value);
-                          field.onChange(option || null);
-                        }}
-                        disabled={loadingStations}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder={
-                            loadingStations ? "Loading stations..." :
-                              stationsError ? "Failed to load stations" :
-                                stationOptions.length === 0 ? "No stations found" :
-                                  "Select station"
-                          } />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {stationOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                  <FieldError msg={errors.station?.message as string | undefined} />
-                  {stationsUsingFallback && (
-                    <p className="text-sm text-amber-600">
-                      ⚠️ Using offline station data due to API connection issue
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-2 col-span-1">
-                  <Label htmlFor="routeTo">Route To</Label>
-                  <Controller
-                    name="routeTo"
-                    control={control}
-                    render={({ field }) => (
-                      <Select
-                        value={field.value?.value}
-                        onValueChange={(value) => {
-                          const option = stationOptions.find(opt => opt.value === value);
-                          field.onChange(option || null);
-                        }}
-                        disabled={loadingStations}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder={
-                            loadingStations ? "Loading stations..." :
-                              stationsError ? "Failed to load stations" :
-                                stationOptions.length === 0 ? "No stations found" :
-                                  "Select station"
-                          } />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {stationOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                  <FieldError msg={errors.station?.message as string | undefined} />
-                  {stationsUsingFallback && (
-                    <p className="text-sm text-amber-600">
-                      ⚠️ Using offline station data due to API connection issue
-                    </p>
-                  )}
-                </div>
+                <CreatableRouteSelect
+                  name="routeFrom"
+                  control={control}
+                  label="Route From"
+                  placeholder="Select Route From"
+                  errorMessage={errors.routeFrom?.message as string | undefined}
+                />
+                <CreatableRouteSelect
+                  name="routeTo"
+                  control={control}
+                  label="Route To"
+                  placeholder="Select Route To"
+                  errorMessage={errors.routeTo?.message as string | undefined}
+                />
               </div>
             </div>
 

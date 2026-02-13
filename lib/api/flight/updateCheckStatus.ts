@@ -3,7 +3,7 @@ import type { AxiosError } from "axios";
 
 export interface UpdateCheckStatusData {
     flightInfosId: number;
-    checkStatusId: number;
+    maintenanceStatusId: number;
 }
 
 export interface UpdateCheckStatusResponse {

@@ -89,6 +89,7 @@ export const servicesFormSchema = z.object({
     engOilSets: z.array(z.object({
       left: z.number().optional(),
       right: z.number().optional(),
+      selectedEngine: z.enum(['left', 'right']).default('left'),
     })).max(4, "Maximum 4 engine oil sets allowed").default([]),
     csdIdgVsfgSets: z.array(z.object({
       quantity: z.number().optional(),

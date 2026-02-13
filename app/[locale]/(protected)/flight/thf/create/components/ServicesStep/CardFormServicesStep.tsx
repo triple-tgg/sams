@@ -112,7 +112,7 @@ const CardFormServicesStep = (props: Props) => {
       // Auto-initialize Engine Oil sets to match flag count
       const currentEngSets = form.getValues('fluid.engOilSets')
       if (flags.engineCount > 0 && (!currentEngSets || currentEngSets.length === 0)) {
-        const engSets = Array.from({ length: flags.engineCount }, () => ({ left: 0, right: 0 }))
+        const engSets = Array.from({ length: flags.engineCount }, () => ({ left: 0, right: 0, selectedEngine: 'left' as const }))
         form.setValue('fluid.engOilSets', engSets)
       }
 
