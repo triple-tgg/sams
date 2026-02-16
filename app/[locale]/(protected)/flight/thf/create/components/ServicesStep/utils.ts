@@ -43,7 +43,6 @@ export const getDefaultValues = (checkTypes?: AircraftCheckType[]): ServicesForm
     // flightDeckInfo: [],
     aircraftTowing: false,
     aircraftTowingInfo: [],
-    marshallingServicePerFlight: 0,
   }
 }
 
@@ -71,18 +70,18 @@ export const getDefaultMaintenanceType = (checkTypes?: AircraftCheckType[]): str
 }
 
 export const transformFluidData = (fluidData: FluidFormData) => {
-  const engOilSets = fluidData.engOilSets || [{ left: "", right: "" }]
+  const engOilSets = fluidData.engOilSets || []
 
   return {
     fluidName: fluidData.fluidName?.value || "",
-    engOil1L: engOilSets[0]?.left || null,
-    engOil1R: engOilSets[0]?.right || null,
-    engOil2L: engOilSets[1]?.left || null,
-    engOil2R: engOilSets[1]?.right || null,
-    engOil3L: engOilSets[2]?.left || null,
-    engOil3R: engOilSets[2]?.right || null,
-    engOil4L: engOilSets[3]?.left || null,
-    engOil4R: engOilSets[3]?.right || null,
+    engOil1L: engOilSets[0]?.quantity || null,
+    engOil1R: null,
+    engOil2L: engOilSets[1]?.quantity || null,
+    engOil2R: null,
+    engOil3L: engOilSets[2]?.quantity || null,
+    engOil3R: null,
+    engOil4L: engOilSets[3]?.quantity || null,
+    engOil4R: null,
 
     hydOilBlue: fluidData.hydOilBlue || null,
     hydOilGreen: fluidData.hydOilGreen || null,
@@ -99,7 +98,7 @@ export const transformFluidDataToAPI = (fluidData: FluidFormData) => {
 
   return {
     fluidName: fluidData.fluidName?.value || "",
-    engOil: engOilSets.map(set => ({ left: set.left || null, right: set.right || null })),  // strip selectedEngine for API
+    engOil: engOilSets.map(set => ({ quantity: set.quantity || null })),
 
     hydOilBlue: fluidData.hydOilBlue || null,
     hydOilGreen: fluidData.hydOilGreen || null,
@@ -186,7 +185,7 @@ export const validateTimeRange = (from: string, to: string): boolean => {
 export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse | null): ServicesFormInputs | null => {
   if (!queryData?.responseData) return null;
 
-  const { aircraft, lineMaintenance, marshalling, rampFuel, actualUplift } = queryData.responseData;
+  const { aircraft, lineMaintenance, rampFuel, actualUplift } = queryData.responseData;
 
   // Map aircraft checks
   const aircraftChecks = (aircraft?.aircraftCheckType?.length ?? 0) > 0
@@ -214,10 +213,8 @@ export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse |
   })) || [];
   // Map fluid data
   const fluidServicing = aircraft?.fluidServicing;
-  const engOilSets = fluidServicing?.engOil?.map(oil => ({
-    left: oil.leftOil || 0,
-    right: oil.rightOil || 0,
-    selectedEngine: (oil.leftOil && oil.leftOil > 0 ? 'left' : 'right') as 'left' | 'right',
+  const engOilSets = fluidServicing?.engOil?.map((qty: number) => ({
+    quantity: qty || 0,
   })) || [];
 
   const csdIdgVsfgSets = fluidServicing?.csdOil?.map((qty: number) => ({
@@ -236,7 +233,7 @@ export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse |
     hydOilB: fluidServicing?.hydraulicB || 0,
     hydOilSTBY: fluidServicing?.hydraulicSTBY || 0,
 
-    apuOil: 0,
+    apuOil: fluidServicing?.apuOil || 0,
     rampFuel: rampFuel || 0,
     actualUplift: actualUplift || 0,
   };
@@ -276,6 +273,5 @@ export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse |
     // flightDeckInfo: lineMaintenance?.isFlightdeck ? flightDeckInfo : [],
     aircraftTowing: lineMaintenance?.isAircraftTowing || false,
     aircraftTowingInfo: lineMaintenance?.isAircraftTowing ? aircraftTowingInfo : [],
-    marshallingServicePerFlight: marshalling || 0,
   };
 };

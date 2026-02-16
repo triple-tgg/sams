@@ -87,9 +87,7 @@ export const servicesFormSchema = z.object({
       value: z.string(),
     }).nullable(),
     engOilSets: z.array(z.object({
-      left: z.number().optional(),
-      right: z.number().optional(),
-      selectedEngine: z.enum(['left', 'right']).default('left'),
+      quantity: z.number().optional(),
     })).max(4, "Maximum 4 engine oil sets allowed").default([]),
     csdIdgVsfgSets: z.array(z.object({
       quantity: z.number().optional(),
@@ -146,7 +144,6 @@ export const servicesFormSchema = z.object({
 
   // Aircraft Towing
   aircraftTowing: z.boolean().default(false),
-  marshallingServicePerFlight: z.number().optional(),
   aircraftTowingInfo: z.array(z.object({
     onDate: dateSchema.refine((date) => date !== "", { message: "Date is required" }),
     offDate: dateSchema.refine((date) => date !== "", { message: "Date is required" }),

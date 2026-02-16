@@ -23,7 +23,8 @@ import {
     SelectValue,
 } from '../ui/select';
 import { useMaintenanceStatus } from '@/lib/api/hooks/useMaintenanceStatus';
-import { updateCheckStatus } from '@/lib/api/flight/updateCheckStatus';
+import { getlineMaintenancesThfByFlightId } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId';
+import { updateFlight } from '@/lib/api/flight/updateFlight';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
@@ -77,13 +78,13 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
     const [checkModalOpen, setCheckModalOpen] = useState(false);
     const [checkModalFlight, setCheckModalFlight] = useState<FlightItem | null>(null);
     const [selectedStatusId, setSelectedStatusId] = useState<number | null>(null);
+    const [isFetchingFlightInfo, setIsFetchingFlightInfo] = useState(false);
 
     // Hooks for maintenance status options and flight update
     const { options: maintenanceStatusOptions } = useMaintenanceStatus();
     const queryClient = useQueryClient();
-    const { mutate: updateCheckStatusMutation, isPending: isUpdatingStatus } = useMutation({
-        mutationFn: (data: { flightInfosId: number; maintenanceStatusId: number }) =>
-            updateCheckStatus(data),
+    const { mutate: updateFlightMutation, isPending: isUpdatingStatus } = useMutation({
+        mutationFn: (data: Parameters<typeof updateFlight>[0]) => updateFlight(data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['flightList'] });
             queryClient.invalidateQueries({ queryKey: ['flights'] });
@@ -102,13 +103,55 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
         setCheckModalOpen(true);
     };
 
-    const handleCheckModalSave = () => {
+    const handleCheckModalSave = async () => {
         if (!checkModalFlight || !checkModalFlight.flightInfosId || !selectedStatusId) return;
 
-        updateCheckStatusMutation({
-            flightInfosId: checkModalFlight.flightInfosId,
-            maintenanceStatusId: selectedStatusId,
-        });
+        try {
+            setIsFetchingFlightInfo(true);
+            // 1. Fetch full flight info from API
+            const res = await getlineMaintenancesThfByFlightId({ flightInfosId: checkModalFlight.flightInfosId });
+            const flightInfo = res.responseData?.flight;
+
+            if (!flightInfo) {
+                toast.error('Failed to fetch flight info');
+                return;
+            }
+
+            // 2. Build update body from fetched flight info, only changing maintenanceStatusId
+            const updateBody = {
+                id: flightInfo.flightInfosId!,
+                airlinesCode: flightInfo.airlineObj?.code || '',
+                stationsCode: flightInfo.stationObj?.code || '',
+                acReg: flightInfo.acReg || '',
+                acTypeCode: flightInfo.acTypeObj?.code || '',
+                arrivalFlightNo: flightInfo.arrivalFlightNo || '',
+                arrivalDate: flightInfo.arrivalDate || '',
+                arrivalStaTime: flightInfo.arrivalStatime || '',
+                arrivalAtaTime: flightInfo.arrivalAtaTime || '00:00',
+                departureFlightNo: flightInfo.departureFlightNo || '',
+                departureDate: flightInfo.departureDate || '',
+                departureStdTime: flightInfo.departureStdTime || '00:00',
+                departureAtdTime: flightInfo.departureAtdtime || '00:00',
+                bayNo: flightInfo.bayNo || '',
+                thfNo: flightInfo.thfNumber || '',
+                statusCode: flightInfo.statusObj?.code || 'Normal',
+                note: flightInfo.note || '',
+                routeFrom: flightInfo.routeForm || '',
+                routeTo: flightInfo.routeTo || '',
+                userName: flightInfo.createdBy || '',
+                csIdList: flightInfo.csList?.map((cs) => cs.id) || [],
+                mechIdList: flightInfo.mechList?.map((mech) => mech.id) || [],
+                maintenanceStatusId: selectedStatusId,
+            };
+
+            // 3. Call update API
+            updateFlightMutation(updateBody);
+        } catch (error) {
+            toast.error('Failed to fetch flight info');
+            console.error('[FlightTable] handleCheckModalSave error:', error);
+        } finally {
+            setIsFetchingFlightInfo(false);
+        }
     };
 
     const handleCheckModalClose = () => {
@@ -167,24 +210,24 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                 <table className="w-full bg-slate-50 dark:bg-slate-800">
                     <thead>
                         <tr className="bg-slate-300 text-left dark:bg-slate-700 dark:text-slate-300  text-slate-500 ">
-                            <th className="px-4 py-3 text-sm font-semibold">Airlines</th>
-                            <th className="px-4 py-3 text-sm font-semibold">Flight No</th>
-                            <th className="px-4 py-3 text-sm font-semibold">Route</th>
-                            <th className="px-4 py-3 text-sm font-semibold ">A/C Type</th>
-                            <th className="px-4 py-3 text-sm font-semibold ">A/C REG</th>
-                            {/* <th className="px-4 py-3 text-sm font-semibold text-slate-300">REG</th> */}
-                            <th className="px-4 py-3 text-sm font-semibold ">STA</th>
-                            <th className="px-4 py-3 text-sm font-semibold ">ETA</th>
-                            <th className="px-4 py-3 text-sm font-semibold ">STD</th>
-                            <th className="px-4 py-3 text-sm font-semibold ">BAY</th>
+                            <th className="p-2 text-sm font-semibold w-[150px]">Airlines</th>
+                            <th className="p-2 text-sm font-semibold w-[150px]">Flight No</th>
+                            <th className="p-2 text-sm font-semibold w-[100px]">Route</th>
+                            <th className="p-2 text-sm font-semibold w-[80px]">A/C Type</th>
+                            <th className="p-2 text-sm font-semibold w-[80px]">A/C REG</th>
+                            {/* <th className="p-2 text-sm font-semibold text-slate-300">REG</th> */}
+                            <th className="p-2 text-sm font-semibold w-[60px]">STA</th>
+                            <th className="p-2 text-sm font-semibold w-[60px]">ETA</th>
+                            <th className="p-2 text-sm font-semibold w-[60px]">STD</th>
+                            <th className="p-2 text-sm font-semibold w-[90px]">BAY</th>
 
-                            <th className="px-4 py-3 text-sm font-semibold ">CS</th>
-                            <th className="px-4 py-3 text-sm font-semibold ">MECH</th>
-                            <th className="px-4 py-3 text-sm font-semibold ">Status</th>
-                            <th className="px-4 py-3 text-sm font-semibold ">Check</th>
-                            <th className="px-4 py-3 text-sm font-semibold ">Remarks</th>
+                            <th className="p-2 text-sm font-semibold w-[100px]">CS</th>
+                            <th className="p-2 text-sm font-semibold w-[100px]">MECH</th>
+                            <th className="p-2 text-sm font-semibold w-[100px]">Status</th>
+                            <th className="p-2 text-sm font-semibold w-[100px]">Check</th>
+                            <th className="p-2 text-sm font-semibold w-[100px]">Remarks</th>
                             {!isFullscreen && (
-                                <th className="px-4 py-3 text-sm font-semibold w-[100px]">action</th>
+                                <th className="p-2 text-sm text-right font-semibold w-[50px]">action</th>
                             )}
                         </tr>
                     </thead>
@@ -195,12 +238,12 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                                 className="transition-colors hover:bg-slate-600/50 dark:hover:bg-slate-800/50 text-slate-900 dark:text-slate-300"
                             >
                                 {/* Airlines */}
-                                <td className="overflow-hidden px-4 py-3 text-sm w-[130px] text-ellipsis">
+                                <td className="p-1 overflow-hidden text-sm w-[150px] text-ellipsis leading-none">
                                     <Tooltip
                                         content={flight.airlineObj?.name || '-'}
                                     >
-                                        <span className={`w-full inline-flex items-center rounded
-                                         px-1.5 py-2 text-[10px] font-semibold 
+                                        <div className={`w-full min-h-full  inline-flex items-center rounded 
+                                         px-1.5 py-2 text-xs font-semibold 
                                          ${flight.airlineObj?.colorBackground ? `bg-${flight.airlineObj?.colorBackground} text-${flight.airlineObj?.colorForeground}` : 'bg-slate-900 text-slate-300'}
                                          `}
                                             style={{
@@ -210,18 +253,18 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                                         >
                                             {flight.airlineObj?.name || "-"}
                                             {/* {flight.airlineObj?.name?.length > 10 ? `${flight.airlineObj?.name?.slice(0, 10)}...` : flight.airlineObj?.name || '-'} */}
-                                        </span>
+                                        </div>
                                     </Tooltip>
                                 </td>
                                 {/* Flight No - Show both arrival and departure */}
-                                <td className="px-4 py-3 text-sm w-[150px]">
+                                <td className="p-1 text-sm w-[150px]  leading-none">
                                     <div className="space-y-1">
                                         {flight.arrivalFlightNo && (
                                             <div className="flex items-center gap-2">
                                                 {/* <span className="inline-flex items-center rounded bg-sky-900 px-1.5 py-0.5 text-[10px] font-semibold text-sky-300">
                                                     ARR
                                                 </span> */}
-                                                <span className="text-sm font-medium">{flight.arrivalFlightNo}</span>
+                                                <span className="text-sm font-medium">{flight.arrivalFlightNo || "N/A"}</span>
                                             </div>
                                         )}
                                         {/* {flight.departureFlightNo && (
@@ -236,51 +279,51 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                                 </td>
 
                                 {/* Root */}
-                                <td className="px-4 py-3 text-sm w-[100px]">
+                                <td className="p-1 text-sm w-[100px]  leading-none">
                                     {`${flight.routeForm || "-"} / ${flight.routeTo || "-"}`}
                                 </td>
                                 {/* A/C Type */}
-                                <td className="px-4 py-3 text-sm w-[80px]">
+                                <td className="p-1 text-sm w-[80px]  leading-none">
                                     {flight.acTypeObj?.code || flight.acType || '-'}
                                 </td>
 
                                 {/* REG */}
-                                <td className="px-4 py-3 text-sm w-[80px]">
+                                <td className="p-1 text-sm w-[80px]  leading-none">
                                     {flight.acReg || '-'}
                                 </td>
 
                                 {/* STA */}
-                                <td className="px-4 py-3 text-sm w-[60px]">
-                                    <Tooltip content={dayjs(`${flight.arrivalDate} ${flight.arrivalStatime}`).format('DD-MMM-YYYY, HH:mm') || '-'}>
-                                        <div className="">
-                                            {dayjs(`${flight.arrivalDate} ${flight.arrivalStatime}`).format('HH:mm') || '-'}
-                                        </div>
-                                    </Tooltip>
+                                <td className="p-1 text-sm w-[60px]  leading-none">
+                                    {flight.arrivalDate && flight.arrivalStatime && dayjs(`${flight.arrivalDate} ${flight.arrivalStatime}`).isValid() ? (
+                                        <Tooltip content={dayjs(`${flight.arrivalDate} ${flight.arrivalStatime}`).format('DD-MMM-YYYY, HH:mm')}>
+                                            <div>{dayjs(`${flight.arrivalDate} ${flight.arrivalStatime}`).format('HH:mm')}</div>
+                                        </Tooltip>
+                                    ) : '-'}
                                 </td>
                                 {/* ETA */}
-                                <td className="px-4 py-3 text-sm w-[60px]">
-                                    <Tooltip content={dayjs(`${flight.etaDate} ${flight.etaTime}`).format('DD-MMM-YYYY, HH:mm') || '-'}>
-                                        <div className="">
-                                            {dayjs(`${flight.etaDate} ${flight.etaTime}`).format('HH:mm') || '-'}
-                                        </div>
-                                    </Tooltip>
+                                <td className="p-1 text-sm w-[60px]  leading-none">
+                                    {flight.etaDate && flight.etaTime && dayjs(`${flight.etaDate} ${flight.etaTime}`).isValid() ? (
+                                        <Tooltip content={dayjs(`${flight.etaDate} ${flight.etaTime}`).format('DD-MMM-YYYY, HH:mm')}>
+                                            <div>{dayjs(`${flight.etaDate} ${flight.etaTime}`).format('HH:mm')}</div>
+                                        </Tooltip>
+                                    ) : '-'}
                                 </td>
 
                                 {/* STD */}
-                                <td className="px-4 py-3 text-sm w-[60px]">
-                                    <Tooltip content={dayjs(`${flight.departureDate} ${flight.departureStdTime}`).format('DD-MMM-YYYY, HH:mm') || '-'}>
-                                        <div className="">
-                                            {dayjs(`${flight.departureDate} ${flight.departureStdTime}`).format('HH:mm') || '-'}
-                                        </div>
-                                    </Tooltip>
+                                <td className="p-1 text-sm w-[60px]  leading-none">
+                                    {flight.departureDate && flight.departureStdTime && dayjs(`${flight.departureDate} ${flight.departureStdTime}`).isValid() ? (
+                                        <Tooltip content={dayjs(`${flight.departureDate} ${flight.departureStdTime}`).format('DD-MMM-YYYY, HH:mm')}>
+                                            <div>{dayjs(`${flight.departureDate} ${flight.departureStdTime}`).format('HH:mm')}</div>
+                                        </Tooltip>
+                                    ) : '-'}
                                 </td>
 
                                 {/* BAY */}
-                                <td className="px-4 py-3 text-sm w-[90px]">
+                                <td className="p-1 text-sm w-[90px]  leading-none">
                                     {flight.bayNo || '-'}
                                 </td>
                                 {/* CS */}
-                                <td className="px-4 py-3 text-sm w-[100px]">
+                                <td className="p-1 text-sm w-[100px]  leading-none">
                                     <div className="flex flex-wrap gap-1 items-start justify-start h-full flex-1 flex-col">
                                         {flight.csList?.length ? (
                                             flight.csList?.map((cs, csIndex) => {
@@ -305,7 +348,7 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                                     </div>
                                 </td>
                                 {/* MECH */}
-                                <td className="px-4 py-3 text-sm w-[100px]">
+                                <td className="p-1 text-sm w-[100px]  leading-none">
                                     <div className="flex flex-wrap gap-1 items-start h-full flex-1 grow-0">
                                         {flight.mechList?.length ? (
                                             flight.mechList?.map((mech, mechIndex) => {
@@ -330,7 +373,7 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                                     </div>
                                 </td>
                                 {/* Status */}
-                                <td className="px-4 py-3 text-sm w-[100px]">
+                                <td className="p-1 text-sm w-[100px]  leading-none">
                                     <span className={`
                                         inline-flex items-center rounded px-2 py-1 text-xs font-medium
                                         ${flight.statusObj?.code === 'Normal' ? 'dark:bg-green-900/50 bg-green-700 dark:text-green-400 text-green-100' : ''}
@@ -342,8 +385,7 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                                     </span>
                                 </td>
                                 {/* Check (Maintenance Status) - Clickable to open edit modal */}
-                                <td
-                                    className="px-4 py-3 text-sm w-[100px] cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                                <td className="p-1 text-sm w-[100px] cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors  leading-none"
                                     onClick={() => handleCheckCellClick(flight)}
                                     title="Click to edit Maintenance Status"
                                 >
@@ -360,7 +402,7 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                                     </span>
                                 </td>
                                 {/* Remarks */}
-                                <td className="px-4 py-3 text-sm w-[100px] text-slate-900 dark:text-slate-300">
+                                <td className="p-1 text-sm w-[100px] text-slate-900 dark:text-slate-300  leading-none">
                                     {flight.note ? <Tooltip content={flight.note || ''}>
                                         <div className="">
                                             {flight.note?.length > 10 ? `${flight.note?.slice(0, 10)}...` : flight.note || '-'}
@@ -368,7 +410,7 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                                     </Tooltip> : '-'}
                                 </td>
                                 {!isFullscreen && (
-                                    <td className="px-2 py-2 text-sm text-slate-900 dark:text-slate-300">
+                                    <td className="p-1 text-sm w-[50px] text-slate-900 dark:text-slate-300  leading-none">
                                         <div className="flex items-center justify-end gap-2 w-full"    >
                                             {flight.state !== "plan" && (
                                                 <Tooltip content={flight.state === "save" ? `Done (THF:${flight.thfNumber})` : `Draft (THF:${flight.thfNumber})` || ''}>
@@ -421,19 +463,6 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
 
                                     </td>
                                 )}
-
-                                {/* Status */}
-                                {/* <td className="px-4 py-3">
-                                    <span className={`
-                                        inline-flex items-center rounded px-2 py-1 text-xs font-medium
-                                        ${flight.statusObj?.code === 'Normal' ? 'bg-green-900/50 text-green-400' : ''}
-                                        ${flight.statusObj?.code === 'DELAYED' ? 'bg-amber-900/50 text-amber-400' : ''}
-                                        ${flight.statusObj?.code === 'CANCELLED' ? 'bg-red-900/50 text-red-400' : ''}
-                                        ${!['Normal', 'DELAYED', 'CANCELLED'].includes(flight.statusObj?.code || '') ? 'bg-slate-700 text-slate-300' : ''}
-                                    `}>
-                                        {flight.statusObj?.code || flight.statusObj?.name || '-'}
-                                    </span>
-                                </td> */}
                             </tr>
                         ))}
                     </tbody>
@@ -475,16 +504,16 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                         <Button
                             variant="outline"
                             onClick={handleCheckModalClose}
-                            disabled={isUpdatingStatus}
+                            disabled={isUpdatingStatus || isFetchingFlightInfo}
                         >
                             Cancel
                         </Button>
                         <Button
                             color="primary"
                             onClick={handleCheckModalSave}
-                            disabled={isUpdatingStatus || !selectedStatusId}
+                            disabled={isUpdatingStatus || isFetchingFlightInfo || !selectedStatusId}
                         >
-                            {isUpdatingStatus ? 'Saving...' : 'Save'}
+                            {isFetchingFlightInfo ? 'Loading...' : isUpdatingStatus ? 'Saving...' : 'Save'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

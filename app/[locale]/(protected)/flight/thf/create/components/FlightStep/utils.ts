@@ -41,30 +41,33 @@ export const getDefaultValues = (): Step1FormInputs => ({
 });
 
 // Sanitize form data from API (update mode)
-export const sanitizeFormData = (existingData: FlightFormData): Step1FormInputs => ({
-  // Airlines Info
-  customer: existingData.customer || null,
-  station: existingData.station || null,
-  acReg: existingData.acReg || '',
-  acTypeCode: existingData.acTypeCode || null,
-  routeFrom: null, // Not in FlightFormData yet
-  routeTo: null, // Not in FlightFormData yet
+export const sanitizeFormData = (existingData: FlightFormData): Step1FormInputs => {
+  console.log('[sanitizeFormData] routeFrom:', existingData.routeFrom, 'routeTo:', existingData.routeTo);
+  return ({
+    // Airlines Info
+    customer: existingData.customer || null,
+    station: existingData.station || null,
+    acReg: existingData.acReg || '',
+    acTypeCode: existingData.acTypeCode || null,
+    routeFrom: existingData.routeFrom || null,
+    routeTo: existingData.routeTo || null,
 
-  // Arrival (UTC Time)
-  flightArrival: existingData.flightArrival || '',
-  arrivalDate: existingData.arrivalDate ? formatFromPicker(existingData.arrivalDate) : '',
-  sta: existingData.sta || '',
-  ata: existingData.ata || '',
+    // Arrival (UTC Time)
+    flightArrival: existingData.flightArrival || '',
+    arrivalDate: existingData.arrivalDate ? formatFromPicker(existingData.arrivalDate) : '',
+    sta: existingData.sta || '',
+    ata: existingData.ata || '',
 
-  // Departure (UTC Time)
-  flightDeparture: existingData.flightDeparture || '',
-  departureDate: existingData.departureDate ? formatFromPicker(existingData.departureDate) : '',
-  std: existingData.std || '',
-  atd: existingData.atd || '',
+    // Departure (UTC Time)
+    flightDeparture: existingData.flightDeparture || '',
+    departureDate: existingData.departureDate ? formatFromPicker(existingData.departureDate) : '',
+    std: existingData.std || '',
+    atd: existingData.atd || '',
 
-  // THF Document Info
-  thfNumber: existingData.thfNumber || '',
-  bay: existingData.bay || '',
-  status: existingData.status || null,
-  note: existingData.note || '',
-});
+    // THF Document Info
+    thfNumber: existingData.thfNumber || '',
+    bay: existingData.bay || '',
+    status: existingData.status || null,
+    note: existingData.note || '',
+  });
+}

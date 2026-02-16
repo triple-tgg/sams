@@ -20,6 +20,11 @@ export interface UpdateFlightData {
   thfNo: string;
   statusCode: string;
   note: string;
+  routeFrom?: string;
+  routeTo?: string;
+  userName?: string;
+  csIdList?: number[] | null;
+  mechIdList?: number[] | null;
   maintenanceStatusCode?: string;
   maintenanceStatusId?: number;
 }

@@ -43,6 +43,7 @@ import useUpdateFlight from "@/lib/api/hooks/useUpdateFlight";
 import { useLineMaintenancesQueryThfByFlightId } from "@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId";
 import { PersonnelSection } from "./thf/create/components/CPresonel";
 import ConfirmEditFlight from "./thf/create/components/ConfirmEditFlight";
+import { useMaintenanceStatus } from "@/lib/api/hooks/useMaintenanceStatus";
 
 
 
@@ -76,6 +77,7 @@ export const FormSchema = z
     bay: z.string().trim().optional().default(""),
     thfNumber: z.string().trim().optional().default(""),
     status: z.object({ value: z.string(), label: z.string() }).nullable().default({ value: "Normal", label: "Normal" }),
+    maintenanceStatus: z.object({ value: z.string(), label: z.string(), id: z.number() }).nullable().optional().default(null),
     note: z.string().trim().optional().default(""),
 
     userName: z.string().trim().optional().default(""),
@@ -141,6 +143,7 @@ const createDefaultValues = (flightData: any): Inputs => {
       bay: "",
       thfNumber: "",
       status: { value: "Normal", label: "Normal" },
+      maintenanceStatus: null,
       note: "",
       userName: "",
       csIdList: null,
@@ -184,6 +187,11 @@ const createDefaultValues = (flightData: any): Inputs => {
       value: responseData.statusObj.code,
       label: responseData.statusObj.name || responseData.statusObj.code
     } : { value: "Normal", label: "Normal" },
+    maintenanceStatus: responseData.maintenanceStatusObj ? {
+      value: responseData.maintenanceStatusObj.code,
+      label: responseData.maintenanceStatusObj.name || responseData.maintenanceStatusObj.code,
+      id: responseData.maintenanceStatusObj.id
+    } : null,
     note: responseData.note || "",
 
     userName: responseData.userName || "",
@@ -243,6 +251,12 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
     error: statusError,
     usingFallback: statusUsingFallback
   } = useStatusOptions();
+
+  // Use maintenance status options hook
+  const {
+    options: maintenanceStatusOptions,
+    isLoading: loadingMaintenanceStatus,
+  } = useMaintenanceStatus();
 
   // Memoize default values based on flight data
   const defaultValues = useMemo(() => createDefaultValues(flightInfoData), [flightInfoData]);
@@ -309,6 +323,7 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
       bayNo: (values.bay ?? "").trim(),
       thfNo: (values.thfNumber ?? "").trim(),
       statusCode: values.status?.value ?? "Normal",
+      maintenanceStatusId: values.maintenanceStatus?.id ?? undefined,
       note: (values.note ?? "").trim(),
       routeFrom: values.routeFrom?.value ?? "",
       routeTo: values.routeTo?.value ?? "",
@@ -626,6 +641,42 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
                   </div>
                 </div>
 
+
+                <Separator className="mb-8 mt-10" />
+
+                {/* Maintenance Status */}
+                <div className="space-y-1">
+                  <Label htmlFor="maintenanceStatus">Maintenance Status</Label>
+                  <Controller
+                    name="maintenanceStatus"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value?.id != null ? String(field.value.id) : ""}
+                        onValueChange={(val) => {
+                          const option = maintenanceStatusOptions.find(opt => String(opt.id) === val);
+                          field.onChange(option ? { value: option.value, label: option.label, id: option.id } : null);
+                        }}
+                        disabled={loadingMaintenanceStatus || maintenanceStatusOptions.length === 0}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={
+                            loadingMaintenanceStatus ? "Loading..." :
+                              maintenanceStatusOptions.length === 0 ? "No status found" :
+                                "Select maintenance status"
+                          } />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {maintenanceStatusOptions.map((option) => (
+                            <SelectItem key={option.id} value={String(option.id)}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
 
                 <Separator className="mb-8 mt-10" />
                 <PersonnelSection

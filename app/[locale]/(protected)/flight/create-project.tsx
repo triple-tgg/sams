@@ -77,6 +77,7 @@ const FormSchema = z
     status: z.object({ value: z.string(), label: z.string() }).nullable().default({ value: "Normal", label: "Normal" }),
     note: z.string().trim().optional().default(""),
 
+    maintenanceStatus: z.object({ value: z.string(), label: z.string(), id: z.number() }).nullable().optional().default(null),
     userName: z.string().trim().optional().default(""),
     csIdList: z.array(z.number()).nullable().default(null),
     mechIdList: z.array(z.number()).nullable().default(null),
@@ -173,6 +174,7 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
       thfNumber: "",
       status: { value: "Normal", label: "Normal" },
       note: "",
+      maintenanceStatus: null,
     },
   });
 

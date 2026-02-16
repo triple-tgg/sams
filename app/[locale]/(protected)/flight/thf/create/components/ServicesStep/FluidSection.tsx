@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 
 import {
   PlusIcon, TrashIcon, XIcon,
-  Droplets, Fuel, Gauge, PlaneTakeoff, Truck, Wrench
+  Droplets, Fuel, Gauge, PlaneTakeoff, Truck
 } from 'lucide-react'
 import { ServicesFormInputs } from './types'
 import { AircraftTypeFlags } from '@/lib/api/master/aircraft-types/getAircraftTypeById'
@@ -196,82 +196,19 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                         {index + 1}
                       </Badge>
 
-                      <div className="flex-1 flex items-end gap-3">
-                        {/* Engine Selector Toggle */}
+                      <div className="flex-1">
                         <FormField
                           control={form.control}
-                          name={`fluid.engOilSets.${index}.selectedEngine`}
-                          render={({ field: { value, onChange } }) => (
-                            <FormItem className="space-y-1">
-                              <FormLabel className="text-xs text-muted-foreground">Engine</FormLabel>
-                              <div className="flex rounded-md border border-gray-300 overflow-hidden h-9">
-                                <button
-                                  type="button"
-                                  className={`px-3 text-xs font-medium transition-colors ${value === 'left'
-                                      ? 'bg-primary text-primary-foreground'
-                                      : 'bg-white text-muted-foreground hover:bg-gray-50'
-                                    }`}
-                                  onClick={() => {
-                                    if (value !== 'left') {
-                                      const currentRight = form.getValues(`fluid.engOilSets.${index}.right`) || 0
-                                      onChange('left')
-                                      form.setValue(`fluid.engOilSets.${index}.left`, currentRight)
-                                      form.setValue(`fluid.engOilSets.${index}.right`, 0)
-                                    }
-                                  }}
-                                >
-                                  Left
-                                </button>
-                                <button
-                                  type="button"
-                                  className={`px-3 text-xs font-medium transition-colors border-l border-gray-300 ${value === 'right'
-                                      ? 'bg-primary text-primary-foreground'
-                                      : 'bg-white text-muted-foreground hover:bg-gray-50'
-                                    }`}
-                                  onClick={() => {
-                                    if (value !== 'right') {
-                                      const currentLeft = form.getValues(`fluid.engOilSets.${index}.left`) || 0
-                                      onChange('right')
-                                      form.setValue(`fluid.engOilSets.${index}.right`, currentLeft)
-                                      form.setValue(`fluid.engOilSets.${index}.left`, 0)
-                                    }
-                                  }}
-                                >
-                                  Right
-                                </button>
-                              </div>
+                          name={`fluid.engOilSets.${index}.quantity`}
+                          render={({ field: { value, onChange, ...field } }) => (
+                            <FormItem className="space-y-0">
+                              <FormLabel className="text-xs text-muted-foreground">Quantity</FormLabel>
+                              <FormControl>
+                                <NumberInput value={value} onChange={onChange} field={field} />
+                              </FormControl>
                             </FormItem>
                           )}
                         />
-
-                        {/* Single Quantity Input */}
-                        {form.watch(`fluid.engOilSets.${index}.selectedEngine`) === 'left' ? (
-                          <FormField
-                            control={form.control}
-                            name={`fluid.engOilSets.${index}.left`}
-                            render={({ field: { value, onChange, ...field } }) => (
-                              <FormItem className="space-y-1 flex-1">
-                                <FormLabel className="text-xs text-muted-foreground">Left Engine (Qty)</FormLabel>
-                                <FormControl>
-                                  <NumberInput value={value} onChange={onChange} field={field} />
-                                </FormControl>
-                              </FormItem>
-                            )}
-                          />
-                        ) : (
-                          <FormField
-                            control={form.control}
-                            name={`fluid.engOilSets.${index}.right`}
-                            render={({ field: { value, onChange, ...field } }) => (
-                              <FormItem className="space-y-1 flex-1">
-                                <FormLabel className="text-xs text-muted-foreground">Right Engine (Qty)</FormLabel>
-                                <FormControl>
-                                  <NumberInput value={value} onChange={onChange} field={field} />
-                                </FormControl>
-                              </FormItem>
-                            )}
-                          />
-                        )}
                       </div>
 
                       {engOilSets.length > minEngineOilSets && (
@@ -699,32 +636,7 @@ export const OperationalSections: React.FC<OperationalSectionsProps> = ({
         </CardContent>
       </Card>
 
-      {/* Other Servicing */}
-      <Card className="rounded-xl shadow-sm border-l-4 border-l-gray-400 border border-gray-200">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Wrench className="h-5 w-5 text-gray-500" />
-            Other Servicing
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <FormField
-              control={form.control}
-              name="marshallingServicePerFlight"
-              render={({ field: { value, onChange, ...field } }) => (
-                <FormItem className="space-y-1">
-                  <FormLabel className="text-xs text-muted-foreground">Marshalling (per flight)</FormLabel>
-                  <FormControl>
-                    <NumberInput value={value} onChange={onChange} step={1} placeholder="0" field={field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        </CardContent>
-      </Card>
+
     </div>
   )
 }

@@ -173,17 +173,13 @@ export interface AdditionalDefect {
   technicalDelay: string | null;
 }
 
-export interface EngOil {
-  leftOil: number | null;
-  rightOil: number | null;
-}
-
 export interface FluidServicing {
   hydraulicA: number | null;
   hydraulicB: number | null;
   hydraulicSTBY: number | null;
-  engOil: EngOil[] | null;
+  engOil: number[] | null;
   csdOil: number[] | null;
+  apuOil: number | null;
 }
 
 export interface AircraftTowing {
@@ -253,7 +249,6 @@ export interface LineMaintenanceThfData {
   equipment: Equipment[] | null;
   partsTool: PartsTool[] | null;
   attachFilesOthers: AttachFile[] | null;
-  marshalling: number | null;
   rampFuel: number | null;
   actualUplift: number | null;
 }

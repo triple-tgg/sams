@@ -35,18 +35,12 @@ export interface AdditionalDefect {
   technicalDelay?: string;
 }
 
-// Interface for engine oil
-export interface EngOil {
-  leftOil: number;
-  rightOil: number;
-}
-
 // Interface for fluid servicing
 export interface FluidServicing {
   hydraulicA: number;
   hydraulicB: number;
   hydraulicSTBY: number;
-  engOil: EngOil[];
+  engOil: number[];
   csdOil: number[];
   apuOil: number;
 }
@@ -77,7 +71,6 @@ export interface ServiceRequest {
   isFlightdeck: boolean;
   isAircraftTowing: boolean;
   aircraft: AircraftData;
-  marshalling: number;
   rampFuel: number;
   actualUplift: number;
 }
@@ -151,11 +144,10 @@ const createFluidServicing = (fluidData: any): FluidServicing => {
   const hydraulicB = safeParseFloat(fluidData.hydOilB || fluidData.hydOilGreen);
   const hydraulicSTBY = safeParseFloat(fluidData.hydOilSTBY || fluidData.hydOilYellow);
 
-  // Engine oil array
-  const engOil: EngOil[] = (fluidData.engOilSets || []).map((oilSet: any) => ({
-    leftOil: safeParseFloat(oilSet.left || oilSet.leftOil),
-    rightOil: safeParseFloat(oilSet.right || oilSet.rightOil)
-  }));
+  // Engine oil as flat number array (quantity values)
+  const engOil: number[] = (fluidData.engOilSets || []).map((oilSet: any) =>
+    safeParseFloat(oilSet.quantity)
+  );
 
   // CSD oil as number array (quantity values)
   const csdOil: number[] = (fluidData.csdIdgVsfgSets || []).map((set: any) =>
@@ -202,7 +194,6 @@ export const createServiceRequestFromForm = (
     isAircraftTowing: options.enableAircraftTowing ?? formData.aircraftTowing ?? false,
 
     // Top-level fields
-    marshalling: safeParseFloat(formData.marshallingServicePerFlight),
     rampFuel: safeParseFloat(formData.fluid?.rampFuel),
     actualUplift: safeParseFloat(formData.fluid?.actualUplift),
 

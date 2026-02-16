@@ -48,7 +48,7 @@ export type ServicesFormInputs = {
   servicingPerformed: boolean
   fluid: {
     fluidName: FluidOption | null
-    engOilSets: { left: number; right: number; selectedEngine: 'left' | 'right' }[]
+    engOilSets: { quantity?: number }[]
     csdIdgVsfgSets: { quantity?: number }[]
     hydOilBlue?: number
     hydOilGreen?: number
@@ -77,7 +77,6 @@ export type ServicesFormInputs = {
     bayFrom: string;
     bayTo: string;
   }[] | null
-  marshallingServicePerFlight?: number
 }
 
 // Mock data - should be moved to API calls in the future
