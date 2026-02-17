@@ -9,20 +9,18 @@ import { FlightTable } from './FlightTable';
 import { FlightSkeleton } from './FlightSkeleton';
 import { flightTimelineThemeDark, flightTimelineThemeLight } from './types';
 import {
-    formatDateForApi, transformFlightsToEpg, transformAirlinesToChannels, transformAirlinesToChannelsPlanby, sanitizeFlightsPlanby
+    formatDateForApi, transformFlightsToEpg, transformAirlinesToChannelsPlanby, sanitizeFlightsPlanby
 } from './utils';
 
 import { useFlightListQuery } from '@/lib/api/hooks/useFlightListQuery';
 import { GetFlightListParams } from "@/lib/api/flight/getFlightList";
 import { FlightItem } from "@/lib/api/flight/filghtlist.interface";
-import { AlignStartVertical, ArrowLeftFromLine, ArrowRightFromLine, ChevronLeft, ChevronRight, Table, Maximize2, Minimize2, X, Plus, AlarmClockOff, AlarmClock, Upload, FileUp, Download } from "lucide-react";
+import { AlignStartVertical, ArrowLeftFromLine, ArrowRightFromLine, Table, Maximize2, Minimize2, X, Plus, AlarmClockOff, AlarmClock, FileUp, Download } from "lucide-react";
 import { FlightTimeline } from "./FlightTimeline";
 import { FlightPlanbyItem, useFlightListPlanbyQuery } from "@/lib/api/hooks/useFlightListPlanbyQuery";
 import dayjs from "dayjs";
 import CreateProject from "@/app/[locale]/(protected)/flight/create-project";
 import { Button } from "@/components/ui/button";
-import EditFlight from "@/app/[locale]/(protected)/flight/edit-project";
-import { mockData } from "./mockData";
 import { ExcelImportModal } from "./ExcelImportModal";
 import { useFlightExcelImport } from "@/hooks/use-flight-excel-import";
 

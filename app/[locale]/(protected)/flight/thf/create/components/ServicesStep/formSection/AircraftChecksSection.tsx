@@ -10,6 +10,10 @@ import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/comp
 import { Badge } from "@/components/ui/badge"
 import { ServicesFormInputs, transformAircraftCheckTypesToOptions, transformAircraftCheckSubTypesToOptions } from '../types'
 
+/** Check if maintenance type is TR-related (starts with TR/tr or equals TR-Transit) */
+const isTRType = (value: string) =>
+  /^tr/i.test(value) || value === 'TR-Transit'
+
 const AircraftChecksSection: React.FC<{
   form: UseFormReturn<ServicesFormInputs>
   onAdd: () => void
@@ -92,7 +96,7 @@ const AircraftChecksSection: React.FC<{
                       <Select
                         onValueChange={(value) => {
                           field.onChange(value)
-                          if (value !== "TR") {
+                          if (!isTRType(value)) {
                             form.setValue(`aircraftChecks.${index}.maintenanceSubTypes`, [])
                           }
                         }}
@@ -127,7 +131,7 @@ const AircraftChecksSection: React.FC<{
                   name={`aircraftChecks.${index}.maintenanceSubTypes`}
                   render={({ field }) => {
                     const selectedMaintenanceType = form.watch(`aircraftChecks.${index}.maintenanceTypes`)
-                    const isSubTypesDisabled = selectedMaintenanceType !== "TR"
+                    const isSubTypesDisabled = !isTRType(selectedMaintenanceType || '')
 
                     return (
                       <FormItem className="space-y-1">

@@ -25,13 +25,18 @@ export function FlightProgram({ program, ...rest }: FlightProgramProps) {
     });
 
     const { data } = program;
-    const { departureFlightNo, arrivalFlightNo, since, till, flightType, color } = data;
+    const { departureFlightNo, arrivalFlightNo, since, till, flightType, color, title, flightNo } = data;
 
     const sinceTime = formatTime(since);
     const tillTime = formatTime(till);
 
     // Different colors for arrival (blue) and departure (green)
     const isArrival = flightType === 'arrival';
+
+    // Determine display text — fallback to title or flightNo when both flight numbers are empty
+    const hasArrival = !!arrivalFlightNo?.trim();
+    const hasDeparture = !!departureFlightNo?.trim();
+    const fallbackText = title || flightNo || '';
 
     return (
         <ProgramBox
@@ -59,8 +64,14 @@ export function FlightProgram({ program, ...rest }: FlightProgramProps) {
                 <ProgramFlex className='hover:!text-white p-1 m-0' >
                     <ProgramStack>
                         <ProgramTitle className={`!text-[10px] font-bold ${isLive ? '!text-white' : 'hover:!text-white'}`}>
-                            <div style={{ color: color.foreground }}>{arrivalFlightNo}</div>
-                            <div style={{ color: color.foreground }}>{departureFlightNo}</div>
+                            {hasArrival || hasDeparture ? (
+                                <>
+                                    {hasArrival && <div style={{ color: color.foreground }}>{arrivalFlightNo}</div>}
+                                    {hasDeparture && <div style={{ color: color.foreground }}>{departureFlightNo}</div>}
+                                </>
+                            ) : (
+                                <div style={{ color: color.foreground }}>{fallbackText}</div>
+                            )}
                         </ProgramTitle>
                     </ProgramStack>
                 </ProgramFlex>
