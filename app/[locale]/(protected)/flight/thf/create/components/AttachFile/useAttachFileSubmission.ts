@@ -4,9 +4,11 @@ import { useParams, useRouter } from 'next/navigation'
 import { AttachFileFormInputs } from './types'
 import { prepareAttachFileDataForApi } from './utils'
 import { usePutAttachFileOtherWithLoading } from '@/lib/api/hooks/usePutAttachfileOther'
+import { useMappingContracts } from '@/lib/api/hooks/useMappingContracts'
 import { LineMaintenanceThfResponse } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import useReduxAuth from '@/lib/api/hooks/useReduxAuth'
 
 export interface UseAttachFileSubmissionParams {
   form: UseFormReturn<AttachFileFormInputs>
@@ -20,8 +22,10 @@ export interface UseAttachFileSubmissionParams {
 
 export interface UseAttachFileSubmissionReturn {
   handleSubmit: (data: AttachFileFormInputs) => void
+  handleDraft: (data: AttachFileFormInputs) => void
   handleOnBackStep: () => void
   isSubmitting: boolean
+  isDrafting: boolean
   isSubmitSuccess: boolean
   isSubmitError: boolean
   submitError: Error | null
@@ -31,8 +35,8 @@ export interface UseAttachFileSubmissionReturn {
 
 /**
  * Hook for handling attach file form submission
- * @param params - Configuration parameters
- * @returns Submission handlers and state
+ * - Draft: calls attachfile-other → close modal
+ * - Submit: calls attachfile-other → mapping-contracts → close modal
  */
 export const useAttachFileSubmission = ({
   form,
@@ -43,15 +47,15 @@ export const useAttachFileSubmission = ({
   closeModal
 }: UseAttachFileSubmissionParams): UseAttachFileSubmissionReturn => {
   const { locale } = useParams()
-  // Get line maintenance ID from existing data
   const hasLineMaintenanceId = lineMaintenanceId !== null
   const queryClient = useQueryClient()
   const router = useRouter()
+  const { getUserName } = useReduxAuth()
 
-  // Initialize the PUT mutation
+  // Initialize the PUT mutation for attachfile-other
   const {
     updateAttachFileOther,
-    isLoading: isSubmitting,
+    isLoading: isAttachFileLoading,
     isSuccess: isSubmitSuccess,
     isError: isSubmitError,
     error: submitError,
@@ -62,45 +66,72 @@ export const useAttachFileSubmission = ({
       console.log('✅ Attach files updated successfully')
       await queryClient.invalidateQueries({ queryKey: ['flightList'] })
       onUpdateData?.()
-      toast.success(`Attach file data prepared successfully`)
-
-      // Close the modal
-      closeModal?.()
     },
     onError: (error) => {
       console.error('❌ Failed to update attach files:', error)
     }
   })
 
-  // Handle form submission
-  const handleSubmit = useCallback((data: AttachFileFormInputs) => {
+  // Initialize the mapping-contracts mutation
+  const {
+    mappingContracts,
+    isMappingLoading,
+  } = useMappingContracts({
+    lineMaintenancesId: lineMaintenanceId || 0,
+    onSuccess: async () => {
+      console.log('✅ Mapping contracts successful')
+    },
+    onError: (error) => {
+      console.error('❌ Failed to map contracts:', error)
+    }
+  })
+
+  // Prepare and call the attachfile-other API
+  const callAttachFileOther = useCallback(async (data: AttachFileFormInputs) => {
     if (!hasLineMaintenanceId) {
       console.error('❌ No line maintenance ID available')
-      return
+      throw new Error('No line maintenance ID available')
     }
 
-    try {
-      // Prepare data for API
-      const apiData = prepareAttachFileDataForApi(data)
-
-      // if (apiData.length === 0) {
-      //   console.warn('⚠️ No completed files to submit - proceeding without files')
-      //   // Files are optional, proceed to completion
-      //   queryClient.invalidateQueries({ queryKey: ['flightList'] })
-      //   onUpdateData?.()
-      //   toast.success('THF process completed successfully (no files attached)')
-      //   router.push(`/${locale}/flight/list`)
-      //   return
-      // }
-
-      // Submit to API
-      updateAttachFileOther(apiData)
-    } catch (error) {
-      console.error('❌ Error preparing attach file data:', error)
-      toast.error(`Error preparing attach file data: ${error}`)
-
-    }
+    const apiData = prepareAttachFileDataForApi(data)
+    // Use mutateAsync-style by wrapping in a promise
+    return new Promise<void>((resolve, reject) => {
+      updateAttachFileOther(apiData, {
+        onSuccess: () => resolve(),
+        onError: (error: Error) => reject(error),
+      })
+    })
   }, [hasLineMaintenanceId, updateAttachFileOther])
+
+  // Draft: attachfile-other → close modal
+  const handleDraft = useCallback(async (data: AttachFileFormInputs) => {
+    try {
+      await callAttachFileOther(data)
+      toast.success('Draft saved successfully')
+      closeModal?.()
+    } catch (error) {
+      console.error('❌ Draft save failed:', error)
+      toast.error(`Draft save failed: ${error}`)
+    }
+  }, [callAttachFileOther, closeModal])
+
+  // Submit: attachfile-other → mapping-contracts → close modal
+  const handleSubmit = useCallback(async (data: AttachFileFormInputs) => {
+    try {
+      // Step 1: Save attach files
+      await callAttachFileOther(data)
+
+      // Step 2: Map contracts
+      const userName = getUserName() || 'system'
+      await mappingContracts({ userName })
+
+      toast.success('Submit completed successfully')
+      closeModal?.()
+    } catch (error) {
+      console.error('❌ Submit failed:', error)
+      // Toast errors are already handled by the individual hooks
+    }
+  }, [callAttachFileOther, mappingContracts, getUserName, closeModal])
 
   // Handle back navigation
   const handleOnBackStep = useCallback(() => {
@@ -110,8 +141,10 @@ export const useAttachFileSubmission = ({
 
   return {
     handleSubmit,
+    handleDraft,
     handleOnBackStep,
-    isSubmitting,
+    isSubmitting: isAttachFileLoading || isMappingLoading,
+    isDrafting: isAttachFileLoading,
     isSubmitSuccess,
     isSubmitError,
     submitError,

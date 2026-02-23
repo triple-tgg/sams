@@ -129,7 +129,7 @@ export const CreatableRouteSelect: React.FC<CreatableRouteSelectProps> = ({
     )
 
     return (
-        <div className="space-y-1">
+        <div className="space-y-1" data-field-name={name}>
             <Label htmlFor={name}>{label}</Label>
             <Controller
                 name={name}

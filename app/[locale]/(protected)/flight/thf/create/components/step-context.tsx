@@ -9,6 +9,7 @@ type StepContextType = {
   goBack: () => void
   onSave: (data: any) => void
   setSubmitHandler?: (handler: () => void) => void
+  setDraftHandler?: (handler: () => void) => void
   isModal?: boolean
   setIsSubmitting?: (isSubmitting: boolean) => void
   closeModal?: () => void

@@ -26,11 +26,18 @@ const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, ti
     const [currentStep, setCurrentStep] = useState(0)
     const [activeStep, setActiveStep] = useState(1) // 1-based index for display/logic matching existing components
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [isDrafting, setIsDrafting] = useState(false)
     const submitHandlerRef = useRef<(() => void) | null>(null)
+    const draftHandlerRef = useRef<(() => void) | null>(null)
 
     // Wrapper function to set the submit handler via ref
     const setSubmitHandler = (handler: () => void) => {
         submitHandlerRef.current = handler
+    }
+
+    // Wrapper function to set the draft handler via ref
+    const setDraftHandler = (handler: () => void) => {
+        draftHandlerRef.current = handler
     }
 
     const totalSteps = steps.length
@@ -39,6 +46,7 @@ const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, ti
         setActiveStep(currentStep + 1)
         // Reset submitting state when step changes to prevent button getting stuck
         setIsSubmitting(false)
+        setIsDrafting(false)
     }, [currentStep])
 
     const goToStep = (step: number) => {
@@ -74,6 +82,17 @@ const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, ti
         }
     }
 
+    // Handle "Draft" button click
+    const handleDraftAction = () => {
+        if (draftHandlerRef.current) {
+            draftHandlerRef.current()
+        } else {
+            console.log('No draft handler registered')
+        }
+    }
+
+    const isLastStep = currentStep === steps.length - 1
+
     const CurrentComponent = Children.toArray(children)[currentStep]
 
     return (
@@ -87,6 +106,7 @@ const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, ti
                 goBack,
                 onSave,
                 setSubmitHandler,
+                setDraftHandler,
                 isModal: true,
                 setIsSubmitting,
                 closeModal: onClose
@@ -147,13 +167,33 @@ const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, ti
                                     goBack()
                                 }
                             }}
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || isDrafting}
                         >
                             {currentStep === 0 ? 'Cancel' : 'Back'}
                         </Button>
+
+                        {/* Draft button — only on last step */}
+                        {isLastStep && (
+                            <Button
+                                variant="outline"
+                                onClick={handleDraftAction}
+                                disabled={isSubmitting || isDrafting}
+                                className="min-w-[100px]"
+                            >
+                                {isDrafting ? (
+                                    <div className="flex items-center gap-2">
+                                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                        <span>Saving Draft...</span>
+                                    </div>
+                                ) : (
+                                    'Draft'
+                                )}
+                            </Button>
+                        )}
+
                         <Button
                             onClick={handlePrimaryAction}
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || isDrafting}
                             className="bg-blue-600 hover:bg-blue-700 text-white min-w-[100px]"
                         >
                             {isSubmitting ? (

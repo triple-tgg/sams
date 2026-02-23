@@ -30,6 +30,7 @@ import { ExcelImportModal } from "@/components/flight-timeline/ExcelImportModal"
 import { useFlightExcelImport } from "@/hooks/use-flight-excel-import"
 import CreateProject from "../../create-project"
 import CreateThfModal from "../../thf/create/components/CreateThfModal"
+import EmailPreviewModal from "./EmailPreviewModal"
 
 interface Option {
     value: string; label: string; image?: string;
@@ -114,6 +115,10 @@ const ListTable = ({
     const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
     const [rowSelection, setRowSelection] = React.useState({})
 
+    // Email preview modal state
+    const [emailModalOpen, setEmailModalOpen] = React.useState(false);
+    const [selectedEmailFlight, setSelectedEmailFlight] = React.useState<FlightItem | null>(null);
+
     // Cancel flight mutation
     const cancelFlightMutation = useCancelFlightMutation();
 
@@ -176,6 +181,10 @@ const ListTable = ({
             }
         },
         isCancelLoading: cancelFlightMutation.isPending,
+        onSendEmail: (flight) => {
+            setSelectedEmailFlight(flight);
+            setEmailModalOpen(true);
+        },
     })
 
     const pageCount = Math.max(1, Math.ceil(total / Math.max(1, pagination.perPage)))
@@ -280,6 +289,12 @@ const ListTable = ({
                 onOpenChange={setCreateThfOpen}
                 flightInfosId={selectedFlightThfId}
                 onClose={() => setSelectedFlightThfId(null)}
+            />
+            <EmailPreviewModal
+                open={emailModalOpen}
+                onOpenChange={setEmailModalOpen}
+                flightInfosId={selectedEmailFlight?.flightInfosId ?? null}
+                flightNo={selectedEmailFlight?.arrivalFlightNo}
             />
             {/* Header Section with Title and Buttons */}
             <CardHeader className="pb-4">

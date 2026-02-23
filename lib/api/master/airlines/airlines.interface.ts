@@ -10,6 +10,8 @@ export interface AirlineItem {
   updatedby?: string;
   colorForeground?: string;
   colorBackground?: string;
+  emailTo?: string;
+  emailCc?: string;
 }
 
 export interface ResAirlineItem {
@@ -44,6 +46,8 @@ export interface AirlineUpsertRequest {
   userName: string;
   colorForeground: string;
   colorBackground: string;
+  emailTo?: string;
+  emailCc?: string;
 }
 
 export interface AirlineUpsertResponse {

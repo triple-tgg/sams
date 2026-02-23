@@ -100,6 +100,8 @@ export interface AirlineObj {
   createdby: string
   updateddate: string
   updatedby: string
+  emailTo?: string
+  emailCc?: string
 }
 
 export interface StationObj {

@@ -1,7 +1,7 @@
 'use client'
 
-import { useForm } from 'react-hook-form'
-import { useEffect, useRef } from 'react'
+import { useForm, FieldErrors } from 'react-hook-form'
+import { useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { zodResolver } from '@hookform/resolvers/zod'
 
@@ -60,6 +60,33 @@ const FlightStep = (props: FlightStepProps) => {
     resolver: zodResolver(flightFormSchema),
     defaultValues: props.formData ? sanitizeFormData(props.formData) : getDefaultValues(),
   })
+
+  // Focus the first error field: scroll into view and focus the input/button/textarea
+  const focusFirstError = useCallback((fieldErrors: FieldErrors<Step1FormInputs>) => {
+    const errorKeys = Object.keys(fieldErrors)
+    if (errorKeys.length === 0) return
+
+    // Use a small delay to ensure the DOM has updated with error styles
+    setTimeout(() => {
+      for (const key of errorKeys) {
+        const fieldEl = document.querySelector(`[data-field-name="${key}"]`)
+        if (fieldEl) {
+          // Scroll the field into view
+          fieldEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+
+          // Focus the first focusable element inside the field wrapper
+          const focusable = fieldEl.querySelector<HTMLElement>(
+            'input, textarea, button[role="combobox"], select'
+          )
+          if (focusable) {
+            // Delay focus slightly so scroll finishes
+            setTimeout(() => focusable.focus(), 300)
+          }
+          break // Only focus the first error field
+        }
+      }
+    }, 50)
+  }, [])
 
   // Reset form when formData is loaded from API
   useEffect(() => {
@@ -127,11 +154,12 @@ const FlightStep = (props: FlightStepProps) => {
           (data) => onSubmitRef.current(data),
           (errors) => {
             console.log("Form Validation Errors:", errors)
+            focusFirstError(errors)
           }
         )()
       })
     }
-  }, [isModal, setSubmitHandler, handleSubmit])
+  }, [isModal, setSubmitHandler, handleSubmit, focusFirstError])
 
   return (
     <>
@@ -151,7 +179,7 @@ const FlightStep = (props: FlightStepProps) => {
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 mt-6">
+      <form onSubmit={handleSubmit(onSubmit, focusFirstError)} className="space-y-6 mt-6">
         {/* Airlines Info Section */}
         <Card className='border border-blue-200'>
           <CardHeader className="flex flex-row items-center justify-between">
@@ -376,7 +404,7 @@ const FlightStep = (props: FlightStepProps) => {
                 router.back()
               }
             }}
-            onSubmit={() => handleSubmit(onSubmit)()}
+            onSubmit={() => handleSubmit(onSubmit, focusFirstError)()}
             submitText={isPending ? 'Saving...' : 'Next Step →'}
             backText="Cancel"
             isSubmitting={isPending}

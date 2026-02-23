@@ -48,7 +48,7 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
   loading,
   thfNumber,
 }) => {
-  const { goNext, goBack, onSave, setSubmitHandler, setIsSubmitting, closeModal } = useStep()
+  const { goNext, goBack, onSave, setSubmitHandler, setDraftHandler, setIsSubmitting, closeModal } = useStep()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [fileErrors, setFileErrors] = useState<string[]>([])
@@ -85,8 +85,10 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
   // Submission hook
   const {
     handleSubmit,
+    handleDraft,
     handleOnBackStep,
     isSubmitting: isSubmittingMutation,
+    isDrafting,
     isSubmitSuccess,
     isSubmitError,
     submitError,
@@ -117,7 +119,6 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
         const pendingFiles = files.filter(f => f.status === 'pending')
         if (pendingFiles.length > 0) {
           await uploadAllFiles()
-          // After upload completes, wait a tick for state to settle, then submit
         }
 
         // Submit via form validation → handleSubmit
@@ -129,12 +130,31 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
     }
   }, [setSubmitHandler, form, handleSubmit, files, uploadAllFiles])
 
+  // Register draft handler for modal wrapper
+  useEffect(() => {
+    if (setDraftHandler) {
+      setDraftHandler(async () => {
+        // First upload any pending files
+        const pendingFiles = files.filter(f => f.status === 'pending')
+        if (pendingFiles.length > 0) {
+          await uploadAllFiles()
+        }
+
+        // Draft via form validation → handleDraft
+        form.handleSubmit(
+          (data) => handleDraft(data),
+          (errors) => console.log('AttachFile validation errors:', errors)
+        )()
+      })
+    }
+  }, [setDraftHandler, form, handleDraft, files, uploadAllFiles])
+
   // Sync submitting state
   useEffect(() => {
     if (setIsSubmitting) {
-      setIsSubmitting(isSubmittingMutation || isUploading)
+      setIsSubmitting(isSubmittingMutation || isDrafting || isUploading)
     }
-  }, [isSubmittingMutation, isUploading, setIsSubmitting])
+  }, [isSubmittingMutation, isDrafting, isUploading, setIsSubmitting])
 
   // ─── Drag & Drop Handlers ───
   const handleDragOver = useCallback((e: React.DragEvent) => {

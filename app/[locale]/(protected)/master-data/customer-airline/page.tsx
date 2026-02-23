@@ -48,6 +48,8 @@ const CustomerAirlinePage = () => {
         description: string;
         colorForeground: string;
         colorBackground: string;
+        emailTo: string;
+        emailCc: string;
     } | null>(null);
 
     // API hooks
@@ -118,6 +120,8 @@ const CustomerAirlinePage = () => {
             userName: 'system',
             colorForeground: formData.colorForeground,
             colorBackground: formData.colorBackground,
+            emailTo: formData.emailTo,
+            emailCc: formData.emailCc,
         };
 
         upsertAirline(payload, {
@@ -148,6 +152,8 @@ const CustomerAirlinePage = () => {
             userName: 'system',
             colorForeground: formData.colorForeground,
             colorBackground: formData.colorBackground,
+            emailTo: formData.emailTo,
+            emailCc: formData.emailCc,
         };
 
         upsertAirline(payload, {

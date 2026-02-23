@@ -29,6 +29,7 @@ export interface ContractPricingDataRequest {
     dailyCheck: number;
     preFlightCheck: number;
     weeklyCheck: number;
+    nightStop: number;
     additionalLaeMhHr: number;
     additionalMechMhHr: number;
     lhOrRhNoseWheelRpl: number;

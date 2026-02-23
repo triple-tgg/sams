@@ -3,7 +3,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import type { FlightItem } from "@/lib/api/flight/filghtlist.interface";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { CircleOff, MoreHorizontal, FileCheck, FilePenLine, Paperclip, SquarePen, Eye } from "lucide-react";
+import { CircleOff, MoreHorizontal, FileCheck, FilePenLine, Paperclip, SquarePen, Eye, Mail } from "lucide-react";
 import clsx from "clsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatForDisplay, formatForDisplayDateTime, formatForValue, formatFromPicker } from "@/lib/utils/formatPicker";
@@ -13,12 +13,14 @@ export function getFlightColumns({
   onEditFlight,
   onAttach,
   onCancel,
+  onSendEmail,
   isCancelLoading = false,
 }: {
   onCreateTHF?: (flight: FlightItem) => void;
   onEditFlight?: (flight: FlightItem) => void;
   onAttach?: (filePath: string) => void;
   onCancel?: (flight: FlightItem) => void;
+  onSendEmail?: (flight: FlightItem) => void;
   isCancelLoading?: boolean;
 }): ColumnDef<FlightItem>[] {
   return [
@@ -72,7 +74,69 @@ export function getFlightColumns({
       cell: ({ row }) => {
         const flight = row.original;
         return (
-          <div className="flex items-center justify-center">
+          <div className="flex items-center justify-end gap-1">
+            {flight.state === "save" && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="relative inline-flex">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        color="secondary"
+                        className="h-8 w-8"
+                        disabled={!flight.airlineObj?.emailTo && !flight.airlineObj?.emailCc}
+                        onClick={() => onSendEmail?.(flight)}
+                      >
+                        <Mail className="h-4 w-4" />
+                      </Button>
+                      {(() => {
+                        const toCount = flight.airlineObj?.emailTo
+                          ? flight.airlineObj.emailTo.split(/[;,]+/).filter(Boolean).length
+                          : 0;
+                        const ccCount = flight.airlineObj?.emailCc
+                          ? flight.airlineObj.emailCc.split(/[;,]+/).filter(Boolean).length
+                          : 0;
+                        const total = toCount + ccCount;
+                        return total > 0 ? (
+                          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground leading-none pointer-events-none">
+                            {total}
+                          </span>
+                        ) : null;
+                      })()}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {flight.airlineObj?.emailTo || flight.airlineObj?.emailCc
+                      ? `Send email to ${flight.airlineObj?.emailTo || flight.airlineObj?.emailCc}`
+                      : 'No email configured'}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+            {flight.state !== "plan" && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      color="secondary"
+                      className="h-8 w-8 text-muted-foreground cursor-default"
+                      tabIndex={-1}
+                      disabled
+                    >
+                      <FileCheck className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {flight.state === "save"
+                      ? `Done (THF:${flight.thfNumber})`
+                      : `Draft (THF:${flight.thfNumber})`}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild disabled={flight.statusObj?.code === "Cancel" || isCancelLoading}>
                 <Button
@@ -108,12 +172,6 @@ export function getFlightColumns({
                   >
                     <Paperclip className="h-4 w-4 mr-2" />
                     View Attachment
-                  </DropdownMenuItem>
-                )}
-                {flight.state !== "plan" && (
-                  <DropdownMenuItem className="cursor-pointer" disabled>
-                    <FileCheck className="h-4 w-4 mr-2" />
-                    {flight.state === "save" ? `Done (THF:${flight.thfNumber})` : `Draft (THF:${flight.thfNumber})`}
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />

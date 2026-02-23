@@ -36,7 +36,7 @@ export const SelectField = ({
   usingFallback,
   errorMessage
 }: SelectFieldProps) => (
-  <div className="space-y-1">
+  <div className="space-y-1" data-field-name={name}>
     <Label htmlFor={name}>{label}</Label>
     <Controller
       name={name}
@@ -104,7 +104,7 @@ export const StringSelectField = ({
   usingFallback,
   errorMessage
 }: StringSelectFieldProps) => (
-  <div className="space-y-1">
+  <div className="space-y-1" data-field-name={name}>
     <Label htmlFor={name}>{label}</Label>
     <Controller
       name={name}
@@ -161,7 +161,7 @@ export const InputField = ({
   type = "text",
   errorMessage
 }: InputFieldProps) => (
-  <div className="space-y-1">
+  <div className="space-y-1" data-field-name={name}>
     <Label htmlFor={name}>{label}</Label>
     <Controller
       name={name}
@@ -194,7 +194,7 @@ export const TextareaField = ({
   placeholder,
   errorMessage
 }: TextareaFieldProps) => (
-  <div className="space-y-1">
+  <div className="space-y-1" data-field-name={name}>
     <Label htmlFor={name}>{label}</Label>
     <Textarea {...register(name)} placeholder={placeholder} />
     <FieldError msg={errorMessage} />
@@ -212,7 +212,7 @@ interface InputFieldDateProps {
 }
 export const InputFieldDate = (props: InputFieldDateProps) => {
   return (
-    <div className="space-y-1">
+    <div className="space-y-1" data-field-name={props.name}>
       <Label htmlFor={props.name}>Date</Label>
       <Controller
         name={props.name}

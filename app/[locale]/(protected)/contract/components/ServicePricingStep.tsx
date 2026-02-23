@@ -17,7 +17,7 @@ import {
     CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, ChevronDown, Trash2, MapPin, Plane, Check } from "lucide-react";
+import { Plus, ChevronDown, Trash2, MapPin, Plane, Check, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ContractFormData, PricingRate } from "./types";
 import { defaultPricingRate } from "./data";
@@ -159,6 +159,23 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
             newSet.delete(rateId);
             return newSet;
         });
+    };
+
+    const handleDuplicateRate = (rateId: number | string) => {
+        const sourceRate = formData.pricingRates.find(rate => rate.id === rateId);
+        if (!sourceRate) return;
+
+        const newRate: PricingRate = {
+            ...sourceRate,
+            id: Date.now(),
+            serviceLocation: [],
+            aircraftTypes: [],
+            aircraftTypeId: 0,
+        };
+        const updatedRates = [...formData.pricingRates, newRate];
+        onPricingRatesChange(updatedRates);
+        // Auto-expand the new duplicated rate
+        setExpandedRates(prev => new Set(Array.from(prev).concat(newRate.id)));
     };
 
     const handleRateChange = (rateId: number | string, field: keyof PricingRate, value: string | number | string[]) => {
@@ -782,7 +799,20 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
+                                                className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                                title="Duplicate Rate"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDuplicateRate(rate.id);
+                                                }}
+                                            >
+                                                <Copy className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
                                                 className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                title="Delete Rate"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     handleDeleteRate(rate.id);
