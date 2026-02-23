@@ -2,7 +2,6 @@
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
     Select,
@@ -16,7 +15,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
-import { Calendar, ChevronDown, Check } from "lucide-react";
+import { Calendar, ChevronDown, Check, Search, X } from "lucide-react";
 import { useAirlineOptions } from "@/lib/api/hooks/useAirlines";
 import { useStationsOptions } from "@/lib/api/hooks/useStations";
 import { useAircraftTypes } from "@/lib/api/hooks/useAircraftTypes";
@@ -32,6 +31,8 @@ interface InvoiceFiltersProps {
     onLocationsChange: (value: string[]) => void;
     selectedAircraftTypes: string[];
     onAircraftTypesChange: (value: string[]) => void;
+    onSearch: () => void;
+    isSearching?: boolean;
 }
 
 export const InvoiceFilters = ({
@@ -45,10 +46,14 @@ export const InvoiceFilters = ({
     onLocationsChange,
     selectedAircraftTypes,
     onAircraftTypesChange,
+    onSearch,
+    isSearching = false,
 }: InvoiceFiltersProps) => {
     const { options: airlineOptions, isLoading: isLoadingAirlines } = useAirlineOptions();
     const { options: stationOptions, isLoading: isLoadingStations } = useStationsOptions();
     const { options: aircraftTypeOptions, isLoading: isLoadingAircraftTypes } = useAircraftTypes();
+
+    const canSearch = startDate !== "" && endDate !== "";
 
     const handleLocationToggle = (locationCode: string, checked: boolean) => {
         if (checked) {
@@ -66,28 +71,43 @@ export const InvoiceFilters = ({
         }
     };
 
+    const handleClearAirline = () => {
+        onAirlineChange("");
+    };
+
     return (
         <div className="flex flex-wrap items-end justify-between gap-4 mb-6 py-6 px-4 rounded-lg bg-slate-100 shadow-sm">
-            {/* Customer Airline */}
+            {/* Dropdown Filters */}
             <div className="flex items-end gap-2">
+                {/* Customer Airline — optional */}
                 <div className="space-y-2">
-                    {/* <Label className="text-xs">Customer Airline</Label> */}
-                    <Select value={selectedAirline} onValueChange={onAirlineChange}>
-                        <SelectTrigger className="min-w-52 w-auto bg-white">
-                            <SelectValue placeholder={isLoadingAirlines ? "Loading..." : "Select Airline"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {airlineOptions.map((airline) => (
-                                <SelectItem key={airline.value} value={airline.value}>
-                                    {airline.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <div className="relative">
+                        <Select value={selectedAirline || undefined} onValueChange={onAirlineChange}>
+                            <SelectTrigger className="min-w-52 w-auto bg-white">
+                                <SelectValue placeholder={isLoadingAirlines ? "Loading..." : "Select Airline (Optional)"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {airlineOptions.map((airline) => (
+                                    <SelectItem key={airline.value} value={airline.value}>
+                                        {airline.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {selectedAirline && (
+                            <button
+                                type="button"
+                                onClick={handleClearAirline}
+                                className="absolute right-8 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground z-10"
+                            >
+                                <X className="h-3.5 w-3.5" />
+                            </button>
+                        )}
+                    </div>
                 </div>
-                {/* Service Location */}
+
+                {/* Service Location — optional */}
                 <div className="space-y-2">
-                    {/* <Label className="text-xs">Service Location</Label> */}
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button
@@ -149,9 +169,8 @@ export const InvoiceFilters = ({
                     </Popover>
                 </div>
 
-                {/* Aircraft Types */}
+                {/* Aircraft Types — optional */}
                 <div className="space-y-2">
-                    {/* <Label className="text-xs">Aircraft Types</Label> */}
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button
@@ -214,8 +233,7 @@ export const InvoiceFilters = ({
                 </div>
             </div>
 
-
-            {/* Date Range */}
+            {/* Date Range + Search Button */}
             <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">From</span>
@@ -232,6 +250,14 @@ export const InvoiceFilters = ({
                     onChange={(e) => onEndDateChange(e.target.value)}
                     className="w-40 bg-white"
                 />
+                <Button
+                    onClick={onSearch}
+                    disabled={!canSearch || isSearching}
+                    className="ml-2 gap-2"
+                >
+                    <Search className="h-4 w-4" />
+                    {isSearching ? "Searching..." : "Search"}
+                </Button>
             </div>
         </div>
     );

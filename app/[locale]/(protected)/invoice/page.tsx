@@ -1,68 +1,102 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Download, FileText, Upload, Filter, Printer } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Printer } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import {
     InvoiceTabType,
-    mockPreInvoices,
-    mockDraftInvoices,
     InvoiceTabs,
     InvoiceFilters,
     PreInvoiceTable,
     DraftInvoiceTable,
 } from "./components";
+import { PrintPreviewModal } from "./components/PrintPreviewModal";
+import { exportPreInvoiceToExcel } from "./components/exportExcel";
+import { usePreInvoice, useDraftInvoice } from "@/lib/api/hooks/useInvoice";
+import type { InvoiceRequest } from "@/lib/api/contract/invoiceApi";
 
 const InvoicePage = () => {
     const t = useTranslations("Menu");
 
-    // Filter State
+    // ── Filter State ────────────────────────────────────────
     const [selectedAirline, setSelectedAirline] = useState<string>("");
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
     const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
     const [selectedAircraftTypes, setSelectedAircraftTypes] = useState<string[]>([]);
 
-    // Check if all required filters are filled
-    const filtersComplete = selectedAirline !== "" && startDate !== "" && endDate !== "";
+    // ── Search State (committed on Search click) ────────────
+    const [searchParams, setSearchParams] = useState<InvoiceRequest | null>(null);
+    const hasSearched = searchParams !== null;
 
-    // State
+    // ── Tab State ───────────────────────────────────────────
     const [activeTab, setActiveTab] = useState<InvoiceTabType>("pre-invoice");
-    const [page, setPage] = useState(1);
-    const perPage = 10;
+    const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
 
-    // Get data based on active tab (only when searched)
-    const currentData = activeTab === "pre-invoice" ? mockPreInvoices : mockDraftInvoices;
-    const totalAll = filtersComplete ? currentData.length : 0;
+    // ── API Hooks ───────────────────────────────────────────
+    const {
+        data: preInvoiceData,
+        isLoading: isLoadingPre,
+        isFetching: isFetchingPre,
+    } = usePreInvoice(searchParams!, hasSearched);
+
+    const {
+        data: draftInvoiceData,
+        isLoading: isLoadingDraft,
+        isFetching: isFetchingDraft,
+    } = useDraftInvoice(searchParams!, hasSearched);
+
+    const preInvoices = preInvoiceData?.responseData ?? [];
+    const draftInvoices = draftInvoiceData?.responseData ?? [];
+    const isSearching = isFetchingPre || isFetchingDraft;
+
+    // ── Pagination ──────────────────────────────────────────
+    const [page, setPage] = useState(1);
+    const perPage = 50;
+
+    const currentData = activeTab === "pre-invoice" ? preInvoices : draftInvoices;
+    const totalAll = currentData.length;
     const totalPages = Math.ceil(totalAll / perPage);
 
-    // Paginated data
     const paginatedPreInvoices = useMemo(() => {
-        if (!filtersComplete || activeTab !== "pre-invoice") return [];
-        return mockPreInvoices.slice((page - 1) * perPage, page * perPage);
-    }, [activeTab, page, filtersComplete]);
+        if (activeTab !== "pre-invoice") return [];
+        return preInvoices.slice((page - 1) * perPage, page * perPage);
+    }, [activeTab, page, preInvoices]);
 
     const paginatedDraftInvoices = useMemo(() => {
-        if (!filtersComplete || activeTab !== "draft-invoice") return [];
-        return mockDraftInvoices.slice((page - 1) * perPage, page * perPage);
-    }, [activeTab, page, filtersComplete]);
+        if (activeTab !== "draft-invoice") return [];
+        return draftInvoices.slice((page - 1) * perPage, page * perPage);
+    }, [activeTab, page, draftInvoices]);
 
-    // Tab counts
+    // ── Tab Counts ──────────────────────────────────────────
     const tabCounts = useMemo(
         () => ({
-            "pre-invoice": filtersComplete ? mockPreInvoices.length : 0,
-            "draft-invoice": filtersComplete ? mockDraftInvoices.length : 0,
+            "pre-invoice": preInvoices.length,
+            "draft-invoice": draftInvoices.length,
         }),
-        [filtersComplete]
+        [preInvoices.length, draftInvoices.length]
     );
 
+    // ── Handlers ────────────────────────────────────────────
     const handleTabChange = (tab: InvoiceTabType) => {
         setActiveTab(tab);
         setPage(1);
     };
+
+    const handleSearch = useCallback(() => {
+        const request: InvoiceRequest = {
+            dateStart: startDate,
+            dateEnd: endDate,
+            airlineCode: selectedAirline || "",
+            stationCodeList: selectedLocations,
+            airCraftTypeCodeList: selectedAircraftTypes,
+        };
+        setSearchParams(request);
+        setPage(1);
+    }, [startDate, endDate, selectedAirline, selectedLocations, selectedAircraftTypes]);
 
     const handlePrevPage = () => {
         if (page > 1) setPage(page - 1);
@@ -72,138 +106,20 @@ const InvoicePage = () => {
         if (page < totalPages) setPage(page + 1);
     };
 
+    // ── Export (PRE-INVOICE only) ─────────────────────────────
+    const handleExport = useCallback(() => {
+        if (preInvoices.length === 0 || !searchParams) return;
+        exportPreInvoiceToExcel(
+            preInvoices,
+            searchParams.airlineCode,
+            searchParams.dateStart,
+            searchParams.dateEnd
+        );
+    }, [preInvoices, searchParams]);
 
-
-    // Print function - prints only the table with title (A4 optimized)
-    const handlePrint = () => {
-        const printContent = document.getElementById('invoice-table-container');
-        if (!printContent) return;
-
-        const printWindow = window.open('', '_blank');
-        if (!printWindow) return;
-
-        const title = activeTab === 'pre-invoice' ? 'PRE-INVOICE Report' : 'DRAFT-INVOICE Report';
-        const dateRange = startDate && endDate ? `${startDate} to ${endDate}` : '';
-        const airline = selectedAirline || '';
-        const printDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-
-        // Different styles for pre-invoice (landscape, smaller font) vs draft-invoice (portrait)
-        const isPreInvoice = activeTab === 'pre-invoice';
-        const pageOrientation = isPreInvoice ? 'landscape' : 'portrait';
-        const fontSize = isPreInvoice ? '7px' : '11px';
-        const cellPadding = isPreInvoice ? '3px 4px' : '8px';
-
-        printWindow.document.write(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>${title}</title>
-                <style>
-                    @page {
-                        size: A4 ${pageOrientation};
-                        margin: 10mm;
-                    }
-                    * {
-                        box-sizing: border-box;
-                    }
-                    body { 
-                        font-family: Arial, sans-serif; 
-                        padding: 10px;
-                        margin: 0;
-                        font-size: ${fontSize};
-                    }
-                    h1 { 
-                        text-align: center; 
-                        margin-bottom: 5px;
-                        font-size: 16px;
-                    }
-                    .info { 
-                        text-align: center; 
-                        margin-bottom: 10px; 
-                        color: #666;
-                        font-size: 10px;
-                    }
-                    .print-date {
-                        text-align: right;
-                        font-size: 9px;
-                        color: #999;
-                        margin-bottom: 10px;
-                    }
-                    table { 
-                        width: 100%; 
-                        border-collapse: collapse; 
-                        font-size: ${fontSize};
-                        table-layout: auto;
-                    }
-                    th, td { 
-                        border: 1px solid #ccc; 
-                        padding: ${cellPadding}; 
-                        text-align: left;
-                        word-wrap: break-word;
-                        vertical-align: top;
-                    }
-                    th { 
-                        background-color: #e8e8e8; 
-                        font-weight: bold;
-                        font-size: ${isPreInvoice ? '6px' : '10px'};
-                        white-space: nowrap;
-                    }
-                    tr:nth-child(even) { 
-                        background-color: #f9f9f9; 
-                    }
-                    tr { 
-                        page-break-inside: avoid;
-                    }
-                    thead {
-                        display: table-header-group;
-                    }
-                    tbody {
-                        display: table-row-group;
-                    }
-                    .text-right { text-align: right; }
-                    .font-bold { font-weight: bold; }
-                    .font-medium { font-weight: 500; }
-                    .font-semibold { font-weight: 600; }
-                    
-                    /* Hide scrollbar wrapper elements */
-                    [data-radix-scroll-area-viewport] {
-                        overflow: visible !important;
-                    }
-                    
-                    @media print {
-                        body { 
-                            print-color-adjust: exact; 
-                            -webkit-print-color-adjust: exact; 
-                        }
-                        table {
-                            page-break-inside: auto;
-                        }
-                        tr {
-                            page-break-inside: avoid;
-                            page-break-after: auto;
-                        }
-                        thead {
-                            display: table-header-group;
-                        }
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="print-date">Printed: ${printDate}</div>
-                <h1>${title}</h1>
-                <div class="info">
-                    <p><strong>Customer:</strong> ${airline} | <strong>Period:</strong> ${dateRange}</p>
-                </div>
-                ${printContent.innerHTML}
-            </body>
-            </html>
-        `);
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => {
-            printWindow.print();
-            printWindow.close();
-        }, 250);
+    // ── Print Preview (DRAFT-INVOICE only) ──────────────────
+    const handleOpenPrintPreview = () => {
+        setPrintPreviewOpen(true);
     };
 
     return (
@@ -215,22 +131,18 @@ const InvoicePage = () => {
                         Manage pre-invoices and draft invoices for airline maintenance services.
                     </CardDescription>
                     <div className="flex items-center gap-2 ml-auto">
-                        <Button variant="outline" color="success">
-                            <FileText className="h-4 w-4 mr-2" />
-                            Template
-                        </Button>
-                        <Button variant="outline" color="primary">
-                            <Download className="h-4 w-4 mr-2" />
-                            Export
-                        </Button>
-                        <Button variant="outline">
-                            <Upload className="h-4 w-4 mr-2" />
-                            Import
-                        </Button>
-                        <Button variant="outline" color="info" onClick={handlePrint} disabled={!filtersComplete || activeTab === "pre-invoice"}>
-                            <Printer className="h-4 w-4 mr-2" />
-                            Print
-                        </Button>
+                        {hasSearched && activeTab === "pre-invoice" && (
+                            <Button variant="outline" color="primary" onClick={handleExport} disabled={preInvoices.length === 0}>
+                                <Download className="h-4 w-4 mr-2" />
+                                Export
+                            </Button>
+                        )}
+                        {hasSearched && activeTab === "draft-invoice" && (
+                            <Button variant="outline" color="info" onClick={handleOpenPrintPreview} disabled={draftInvoices.length === 0}>
+                                <Printer className="h-4 w-4 mr-2" />
+                                Print
+                            </Button>
+                        )}
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -246,10 +158,12 @@ const InvoicePage = () => {
                         onLocationsChange={setSelectedLocations}
                         selectedAircraftTypes={selectedAircraftTypes}
                         onAircraftTypesChange={setSelectedAircraftTypes}
+                        onSearch={handleSearch}
+                        isSearching={isSearching}
                     />
 
-                    {/* Show content only when all filters are filled */}
-                    {filtersComplete ? (
+                    {/* Show content when user has searched */}
+                    {hasSearched ? (
                         <>
                             {/* Tabs */}
                             <InvoiceTabs
@@ -263,82 +177,98 @@ const InvoicePage = () => {
                                 {activeTab === "pre-invoice" ? (
                                     <PreInvoiceTable
                                         invoices={paginatedPreInvoices}
+                                        isLoading={isLoadingPre}
                                     />
                                 ) : (
                                     <DraftInvoiceTable
                                         invoices={paginatedDraftInvoices}
+                                        isLoading={isLoadingDraft}
                                     />
                                 )}
                             </div>
 
                             {/* Pagination */}
-                            <div className="flex items-center justify-between mt-6 px-2">
-                                <div className="text-sm text-muted-foreground">
-                                    Showing {currentData.length > 0 ? (page - 1) * perPage + 1 : 0} to{" "}
-                                    {Math.min(page * perPage, totalAll)} of {totalAll} entries
+                            {totalAll > perPage && (
+                                <div className="flex items-center justify-between mt-6 px-2">
+                                    <div className="text-sm text-muted-foreground">
+                                        Showing {totalAll > 0 ? (page - 1) * perPage + 1 : 0} to{" "}
+                                        {Math.min(page * perPage, totalAll)} of {totalAll} entries
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            onClick={handlePrevPage}
+                                            disabled={page <= 1}
+                                        >
+                                            <ChevronLeft className="h-4 w-4" />
+                                        </Button>
+                                        {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(
+                                            (pageNum) => (
+                                                <Button
+                                                    key={pageNum}
+                                                    variant={page === pageNum ? "default" : "outline"}
+                                                    size="icon"
+                                                    className="h-8 w-8"
+                                                    onClick={() => setPage(pageNum)}
+                                                >
+                                                    {pageNum}
+                                                </Button>
+                                            )
+                                        )}
+                                        {totalPages > 5 && (
+                                            <>
+                                                <span className="px-2 text-muted-foreground">...</span>
+                                                <Button
+                                                    variant={page === totalPages ? "default" : "outline"}
+                                                    size="icon"
+                                                    className="h-8 w-8"
+                                                    onClick={() => setPage(totalPages)}
+                                                >
+                                                    {totalPages}
+                                                </Button>
+                                            </>
+                                        )}
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            onClick={handleNextPage}
+                                            disabled={page >= totalPages}
+                                        >
+                                            <ChevronRight className="h-4 w-4" />
+                                        </Button>
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-1">
-                                    <Button
-                                        variant="outline"
-                                        size="icon"
-                                        className="h-8 w-8"
-                                        onClick={handlePrevPage}
-                                        disabled={page <= 1}
-                                    >
-                                        <ChevronLeft className="h-4 w-4" />
-                                    </Button>
-                                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(
-                                        (pageNum) => (
-                                            <Button
-                                                key={pageNum}
-                                                variant={page === pageNum ? "default" : "outline"}
-                                                size="icon"
-                                                className="h-8 w-8"
-                                                onClick={() => setPage(pageNum)}
-                                            >
-                                                {pageNum}
-                                            </Button>
-                                        )
-                                    )}
-                                    {totalPages > 5 && (
-                                        <>
-                                            <span className="px-2 text-muted-foreground">...</span>
-                                            <Button
-                                                variant={page === totalPages ? "default" : "outline"}
-                                                size="icon"
-                                                className="h-8 w-8"
-                                                onClick={() => setPage(totalPages)}
-                                            >
-                                                {totalPages}
-                                            </Button>
-                                        </>
-                                    )}
-                                    <Button
-                                        variant="outline"
-                                        size="icon"
-                                        className="h-8 w-8"
-                                        onClick={handleNextPage}
-                                        disabled={page >= totalPages}
-                                    >
-                                        <ChevronRight className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </div>
+                            )}
                         </>
                     ) : (
-                        /* Empty state - show message when no filter selected */
+                        /* Empty state */
                         <div className="flex flex-col items-center justify-center py-16 text-center">
-                            <Filter className="h-16 w-16 text-muted-foreground/30 mb-4" />
+                            <svg className="h-16 w-16 text-muted-foreground/30 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+                            </svg>
                             <h3 className="text-lg font-medium text-muted-foreground mb-2">
-                                Please Select Filter Criteria
+                                Select Date Range and Search
                             </h3>
                             <p className="text-sm text-muted-foreground/70 max-w-md">
-                                Select a Customer Airline and Date Range (Start Date - End Date) to view invoice records.
+                                Select a Date Range (Start Date - End Date) and click &quot;Search&quot; to view invoice records.
+                                Airline, Location, and Aircraft filters are optional.
                             </p>
                         </div>
                     )}
                 </CardContent>
             </Card>
+
+            {/* Print Preview Modal for Draft-Invoice */}
+            <PrintPreviewModal
+                open={printPreviewOpen}
+                onClose={() => setPrintPreviewOpen(false)}
+                invoices={draftInvoices}
+                airlineCode={searchParams?.airlineCode}
+                dateRange={searchParams ? `${searchParams.dateStart} to ${searchParams.dateEnd}` : ""}
+            />
         </div>
     );
 };

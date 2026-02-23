@@ -129,7 +129,7 @@ export const useAttachFileSubmission = ({
       closeModal?.()
     } catch (error) {
       console.error('❌ Submit failed:', error)
-      // Toast errors are already handled by the individual hooks
+      toast.error(`Submit failed: ${error instanceof Error ? error.message : error}`)
     }
   }, [callAttachFileOther, mappingContracts, getUserName, closeModal])
 

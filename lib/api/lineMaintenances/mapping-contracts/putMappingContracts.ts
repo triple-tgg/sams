@@ -23,6 +23,10 @@ export const putMappingContracts = async (
             `/lineMaintenances/${lineMaintenancesId}/mapping-contracts`,
             payload
         )
+        // API returns HTTP 200 even on business errors — check the message field
+        if (response.data.message === 'error') {
+            throw new Error(response.data.error || 'Mapping contracts failed')
+        }
         return response.data
     } catch (error) {
         console.error('Error mapping contracts:', error)

@@ -62,7 +62,7 @@ const PriceInput = ({
                 className="rounded-r-none border-r-0 text-right"
             />
             <span className="inline-flex items-center px-3 h-9 text-sm border rounded-r-md bg-muted text-muted-foreground whitespace-nowrap">
-                USD{suffix}
+                {suffix.startsWith("%") ? suffix : `USD${suffix}`}
             </span>
         </div>
     </div>
@@ -705,14 +705,14 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                         label="Defect Rectification Tools"
                                         value={rate.defectRectificationTools}
                                         onChange={handleNumberChange("defectRectificationTools")}
-                                        suffix="/Invoice"
+                                        suffix="%/Service"
                                     />
                                     <PriceInput
                                         id={`${rate.id}-materialHandlingFee`}
                                         label="Material Handling Fee"
                                         value={rate.materialHandlingFee}
                                         onChange={handleNumberChange("materialHandlingFee")}
-                                        suffix="/Invoice"
+                                        suffix="%/Service"
                                     />
                                 </div>
                             </div>

@@ -78,9 +78,9 @@ const MechProfilePage = () => {
                     {filtered.map(m => (
                         <Card key={m.id} className="group border border-default-200 hover:shadow-lg hover:border-primary/20 transition-all duration-300 overflow-hidden">
                             <CardContent className="p-0">
-                                <div className={`h-16 bg-gradient-to-r ${getGradient(m.name)} relative`}>
+                                <div className={`h-16 bg-linear-to-r ${getGradient(m.name)} relative`}>
                                     <div className="absolute -bottom-6 left-4">
-                                        <div className={`h-14 w-14 rounded-xl bg-gradient-to-br ${getGradient(m.name)} flex items-center justify-center text-white text-lg font-bold shadow-lg border-4 border-card`}>{m.avatar}</div>
+                                        <div className={`h-14 w-14 rounded-xl bg-linear-to-br ${getGradient(m.name)} flex items-center justify-center text-white text-lg font-bold shadow-lg border-4 border-card`}>{m.avatar}</div>
                                     </div>
                                     <div className="absolute top-3 right-3"><div className={`h-3 w-3 rounded-full ${getStatusColor(m.status)} ring-2 ring-white/50`} /></div>
                                 </div>
@@ -93,7 +93,7 @@ const MechProfilePage = () => {
                                     </div>
                                     <div className="flex items-center justify-between pt-3 border-t border-default-100">
                                         <div className="flex items-center gap-1"><Icon icon="heroicons-solid:star" className="h-3.5 w-3.5 text-amber-400" /><span className="text-xs font-medium text-default-700">{m.rating}</span></div>
-                                        <Badge variant="outline" className={`text-[10px] ${m.status === "Active" ? "text-emerald-600 border-emerald-200 bg-emerald-500/10" : "text-amber-600 border-amber-200 bg-amber-500/10"}`}>{m.status}</Badge>
+                                        <Badge className={`text-[10px] ${m.status === "Active" ? "text-emerald-600 border-emerald-200 bg-emerald-500/10" : "text-amber-600 border-amber-200 bg-amber-500/10"}`}>{m.status}</Badge>
                                     </div>
                                 </div>
                             </CardContent>
@@ -106,7 +106,7 @@ const MechProfilePage = () => {
                         <div className="divide-y divide-default-100">
                             {filtered.map(m => (
                                 <div key={m.id} className="flex items-center gap-4 p-4 hover:bg-default-50/50 transition-colors">
-                                    <div className={`h-10 w-10 shrink-0 rounded-lg bg-gradient-to-br ${getGradient(m.name)} flex items-center justify-center text-white text-sm font-bold`}>{m.avatar}</div>
+                                    <div className={`h-10 w-10 shrink-0 rounded-lg bg-linear-to-br ${getGradient(m.name)} flex items-center justify-center text-white text-sm font-bold`}>{m.avatar}</div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2"><h3 className="font-medium text-default-900 text-sm">{m.name}</h3><div className={`h-2 w-2 rounded-full ${getStatusColor(m.status)}`} /></div>
                                         <p className="text-xs text-default-400">{m.id} · {m.specialization} · {m.experience}</p>

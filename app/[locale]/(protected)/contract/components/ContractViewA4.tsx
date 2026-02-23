@@ -371,15 +371,15 @@ export const ContractViewA4 = ({ formData, isLoading }: ContractViewA4Props) => 
 
                                         {/* Other Charges */}
                                         <div>
-                                            <p className="font-semibold text-primary mb-1">Other Charges (Per Invoice)</p>
+                                            <p className="font-semibold text-primary mb-1">Other Charges (% Per Service)</p>
                                             <div className="grid grid-cols-2 gap-2">
                                                 <div>
                                                     <span className="text-muted-foreground">Defect Rectification Tools:</span>
-                                                    <span className="font-medium ml-1">${formatCurrency(rate.defectRectificationTools)}/invoice</span>
+                                                    <span className="font-medium ml-1">{formatCurrency(rate.defectRectificationTools)}%/service</span>
                                                 </div>
                                                 <div>
                                                     <span className="text-muted-foreground">Material Handling Fee:</span>
-                                                    <span className="font-medium ml-1">${formatCurrency(rate.materialHandlingFee)}/invoice</span>
+                                                    <span className="font-medium ml-1">{formatCurrency(rate.materialHandlingFee)}%/service</span>
                                                 </div>
                                             </div>
                                         </div>
