@@ -244,10 +244,10 @@ const TrainingPage = () => {
                                             <div className="flex-1 h-2 bg-default-100 rounded-full overflow-hidden w-20">
                                                 <div
                                                     className={`h-full rounded-full transition-all ${program.progress === 100
-                                                            ? "bg-default-400"
-                                                            : program.progress >= 70
-                                                                ? "bg-emerald-500"
-                                                                : "bg-blue-500"
+                                                        ? "bg-default-400"
+                                                        : program.progress >= 70
+                                                            ? "bg-emerald-500"
+                                                            : "bg-blue-500"
                                                         }`}
                                                     style={{ width: `${program.progress}%` }}
                                                 />
@@ -256,7 +256,7 @@ const TrainingPage = () => {
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        <Badge variant="outline" className={`text-xs ${getStatusBadge(program.status)}`}>
+                                        <Badge className={`text-xs ${getStatusBadge(program.status)}`}>
                                             {program.status}
                                         </Badge>
                                     </TableCell>

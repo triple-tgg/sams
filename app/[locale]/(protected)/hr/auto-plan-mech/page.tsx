@@ -112,7 +112,7 @@ const AutoPlanMechPage = () => {
                                         <td className="px-4 py-3 text-default-700">{row.task}</td>
                                         <td className="px-4 py-3 font-mono text-xs text-default-500">{row.flight}</td>
                                         <td className="px-4 py-3"><div className="flex items-center gap-1.5"><div className={`h-2 w-2 rounded-full ${getPriorityDot(row.priority)}`} /><span className="text-xs text-default-600">{row.priority}</span></div></td>
-                                        <td className="px-4 py-3"><Badge variant="outline" className={`text-xs ${getStatusBadge(row.status)}`}>{row.status}</Badge></td>
+                                        <td className="px-4 py-3"><Badge className={`text-xs ${getStatusBadge(row.status)}`}>{row.status}</Badge></td>
                                         <td className="px-4 py-3 text-center">
                                             {row.status === "Unassigned" ? (
                                                 <Button variant="outline" size="sm" className="h-7 text-xs gap-1"><Icon icon="heroicons-outline:user-plus" className="h-3 w-3" />Assign</Button>

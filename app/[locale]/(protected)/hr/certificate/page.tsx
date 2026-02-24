@@ -252,7 +252,7 @@ const CertificatePage = () => {
                                     <TableCell className="text-default-600 text-sm">{cert.issueDate}</TableCell>
                                     <TableCell className="text-default-600 text-sm">{cert.expiryDate}</TableCell>
                                     <TableCell>
-                                        <Badge variant="outline" className={`text-xs ${getStatusBadge(cert.status)}`}>
+                                        <Badge className={`text-xs ${getStatusBadge(cert.status)}`}>
                                             {cert.status === "Expiring" ? "⚠ Expiring" : cert.status}
                                         </Badge>
                                     </TableCell>
