@@ -19,16 +19,7 @@ export interface FlightItem {
   stationObj: StationObj | null
   acReg: string
   acType?: string
-  acTypeObj: {
-    id: string
-    code: string
-    name: string
-    isDelete: boolean
-    createdDate: string
-    createdBy: string
-    updatedDate: string
-    updatedBy: string
-  } | null
+  acTypeObj: AcTypeObj | null
   arrivalFlightNo: string
   arrivalDate: string
   arrivalStatime: string
@@ -61,6 +52,8 @@ export interface FlightItem {
   etaTime?: string | null
   // Maintenance status object
   maintenanceStatusObj?: MaintenanceStatusObj | null
+  // Email success count
+  emailSuccessCount?: number
 }
 
 // Staff item (for csList and mechList when returned as objects)
@@ -86,6 +79,39 @@ export interface MaintenanceStatusObj {
   id: number
   code: string
   name: string
+  description?: string
+  isdelete?: boolean
+  createddate?: string
+  createdby?: string
+  updateddate?: string
+  updatedby?: string
+}
+
+// Aircraft type object
+export interface AcTypeObj {
+  id: number
+  code: string
+  name: string
+  modelName?: string
+  modelSubName?: string
+  classicOrNeo?: string
+  flagEnging1?: boolean
+  flagEnging2?: boolean
+  flagEnging3?: boolean
+  flagEnging4?: boolean
+  flagCsd1?: boolean
+  flagCsd2?: boolean
+  flagCsd3?: boolean
+  flagCsd4?: boolean
+  flagHydrolicGreen?: boolean
+  flagHydrolicBlue?: boolean
+  flagHydrolicYellow?: boolean
+  flagApu?: boolean
+  isDelete?: boolean
+  createdDate?: string
+  createdBy?: string
+  updatedDate?: string
+  updatedBy?: string
 }
 
 export interface AirlineObj {

@@ -117,7 +117,10 @@ export const useServicesSubmission = ({
         ataChapter: "",
         laeMH: "",
         mechMH: "",
-        attachFiles: null
+        attachFiles: null,
+        acDefect: "",
+        action: "",
+        technicalDelay: "",
       }
     ])
   }

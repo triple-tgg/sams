@@ -209,7 +209,9 @@ export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse |
     laeMH: defect.lae?.toString() || "",
     mechMH: defect.mech?.toString() || "",
     attachFiles: defect.attachFiles ? [defect.attachFiles] : null,
-    // Note: photo files would need special handling for FileList
+    acDefect: defect.acDefect || "",
+    action: defect.action || "",
+    technicalDelay: defect.technicalDelay || "",
   })) || [];
   // Map fluid data
   const fluidServicing = aircraft?.fluidServicing;

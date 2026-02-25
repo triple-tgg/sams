@@ -51,7 +51,16 @@ export const servicesFormSchema = z.object({
     mechMH: z.string().optional().refine((val) => !val || numericStringSchema.safeParse(val).success, {
       message: "Mech MH must be a valid number"
     }),
-  })).min(1, "At least one aircraft check is required").max(10, "Maximum 10 aircraft checks allowed"),
+  })).min(1, "At least one aircraft check is required").max(10, "Maximum 10 aircraft checks allowed")
+    .refine((checks) => {
+      // Prevent duplicate maintenance types (except TR-Transit types)
+      const nonTRTypes = checks
+        .map(c => c.maintenanceTypes)
+        .filter(t => t && !/^tr/i.test(t) && t !== 'TR-Transit')
+      return new Set(nonTRTypes).size === nonTRTypes.length
+    }, {
+      message: "Duplicate maintenance types are not allowed (except TR-Transit)"
+    }),
 
   // Additional Defect Rectification
   additionalDefectRectification: z.boolean().default(false),
@@ -59,22 +68,15 @@ export const servicesFormSchema = z.object({
     defect: z.string().min(5, "Defect details must be at least 5 characters").max(500, "Defect details cannot exceed 500 characters"),
     ataChapter: ataChapterSchema,
     attachFiles: attachFilesSchema,
-    // attachFiles: z
-    //   .union([
-    //     FileObjectSchema,            // single object
-    //     z.array(FileObjectSchema),   // multiple objects
-    //     z.null(),
-    //     z.undefined()
-    //   ])
-    //   .optional()
-    //   .nullable(),
-
     laeMH: z.string().optional().refine((val) => !val || numericStringSchema.safeParse(val).success, {
       message: "LAE MH must be a valid number"
     }),
     mechMH: z.string().optional().refine((val) => !val || numericStringSchema.safeParse(val).success, {
       message: "Mech MH must be a valid number"
     }),
+    acDefect: z.string().optional().default(""),
+    action: z.string().optional().default(""),
+    technicalDelay: z.string().optional().default(""),
   })).optional().default([]).refine((defects) => !defects || defects.length <= 6, {
     message: "Maximum 6 additional defects allowed"
   }),

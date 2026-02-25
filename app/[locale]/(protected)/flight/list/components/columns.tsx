@@ -90,20 +90,11 @@ export function getFlightColumns({
                       >
                         <Mail className="h-4 w-4" />
                       </Button>
-                      {(() => {
-                        const toCount = flight.airlineObj?.emailTo
-                          ? flight.airlineObj.emailTo.split(/[;,]+/).filter(Boolean).length
-                          : 0;
-                        const ccCount = flight.airlineObj?.emailCc
-                          ? flight.airlineObj.emailCc.split(/[;,]+/).filter(Boolean).length
-                          : 0;
-                        const total = toCount + ccCount;
-                        return total > 0 ? (
-                          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground leading-none pointer-events-none">
-                            {total}
-                          </span>
-                        ) : null;
-                      })()}
+                      {(flight.emailSuccessCount ?? 0) > 0 && (
+                        <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-semibold text-white leading-none pointer-events-none">
+                          {flight.emailSuccessCount}
+                        </span>
+                      )}
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>

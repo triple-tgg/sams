@@ -295,6 +295,8 @@ const ListTable = ({
                 onOpenChange={setEmailModalOpen}
                 flightInfosId={selectedEmailFlight?.flightInfosId ?? null}
                 flightNo={selectedEmailFlight?.arrivalFlightNo}
+                emailTo={selectedEmailFlight?.airlineObj?.emailTo}
+                emailCc={selectedEmailFlight?.airlineObj?.emailCc}
             />
             {/* Header Section with Title and Buttons */}
             <CardHeader className="pb-4">

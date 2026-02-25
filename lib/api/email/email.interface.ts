@@ -1,15 +1,5 @@
-export interface EmailAttachment {
-    fileName: string;
-    filePath: string;
-    fileSize?: number;
-}
-
 export interface EmailPreviewData {
-    emailTo: string;
-    emailCc: string;
-    subject: string;
-    bodyHtml: string;
-    attachments: EmailAttachment[];
+    htmlContent: string;
 }
 
 export interface EmailPreviewResponse {
@@ -20,12 +10,14 @@ export interface EmailPreviewResponse {
 
 export interface EmailLogItem {
     id: number;
+    lineMaintenancesId: number;
     sentDate: string;
-    sentBy: string;
+    senderEmail: string;
+    recipientEmail: string;
     status: string;
-    emailTo: string;
-    emailCc: string;
+    errorMessage: string | null;
     subject: string;
+    emailCc: string;
 }
 
 export interface EmailLogResponse {
@@ -34,8 +26,17 @@ export interface EmailLogResponse {
     error: string;
 }
 
+export interface EmailSendData {
+    isSuccess: boolean;
+    emailFrom: string | null;
+    emailTo: string | null;
+    emailCc: string | null;
+    subject: string | null;
+    errorMessage: string | null;
+}
+
 export interface EmailSendResponse {
     message: string;
-    responseData: null;
+    responseData: EmailSendData | null;
     error: string;
 }

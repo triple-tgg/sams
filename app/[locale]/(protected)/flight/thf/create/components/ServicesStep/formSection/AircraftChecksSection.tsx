@@ -14,6 +14,10 @@ import { ServicesFormInputs, transformAircraftCheckTypesToOptions, transformAirc
 const isTRType = (value: string) =>
   /^tr/i.test(value) || value === 'TR-Transit'
 
+/** Check if sub-type is "Full Handling" (case-insensitive) */
+const isFullHandling = (value: string) =>
+  value.toLowerCase() === 'full handling'
+
 const AircraftChecksSection: React.FC<{
   form: UseFormReturn<ServicesFormInputs>
   onAdd: () => void
@@ -32,6 +36,18 @@ const AircraftChecksSection: React.FC<{
   )
 
   const aircraftChecks = form.watch('aircraftChecks')
+
+  // Track which maintenance types are already selected (for duplicate prevention)
+  // Use JSON.stringify as dependency to reliably detect deep array changes
+  const selectedTypesKey = JSON.stringify(aircraftChecks.map(c => c.maintenanceTypes))
+  const usedMaintenanceTypes = useMemo(() => {
+    const types: Record<number, string> = {}
+    aircraftChecks.forEach((check, idx) => {
+      if (check.maintenanceTypes) types[idx] = check.maintenanceTypes
+    })
+    return types
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTypesKey])
 
   if (props.isLoadingCheckTypes) {
     return (
@@ -109,11 +125,24 @@ const AircraftChecksSection: React.FC<{
                         </FormControl>
                         <SelectContent>
                           {maintenanceOptions?.length > 0 ? (
-                            maintenanceOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))
+                            maintenanceOptions.map((option) => {
+                              // Check if this type is already used by another check (not the current one)
+                              // TR-Transit types are exempt from duplicate check
+                              const isUsedElsewhere = !isTRType(option.value) &&
+                                Object.entries(usedMaintenanceTypes).some(
+                                  ([idx, type]) => Number(idx) !== index && type === option.value
+                                )
+                              return (
+                                <SelectItem
+                                  key={option.value}
+                                  value={option.value}
+                                  disabled={isUsedElsewhere}
+                                  className={isUsedElsewhere ? 'opacity-50' : ''}
+                                >
+                                  {option.label}{isUsedElsewhere ? ' (already selected)' : ''}
+                                </SelectItem>
+                              )
+                            })
                           ) : (
                             <SelectItem value="" disabled>
                               No types available
@@ -137,35 +166,51 @@ const AircraftChecksSection: React.FC<{
                       <FormItem className="space-y-1">
                         <FormLabel className="text-xs text-muted-foreground">Sub Types</FormLabel>
                         <div className="flex flex-wrap gap-2">
-                          {subTypeOptions.map((option) => (
-                            <label
-                              key={option.value}
-                              className={`
-                                flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border transition-all cursor-pointer select-none
-                                ${isSubTypesDisabled
-                                  ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                                  : field.value?.includes(option.value)
-                                    ? 'bg-primary/10 text-primary border-primary/30'
-                                    : 'bg-white text-gray-600 border-gray-200 hover:border-primary/30 hover:text-primary'
-                                }
-                              `}
-                            >
-                              <Checkbox
-                                className="h-3.5 w-3.5"
-                                color='primary'
-                                disabled={isSubTypesDisabled}
-                                checked={field.value?.includes(option.value)}
-                                onCheckedChange={(checked) => {
-                                  if (isSubTypesDisabled) return
-                                  const updatedValue = checked
-                                    ? [...(field.value || []), option.value]
-                                    : (field.value || []).filter((v) => v !== option.value)
-                                  field.onChange(updatedValue)
-                                }}
-                              />
-                              {option.label}
-                            </label>
-                          ))}
+                          {subTypeOptions.map((option) => {
+                            // Check if "Full Handling" is currently selected
+                            const hasFullHandling = (field.value || []).some(isFullHandling)
+                            // Allow multi-select only when Full Handling is selected
+                            const isMultiSelectAllowed = hasFullHandling || isFullHandling(option.value)
+
+                            return (
+                              <label
+                                key={option.value}
+                                className={`
+                                  flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border transition-all cursor-pointer select-none
+                                  ${isSubTypesDisabled
+                                    ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                    : field.value?.includes(option.value)
+                                      ? 'bg-primary/10 text-primary border-primary/30'
+                                      : 'bg-white text-gray-600 border-gray-200 hover:border-primary/30 hover:text-primary'
+                                  }
+                                `}
+                              >
+                                <Checkbox
+                                  className="h-3.5 w-3.5"
+                                  color='primary'
+                                  disabled={isSubTypesDisabled}
+                                  checked={field.value?.includes(option.value)}
+                                  onCheckedChange={(checked) => {
+                                    if (isSubTypesDisabled) return
+                                    if (checked) {
+                                      if (isMultiSelectAllowed) {
+                                        // Multi-select: add to existing
+                                        field.onChange([...(field.value || []), option.value])
+                                      } else {
+                                        // Single-select: replace the current selection
+                                        field.onChange([option.value])
+                                      }
+                                    } else {
+                                      // Uncheck: remove from list
+                                      const updated = (field.value || []).filter((v) => v !== option.value)
+                                      field.onChange(updated)
+                                    }
+                                  }}
+                                />
+                                {option.label}
+                              </label>
+                            )
+                          })}
                         </div>
                         {isSubTypesDisabled && (
                           <p className="text-[10px] text-muted-foreground mt-1">

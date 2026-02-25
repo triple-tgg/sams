@@ -17,50 +17,53 @@ import type {
 } from "@/lib/api/email/email.interface";
 
 /**
- * Hook to fetch email preview data for a flight
+ * Hook to fetch email preview by lineMaintenanceId
  */
 export const useEmailPreview = (
-    flightInfosId: number,
+    lineMaintenanceId: number,
     enabled: boolean = true
 ): UseQueryResult<EmailPreviewResponse, Error> => {
     return useQuery({
-        queryKey: ["email-preview", flightInfosId],
-        queryFn: () => getEmailPreview(flightInfosId),
-        enabled: enabled && flightInfosId > 0,
+        queryKey: ["email-preview", lineMaintenanceId],
+        queryFn: () => getEmailPreview(lineMaintenanceId),
+        enabled: enabled && lineMaintenanceId > 0,
         staleTime: 2 * 60 * 1000,
         gcTime: 5 * 60 * 1000,
     });
 };
 
 /**
- * Hook to fetch email send log for a flight
+ * Hook to fetch email send log by lineMaintenanceId
  */
 export const useEmailLog = (
-    flightInfosId: number,
+    lineMaintenanceId: number,
     enabled: boolean = true
 ): UseQueryResult<EmailLogResponse, Error> => {
     return useQuery({
-        queryKey: ["email-log", flightInfosId],
-        queryFn: () => getEmailLog(flightInfosId),
-        enabled: enabled && flightInfosId > 0,
+        queryKey: ["email-log", lineMaintenanceId],
+        queryFn: () => getEmailLog(lineMaintenanceId),
+        enabled: enabled && lineMaintenanceId > 0,
         staleTime: 1 * 60 * 1000,
         gcTime: 5 * 60 * 1000,
     });
 };
 
 /**
- * Hook to send email for a flight
+ * Hook to send email by lineMaintenanceId
  */
 export const useSendEmail = () => {
     const queryClient = useQueryClient();
 
     return useMutation<EmailSendResponse, Error, number>({
-        mutationFn: (flightInfosId: number) => sendEmail(flightInfosId),
+        mutationFn: (lineMaintenanceId: number) => sendEmail(lineMaintenanceId),
         mutationKey: ["email-send"],
-        onSuccess: (_data, flightInfosId) => {
-            // Refetch log after successful send
+        onSuccess: (_data, lineMaintenanceId) => {
+            // Refetch log and preview after successful send
             queryClient.invalidateQueries({
-                queryKey: ["email-log", flightInfosId],
+                queryKey: ["email-log", lineMaintenanceId],
+            });
+            queryClient.invalidateQueries({
+                queryKey: ["email-preview", lineMaintenanceId],
             });
         },
         onError: (error) => {
