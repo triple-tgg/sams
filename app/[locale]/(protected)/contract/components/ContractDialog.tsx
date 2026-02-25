@@ -125,8 +125,10 @@ const transformFormDataToRequest = (
     isCreate: boolean = false
 ): ContractUpsertRequest => {
     const pricingDataList: ContractPricingDataRequest[] = formData.pricingRates.map((rate) => ({
-        // For create mode, always set id = 0; for update mode, use the existing id
-        id: isCreate ? 0 : rate.id,
+        // For create mode, always set id = 0
+        // For edit mode, existing rates keep their real API id, but newly added rates
+        // (which use Date.now() as a temporary id, resulting in very large numbers) get id = 0
+        id: isCreate ? 0 : (typeof rate.id === 'number' && rate.id > 1_000_000 ? 0 : rate.id),
         stationCodeList: rate.serviceLocation,
         aircraftTypeCodeList: rate.aircraftTypes, // Use aircraft type codes from form
         tsChkUnder2hrsCert: rate.tsChkUnder2hrsCert,
@@ -318,6 +320,37 @@ export const ContractDialog = ({
                 const errors = validateStep1();
                 if (Object.keys(errors).length > 0) {
                     setFieldErrors(errors);
+                    // Focus first errored field
+                    const firstErrorKey = Object.keys(errors)[0];
+                    setTimeout(() => {
+                        const el = document.getElementById(firstErrorKey) || document.querySelector(`[name="${firstErrorKey}"]`);
+                        if (el) {
+                            el.scrollIntoView({ behavior: "smooth", block: "center" });
+                            if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement) {
+                                el.focus();
+                            }
+                        }
+                    }, 100);
+                    return;
+                }
+            }
+
+            // Validate Step 2 (Pricing)
+            if (currentStep === 2) {
+                const errors = validateStep2();
+                if (Object.keys(errors).length > 0) {
+                    setFieldErrors(errors);
+                    // Find the first errored rate and scroll to it
+                    const firstErrorKey = Object.keys(errors)[0];
+                    const rateIdMatch = firstErrorKey.match(/^rate_(.+?)_/);
+                    if (rateIdMatch) {
+                        setTimeout(() => {
+                            const rateEl = document.querySelector(`[data-rate-id="${rateIdMatch[1]}"]`);
+                            if (rateEl) {
+                                rateEl.scrollIntoView({ behavior: "smooth", block: "center" });
+                            }
+                        }, 150); // Slightly longer delay to allow card to expand first
+                    }
                     return;
                 }
             }

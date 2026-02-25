@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -84,6 +84,28 @@ type FormGroupKey = typeof FORM_GROUPS[number];
 export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "create", fieldErrors = {} }: ServicePricingStepProps) => {
     const [expandedRates, setExpandedRates] = useState<Set<number | string>>(new Set());
     const [expandedFormGroups, setExpandedFormGroups] = useState<Map<number | string, Set<FormGroupKey>>>(new Map());
+
+    // Auto-expand rate cards that have field errors
+    useEffect(() => {
+        if (Object.keys(fieldErrors).length === 0) return;
+        const rateIdsWithErrors = new Set<number | string>();
+        for (const key of Object.keys(fieldErrors)) {
+            const match = key.match(/^rate_(.+?)_/);
+            if (match) {
+                const rateId = match[1];
+                // Try numeric first, fall back to string
+                const numericId = Number(rateId);
+                rateIdsWithErrors.add(isNaN(numericId) ? rateId : numericId);
+            }
+        }
+        if (rateIdsWithErrors.size > 0) {
+            setExpandedRates(prev => {
+                const next = new Set(prev);
+                rateIdsWithErrors.forEach(id => next.add(id));
+                return next;
+            });
+        }
+    }, [fieldErrors]);
 
     // Toggle form group expansion for a specific rate
     const toggleFormGroup = (rateId: number | string, groupKey: FormGroupKey) => {
@@ -769,7 +791,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                 open={expandedRates.has(rate.id)}
                                 onOpenChange={() => toggleExpanded(rate.id)}
                             >
-                                <div className="border rounded-lg overflow-hidden">
+                                <div data-rate-id={rate.id} className="border rounded-lg overflow-hidden">
                                     {/* Header */}
                                     <CollapsibleTrigger asChild>
                                         <div className="flex items-center gap-3 p-4 bg-muted/50 cursor-pointer hover:bg-muted/70 transition-colors">
