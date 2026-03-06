@@ -56,7 +56,7 @@ export const useLogin = (options: UseLoginOptions = {}) => {
         }))
 
         // Navigate to dashboard
-        router.push('/dashboard')
+        router.push('/flight/list')
       }
 
       // Call custom success handler

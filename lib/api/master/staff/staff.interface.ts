@@ -20,6 +20,7 @@ export interface StaffItem {
     isActive: boolean;
     title: string;
     jobTitle: string | null;
+    email: string | null;
     createddate: string;
     createdby: string;
     updateddate: string;
@@ -59,6 +60,7 @@ export interface StaffUpsertRequest {
     isAcive: boolean; // Note: API uses "isAcive" (typo)
     title: string;
     jobTitle: string;
+    email: string;
 }
 
 export interface StaffUpsertResponse {

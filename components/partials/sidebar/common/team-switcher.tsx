@@ -1,7 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { useSession } from "next-auth/react";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/rootReducer";
 import { ChevronsUpDown, Check, CirclePlus } from 'lucide-react';
 
 import { cn } from "@/lib/utils"
@@ -83,7 +84,7 @@ export default function TeamSwitcher({ className }: TeamSwitcherProps) {
     const [config] = useConfig();
     const [hoverConfig] = useMenuHoverConfig();
     const { hovered } = hoverConfig;
-    const { data: session } = useSession();
+    const { users } = useSelector((state: RootState) => state.auth);
     const [open, setOpen] = React.useState(false)
     const [showNewTeamDialog, setShowNewTeamDialog] = React.useState(false)
     const [selectedTeam, setSelectedTeam] = React.useState<Team>(
@@ -122,7 +123,7 @@ export default function TeamSwitcher({ className }: TeamSwitcherProps) {
                                     className="grayscale"
                                 />
 
-                                <AvatarFallback>{session?.user?.name?.charAt(0)}</AvatarFallback>
+                                <AvatarFallback>{users?.fullName?.charAt(0)}</AvatarFallback>
                             </Avatar>
                         </Button> : <Button
                             variant="outline"
@@ -143,7 +144,7 @@ export default function TeamSwitcher({ className }: TeamSwitcherProps) {
                                         className="grayscale"
                                     />
 
-                                    <AvatarFallback>{session?.user?.name?.charAt(0)}</AvatarFallback>
+                                    <AvatarFallback>{users?.fullName?.charAt(0)}</AvatarFallback>
                                 </Avatar>
                                 <div className="flex-1 text-start w-[100px]">
 

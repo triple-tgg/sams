@@ -49,6 +49,7 @@ const StaffPage = () => {
         isActive: boolean;
         title: string;
         jobTitle: string;
+        email: string;
     } | null>(null);
 
     // API hooks
@@ -119,6 +120,7 @@ const StaffPage = () => {
             isAcive: formData.isActive, // Note: API uses "isAcive"
             title: formData.title,
             jobTitle: formData.jobTitle,
+            email: formData.email,
         };
 
         upsertStaff(payload, {
@@ -149,6 +151,7 @@ const StaffPage = () => {
             isAcive: formData.isActive, // Note: API uses "isAcive"
             title: formData.title,
             jobTitle: formData.jobTitle,
+            email: formData.email,
         };
 
         upsertStaff(payload, {

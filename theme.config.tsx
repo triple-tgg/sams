@@ -15,7 +15,7 @@ const config = {
   banner: {
     key: "1.0-release",
     text: (
-      <a href="/dashboard" target="_blank">
+      <a href="/flight/list" target="_blank">
         🎉 SAMs
       </a>
     ),

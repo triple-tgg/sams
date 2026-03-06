@@ -28,7 +28,7 @@ const LoginForm = () => {
   // Use login mutation hook - Redux only
   const { mutate: loginUser, isPending } = useLogin({
     onSuccess: (data) => {
-      router.push('/dashboard')
+      router.push('/flight/list')
     },
     onError: (error) => {
       // Error toast will be handled by the hook

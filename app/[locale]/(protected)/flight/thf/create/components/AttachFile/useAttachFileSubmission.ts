@@ -5,6 +5,7 @@ import { AttachFileFormInputs } from './types'
 import { prepareAttachFileDataForApi } from './utils'
 import { usePutAttachFileOtherWithLoading } from '@/lib/api/hooks/usePutAttachfileOther'
 import { useMappingContracts } from '@/lib/api/hooks/useMappingContracts'
+import { useSharePointSend } from '@/lib/api/hooks/useSharePointSend'
 import { LineMaintenanceThfResponse } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -86,6 +87,20 @@ export const useAttachFileSubmission = ({
     }
   })
 
+  // Initialize the SharePoint send mutation
+  const {
+    sendToSharePoint,
+    isSharePointLoading,
+  } = useSharePointSend({
+    lineMaintenancesId: lineMaintenanceId || 0,
+    onSuccess: async (data) => {
+      console.log('✅ SharePoint send successful:', data.responseData?.sharePointUrl)
+    },
+    onError: (error) => {
+      console.error('❌ Failed to send to SharePoint:', error)
+    }
+  })
+
   // Prepare and call the attachfile-other API
   const callAttachFileOther = useCallback(async (data: AttachFileFormInputs) => {
     if (!hasLineMaintenanceId) {
@@ -115,7 +130,7 @@ export const useAttachFileSubmission = ({
     }
   }, [callAttachFileOther, closeModal])
 
-  // Submit: attachfile-other → mapping-contracts → close modal
+  // Submit: attachfile-other → mapping-contracts → sharepoint send → close modal
   const handleSubmit = useCallback(async (data: AttachFileFormInputs) => {
     try {
       // Step 1: Save attach files
@@ -125,13 +140,26 @@ export const useAttachFileSubmission = ({
       const userName = getUserName() || 'system'
       await mappingContracts({ userName })
 
+      // Step 3: Send to SharePoint
+      try {
+        await sendToSharePoint()
+      } catch (spError) {
+        // SharePoint error is non-blocking — data is already saved
+        console.warn('⚠️ SharePoint send failed (non-blocking):', spError)
+        toast.warning('Submit completed but SharePoint upload failed', {
+          description: spError instanceof Error ? spError.message : 'Please try again later',
+        })
+        closeModal?.()
+        return
+      }
+
       toast.success('Submit completed successfully')
       closeModal?.()
     } catch (error) {
       console.error('❌ Submit failed:', error)
       toast.error(`Submit failed: ${error instanceof Error ? error.message : error}`)
     }
-  }, [callAttachFileOther, mappingContracts, getUserName, closeModal])
+  }, [callAttachFileOther, mappingContracts, sendToSharePoint, getUserName, closeModal])
 
   // Handle back navigation
   const handleOnBackStep = useCallback(() => {
@@ -143,7 +171,7 @@ export const useAttachFileSubmission = ({
     handleSubmit,
     handleDraft,
     handleOnBackStep,
-    isSubmitting: isAttachFileLoading || isMappingLoading,
+    isSubmitting: isAttachFileLoading || isMappingLoading || isSharePointLoading,
     isDrafting: isAttachFileLoading,
     isSubmitSuccess,
     isSubmitError,

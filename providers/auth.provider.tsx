@@ -96,7 +96,7 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
         if (isRootRoute) {
             if (isAuth) {
                 // User is authenticated - redirect to dashboard
-                router.push(`/${locale}/dashboard`)
+                router.push(`/${locale}/flight/list`)
             } else {
                 // User is not authenticated - redirect to login
                 router.push(`/${locale}/auth/login`)
@@ -106,7 +106,7 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
 
         // Handle login page redirect when already authenticated
         if (isAuth && pathWithoutLocale === '/auth/login') {
-            router.push(`/${locale}/dashboard`)
+            router.push(`/${locale}/flight/list`)
             return
         }
 

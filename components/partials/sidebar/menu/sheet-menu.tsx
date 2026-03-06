@@ -34,7 +34,7 @@ export function SheetMenu() {
             </SheetTrigger>
             <SheetContent className="sm:w-72 px-3 h-full flex flex-col" side="left">
                 <SheetHeader>
-                    <Link href="/dashboard" className="flex gap-2 items-center     ">
+                    <Link href="/flight/list" className="flex gap-2 items-center     ">
                         {/* <DashCodeLogo className="  text-default-900 h-8 w-8 [&>path:nth-child(3)]:text-background [&>path:nth-child(2)]:text-background" /> */}
                         <Image
                             src="/images/logo/logo.png"

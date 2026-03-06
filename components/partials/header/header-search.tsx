@@ -57,7 +57,7 @@ const HeaderSearch = () => {
                                 </CommandItem>
                                 <CommandItem className="aria-selected:bg-transparent p-0 mb-2.5">
                                     <Link
-                                        href="/dashboard"
+                                        href="/flight/list"
                                         className="flex gap-1 items-center px-2 text-default-500 hover:text-primary ">
                                         <Icon icon="heroicons:chart-bar" />
                                         <span>Analytics</span>
@@ -101,7 +101,7 @@ const HeaderSearch = () => {
                                 </CommandItem>
                                 <CommandItem className="aria-selected:bg-transparent p-0 mb-2.5">
                                     <Link
-                                        href="/dashboard"
+                                        href="/flight/list"
                                         className="flex gap-1 items-center px-2 text-default-500 hover:text-primary">
                                         <Icon icon="heroicons:user" />
                                         <span>Sign In</span>

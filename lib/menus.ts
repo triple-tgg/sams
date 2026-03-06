@@ -52,14 +52,6 @@ export function getMenuList(pathname: string, t: any): Group[] {
       id: "aircraft-maintenance",
       menus: [
         {
-          id: "dashboard",
-          href: "/dashboard",
-          label: t("dashboard"),
-          active: pathname.includes("/dashboard"),
-          icon: "heroicons-outline:rectangle-group",
-          submenus: [],
-        },
-        {
           id: "flight",
           href: "/flight",
           label: t("flightList"),
@@ -124,49 +116,7 @@ export function getMenuList(pathname: string, t: any): Group[] {
     //     },
     //   ],
     // },
-    {
-      groupLabel: t("humanResources"),
-      id: "human-resources",
-      menus: [
-        {
-          id: "hr",
-          href: "/hr",
-          label: t("humanResources"),
-          active: pathname.includes("/hr"),
-          icon: "heroicons-outline:academic-cap",
-          submenus: [
-            {
-              href: "/hr/training",
-              label: t("training"),
-              active: pathname.includes("/hr/training"),
-              icon: "heroicons-outline:book-open",
-              children: [],
-            },
-            {
-              href: "/hr/certificate",
-              label: t("certificate"),
-              active: pathname.includes("/hr/certificate"),
-              icon: "heroicons-outline:document-check",
-              children: [],
-            },
-            {
-              href: "/hr/mech-profile",
-              label: t("mechProfile"),
-              active: pathname.includes("/hr/mech-profile"),
-              icon: "heroicons-outline:user-circle",
-              children: [],
-            },
-            {
-              href: "/hr/auto-plan-mech",
-              label: t("autoPlanMech"),
-              active: pathname.includes("/hr/auto-plan-mech"),
-              icon: "heroicons-outline:calendar",
-              children: [],
-            },
-          ],
-        },
-      ],
-    },
+
     {
       groupLabel: t("setting"),
       id: "setting",

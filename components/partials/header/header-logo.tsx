@@ -13,7 +13,7 @@ const HeaderLogo = () => {
 
     return (
         config.layout === 'horizontal' ? (
-            <Link href="/dashboard" className="flex gap-2 items-center    ">
+            <Link href="/flight/list" className="flex gap-2 items-center    ">
                 {/* <DashCodeLogo className="  text-default-900 h-8 w-8 [&>path:nth-child(3)]:text-background [&>path:nth-child(2)]:text-background" /> */}
                 <Image
                     src="/images/logo/logo.png"
@@ -29,7 +29,7 @@ const HeaderLogo = () => {
             </Link>
         ) :
             !isDesktop && (
-                <Link href="/dashboard" className="flex gap-2 items-center    ">
+                <Link href="/flight/list" className="flex gap-2 items-center    ">
                     {/* <DashCodeLogo className="  text-default-900 h-8 w-8 [&>path:nth-child(3)]:text-background [&>path:nth-child(2)]:text-background" /> */}
                     <Image
                         src="/images/logo/logo.png"

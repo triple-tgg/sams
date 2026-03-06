@@ -23,6 +23,7 @@ type Props = {
         isActive: boolean;
         title: string;
         jobTitle: string;
+        email: string;
     }) => void;
 };
 
@@ -39,6 +40,7 @@ const StaffFormDialog = ({
     const [isActive, setIsActive] = useState(true);
     const [title, setTitle] = useState('');
     const [jobTitle, setJobTitle] = useState('');
+    const [email, setEmail] = useState('');
 
     const { options: staffTypeOptions, isLoading: loadingTypes } = useStaffsTypesAllOptions();
 
@@ -53,6 +55,7 @@ const StaffFormDialog = ({
             setIsActive(staff.isActive ?? true);
             setTitle(staff.title || '');
             setJobTitle(staff.jobTitle || '');
+            setEmail(staff.email || '');
         }
     }, [staff]);
 
@@ -65,7 +68,8 @@ const StaffFormDialog = ({
                 staffstypeid,
                 isActive,
                 title: title.trim(),
-                jobTitle: jobTitle.trim()
+                jobTitle: jobTitle.trim(),
+                email: email.trim()
             });
         }
     };
@@ -140,6 +144,19 @@ const StaffFormDialog = ({
                         placeholder="e.g. Senior Aircraft Mechanic"
                         value={jobTitle}
                         onChange={(e) => setJobTitle(e.target.value)}
+                        disabled={isViewMode || isPending}
+                    />
+                </div>
+
+                {/* Email */}
+                <div className="space-y-2">
+                    <Label htmlFor="staff-email">Email</Label>
+                    <Input
+                        id="staff-email"
+                        type="email"
+                        placeholder="e.g. john.doe@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                         disabled={isViewMode || isPending}
                     />
                 </div>
