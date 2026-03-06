@@ -1,0 +1,1416 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAMS — HR Training & Compliance Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-base: #f0f5ff;
+    --bg-panel: #ffffff;
+    --bg-card: #ffffff;
+    --bg-card2: #f8faff;
+    --border: #dde7f7;
+    --border-bright: #b8ceef;
+    --amber: #2563eb;
+    --amber-dim: #1d4ed8;
+    --amber-glow: rgba(37,99,235,0.08);
+    --red: #dc2626;
+    --red-glow: rgba(220,38,38,0.08);
+    --green: #16a34a;
+    --green-glow: rgba(22,163,74,0.08);
+    --blue: #2563eb;
+    --blue-glow: rgba(37,99,235,0.08);
+    --orange: #ea580c;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-dim: #94a3b8;
+    --font-display: 'Rajdhani', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+    --font-body: 'Sarabun', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid noise texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(0,0,0,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,0,0,0.025) 1px, transparent 1px);
+    background-size: 32px 32px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Ambient glow */
+  body::after {
+    content: '';
+    position: fixed;
+    top: -200px; left: -200px;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(37,99,235,0.05) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    position: fixed;
+    left: 0; top: 0; bottom: 0;
+    width: 64px;
+    background: var(--bg-panel);
+    border-right: 1px solid var(--border);
+    box-shadow: 2px 0 12px rgba(0,0,0,0.06);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 0;
+    z-index: 100;
+    gap: 8px;
+  }
+
+  .sidebar-logo {
+    width: 36px; height: 36px;
+    background: #2563eb;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 28px;
+    position: relative;
+  }
+  .sidebar-logo::after {
+    content: 'S';
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--bg-base);
+    font-size: 16px;
+  }
+
+  .nav-item {
+    width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text-dim);
+    font-size: 18px;
+    position: relative;
+  }
+  .nav-item:hover { background: var(--bg-card); color: var(--text-secondary); }
+  .nav-item.active { 
+    background: rgba(37,99,235,0.08); 
+    color: #2563eb;
+    border: 1px solid rgba(37,99,235,0.2);
+  }
+  .nav-item.active::before {
+    content: '';
+    position: absolute;
+    left: -1px; top: 30%; bottom: 30%;
+    width: 2px;
+    background: #2563eb;
+    border-radius: 0 2px 2px 0;
+  }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    position: fixed;
+    top: 0; left: 64px; right: 0;
+    height: 56px;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    display: flex; align-items: center;
+    padding: 0 28px;
+    gap: 16px;
+    z-index: 90;
+  }
+
+  .topbar-breadcrumb {
+    font-family: var(--font-display);
+    font-size: 13px;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .topbar-breadcrumb span { color: var(--text-secondary); }
+  .topbar-breadcrumb strong { color: #2563eb; }
+
+  .topbar-right {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 16px;
+  }
+
+  .sync-badge {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: #2563eb;
+    background: rgba(37,99,235,0.08);
+    border: 1px solid rgba(37,99,235,0.2);
+    padding: 4px 10px;
+    border-radius: 20px;
+  }
+  .sync-dot {
+    width: 6px; height: 6px;
+    background: #2563eb;
+    border-radius: 50%;
+    animation: pulse-green 2s infinite;
+  }
+  @keyframes pulse-green {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .avatar {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, #1e40af, #3b82f6);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 13px;
+    color: white;
+  }
+
+  /* ── MAIN ── */
+  .main {
+    margin-left: 64px;
+    margin-top: 56px;
+    padding: 28px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── PAGE HEADER ── */
+  .page-header {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    margin-bottom: 28px;
+  }
+
+  .page-title {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: 0.02em;
+    line-height: 1;
+  }
+  .page-title span {
+    color: #2563eb;
+  }
+  .page-subtitle {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 6px;
+    font-family: var(--font-mono);
+  }
+
+  .header-actions {
+    display: flex; gap: 10px; align-items: center;
+  }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+  }
+  .btn-amber {
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.3);
+  }
+  .btn-amber:hover { background: linear-gradient(135deg, #1d4ed8, #2563eb); box-shadow: 0 4px 16px rgba(37,99,235,0.4); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-bright);
+  }
+  .btn-ghost:hover { border-color: #2563eb; color: #2563eb; background: rgba(37,99,235,0.05); }
+
+  /* ── METRIC CARDS ── */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .metric-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px 22px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s, transform 0.2s, box-shadow 0.2s;
+    cursor: default;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  }
+  .metric-card:hover {
+    border-color: var(--border-bright);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  }
+  .metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .metric-card.blue::before { background: linear-gradient(90deg, #2563eb, transparent); }
+  .metric-card.amber::before { background: linear-gradient(90deg, #2563eb, transparent); }
+  .metric-card.green::before { background: linear-gradient(90deg, var(--green), transparent); }
+  .metric-card.red::before { background: linear-gradient(90deg, var(--red), transparent); }
+
+  .metric-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .metric-label-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+  }
+  .blue .metric-label-dot { background: #2563eb; }
+  .amber .metric-label-dot { background: #2563eb; }
+  .green .metric-label-dot { background: var(--green); }
+  .red .metric-label-dot { background: var(--red); box-shadow: 0 0 6px var(--red); }
+
+  .metric-value {
+    font-family: var(--font-display);
+    font-size: 42px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .blue .metric-value { color: #2563eb; }
+  .amber .metric-value { color: #2563eb; }
+  .green .metric-value { color: var(--green); }
+  .red .metric-value { color: var(--red); animation: flicker 3s infinite; }
+
+  @keyframes flicker {
+    0%,95%,100% { opacity: 1; }
+    96% { opacity: 0.6; }
+  }
+
+  .metric-sub {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 8px;
+    font-family: var(--font-mono);
+  }
+  .metric-sub span { color: var(--text-secondary); }
+
+  .metric-icon {
+    position: absolute;
+    right: 18px; bottom: 16px;
+    font-size: 36px;
+    opacity: 0.06;
+  }
+
+  /* ── ANALYTICS ROW ── */
+  .analytics-row {
+    display: grid;
+    grid-template-columns: 300px 1fr 280px;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  }
+
+  .panel-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .panel-title {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .panel-badge {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+  }
+  .badge-amber { background: rgba(37,99,235,0.08); color: #2563eb; border: 1px solid rgba(37,99,235,0.2); }
+  .badge-blue { background: rgba(37,99,235,0.08); color: #2563eb; border: 1px solid rgba(37,99,235,0.2); }
+
+  /* DONUT */
+  .donut-container { padding: 24px 20px; }
+
+  .donut-wrap {
+    position: relative;
+    width: 160px; height: 160px;
+    margin: 0 auto 20px;
+  }
+
+  .donut-svg { transform: rotate(-90deg); }
+
+  .donut-center {
+    position: absolute;
+    inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px;
+  }
+
+  .donut-pct {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--green);
+    line-height: 1;
+  }
+
+  .donut-pct-label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .donut-legend { display: flex; flex-direction: column; gap: 10px; }
+
+  .legend-item {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .legend-left {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  .legend-dot {
+    width: 8px; height: 8px; border-radius: 2px;
+  }
+
+  .legend-count {
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  /* BAR CHART */
+  .bar-chart-wrap { padding: 20px; }
+
+  .chart-labels {
+    display: flex; justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .bar-group {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    align-items: end;
+    height: 140px;
+    margin-bottom: 12px;
+  }
+
+  .bar-col { display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+
+  .bar-stack { width: 100%; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; }
+
+  .bar-seg {
+    width: 100%;
+    border-radius: 3px 3px 0 0;
+    transition: opacity 0.2s;
+    min-height: 3px;
+  }
+  .bar-seg:hover { opacity: 0.8; }
+  .bar-seg.capacity { background: var(--border-bright); border-radius: 3px; }
+  .bar-seg.scheduled { background: #3b82f6; border-radius: 0; }
+  .bar-seg.overload { background: var(--red); }
+
+  .bar-month {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  .chart-legend {
+    display: flex; gap: 16px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+  .chart-legend-item { display: flex; align-items: center; gap: 6px; }
+  .chart-legend-swatch { width: 10px; height: 10px; border-radius: 2px; }
+
+  /* SKILLS LIST */
+  .skills-list { padding: 12px 0; }
+
+  .skill-item {
+    display: flex; align-items: center;
+    padding: 10px 20px;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+  .skill-item:last-child { border-bottom: none; }
+  .skill-item:hover { background: rgba(255,255,255,0.02); }
+
+  .skill-rank {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-dim);
+    width: 20px;
+    text-align: center;
+  }
+
+  .skill-info { flex: 1; }
+  .skill-name { font-size: 13px; color: var(--text-primary); margin-bottom: 4px; }
+  .skill-cat { font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); }
+
+  .skill-bar-wrap { width: 80px; }
+  .skill-bar-bg {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .skill-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #1d4ed8, #3b82f6);
+    border-radius: 2px;
+    transition: width 1s ease;
+  }
+
+  .skill-count {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 600;
+    color: #2563eb;
+    width: 28px;
+    text-align: right;
+  }
+
+  /* ── ACTION TABLE ── */
+  .action-section { margin-bottom: 24px; }
+
+  .section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+    padding: 0 2px;
+  }
+
+  .section-title {
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .alert-count {
+    background: var(--red);
+    color: white;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-weight: 500;
+  }
+
+  .table-wrap {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .filter-bar {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; gap: 8px; align-items: center;
+  }
+
+  .filter-chip {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    transition: all 0.15s;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .filter-chip:hover { border-color: var(--border-bright); color: var(--text-secondary); }
+  .filter-chip.active { 
+    background: rgba(37,99,235,0.08); 
+    border-color: rgba(37,99,235,0.3);
+    color: #2563eb;
+  }
+
+  .search-input {
+    margin-left: auto;
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 5px 12px;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    outline: none;
+    width: 200px;
+    transition: border-color 0.2s;
+  }
+  .search-input:focus { border-color: var(--amber); box-shadow: 0 0 0 3px rgba(217,119,6,0.1); }
+  .search-input::placeholder { color: var(--text-dim); }
+
+  table { width: 100%; border-collapse: collapse; }
+
+  th {
+    padding: 10px 16px;
+    text-align: left;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-card2);
+  }
+
+  td {
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    vertical-align: middle;
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  tr:hover td { background: rgba(255,255,255,0.015); }
+
+  .staff-cell { display: flex; align-items: center; gap: 10px; }
+
+  .staff-avatar {
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .staff-name { font-weight: 500; color: var(--text-primary); }
+  .staff-id { font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); }
+
+  .pos-tag {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--bg-base);
+    border: 1px solid var(--border-bright);
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+
+  .cert-name { color: var(--text-primary); font-size: 13px; }
+  .cert-type { font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+
+  .expiry-date { font-family: var(--font-mono); font-size: 12px; }
+
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+  .status-pill .dot { width: 5px; height: 5px; border-radius: 50%; }
+
+  .status-expired { background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.25); }
+  .status-expired .dot { background: var(--red); box-shadow: 0 0 4px var(--red); }
+
+  .status-expiring { background: rgba(37,99,235,0.08); color: #2563eb; border: 1px solid rgba(37,99,235,0.25); }
+  .status-expiring .dot { background: #2563eb; }
+
+  .status-new { background: rgba(59,130,246,0.1); color: var(--blue); border: 1px solid rgba(59,130,246,0.25); }
+  .status-new .dot { background: var(--blue); }
+
+  .status-valid { background: rgba(34,197,94,0.08); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+  .status-valid .dot { background: var(--green); }
+
+  .action-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .action-enroll { background: rgba(37,99,235,0.08); color: #2563eb; border: 1px solid rgba(37,99,235,0.25); }
+  .action-enroll:hover { background: rgba(37,99,235,0.15); box-shadow: 0 2px 8px rgba(37,99,235,0.15); }
+  .action-suspend { background: var(--red-glow); color: var(--red); border: 1px solid rgba(239,68,68,0.25); }
+  .action-suspend:hover { background: rgba(239,68,68,0.2); }
+  .action-register { background: var(--blue-glow); color: var(--blue); border: 1px solid rgba(59,130,246,0.25); }
+  .action-register:hover { background: rgba(59,130,246,0.2); }
+
+  /* ── BOTTOM ROW ── */
+  .bottom-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+  }
+
+  .integration-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    transition: border-color 0.2s;
+    cursor: pointer;
+  }
+  .integration-card:hover { border-color: var(--border-bright); }
+
+  .int-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .int-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .int-icon.roster { background: rgba(220,38,38,0.08); }
+  .int-icon.calendar { background: rgba(37,99,235,0.08); }
+  .int-icon.customer { background: rgba(37,99,235,0.08); }
+
+  .int-title {
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .int-sub { font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); }
+
+  .int-stat { margin-bottom: 12px; }
+
+  .int-stat-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .int-stat-row:last-child { border-bottom: none; }
+  .int-stat-label { color: var(--text-dim); }
+  .int-stat-val { font-family: var(--font-display); font-size: 15px; font-weight: 600; }
+  .val-red { color: var(--red); }
+  .val-amber { color: #2563eb; }
+  .val-green { color: var(--green); }
+  .val-blue { color: var(--blue); }
+
+  .int-btn {
+    width: 100%;
+    padding: 7px;
+    border-radius: 8px;
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: 1px solid var(--border-bright);
+    background: transparent;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .int-btn:hover { border-color: #2563eb; color: #2563eb; background: rgba(37,99,235,0.06); }
+
+  /* Calendar strip */
+  .calendar-strip {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    margin-bottom: 12px;
+  }
+
+  .cal-day {
+    aspect-ratio: 1;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 6px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .cal-day.has-event { background: rgba(37,99,235,0.08); color: #2563eb; border: 1px solid rgba(37,99,235,0.2); }
+  .cal-day.today { background: #2563eb; color: #ffffff; font-weight: 700; }
+  .cal-day.empty { color: var(--text-dim); }
+  .cal-day.has-event:hover { background: rgba(37,99,235,0.15); }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg-base); }
+  ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
+
+  /* Tooltip */
+  .tooltip {
+    position: relative;
+  }
+  .tooltip::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1e293b;
+    border: 1px solid #334155;
+    color: #e2e8f0;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    z-index: 999;
+  }
+  .tooltip:hover::after { opacity: 1; }
+
+  /* Conflict alert popup */
+  .conflict-popup {
+    position: fixed;
+    top: 70px; right: 24px;
+    background: var(--bg-card);
+    border: 1px solid rgba(220,38,38,0.4);
+    border-radius: 12px;
+    padding: 14px 16px;
+    width: 300px;
+    z-index: 500;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 0 0 1px rgba(220,38,38,0.1);
+    animation: slideIn 0.3s ease;
+    display: none;
+  }
+  .conflict-popup.show { display: block; }
+  @keyframes slideIn {
+    from { transform: translateX(20px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  .conflict-title {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--red);
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .conflict-body { font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+  .conflict-close {
+    position: absolute; top: 10px; right: 12px;
+    background: none; border: none; color: var(--text-dim);
+    cursor: pointer; font-size: 14px;
+  }
+
+  /* Entry animation */
+  .metric-card { animation: fadeUp 0.4s ease both; }
+  .metric-card:nth-child(1) { animation-delay: 0.05s; }
+  .metric-card:nth-child(2) { animation-delay: 0.1s; }
+  .metric-card:nth-child(3) { animation-delay: 0.15s; }
+  .metric-card:nth-child(4) { animation-delay: 0.2s; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .panel { animation: fadeUp 0.4s ease both 0.25s; }
+  .table-wrap { animation: fadeUp 0.4s ease both 0.35s; }
+  .bottom-row { animation: fadeUp 0.4s ease both 0.4s; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-logo"></div>
+  <div class="nav-item active tooltip" data-tip="Dashboard">📊</div>
+  <div class="nav-item tooltip" data-tip="Staff Registry">👥</div>
+  <div class="nav-item tooltip" data-tip="Training Plans">📚</div>
+  <div class="nav-item tooltip" data-tip="Authorizations">🪪</div>
+  <div class="nav-item tooltip" data-tip="Roster Sync">📅</div>
+  <div class="nav-item tooltip" data-tip="Reports">📄</div>
+  <div class="nav-item" style="margin-top:auto;">⚙️</div>
+</nav>
+
+<!-- Topbar -->
+<header class="topbar">
+  <div class="topbar-breadcrumb">
+    <span>SAMS</span> / <strong>HR Dashboard</strong>
+  </div>
+  <div class="topbar-right">
+    <div class="sync-badge">
+      <span class="sync-dot"></span>
+      LIVE SYNC · ROSTER OK
+    </div>
+    <button class="btn btn-ghost" onclick="showConflictAlert()">⚠️ ตรวจ Conflict</button>
+    <button class="btn btn-amber">📄 สร้าง Certificate</button>
+    <div class="avatar">HR</div>
+  </div>
+</header>
+
+<!-- Conflict Alert Popup -->
+<div class="conflict-popup" id="conflictPopup">
+  <button class="conflict-close" onclick="closeConflict()">✕</button>
+  <div class="conflict-title">⚠️ Workload Conflict Detected</div>
+  <div class="conflict-body">
+    <strong style="color:var(--text-primary)">นายวิชัย ทองดี</strong> กำลังจะถูกลงทะเบียนอบรม <strong style="color:var(--amber)">Engine Run-up</strong> แต่มีชื่อใน Flight Schedule เส้น BKK-HKT วันที่ 8 มี.ค. — กรุณาตรวจสอบก่อนดำเนินการ
+  </div>
+</div>
+
+<!-- Main Content -->
+<main class="main">
+
+  <!-- Page Header -->
+  <div class="page-header">
+    <div>
+      <div class="page-title">HR Training & <span>Compliance</span></div>
+      <div class="page-subtitle">// SAMS · อัปเดตล่าสุด: 06 MAR 2026, 09:41 ICT</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ghost">↓ Export Report</button>
+      <button class="btn btn-amber">+ Enroll Staff</button>
+    </div>
+  </div>
+
+  <!-- Metrics -->
+  <div class="metrics-grid">
+    <div class="metric-card blue">
+      <div class="metric-label"><span class="metric-label-dot"></span>Total Staff</div>
+      <div class="metric-value">248</div>
+      <div class="metric-sub"><span>+4</span> เพิ่มเดือนนี้</div>
+      <div class="metric-icon">👥</div>
+    </div>
+    <div class="metric-card green">
+      <div class="metric-label"><span class="metric-label-dot"></span>Compliance Rate</div>
+      <div class="metric-value">87%</div>
+      <div class="metric-sub"><span>216/248</span> พนักงานครบถ้วน</div>
+      <div class="metric-icon">✅</div>
+    </div>
+    <div class="metric-card amber">
+      <div class="metric-label"><span class="metric-label-dot"></span>Training in Progress</div>
+      <div class="metric-value">34</div>
+      <div class="metric-sub"><span>7 คอร์ส</span> กำลังดำเนินการ</div>
+      <div class="metric-icon">📚</div>
+    </div>
+    <div class="metric-card red">
+      <div class="metric-label"><span class="metric-label-dot"></span>Critical Alerts</div>
+      <div class="metric-value">12</div>
+      <div class="metric-sub">ใบอนุญาต <span style="color:var(--red)">Expired</span> — ต้องดำเนินการ</div>
+      <div class="metric-icon">🚨</div>
+    </div>
+  </div>
+
+  <!-- Analytics Row -->
+  <div class="analytics-row">
+
+    <!-- Donut Chart -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Authorization Status</div>
+        <div class="panel-badge badge-amber">LIVE</div>
+      </div>
+      <div class="donut-container">
+        <div class="donut-wrap">
+          <svg class="donut-svg" width="160" height="160" viewBox="0 0 160 160">
+            <!-- Valid: 179 staff (72%) -->
+            <circle cx="80" cy="80" r="60" fill="none" stroke="#1e2a40" stroke-width="22"/>
+            <!-- Valid -->
+            <circle cx="80" cy="80" r="60" fill="none" stroke="#22c55e" stroke-width="22"
+              stroke-dasharray="271 106" stroke-dashoffset="0" stroke-linecap="butt"/>
+            <!-- Expiring 30d -->
+            <circle cx="80" cy="80" r="60" fill="none" stroke="#93c5fd" stroke-width="22"
+              stroke-dasharray="38 339" stroke-dashoffset="-271" stroke-linecap="butt"/>
+            <!-- Expiring 60/90d -->
+            <circle cx="80" cy="80" r="60" fill="none" stroke="#60a5fa" stroke-width="22"
+              stroke-dasharray="22 355" stroke-dashoffset="-309" stroke-linecap="butt"/>
+            <!-- Expired -->
+            <circle cx="80" cy="80" r="60" fill="none" stroke="#ef4444" stroke-width="22"
+              stroke-dasharray="47 330" stroke-dashoffset="-331" stroke-linecap="butt"/>
+          </svg>
+          <div class="donut-center">
+            <div class="donut-pct">87%</div>
+            <div class="donut-pct-label">Compliant</div>
+          </div>
+        </div>
+        <div class="donut-legend">
+          <div class="legend-item">
+            <div class="legend-left"><div class="legend-dot" style="background:var(--green)"></div>Valid</div>
+            <div class="legend-count" style="color:var(--green)">179</div>
+          </div>
+          <div class="legend-item">
+            <div class="legend-left"><div class="legend-dot" style="background:#93c5fd"></div>Expiring &lt;30d</div>
+            <div class="legend-count" style="color:#60a5fa">21</div>
+          </div>
+          <div class="legend-item">
+            <div class="legend-left"><div class="legend-dot" style="background:#60a5fa"></div>Expiring 60-90d</div>
+            <div class="legend-count" style="color:#3b82f6">14</div>
+          </div>
+          <div class="legend-item">
+            <div class="legend-left"><div class="legend-dot" style="background:var(--red)"></div>Expired</div>
+            <div class="legend-count" style="color:var(--red)">34</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bar Chart -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Monthly Training Workload</div>
+        <div class="panel-badge badge-blue">2026</div>
+      </div>
+      <div class="bar-chart-wrap">
+        <div class="chart-labels">
+          <span>คอร์ส/คน</span>
+          <span>Capacity Max: 45</span>
+        </div>
+        <div class="bar-group">
+          <!-- Mar -->
+          <div class="bar-col">
+            <div class="bar-stack" style="height:100%">
+              <div class="bar-seg capacity" style="height:30%"></div>
+              <div class="bar-seg scheduled" style="height:52%"></div>
+              <div class="bar-seg overload" style="height:8%"></div>
+            </div>
+            <div class="bar-month">MAR</div>
+          </div>
+          <!-- Apr -->
+          <div class="bar-col">
+            <div class="bar-stack" style="height:100%">
+              <div class="bar-seg capacity" style="height:35%"></div>
+              <div class="bar-seg scheduled" style="height:42%"></div>
+            </div>
+            <div class="bar-month">APR</div>
+          </div>
+          <!-- May -->
+          <div class="bar-col">
+            <div class="bar-stack" style="height:100%">
+              <div class="bar-seg capacity" style="height:40%"></div>
+              <div class="bar-seg scheduled" style="height:32%"></div>
+            </div>
+            <div class="bar-month">MAY</div>
+          </div>
+          <!-- Jun -->
+          <div class="bar-col">
+            <div class="bar-stack" style="height:100%">
+              <div class="bar-seg capacity" style="height:28%"></div>
+              <div class="bar-seg scheduled" style="height:58%"></div>
+              <div class="bar-seg overload" style="height:5%"></div>
+            </div>
+            <div class="bar-month">JUN</div>
+          </div>
+          <!-- Jul -->
+          <div class="bar-col">
+            <div class="bar-stack" style="height:100%">
+              <div class="bar-seg capacity" style="height:38%"></div>
+              <div class="bar-seg scheduled" style="height:30%"></div>
+            </div>
+            <div class="bar-month">JUL</div>
+          </div>
+          <!-- Aug -->
+          <div class="bar-col">
+            <div class="bar-stack" style="height:100%">
+              <div class="bar-seg capacity" style="height:32%"></div>
+              <div class="bar-seg scheduled" style="height:24%"></div>
+            </div>
+            <div class="bar-month">AUG</div>
+          </div>
+        </div>
+        <div class="chart-legend">
+          <div class="chart-legend-item"><div class="chart-legend-swatch" style="background:var(--border-bright)"></div>Available Capacity</div>
+          <div class="chart-legend-item"><div class="chart-legend-swatch" style="background:#3b82f6"></div>Scheduled</div>
+          <div class="chart-legend-item"><div class="chart-legend-swatch" style="background:var(--red)"></div>Overload ⚠️</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top Missing Skills -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Top Missing Skills</div>
+        <div class="panel-badge badge-amber">GAP ANALYSIS</div>
+      </div>
+      <div class="skills-list">
+        <div class="skill-item">
+          <div class="skill-rank">1</div>
+          <div class="skill-info">
+            <div class="skill-name">Human Factors</div>
+            <div class="skill-cat">REGULATORY · EASA</div>
+          </div>
+          <div class="skill-bar-wrap">
+            <div class="skill-bar-bg"><div class="skill-bar-fill" style="width:92%"></div></div>
+          </div>
+          <div class="skill-count">46</div>
+        </div>
+        <div class="skill-item">
+          <div class="skill-rank">2</div>
+          <div class="skill-info">
+            <div class="skill-name">Fuel Tank Safety</div>
+            <div class="skill-cat">SAFETY · CASA</div>
+          </div>
+          <div class="skill-bar-wrap">
+            <div class="skill-bar-bg"><div class="skill-bar-fill" style="width:72%"></div></div>
+          </div>
+          <div class="skill-count">36</div>
+        </div>
+        <div class="skill-item">
+          <div class="skill-rank">3</div>
+          <div class="skill-info">
+            <div class="skill-name">Engine Run-up</div>
+            <div class="skill-cat">TECHNICAL · CAAT</div>
+          </div>
+          <div class="skill-bar-wrap">
+            <div class="skill-bar-bg"><div class="skill-bar-fill" style="width:54%"></div></div>
+          </div>
+          <div class="skill-count">27</div>
+        </div>
+        <div class="skill-item">
+          <div class="skill-rank">4</div>
+          <div class="skill-info">
+            <div class="skill-name">SMS Awareness</div>
+            <div class="skill-cat">REGULATORY · ICAO</div>
+          </div>
+          <div class="skill-bar-wrap">
+            <div class="skill-bar-bg"><div class="skill-bar-fill" style="width:42%"></div></div>
+          </div>
+          <div class="skill-count">21</div>
+        </div>
+        <div class="skill-item">
+          <div class="skill-rank">5</div>
+          <div class="skill-info">
+            <div class="skill-name">NDT Level II</div>
+            <div class="skill-cat">TECHNICAL · CAAT</div>
+          </div>
+          <div class="skill-bar-wrap">
+            <div class="skill-bar-bg"><div class="skill-bar-fill" style="width:30%"></div></div>
+          </div>
+          <div class="skill-count">15</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Action Required Table -->
+  <div class="action-section">
+    <div class="section-header">
+      <div class="section-title">
+        ⚡ Action Required
+        <span class="alert-count">12 CRITICAL</span>
+      </div>
+      <button class="btn btn-ghost">ดูทั้งหมด →</button>
+    </div>
+    <div class="table-wrap">
+      <div class="filter-bar">
+        <div class="filter-chip active">ทั้งหมด (12)</div>
+        <div class="filter-chip">Expired (7)</div>
+        <div class="filter-chip">Expiring Soon (3)</div>
+        <div class="filter-chip">New Staff (2)</div>
+        <input class="search-input" type="text" placeholder="🔍  ค้นหาพนักงาน...">
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>พนักงาน</th>
+            <th>ตำแหน่ง</th>
+            <th>ใบอนุญาต / คอร์ส</th>
+            <th>วันหมดอายุ</th>
+            <th>สถานะ</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <div class="staff-cell">
+                <div class="staff-avatar" style="background:linear-gradient(135deg,#7c3aed,#a855f7)">SC</div>
+                <div>
+                  <div class="staff-name">นายสมชาย ชาญชัย</div>
+                  <div class="staff-id">EMP-0412</div>
+                </div>
+              </div>
+            </td>
+            <td><span class="pos-tag">B1 Engineer</span></td>
+            <td>
+              <div class="cert-name">Human Factors</div>
+              <div class="cert-type">EASA Part-66 Module 9</div>
+            </td>
+            <td class="expiry-date" style="color:#2563eb">15 MAR 2026</td>
+            <td><span class="status-pill status-expiring"><span class="dot"></span>Expiring Soon</span></td>
+            <td><button class="action-btn action-enroll" onclick="showConflictAlert()">📋 จัดลงคอร์ส</button></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="staff-cell">
+                <div class="staff-avatar" style="background:linear-gradient(135deg,#dc2626,#ef4444)">VT</div>
+                <div>
+                  <div class="staff-name">นายวิชัย ทองดี</div>
+                  <div class="staff-id">EMP-0287</div>
+                </div>
+              </div>
+            </td>
+            <td><span class="pos-tag">Technician</span></td>
+            <td>
+              <div class="cert-name">Engine Run-up</div>
+              <div class="cert-type">CAAT Authorization</div>
+            </td>
+            <td class="expiry-date" style="color:var(--red)">01 MAR 2026</td>
+            <td><span class="status-pill status-expired"><span class="dot"></span>Expired</span></td>
+            <td><button class="action-btn action-suspend">🚫 ระงับ Roster</button></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="staff-cell">
+                <div class="staff-avatar" style="background:linear-gradient(135deg,#0369a1,#3b82f6)">SW</div>
+                <div>
+                  <div class="staff-name">Ms. Sarah Weston</div>
+                  <div class="staff-id">EMP-0521</div>
+                </div>
+              </div>
+            </td>
+            <td><span class="pos-tag">Avionics</span></td>
+            <td>
+              <div class="cert-name">Fuel Tank Safety</div>
+              <div class="cert-type">EASA Part-145</div>
+            </td>
+            <td class="expiry-date" style="color:var(--text-dim)">— ยังไม่มี —</td>
+            <td><span class="status-pill status-new"><span class="dot"></span>New Staff</span></td>
+            <td><button class="action-btn action-register">+ ลงทะเบียน</button></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="staff-cell">
+                <div class="staff-avatar" style="background:linear-gradient(135deg,#b45309,#f59e0b)">KM</div>
+                <div>
+                  <div class="staff-name">นายกมล มีชัย</div>
+                  <div class="staff-id">EMP-0198</div>
+                </div>
+              </div>
+            </td>
+            <td><span class="pos-tag">B2 Engineer</span></td>
+            <td>
+              <div class="cert-name">NDT Level II</div>
+              <div class="cert-type">CAAT / ASNT</div>
+            </td>
+            <td class="expiry-date" style="color:var(--red)">22 FEB 2026</td>
+            <td><span class="status-pill status-expired"><span class="dot"></span>Expired</span></td>
+            <td><button class="action-btn action-suspend">🚫 ระงับ Roster</button></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="staff-cell">
+                <div class="staff-avatar" style="background:linear-gradient(135deg,#065f46,#22c55e)">PA</div>
+                <div>
+                  <div class="staff-name">นางสาวพิมพ์ อร่ามศรี</div>
+                  <div class="staff-id">EMP-0367</div>
+                </div>
+              </div>
+            </td>
+            <td><span class="pos-tag">Structures</span></td>
+            <td>
+              <div class="cert-name">SMS Awareness</div>
+              <div class="cert-type">ICAO / CAAT</div>
+            </td>
+            <td class="expiry-date" style="color:#2563eb">28 MAR 2026</td>
+            <td><span class="status-pill status-expiring"><span class="dot"></span>Expiring Soon</span></td>
+            <td><button class="action-btn action-enroll">📋 จัดลงคอร์ส</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Bottom Integration Row -->
+  <div class="bottom-row">
+
+    <!-- Roster Sync -->
+    <div class="integration-card">
+      <div class="int-header">
+        <div class="int-icon roster">🚫</div>
+        <div>
+          <div class="int-title">Roster Sync Status</div>
+          <div class="int-sub">Block List · อัปเดต 09:41</div>
+        </div>
+      </div>
+      <div class="int-stat">
+        <div class="int-stat-row">
+          <div class="int-stat-label">ถูก Block จาก Roster</div>
+          <div class="int-stat-val val-red">7</div>
+        </div>
+        <div class="int-stat-row">
+          <div class="int-stat-label">รอ Clearance</div>
+          <div class="int-stat-val val-amber">3</div>
+        </div>
+        <div class="int-stat-row">
+          <div class="int-stat-label">Cleared ล่าสุด</div>
+          <div class="int-stat-val val-green">2</div>
+        </div>
+      </div>
+      <button class="int-btn">🔗 ดู Roster Block List</button>
+    </div>
+
+    <!-- Training Calendar -->
+    <div class="integration-card">
+      <div class="int-header">
+        <div class="int-icon calendar">📅</div>
+        <div>
+          <div class="int-title">Training Calendar</div>
+          <div class="int-sub">March 2026</div>
+        </div>
+      </div>
+      <div class="calendar-strip">
+        <div class="cal-day empty">1</div>
+        <div class="cal-day empty">2</div>
+        <div class="cal-day empty">3</div>
+        <div class="cal-day empty">4</div>
+        <div class="cal-day empty">5</div>
+        <div class="cal-day today">6</div>
+        <div class="cal-day has-event">7</div>
+        <div class="cal-day has-event">8</div>
+        <div class="cal-day empty">9</div>
+        <div class="cal-day empty">10</div>
+        <div class="cal-day has-event">11</div>
+        <div class="cal-day empty">12</div>
+        <div class="cal-day empty">13</div>
+        <div class="cal-day has-event">14</div>
+        <div class="cal-day empty">15</div>
+        <div class="cal-day has-event">16</div>
+        <div class="cal-day has-event">17</div>
+        <div class="cal-day empty">18</div>
+        <div class="cal-day empty">19</div>
+        <div class="cal-day empty">20</div>
+        <div class="cal-day has-event">21</div>
+      </div>
+      <button class="int-btn">📋 ดู Training Plan เต็ม</button>
+    </div>
+
+    <!-- Customer Auth Tracker -->
+    <div class="integration-card">
+      <div class="int-header">
+        <div class="int-icon customer">🏢</div>
+        <div>
+          <div class="int-title">Customer Auth Tracker</div>
+          <div class="int-sub">เอกสารลูกค้า · Q1 2026</div>
+        </div>
+      </div>
+      <div class="int-stat">
+        <div class="int-stat-row">
+          <div class="int-stat-label">Approved</div>
+          <div class="int-stat-val val-green">18</div>
+        </div>
+        <div class="int-stat-row">
+          <div class="int-stat-label">Pending Review</div>
+          <div class="int-stat-val val-amber">5</div>
+        </div>
+        <div class="int-stat-row">
+          <div class="int-stat-label">Rejected / Revision</div>
+          <div class="int-stat-val val-red">2</div>
+        </div>
+      </div>
+      <button class="int-btn">📤 ส่งเอกสารใหม่</button>
+    </div>
+
+  </div>
+
+</main>
+
+<script>
+  function showConflictAlert() {
+    const popup = document.getElementById('conflictPopup');
+    popup.classList.add('show');
+    setTimeout(() => popup.classList.remove('show'), 6000);
+  }
+
+  function closeConflict() {
+    document.getElementById('conflictPopup').classList.remove('show');
+  }
+
+  // Filter chips
+  document.querySelectorAll('.filter-chip').forEach(chip => {
+    chip.addEventListener('click', function() {
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      this.classList.add('active');
+    });
+  });
+
+  // Animate bar fills on load
+  window.addEventListener('load', () => {
+    document.querySelectorAll('.skill-bar-fill').forEach(bar => {
+      const w = bar.style.width;
+      bar.style.width = '0';
+      setTimeout(() => { bar.style.width = w; }, 500);
+    });
+  });
+</script>
+</body>
+</html>

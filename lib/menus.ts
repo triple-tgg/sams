@@ -85,6 +85,71 @@ export function getMenuList(pathname: string, t: any): Group[] {
         },
       ],
     },
+    {
+      groupLabel: t("humanTraining"),
+      id: "human-training",
+      menus: [
+        {
+          id: "training-dashboard",
+          href: "/training/dashboard",
+          label: t("training"),
+          active: pathname.includes("/training/dashboard"),
+          icon: "heroicons-outline:academic-cap",
+          submenus: [],
+        },
+      ],
+    },
+    {
+      groupLabel: t("humanResources"),
+      id: "human-resources",
+      menus: [
+        {
+          id: "hr",
+          href: "/hr/dashboard",
+          label: t("HR"),
+          active: pathname.includes("/hr"),
+          icon: "heroicons-outline:users",
+          submenus: [
+            {
+              href: "/hr/dashboard",
+              label: t("hrDashboard"),
+              active: pathname.includes("/hr/dashboard"),
+              icon: "heroicons-outline:presentation-chart-bar",
+              children: [],
+            },
+            {
+              href: "/hr/staff",
+              label: t("hrStaffList"),
+              active: pathname.includes("/hr/staff"),
+              icon: "heroicons-outline:users",
+              children: [],
+            },
+          ],
+        },
+      ],
+    },
+    // {
+    //   groupLabel: t("humanResources"),
+    //   id: "human-resources",
+    //   menus: [
+    //     {
+    //       id: "hr-dashboard",
+    //       href: "/hr/dashboard",
+    //       label: t("hrDashboard"),
+    //       active: pathname.includes("/hr/dashboard"),
+    //       icon: "heroicons-outline:presentation-chart-bar",
+    //       submenus: [],
+    //     },
+    //     {
+    //       id: "hr-staff",
+    //       href: "/hr/staff",
+    //       label: t("hrStaffList"),
+    //       active: pathname.includes("/hr/staff"),
+    //       icon: "heroicons-outline:users",
+    //       submenus: [],
+    //     },
+    //   ],
+    // },
     // {
     //   groupLabel: t("report"),
     //   id: "report",
