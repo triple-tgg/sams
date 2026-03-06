@@ -9,7 +9,6 @@ const inter = Inter({ subsets: ["latin"] });
 // language
 import { getLangDir } from "rtl-detect";
 import { NextIntlClientProvider } from "next-intl";
-import { getMessages } from "next-intl/server";
 import DirectionProvider from "@/providers/direction-provider";
 import AuthProvider from "@/providers/auth.provider";
 import ReactQueryProviders from "@/providers/reactQuery.providers";
@@ -21,18 +20,18 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({
   children,
-  params: { locale },
+  params,
 }: Readonly<{
   children: React.ReactNode;
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }>) {
-  const messages = await getMessages();
+  const { locale } = await params;
   const direction = getLangDir(locale);
   return (
     <html lang={locale} dir={direction} suppressHydrationWarning>
       <body className={`${inter.className} dashcode-app `}>
         <ReactQueryProviders>
-          <NextIntlClientProvider messages={messages} locale={locale}>
+          <NextIntlClientProvider>
             <AuthProvider>
               <ThemeProvider
                 attribute="class"

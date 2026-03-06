@@ -2,7 +2,7 @@ import { Link } from '@/i18n/routing';
 import LoginForm from "@/components/partials/auth/login-form";
 import Image from "next/image";
 import Copyright from "@/components/partials/auth/copyright";
-const Login = ({ params: { locale } }: { params: { locale: string } }) => {
+const Login = () => {
   return (
     <>
       <div className="flex w-full items-center overflow-hidden min-h-dvh h-dvh basis-full">

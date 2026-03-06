@@ -1,8 +1,8 @@
 import React from 'react'
 import { redirect } from 'next/navigation'
-const page = ({ params: { locale } }: { params: { locale: string } }) => {
+const page = async ({ params }: { params: Promise<{ locale: string }> }) => {
+  const { locale } = await params;
   redirect(`/${locale}/auth/login`)
-  return null
 }
 
 export default page

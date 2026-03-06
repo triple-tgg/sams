@@ -1,6 +1,6 @@
 import StepForm from "./components/step-form";
 
-const SinglePage = async ({ params: { id } }: { params: { id: string }; }) => {
+const SinglePage = async () => {
 
   // if (!project) return <Alert color="destructive"> project id is not valid</Alert>
   return (
