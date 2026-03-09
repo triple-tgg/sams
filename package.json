@@ -118,8 +118,10 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/rtl-detect": "^1.0.3",
+    "docx": "^9.6.0",
     "eslint": "^9.39.3",
     "eslint-config-next": "^16.1.6",
+    "exceljs": "^4.4.0",
     "postcss": "^8",
     "tailwindcss": "^4.0.7",
     "typescript": "^5"

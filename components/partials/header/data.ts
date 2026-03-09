@@ -14,11 +14,11 @@ export const notifications = [
   },
   {
     id: 2,
-    title: "Congratulations Darlene  🎉",
+    title: "Congratulations Darlene",
     role: "UI/UX Designer",
     desc:
       "Won the monthly best seller badge",
-     avatar: 'ss.png',
+    avatar: 'ss.png',
     status: "online",
     unreadmessage: true,
     date: "11 am",
@@ -29,7 +29,7 @@ export const notifications = [
     role: "Town planner",
     desc:
       "Soufflé soufflé caramels sweet roll. Jelly lollipop sesame snaps bear claw jelly beans sugar plum sugar plum.",
-      avatar: 'ss.png',
+    avatar: 'ss.png',
     status: "busy",
     unreadmessage: true,
     date: "12 pm",
@@ -51,7 +51,7 @@ export const notifications = [
     role: "Dietitian",
     desc:
       "Cake pie jelly jelly beans. Marzipan lemon drops halvah cake. Pudding cookie lemon drops icing",
-      avatar: 'ss.png',
+    avatar: 'ss.png',
     status: "busy",
     unreadmessage: false,
     date: "3 pm",
@@ -62,7 +62,7 @@ export const notifications = [
     role: "Marketing executive",
     desc:
       "Toffee caramels jelly-o tart gummi bears cake I love ice cream lollipop. Sweet liquorice croissant candy danish dessert icing. Cake macaroon gingerbread toffee sweet.",
-      avatar: 'ss.png',
+    avatar: 'ss.png',
     status: "online",
     unreadmessage: false,
     date: "4 pm",
@@ -73,7 +73,7 @@ export const notifications = [
     role: "Special educational needs teacher",
     desc:
       "Biscuit powder oat cake donut brownie ice cream I love soufflé. I love tootsie roll I love powder tootsie roll.",
-      avatar: 'ss.png',
+    avatar: 'ss.png',
     status: "online",
     unreadmessage: true,
     date: "7 pm",
@@ -84,7 +84,7 @@ export const notifications = [
     role: "Advertising copywriter",
     desc:
       "Bear claw ice cream lollipop gingerbread carrot cake. Brownie gummi bears chocolate muffin croissant jelly I love marzipan wafer.",
-     avatar: 'ss.png',
+    avatar: 'ss.png',
     status: "away",
     unreadmessage: true,
     date: "10 pm",
@@ -95,7 +95,7 @@ export const notifications = [
     role: "Designer, television/film set",
     desc:
       "Gummies gummi bears I love candy icing apple pie I love marzipan bear claw. I love tart biscuit I love candy canes pudding chupa chups liquorice croissant.",
-     avatar: 'ss.png',
+    avatar: 'ss.png',
     status: "offline",
     unreadmessage: false,
     date: "10 pm",
@@ -106,7 +106,7 @@ export const notifications = [
     role: "Building surveyor",
     desc:
       "Cake pie jelly jelly beans. Marzipan lemon drops halvah cake. Pudding cookie lemon drops icing",
-     avatar: 'ss.png',
+    avatar: 'ss.png',
     status: "away",
     unreadmessage: false,
     date: "10 am",
@@ -175,6 +175,6 @@ export const messages = [
   },
 ];
 
-export type Message  = ( typeof messages) [number]
-export type Notification =  (typeof notifications) [number]
+export type Message = (typeof messages)[number]
+export type Notification = (typeof notifications)[number]
 

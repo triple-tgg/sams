@@ -295,7 +295,7 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                 <FieldError msg={errors.customer?.message as string | undefined} />
                 {usingFallback && (
                   <p className="text-sm text-amber-600">
-                    ⚠️ Using offline airline data due to API connection issue
+                    ⚠ Using offline airline data due to API connection issue
                   </p>
                 )}
               </div>
@@ -335,7 +335,7 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                 <FieldError msg={errors.station?.message as string | undefined} />
                 {stationsUsingFallback && (
                   <p className="text-sm text-amber-600">
-                    ⚠️ Using offline station data due to API connection issue
+                    ⚠ Using offline station data due to API connection issue
                   </p>
                 )}
               </div>
@@ -501,7 +501,7 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                   <FieldError msg={errors.status?.message as string | undefined} />
                   {statusUsingFallback && (
                     <p className="text-sm text-amber-600">
-                      ⚠️ Using offline status data due to API connection issue
+                      ⚠ Using offline status data due to API connection issue
                     </p>
                   )}
                 </div>

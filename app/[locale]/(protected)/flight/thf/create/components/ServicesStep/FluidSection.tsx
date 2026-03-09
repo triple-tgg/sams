@@ -500,7 +500,7 @@ export const OperationalSections: React.FC<OperationalSectionsProps> = ({
             <div className="space-y-3">
               {aircraftTowingInfo.length >= 3 && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700 flex items-center gap-2">
-                  <span>⚠️</span>
+                  <span>⚠</span>
                   <span>Maximum 3 towing operations allowed.</span>
                 </div>
               )}

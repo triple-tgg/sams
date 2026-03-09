@@ -283,7 +283,7 @@ const PhotoUploadField: React.FC<PhotoUploadFieldProps> = ({
               )}
 
               {!shouldShowFile && !isUploading && (
-                <div className="text-xs text-gray-500">💡 Select an image file to automatically upload to the server</div>
+                <div className="text-xs text-gray-500">Select an image file to automatically upload to the server</div>
               )}
             </div>
           </FormControl>

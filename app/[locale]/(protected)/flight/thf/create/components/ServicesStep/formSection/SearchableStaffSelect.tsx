@@ -210,10 +210,10 @@ const SearchableStaffSelect: React.FC<{
       {/* Search hint with personnel count */}
       {!currentStaffId && (
         <div className="text-xs text-gray-500">
-          💡 Tip: Start typing to search for staff by {searchBy}. Select a staff member to auto-fill the fields below.
+          Tip: Start typing to search for staff by {searchBy}. Select a staff member to auto-fill the fields below.
           {existingStaffIds.length > 0 && (
             <div className="mt-1 text-amber-600">
-              ⚠️ {existingStaffIds.length} staff member(s) already added and will be excluded from search results.
+              ⚠ {existingStaffIds.length} staff member(s) already added and will be excluded from search results.
             </div>
           )}
         </div>

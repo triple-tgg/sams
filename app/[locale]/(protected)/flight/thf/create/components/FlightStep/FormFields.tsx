@@ -12,6 +12,7 @@ import {
 import { FieldError } from '@/components/ui/field-error'
 import type { Option } from './types'
 import { CustomDateInput } from '@/components/ui/input-date/CustomDateInput'
+import { AlertTriangle } from 'lucide-react'
 
 interface SelectFieldProps {
   name: string;
@@ -75,7 +76,7 @@ export const SelectField = ({
     <FieldError msg={errorMessage} />
     {usingFallback && (
       <p className="text-sm text-amber-600">
-        ⚠️ Using offline {label.toLowerCase()} data due to API connection issue
+        <AlertTriangle className="h-3.5 w-3.5 inline-block mr-1 -mt-0.5" /> Using offline {label.toLowerCase()} data due to API connection issue
       </p>
     )}
   </div>
@@ -138,7 +139,7 @@ export const StringSelectField = ({
     <FieldError msg={errorMessage} />
     {usingFallback && (
       <p className="text-sm text-amber-600">
-        ⚠️ Using offline {label.toLowerCase()} data due to API connection issue
+        <AlertTriangle className="h-3.5 w-3.5 inline-block mr-1 -mt-0.5" /> Using offline {label.toLowerCase()} data due to API connection issue
       </p>
     )}
   </div>

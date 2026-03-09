@@ -113,7 +113,7 @@ export const SearchableSelectField: React.FC<SearchableSelectFieldProps> = ({
       {/* ⚙️ Fallback notice */}
       {usingFallback && (
         <p className="text-sm text-amber-600">
-          ⚠️ Using offline {label.toLowerCase()} data due to API connection issue
+          ⚠ Using offline {label.toLowerCase()} data due to API connection issue
         </p>
       )}
     </div>

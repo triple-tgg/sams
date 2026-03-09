@@ -85,42 +85,49 @@ export function getMenuList(pathname: string, t: any): Group[] {
         },
       ],
     },
-    {
-      groupLabel: t("humanTraining"),
-      id: "human-training",
-      menus: [
-        {
-          id: "training-dashboard",
-          href: "/training/dashboard",
-          label: t("training"),
-          active: pathname.includes("/training/dashboard"),
-          icon: "heroicons-outline:academic-cap",
-          submenus: [],
-        },
-      ],
-    },
+    // {
+    //   groupLabel: t("humanTraining"),
+    //   id: "human-training",
+    //   menus: [
+    //     {
+    //       id: "training-dashboard",
+    //       href: "/training/dashboard",
+    //       label: t("training"),
+    //       active: pathname.includes("/training/dashboard"),
+    //       icon: "heroicons-outline:academic-cap",
+    //       submenus: [],
+    //     },
+    //   ],
+    // },
     {
       groupLabel: t("humanResources"),
-      id: "human-resources",
+      id: "qa",
       menus: [
         {
-          id: "hr",
+          id: "qa",
           href: "/hr/dashboard",
           label: t("HR"),
           active: pathname.includes("/hr"),
-          icon: "heroicons-outline:users",
+          icon: "heroicons-outline:clipboard-document-check",
           submenus: [
             {
-              href: "/hr/dashboard",
-              label: t("hrDashboard"),
-              active: pathname.includes("/hr/dashboard"),
-              icon: "heroicons-outline:presentation-chart-bar",
+              href: "/qa/training",
+              label: t("training"),
+              active: pathname.includes("/qa/training"),
+              icon: "heroicons-outline:academic-cap",
               children: [],
             },
+            // {
+            //   href: "/hr/dashboard",
+            //   label: t("qaDashboard"),
+            //   active: pathname.includes("/hr/dashboard"),
+            //   icon: "heroicons-outline:presentation-chart-bar",
+            //   children: [],
+            // },
             {
-              href: "/hr/staff",
-              label: t("hrStaffList"),
-              active: pathname.includes("/hr/staff"),
+              href: "/qa/staff",
+              label: t("qaStaffList"),
+              active: pathname.includes("/qa/staff"),
               icon: "heroicons-outline:users",
               children: [],
             },

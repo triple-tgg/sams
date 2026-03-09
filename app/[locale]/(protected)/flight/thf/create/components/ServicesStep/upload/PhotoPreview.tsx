@@ -24,7 +24,7 @@ export const PhotoPreview: React.FC<{
               <CircleAlert className='w-4 h-4 text-gray-500' />
             </TooltipTrigger>
             <TooltipContent>
-              <p>⚠️ Select a new file to replace the current one</p>
+              <p>⚠ Select a new file to replace the current one</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
