@@ -54,7 +54,7 @@ const transformApiToFormData = (data: ContractDetail): ContractFormData => {
         validFrom: data.validFrom,
         expiresOn: data.expiresOn,
         isNoExpiryDate: data.isNoExpiryDate ?? false,
-        domicileCountry: "",
+        domicileCountry: data.domicileCountry || "",
         status: data.contractStatusObj?.code || "",
         pricingRates: data.pricingDataList?.map((p) => ({
             id: p.id,
@@ -194,6 +194,7 @@ const transformFormDataToRequest = (
             phoneNo: contact.phoneNo,
             email: contact.email,
         })),
+        domicileCountry: formData.domicileCountry || "",
     };
 };
 

@@ -16,7 +16,7 @@ import {
 import { validateFlightRow } from '@/components/flight-timeline/schemas/flight-validation.schema';
 import { useAirlineOptions } from '@/lib/api/hooks/useAirlines';
 import { useAircraftTypes } from '@/lib/api/hooks/useAircraftTypes';
-import { useStationsOptions } from '@/lib/api/hooks/useStations';
+import { useRoutesOptions } from '@/lib/api/hooks/useRoutes';
 import { useStaffListForImport } from '@/lib/api/hooks/useStaffListForImport';
 import { useMaintenanceStatus } from '@/lib/api/hooks/useMaintenanceStatus';
 
@@ -44,7 +44,7 @@ export const useFlightExcelImport = () => {
     // Fetch options for validation and ID mapping
     const { options: airlineOptions } = useAirlineOptions();
     const { options: aircraftTypeOptions } = useAircraftTypes();
-    const { options: stationOptions } = useStationsOptions();
+    const { options: routeOptions } = useRoutesOptions();
     const { parseAndMatchStaff } = useStaffListForImport();
     const { options: checkStatusOptions } = useMaintenanceStatus();
 
@@ -493,31 +493,58 @@ export const useFlightExcelImport = () => {
                 const maintenanceStatusId = checkMatch?.id || 0;
 
                 // Format datetime with sheet date context
-                const formatFullDateTime = (timeValue: any): string => {
-                    if (!timeValue) return '';
-                    const dateFormatted = dayjs(sheetDate).format('YYYY-MM-DD');
+                const formatFullDateTime = (dateValue: any, timeValue: any): string => {
+                    // Determine date part
+                    let dateFormatted = dayjs(sheetDate).format('YYYY-MM-DD'); // default to sheet date
 
-                    if (typeof timeValue === 'number' && timeValue < 1) {
-                        const totalMinutes = Math.round(timeValue * 24 * 60);
-                        const hours = Math.floor(totalMinutes / 60);
-                        const minutes = totalMinutes % 60;
-                        const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-                        return `${dateFormatted} ${timeStr}`;
+                    if (dateValue) {
+                        if (typeof dateValue === 'number' && dateValue >= 1) {
+                            // Excel date serial number
+                            const jsDate = new Date((dateValue - 25569) * 86400 * 1000);
+                            if (!isNaN(jsDate.getTime())) {
+                                dateFormatted = dayjs(jsDate).format('YYYY-MM-DD');
+                            }
+                        } else if (typeof dateValue === 'string' && dateValue.trim()) {
+                            const parsed = dayjs(dateValue.trim(), ['YYYY-MM-DD', 'DD/MM/YYYY', 'DD-MM-YYYY', 'MM/DD/YYYY'], true);
+                            if (parsed.isValid()) {
+                                dateFormatted = parsed.format('YYYY-MM-DD');
+                            }
+                        }
                     }
 
-                    const timeStr = String(timeValue).trim();
-                    if (timeStr.includes('/') || timeStr.includes('-')) {
-                        const parsed = dayjs(timeStr, ['DD/MM/YYYY HH:mm', 'YYYY-MM-DD HH:mm', 'DD-MM-YYYY HH:mm']);
-                        if (parsed.isValid()) return parsed.format('YYYY-MM-DD HH:mm');
-                        return formatDateTime(timeValue, sheetDate);
+                    // Determine time part
+                    let timeFormatted = '00:00';
+
+                    if (timeValue) {
+                        if (typeof timeValue === 'number' && timeValue < 1) {
+                            // Excel time serial (fraction of day)
+                            const totalMinutes = Math.round(timeValue * 24 * 60);
+                            const hours = Math.floor(totalMinutes / 60);
+                            const minutes = totalMinutes % 60;
+                            timeFormatted = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+                        } else if (typeof timeValue === 'number' && timeValue >= 1) {
+                            // Excel datetime serial - extract time portion
+                            const excelTime = timeValue - Math.floor(timeValue);
+                            const totalMinutes = Math.round(excelTime * 24 * 60);
+                            const hours = Math.floor(totalMinutes / 60) % 24;
+                            const minutes = totalMinutes % 60;
+                            timeFormatted = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+                        } else {
+                            const timeStr = String(timeValue).trim();
+                            if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(timeStr)) {
+                                const parts = timeStr.split(':');
+                                timeFormatted = `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+                            } else {
+                                const datetimeMatch = timeStr.match(/(\d{1,2}:\d{2})/);
+                                if (datetimeMatch) {
+                                    const parts = datetimeMatch[1].split(':');
+                                    timeFormatted = `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+                                }
+                            }
+                        }
                     }
 
-                    if (/^\d{1,2}:\d{2}$/.test(timeStr)) {
-                        const parts = timeStr.split(':');
-                        return `${dateFormatted} ${parts[0].padStart(2, '0')}:${parts[1]}`;
-                    }
-
-                    return `${dateFormatted} ${timeStr}`;
+                    return `${dateFormatted} ${timeFormatted}`;
                 };
 
                 return {
@@ -529,9 +556,9 @@ export const useFlightExcelImport = () => {
                     departureFlightNo: row['FLT NO. DEOARTURE'] || row['DEP FLT'] || row['DEPARTURE FLT'] || '',
                     routeFrom: routeFromValue,
                     routeTo: routeToValue,
-                    arrivalStaDate: formatFullDateTime(row['STA'] || row['ETA']),
-                    departureStdDate: formatFullDateTime(row['STD'] || row['ETD']),
-                    etaDate: formatFullDateTime(row['ETA'] || row['STA']),
+                    arrivalStaDate: formatFullDateTime(row['STA Date'], row['STA Time']),
+                    departureStdDate: formatFullDateTime(row['STD Date'], row['STD Time']),
+                    etaDate: formatFullDateTime(row['ETA Date'], row['ETA Time']),
                     bayNo: row['BAY'] || row['PARKING'] || '',
                     csIdList,
                     mechIdList,
@@ -593,8 +620,8 @@ export const useFlightExcelImport = () => {
                     // Check master data matches and collect warnings
                     const airlineMatch = findOptionMatch(row['AIRLINE'], airlineOptions, 'label');
                     const acTypeMatch = findOptionMatch(row['A/C TYPE'], aircraftTypeOptions, 'value');
-                    const routeFromMatch = findOptionMatch(row['ROUTE FROM'], stationOptions, 'value');
-                    const routeToMatch = findOptionMatch(row['ROUTE TO'], stationOptions, 'value');
+                    const routeFromMatch = findOptionMatch(row['ROUTE FROM'], routeOptions, 'value');
+                    const routeToMatch = findOptionMatch(row['ROUTE TO'], routeOptions, 'value');
                     const checkMatch = findOptionMatch(row['CHECK'], checkStatusOptions, 'value');
 
                     // Add warnings for missing master data
@@ -616,14 +643,14 @@ export const useFlightExcelImport = () => {
                         warnings.push({
                             row: rowId,
                             column: 'ROUTE FROM',
-                            message: `Station "${row['ROUTE FROM']}" not found in database`,
+                            message: `Route "${row['ROUTE FROM']}" not found in database`,
                         });
                     }
                     if (row['ROUTE TO'] && !routeToMatch) {
                         warnings.push({
                             row: rowId,
                             column: 'ROUTE TO',
-                            message: `Station "${row['ROUTE TO']}" not found in database`,
+                            message: `Route "${row['ROUTE TO']}" not found in database`,
                         });
                     }
                     if (row['CHECK'] && !checkMatch) {
@@ -692,7 +719,7 @@ export const useFlightExcelImport = () => {
         } finally {
             setIsValidating(false);
         }
-    }, [sheets, mapRowToApiFormat, findOptionMatch, airlineOptions, aircraftTypeOptions, stationOptions, parseAndMatchStaff, checkStatusOptions, formatDateTime]);
+    }, [sheets, mapRowToApiFormat, findOptionMatch, airlineOptions, aircraftTypeOptions, routeOptions, parseAndMatchStaff, checkStatusOptions, formatDateTime]);
 
     /**
      * Upload valid rows from ALL sheets to the API
@@ -749,36 +776,61 @@ export const useFlightExcelImport = () => {
                 );
                 const maintenanceStatusId = checkMatch?.id || 0;
 
-                // Format dates - use the row's specific sheet date
-                const formatFullDateTime = (timeValue: any): string => {
-                    if (!timeValue || !sheetDate) return '';
+                // Format dates - combine separate Date + Time columns
+                const formatFullDateTime = (dateValue: any, timeValue: any): string => {
+                    if (!sheetDate) return '';
 
-                    const dateFormatted = dayjs(sheetDate).format('YYYY-MM-DD');
+                    // Determine date part
+                    let dateFormatted = dayjs(sheetDate).format('YYYY-MM-DD'); // default to sheet date
 
-                    if (typeof timeValue === 'number' && timeValue < 1) {
-                        const totalMinutes = Math.round(timeValue * 24 * 60);
-                        const hours = Math.floor(totalMinutes / 60);
-                        const minutes = totalMinutes % 60;
-                        const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-                        return `${dateFormatted} ${timeStr}`;
-                    }
-
-                    const timeStr = String(timeValue).trim();
-
-                    if (timeStr.includes('/') || timeStr.includes('-')) {
-                        const parsed = dayjs(timeStr, ['DD/MM/YYYY HH:mm', 'YYYY-MM-DD HH:mm', 'DD-MM-YYYY HH:mm']);
-                        if (parsed.isValid()) {
-                            return parsed.format('YYYY-MM-DD HH:mm');
+                    if (dateValue) {
+                        if (typeof dateValue === 'number' && dateValue >= 1) {
+                            // Excel date serial number
+                            const jsDate = new Date((dateValue - 25569) * 86400 * 1000);
+                            if (!isNaN(jsDate.getTime())) {
+                                dateFormatted = dayjs(jsDate).format('YYYY-MM-DD');
+                            }
+                        } else if (typeof dateValue === 'string' && dateValue.trim()) {
+                            const parsed = dayjs(dateValue.trim(), ['YYYY-MM-DD', 'DD/MM/YYYY', 'DD-MM-YYYY', 'MM/DD/YYYY'], true);
+                            if (parsed.isValid()) {
+                                dateFormatted = parsed.format('YYYY-MM-DD');
+                            }
                         }
                     }
 
-                    if (/^\d{1,2}:\d{2}$/.test(timeStr)) {
-                        const parts = timeStr.split(':');
-                        const formattedTime = `${parts[0].padStart(2, '0')}:${parts[1]}`;
-                        return `${dateFormatted} ${formattedTime}`;
+                    // Determine time part
+                    let timeFormatted = '00:00';
+
+                    if (timeValue) {
+                        if (typeof timeValue === 'number' && timeValue < 1) {
+                            // Excel time serial (fraction of day)
+                            const totalMinutes = Math.round(timeValue * 24 * 60);
+                            const hours = Math.floor(totalMinutes / 60);
+                            const minutes = totalMinutes % 60;
+                            timeFormatted = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+                        } else if (typeof timeValue === 'number' && timeValue >= 1) {
+                            // Excel datetime serial - extract time portion
+                            const excelTime = timeValue - Math.floor(timeValue);
+                            const totalMinutes = Math.round(excelTime * 24 * 60);
+                            const hours = Math.floor(totalMinutes / 60) % 24;
+                            const minutes = totalMinutes % 60;
+                            timeFormatted = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+                        } else {
+                            const timeStr = String(timeValue).trim();
+                            if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(timeStr)) {
+                                const parts = timeStr.split(':');
+                                timeFormatted = `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+                            } else {
+                                const datetimeMatch = timeStr.match(/(\d{1,2}:\d{2})/);
+                                if (datetimeMatch) {
+                                    const parts = datetimeMatch[1].split(':');
+                                    timeFormatted = `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+                                }
+                            }
+                        }
                     }
 
-                    return `${dateFormatted} ${timeStr}`;
+                    return `${dateFormatted} ${timeFormatted}`;
                 };
 
                 return {
@@ -790,9 +842,9 @@ export const useFlightExcelImport = () => {
                     departureFlightNo: row['FLT NO. DEPARTURE'] || row['DEP FLT'] || row['DEPARTURE FLT'] || '',
                     routeFrom: routeFromValue,
                     routeTo: routeToValue,
-                    arrivalStaDate: formatFullDateTime(row['STA'] || row['ETA']),
-                    departureStdDate: formatFullDateTime(row['STD'] || row['ETD']),
-                    etaDate: formatFullDateTime(row['ETA'] || row['STA']),
+                    arrivalStaDate: formatFullDateTime(row['STA Date'], row['STA Time']),
+                    departureStdDate: formatFullDateTime(row['STD Date'], row['STD Time']),
+                    etaDate: formatFullDateTime(row['ETA Date'], row['ETA Time']),
                     bayNo: row['BAY'] || row['PARKING'] || '',
                     csIdList,
                     mechIdList,
@@ -889,8 +941,8 @@ export const useFlightExcelImport = () => {
                         // Check master data matches (simplified check based on column values)
                         const airlineMatch = findOptionMatch(updatedData['AIRLINE'], airlineOptions, 'label');
                         const acTypeMatch = findOptionMatch(updatedData['A/C TYPE'], aircraftTypeOptions, 'value');
-                        const routeFromMatch = findOptionMatch(updatedData['ROUTE FROM'], stationOptions, 'value');
-                        const routeToMatch = findOptionMatch(updatedData['ROUTE TO'], stationOptions, 'value');
+                        const routeFromMatch = findOptionMatch(updatedData['ROUTE FROM'], routeOptions, 'value');
+                        const routeToMatch = findOptionMatch(updatedData['ROUTE TO'], routeOptions, 'value');
                         const checkMatch = findOptionMatch(updatedData['CHECK'], checkStatusOptions, 'value');
 
                         if (updatedData['AIRLINE'] && !airlineMatch) {
@@ -900,10 +952,10 @@ export const useFlightExcelImport = () => {
                             warnings.push({ row: rowId, column: 'A/C TYPE', message: `A/C Type "${updatedData['A/C TYPE']}" not found in database` });
                         }
                         if (updatedData['ROUTE FROM'] && !routeFromMatch) {
-                            warnings.push({ row: rowId, column: 'ROUTE FROM', message: `Station "${updatedData['ROUTE FROM']}" not found in database` });
+                            warnings.push({ row: rowId, column: 'ROUTE FROM', message: `Route "${updatedData['ROUTE FROM']}" not found in database` });
                         }
                         if (updatedData['ROUTE TO'] && !routeToMatch) {
-                            warnings.push({ row: rowId, column: 'ROUTE TO', message: `Station "${updatedData['ROUTE TO']}" not found in database` });
+                            warnings.push({ row: rowId, column: 'ROUTE TO', message: `Route "${updatedData['ROUTE TO']}" not found in database` });
                         }
                         if (updatedData['CHECK'] && !checkMatch) {
                             warnings.push({ row: rowId, column: 'CHECK', message: `Status "${updatedData['CHECK']}" not found in database` });
@@ -936,7 +988,7 @@ export const useFlightExcelImport = () => {
         });
 
         toast.success('Row updated successfully');
-    }, [activeSheetIndex, findOptionMatch, airlineOptions, aircraftTypeOptions, stationOptions, checkStatusOptions, parseAndMatchStaff]);
+    }, [activeSheetIndex, findOptionMatch, airlineOptions, aircraftTypeOptions, routeOptions, checkStatusOptions, parseAndMatchStaff]);
 
     /**
      * Update sheet name and re-parse as date

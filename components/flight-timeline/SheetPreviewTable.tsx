@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Trash2, Pencil, Check, X, AlertTriangle, CalendarIcon } from 'lucide-react';
+import { Trash2, Pencil, Check, X, AlertTriangle, CalendarIcon, ChevronsUpDown, Plus, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -13,6 +13,14 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import dayjs from 'dayjs';
@@ -29,14 +37,15 @@ import {
 import { ValidatedRow } from './types/flight-import.types';
 import { useAirlineOptions } from '@/lib/api/hooks/useAirlines';
 import { useAircraftTypes } from '@/lib/api/hooks/useAircraftTypes';
-import { useStationsOptions } from '@/lib/api/hooks/useStations';
+import { useRoutesOptions, useSearchRoutes, useUpsertRoute } from '@/lib/api/hooks/useRoutes';
 import { useStaffListForImport, StaffOption } from '@/lib/api/hooks/useStaffListForImport';
 import { useMaintenanceStatus } from '@/lib/api/hooks/useMaintenanceStatus';
+import useReduxAuth from '@/lib/api/hooks/useReduxAuth';
 
 // Columns that should use Select dropdowns in edit mode
 const AIRLINE_COLUMNS = ['AIRLINE'];
 const AIRCRAFT_TYPE_COLUMNS = ['A/C TYPE'];
-const STATION_COLUMNS = ['ROUTE FROM', 'ROUTE TO'];
+const ROUTE_COLUMNS = ['ROUTE FROM', 'ROUTE TO'];
 
 // Staff columns that should use multi-select search dropdown
 const STAFF_COLUMNS = ['CS', 'MECH'];
@@ -91,10 +100,34 @@ const formatCellValue = (
         return { display: '-', tooltip: null, hasMismatch: false, missingDateContext: false };
     }
 
-    // Check if this is a time column
-    const isTimeColumn = TIME_COLUMNS.some(
-        (col) => header.toUpperCase().includes(col)
+    // Check if this is a time column (exclude Date columns like 'STA Date', 'STD Date')
+    const headerUpper = header.toUpperCase();
+    const isDateColumn = headerUpper.includes('DATE') && TIME_COLUMNS.some(col => headerUpper.includes(col));
+    const isTimeColumn = !isDateColumn && TIME_COLUMNS.some(
+        (col) => headerUpper.includes(col)
     );
+
+    // Date columns: format Excel date serial as DD/MM/YYYY
+    if (isDateColumn) {
+        let dateStr = '';
+
+        if (typeof value === 'number' && value >= 1) {
+            // Excel date serial number
+            const jsDate = new Date((value - 25569) * 86400 * 1000);
+            if (!isNaN(jsDate.getTime())) {
+                dateStr = dayjs(jsDate).format('DD/MM/YYYY');
+            }
+        } else if (typeof value === 'string' && value.trim()) {
+            const parsed = dayjs(value.trim(), ['YYYY-MM-DD', 'DD/MM/YYYY', 'DD-MM-YYYY', 'MM/DD/YYYY'], true);
+            if (parsed.isValid()) {
+                dateStr = parsed.format('DD/MM/YYYY');
+            } else {
+                dateStr = value.trim();
+            }
+        }
+
+        return { display: dateStr || String(value), tooltip: null, hasMismatch: false, missingDateContext: false };
+    }
 
     if (isTimeColumn) {
         let timeStr = '';
@@ -167,6 +200,152 @@ const formatCellValue = (
     return { display: String(value), tooltip: null, hasMismatch: false, missingDateContext: false };
 };
 
+// ─── Inline Creatable Route Select (for table edit mode) ───────────────
+interface InlineCreatableRouteSelectProps {
+    value: string;
+    onChange: (value: string) => void;
+    allOptions: { value: string; label: string }[];
+}
+
+function InlineCreatableRouteSelect({ value, onChange, allOptions }: InlineCreatableRouteSelectProps) {
+    const [open, setOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+
+    const { getUserName } = useReduxAuth();
+    const { data: searchData, isLoading: isSearching } = useSearchRoutes(debouncedSearch);
+    const upsertMutation = useUpsertRoute();
+
+    // Debounced search
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+
+    // Build display options: local filter + API search results merged
+    const displayOptions = useMemo(() => {
+        if (!searchTerm) return allOptions;
+        const filtered = allOptions.filter(
+            (opt) => opt.label.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+        if (searchData?.responseData) {
+            const existingValues = new Set(filtered.map((o) => o.value));
+            for (const item of searchData.responseData) {
+                if (!existingValues.has(item.code)) {
+                    filtered.push({ value: item.code, label: item.code });
+                }
+            }
+        }
+        return filtered;
+    }, [searchTerm, allOptions, searchData]);
+
+    const noMatch = searchTerm.length > 0 && displayOptions.length === 0 && !isSearching;
+
+    const handleCreate = useCallback(async () => {
+        const code = searchTerm.trim();
+        if (!code) return;
+        try {
+            await upsertMutation.mutateAsync({
+                id: 0, code, name: code, description: '',
+                userName: getUserName() || 'system', isdelete: false,
+            });
+            onChange(code);
+            setSearchTerm('');
+            setOpen(false);
+        } catch (error) {
+            console.error('Failed to create route:', error);
+        }
+    }, [searchTerm, upsertMutation, getUserName, onChange]);
+
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={open}
+                    className="h-7 min-w-[100px] justify-between font-normal text-xs border-gray-300 hover:bg-white text-gray-500 hover:text-gray-500"
+                >
+                    {value || 'Select Route...'}
+                    <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[200px] p-0" align="start">
+                <Command shouldFilter={false}>
+                    <CommandInput
+                        placeholder="Search route..."
+                        value={searchTerm}
+                        onValueChange={setSearchTerm}
+                    />
+                    <CommandList>
+                        {isSearching && (
+                            <div className="flex items-center justify-center py-3">
+                                <Loader2 className="h-3 w-3 animate-spin text-gray-400" />
+                                <span className="ml-2 text-xs text-gray-500">Searching...</span>
+                            </div>
+                        )}
+
+                        {noMatch && !upsertMutation.isPending && (
+                            <CommandEmpty className="py-0">
+                                <button
+                                    type="button"
+                                    className="flex w-full items-center gap-2 px-3 py-2.5 text-xs text-blue-600 hover:bg-blue-50 cursor-pointer transition-colors"
+                                    onClick={handleCreate}
+                                >
+                                    <Plus className="h-3 w-3" />
+                                    Create &quot;{searchTerm}&quot;
+                                </button>
+                            </CommandEmpty>
+                        )}
+
+                        {upsertMutation.isPending && (
+                            <div className="flex items-center justify-center py-3">
+                                <Loader2 className="h-3 w-3 animate-spin text-blue-500" />
+                                <span className="ml-2 text-xs text-blue-600">Creating...</span>
+                            </div>
+                        )}
+
+                        {displayOptions.length > 0 && (
+                            <CommandGroup>
+                                {displayOptions.map((option) => (
+                                    <CommandItem
+                                        key={option.value}
+                                        value={option.value}
+                                        onSelect={() => {
+                                            onChange(value === option.value ? '' : option.value);
+                                            setSearchTerm('');
+                                            setOpen(false);
+                                        }}
+                                    >
+                                        <Check className={cn('mr-2 h-3 w-3', value === option.value ? 'opacity-100' : 'opacity-0')} />
+                                        {option.label}
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                        )}
+
+                        {searchTerm.length > 0 &&
+                            displayOptions.length > 0 &&
+                            !displayOptions.some((o) => o.value.toLowerCase() === searchTerm.toLowerCase()) &&
+                            !upsertMutation.isPending && (
+                                <CommandGroup heading="Create new">
+                                    <CommandItem
+                                        value={`create-${searchTerm}`}
+                                        onSelect={handleCreate}
+                                        className="text-blue-600"
+                                    >
+                                        <Plus className="mr-2 h-3 w-3" />
+                                        Create &quot;{searchTerm}&quot;
+                                    </CommandItem>
+                                </CommandGroup>
+                            )}
+                    </CommandList>
+                </Command>
+            </PopoverContent>
+        </Popover>
+    );
+}
+
 interface SheetPreviewTableProps {
     headers: string[];
     rows: Record<string, any>[];
@@ -204,7 +383,7 @@ export function SheetPreviewTable({
     // Fetch options for select dropdowns
     const { options: airlineOptions } = useAirlineOptions();
     const { options: aircraftTypeOptions } = useAircraftTypes();
-    const { options: stationOptions } = useStationsOptions();
+    const { options: routeOptions } = useRoutesOptions();
 
     // Fetch staff options for CS/MECH columns
     const {
@@ -370,10 +549,11 @@ export function SheetPreviewTable({
                                             // Determine column type for edit mode
                                             const isAirlineColumn = AIRLINE_COLUMNS.includes(header.toUpperCase());
                                             const isAircraftTypeColumn = AIRCRAFT_TYPE_COLUMNS.includes(header.toUpperCase());
-                                            const isStationColumn = STATION_COLUMNS.includes(header.toUpperCase());
+                                            const isRouteColumn = ROUTE_COLUMNS.includes(header.toUpperCase());
                                             const isStaffColumn = STAFF_COLUMNS.includes(header.toUpperCase());
                                             const staffType = header.toUpperCase() === 'CS' ? 'CS' : 'MECH';
-                                            const isTimeColumn = TIME_COLUMNS.some(col => header.toUpperCase().includes(col));
+                                            const isDateColumn = header.toUpperCase().includes('DATE') && TIME_COLUMNS.some(col => header.toUpperCase().includes(col));
+                                            const isTimeColumn = !isDateColumn && TIME_COLUMNS.some(col => header.toUpperCase().includes(col));
                                             const isCheckColumn = CHECK_COLUMNS.includes(header.toUpperCase());
 
                                             // Render edit input based on column type
@@ -425,41 +605,65 @@ export function SheetPreviewTable({
                                                     );
                                                 }
 
-                                                if (isStationColumn) {
+                                                if (isRouteColumn) {
                                                     return (
-                                                        <Select
+                                                        <InlineCreatableRouteSelect
                                                             value={editData[header] ?? ''}
-                                                            onValueChange={(value) => handleEditChange(header, value)}
-                                                        >
-                                                            <SelectTrigger className="h-7 min-w-[80px] text-sm">
-                                                                <SelectValue placeholder="Select Station..." />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                {stationOptions.map((option) => (
-                                                                    <SelectItem key={option.value} value={option.value}>
-                                                                        {option.label}
-                                                                    </SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
+                                                            onChange={(value) => handleEditChange(header, value)}
+                                                            allOptions={routeOptions}
+                                                        />
                                                     );
                                                 }
 
-                                                // Time columns: use date picker + time input
-                                                if (isTimeColumn) {
-                                                    // Parse current value to get date and time
-                                                    let timeValue = '';
+                                                // Date columns: use date picker only
+                                                if (isDateColumn) {
+                                                    const currentValue = editData[header];
                                                     let dateValue: Date | undefined = sheetDate ? dayjs(sheetDate).toDate() : undefined;
+
+                                                    if (typeof currentValue === 'number' && currentValue >= 1) {
+                                                        const jsDate = new Date((currentValue - 25569) * 86400 * 1000);
+                                                        if (!isNaN(jsDate.getTime())) dateValue = jsDate;
+                                                    } else if (typeof currentValue === 'string' && currentValue.trim()) {
+                                                        const parsed = dayjs(currentValue.trim(), ['YYYY-MM-DD', 'DD/MM/YYYY', 'DD-MM-YYYY'], true);
+                                                        if (parsed.isValid()) dateValue = parsed.toDate();
+                                                    }
+
+                                                    return (
+                                                        <Popover>
+                                                            <PopoverTrigger asChild>
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    className="h-7 w-[100px] justify-start text-left font-normal text-xs"
+                                                                >
+                                                                    <CalendarIcon className="mr-1 h-3 w-3" />
+                                                                    {dateValue ? dayjs(dateValue).format('DD/MM/YY') : 'Date'}
+                                                                </Button>
+                                                            </PopoverTrigger>
+                                                            <PopoverContent className="w-auto p-0" align="start">
+                                                                <Calendar
+                                                                    mode="single"
+                                                                    selected={dateValue}
+                                                                    onSelect={(date) => {
+                                                                        if (date) {
+                                                                            handleEditChange(header, dayjs(date).format('YYYY-MM-DD'));
+                                                                        }
+                                                                    }}
+                                                                    initialFocus
+                                                                />
+                                                            </PopoverContent>
+                                                        </Popover>
+                                                    );
+                                                }
+
+                                                // Time columns: use time input only
+                                                if (isTimeColumn) {
+                                                    let timeValue = '';
                                                     const currentValue = editData[header];
 
                                                     if (typeof currentValue === 'number') {
-                                                        // Excel datetime format
                                                         if (currentValue >= 1) {
-                                                            const excelDate = Math.floor(currentValue);
-                                                            const excelTime = currentValue - excelDate;
-                                                            const jsDate = new Date((excelDate - 25569) * 86400 * 1000);
-                                                            dateValue = jsDate;
-
+                                                            const excelTime = currentValue - Math.floor(currentValue);
                                                             const totalMinutes = Math.round(excelTime * 24 * 60);
                                                             const hours = Math.floor(totalMinutes / 60) % 24;
                                                             const minutes = totalMinutes % 60;
@@ -472,60 +676,24 @@ export function SheetPreviewTable({
                                                         }
                                                     } else if (typeof currentValue === 'string') {
                                                         const trimmed = currentValue.trim();
-                                                        // Check if already in datetime format (YYYY-MM-DD HH:mm or DD/MM/YYYY HH:mm)
-                                                        if (/^\d{1,2}:\d{2}$/.test(trimmed)) {
-                                                            timeValue = trimmed.length === 4 ? `0${trimmed}` : trimmed;
+                                                        if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(trimmed)) {
+                                                            const parts = trimmed.split(':');
+                                                            timeValue = `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
                                                         } else {
                                                             const parsed = dayjs(trimmed);
                                                             if (parsed.isValid()) {
                                                                 timeValue = parsed.format('HH:mm');
-                                                                // If parsed date is different from default, use it
-                                                                const parsedDate = parsed.format('YYYY-MM-DD');
-                                                                if (parsedDate !== '1970-01-01') {
-                                                                    dateValue = parsed.toDate();
-                                                                }
                                                             }
                                                         }
                                                     }
 
-                                                    // Handle datetime change (combine date + time)
-                                                    const handleDateTimeChange = (newDate?: Date, newTime?: string) => {
-                                                        const finalDate = newDate || dateValue || new Date();
-                                                        const finalTime = newTime || timeValue || '00:00';
-                                                        // Store as ISO-like format: YYYY-MM-DD HH:mm
-                                                        const combined = `${dayjs(finalDate).format('YYYY-MM-DD')} ${finalTime}`;
-                                                        handleEditChange(header, combined);
-                                                    };
-
                                                     return (
-                                                        <div className="flex items-center gap-1">
-                                                            <Popover>
-                                                                <PopoverTrigger asChild>
-                                                                    <Button
-                                                                        variant="outline"
-                                                                        size="sm"
-                                                                        className="h-7 w-[100px] justify-start text-left font-normal text-xs"
-                                                                    >
-                                                                        <CalendarIcon className="mr-1 h-3 w-3" />
-                                                                        {dateValue ? dayjs(dateValue).format('DD/MM/YY') : 'Date'}
-                                                                    </Button>
-                                                                </PopoverTrigger>
-                                                                <PopoverContent className="w-auto p-0" align="start">
-                                                                    <Calendar
-                                                                        mode="single"
-                                                                        selected={dateValue}
-                                                                        onSelect={(date) => handleDateTimeChange(date, timeValue)}
-                                                                        initialFocus
-                                                                    />
-                                                                </PopoverContent>
-                                                            </Popover>
-                                                            <Input
-                                                                type="time"
-                                                                value={timeValue}
-                                                                onChange={(e) => handleDateTimeChange(dateValue, e.target.value)}
-                                                                className="h-7 w-[85px] text-sm"
-                                                            />
-                                                        </div>
+                                                        <Input
+                                                            type="time"
+                                                            value={timeValue}
+                                                            onChange={(e) => handleEditChange(header, e.target.value)}
+                                                            className="h-7 w-[85px] text-sm"
+                                                        />
                                                     );
                                                 }
 
@@ -634,10 +802,10 @@ export function SheetPreviewTable({
                                                     if (!match) {
                                                         optionWarning = `A/C Type "${cellValue}" not found in database`;
                                                     }
-                                                } else if (isStationColumn) {
-                                                    const match = findOptionMatch(cellValue, stationOptions, 'value');
+                                                } else if (isRouteColumn) {
+                                                    const match = findOptionMatch(cellValue, routeOptions, 'value');
                                                     if (!match) {
-                                                        optionWarning = `Station "${cellValue}" not found in database`;
+                                                        optionWarning = `Route "${cellValue}" not found in database`;
                                                     }
                                                 } else if (isStaffColumn) {
                                                     // Check each staff name in the comma-separated list

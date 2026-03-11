@@ -140,6 +140,7 @@ export interface ContractDetail {
     pricingDataList: ContractDetailPricingData[];
     contractTypeObj: ContractDetailContractTypeObj;
     personnelList: ContractDetailPersonnel[] | null;
+    domicileCountry: string | null;
 }
 
 // Interface for get contract by ID API response

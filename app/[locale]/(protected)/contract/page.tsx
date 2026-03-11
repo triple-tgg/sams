@@ -47,6 +47,7 @@ const ContractPage = () => {
   const [activeTab, setActiveTab] = useState<ContractStatus>("all");
   const [searchContractNo, setSearchContractNo] = useState("");
   const [selectedAirline, setSelectedAirline] = useState<string>("all");
+  const [selectedStatusList, setSelectedStatusList] = useState<number[]>([]);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [page, setPage] = useState(1);
@@ -70,9 +71,10 @@ const ContractPage = () => {
     stationCodeList: [], // Can be updated based on user's station selection
     dateStart: startDate,
     dateEnd: endDate,
+    contractStatusList: selectedStatusList,
     page,
     perPage,
-  }), [searchContractNo, selectedAirline, startDate, endDate, page, perPage]);
+  }), [searchContractNo, selectedAirline, startDate, endDate, selectedStatusList, page, perPage]);
 
   // Fetch contract list
   const {
@@ -238,15 +240,17 @@ const ContractPage = () => {
             onStartDateChange={setStartDate}
             endDate={endDate}
             onEndDateChange={setEndDate}
+            selectedStatusList={selectedStatusList}
+            onStatusListChange={setSelectedStatusList}
             onSearch={handleSearch}
           />
 
           {/* Tabs */}
-          <ContractTabs
+          {/* <ContractTabs
             activeTab={activeTab}
             onTabChange={handleTabChange}
             tabCounts={tabCounts}
-          />
+          /> */}
 
           {/* Error State */}
           {isError && (

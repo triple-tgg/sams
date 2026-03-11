@@ -74,6 +74,7 @@ export interface ContractListRequest {
     stationCodeList: string[];
     dateStart: string;
     dateEnd: string;
+    contractStatusList: number[];
     page: number;
     perPage: number;
 }

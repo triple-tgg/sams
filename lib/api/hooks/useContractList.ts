@@ -34,6 +34,7 @@ export const defaultContractListRequest: ContractListRequest = {
     stationCodeList: [],
     dateStart: "",
     dateEnd: "",
+    contractStatusList: [],
     page: 1,
     perPage: 10,
 };

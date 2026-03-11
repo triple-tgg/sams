@@ -85,27 +85,14 @@ export function getMenuList(pathname: string, t: any): Group[] {
         },
       ],
     },
-    // {
-    //   groupLabel: t("humanTraining"),
-    //   id: "human-training",
-    //   menus: [
-    //     {
-    //       id: "training-dashboard",
-    //       href: "/training/dashboard",
-    //       label: t("training"),
-    //       active: pathname.includes("/training/dashboard"),
-    //       icon: "heroicons-outline:academic-cap",
-    //       submenus: [],
-    //     },
-    //   ],
-    // },
+
     {
       groupLabel: t("humanResources"),
       id: "qa",
       menus: [
         {
           id: "qa",
-          href: "/hr/dashboard",
+          href: "/qa/training",
           label: t("HR"),
           active: pathname.includes("/hr"),
           icon: "heroicons-outline:clipboard-document-check",
@@ -135,59 +122,6 @@ export function getMenuList(pathname: string, t: any): Group[] {
         },
       ],
     },
-    // {
-    //   groupLabel: t("humanResources"),
-    //   id: "human-resources",
-    //   menus: [
-    //     {
-    //       id: "hr-dashboard",
-    //       href: "/hr/dashboard",
-    //       label: t("hrDashboard"),
-    //       active: pathname.includes("/hr/dashboard"),
-    //       icon: "heroicons-outline:presentation-chart-bar",
-    //       submenus: [],
-    //     },
-    //     {
-    //       id: "hr-staff",
-    //       href: "/hr/staff",
-    //       label: t("hrStaffList"),
-    //       active: pathname.includes("/hr/staff"),
-    //       icon: "heroicons-outline:users",
-    //       submenus: [],
-    //     },
-    //   ],
-    // },
-    // {
-    //   groupLabel: t("report"),
-    //   id: "report",
-    //   menus: [
-    //     {
-    //       id: "report",
-    //       href: "/report",
-    //       label: t("report"),
-    //       active: pathname.includes("/report"),
-    //       icon: "heroicons-outline:cog-6-tooth",
-    //       submenus: [
-    //         {
-    //           // id: "equipment-report",
-    //           href: "/report/equipment",
-    //           label: t("equipment-report"),
-    //           active: pathname.includes("/report/equipment"),
-    //           icon: "heroicons-outline:cog-6-tooth",
-    //           submenus: [],
-    //         },
-    //         {
-    //           // id: "parts-tool-report",
-    //           href: "/report/parts-tool",
-    //           label: t("parts-tool-report"),
-    //           active: pathname.includes("/report/parts-tool"),
-    //           icon: "heroicons-outline:cog-6-tooth",
-    //           submenus: [],
-    //         },
-    //       ],
-    //     },
-    //   ],
-    // },
 
     {
       groupLabel: t("setting"),
@@ -246,36 +180,6 @@ export function getMenuList(pathname: string, t: any): Group[] {
         },
       ],
     },
-    // {
-    //   groupLabel: t("setting"),
-    //   id: "setting",
-    //   menus: [
-    //     // {
-    //     //   id: "master-data",
-    //     //   href: "/master-data",
-    //     //   label: t("master-data"),
-    //     //   active: pathname.includes("/master-data"),
-    //     //   icon: "heroicons-outline:cog-6-tooth",
-    //     //   submenus: [
-    //     //     {
-    //     //       href: "/customer",
-    //     //       label: t("customer"),
-    //     //       active: pathname.includes("/customer"),
-    //     //       icon: "heroicons-outline:identification",
-    //     //       submenus: [],
-    //     //     },
-    //     //   ],
-    //     // },
-    //     // {
-    //     //   id: "customer",
-    //     //   href: "/customer",
-    //     //   label: t("customer"),
-    //     //   active: pathname.includes("/customer"),
-    //     //   icon: "heroicons-outline:identification",
-    //     //   submenus: [],
-    //     // },
-    //   ],
-    // },
   ];
 }
 export function getHorizontalMenuList(pathname: string, t: any): Group[] {

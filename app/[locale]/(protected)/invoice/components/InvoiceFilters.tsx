@@ -56,6 +56,11 @@ export const InvoiceFilters = ({
     const canSearch = startDate !== "" && endDate !== "";
 
     const handleLocationToggle = (locationCode: string, checked: boolean) => {
+        if (locationCode === '__ALL__') {
+            // "All Locations" selected → clear individual selections (send [] to API)
+            onLocationsChange([]);
+            return;
+        }
         if (checked) {
             onLocationsChange([...selectedLocations, locationCode]);
         } else {
@@ -64,6 +69,11 @@ export const InvoiceFilters = ({
     };
 
     const handleAircraftTypeToggle = (aircraftCode: string, checked: boolean) => {
+        if (aircraftCode === '__ALL__') {
+            // "All Aircraft" selected → clear individual selections (send [] to API)
+            onAircraftTypesChange([]);
+            return;
+        }
         if (checked) {
             onAircraftTypesChange([...selectedAircraftTypes, aircraftCode]);
         } else {
@@ -132,8 +142,8 @@ export const InvoiceFilters = ({
                                             </span>
                                         )
                                     ) : (
-                                        <span className="text-muted-foreground">
-                                            {isLoadingStations ? "Loading..." : "Select Locations"}
+                                        <span className="text-sm">
+                                            {isLoadingStations ? "Loading..." : "All Locations"}
                                         </span>
                                     )}
                                 </span>
@@ -142,6 +152,20 @@ export const InvoiceFilters = ({
                         </PopoverTrigger>
                         <PopoverContent className="w-[250px] p-2" align="start">
                             <div className="space-y-1 max-h-[200px] overflow-y-auto">
+                                {/* All Locations option */}
+                                <div
+                                    className="flex items-center space-x-2 p-2 hover:bg-muted rounded cursor-pointer border-b mb-1 pb-2"
+                                    onClick={() => handleLocationToggle('__ALL__', true)}
+                                >
+                                    <Checkbox
+                                        checked={selectedLocations.length === 0}
+                                        onCheckedChange={() => handleLocationToggle('__ALL__', true)}
+                                    />
+                                    <span className="text-sm flex-1 font-medium">All Locations</span>
+                                    {selectedLocations.length === 0 && (
+                                        <Check className="h-4 w-4 text-primary" />
+                                    )}
+                                </div>
                                 {stationOptions.map((station) => (
                                     <div
                                         key={station.value}
@@ -195,8 +219,8 @@ export const InvoiceFilters = ({
                                             </span>
                                         )
                                     ) : (
-                                        <span className="text-muted-foreground">
-                                            {isLoadingAircraftTypes ? "Loading..." : "Select Aircraft"}
+                                        <span className="text-sm">
+                                            {isLoadingAircraftTypes ? "Loading..." : "All Aircraft"}
                                         </span>
                                     )}
                                 </span>
@@ -205,6 +229,20 @@ export const InvoiceFilters = ({
                         </PopoverTrigger>
                         <PopoverContent className="w-[250px] p-2" align="start">
                             <div className="space-y-1 max-h-[200px] overflow-y-auto">
+                                {/* All Aircraft option */}
+                                <div
+                                    className="flex items-center space-x-2 p-2 hover:bg-muted rounded cursor-pointer border-b mb-1 pb-2"
+                                    onClick={() => handleAircraftTypeToggle('__ALL__', true)}
+                                >
+                                    <Checkbox
+                                        checked={selectedAircraftTypes.length === 0}
+                                        onCheckedChange={() => handleAircraftTypeToggle('__ALL__', true)}
+                                    />
+                                    <span className="text-sm flex-1 font-medium">All Aircraft</span>
+                                    {selectedAircraftTypes.length === 0 && (
+                                        <Check className="h-4 w-4 text-primary" />
+                                    )}
+                                </div>
                                 {aircraftTypeOptions.map((aircraft) => (
                                     <div
                                         key={aircraft.value}

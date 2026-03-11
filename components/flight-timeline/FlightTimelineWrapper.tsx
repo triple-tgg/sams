@@ -23,6 +23,14 @@ import CreateProject from "@/app/[locale]/(protected)/flight/create-project";
 import { Button } from "@/components/ui/button";
 import { ExcelImportModal } from "./ExcelImportModal";
 import { useFlightExcelImport } from "@/hooks/use-flight-excel-import";
+import { useAirlineOptions } from "@/lib/api/hooks/useAirlines";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 
 
@@ -43,6 +51,10 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
     const contentRef = useRef<HTMLDivElement>(null);
     const timelineContainerRef = useRef<HTMLDivElement>(null);
     const [openAddFlight, setOpenAddFlight] = useState<boolean>(false);
+    const [selectedAirlineId, setSelectedAirlineId] = useState<string>("all");
+
+    // Airline options from API
+    const { options: airlineOptions, isLoading: loadingAirlines } = useAirlineOptions();
 
     // Download template handler
     const handleDownloadTemplate = () => {
@@ -124,7 +136,7 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
         // flightNo: filters.flightNo,
         // stationCodeList: filters.stationCode ? [filters.stationCode] : [],
 
-        // airlineId: filters.airlineId ? Number(filters.airlineId) : undefined,
+        airlineId: selectedAirlineId !== "all" ? Number(selectedAirlineId) : 0,
         // stationCode: filters.stationCode || undefined,
         dateStart: dateStart,
         dateEnd: dateStart,
@@ -258,6 +270,23 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
             <CreateProject open={openAddFlight} setOpen={setOpenAddFlight} />
             {/* Controls */}
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg dark:bg-slate-800/50 bg-slate-100 p-4 shadow">
+
+                {/* Airline Filter */}
+                <div className="flex items-center gap-2">
+                    <Select value={selectedAirlineId} onValueChange={setSelectedAirlineId}>
+                        <SelectTrigger className="w-48 h-10 dark:bg-slate-700 dark:text-white bg-slate-200 text-slate-700 border-none">
+                            <SelectValue placeholder={loadingAirlines ? "Loading..." : "All Airlines"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Airlines</SelectItem>
+                            {airlineOptions.map((airline) => (
+                                <SelectItem key={airline.id} value={String(airline.id)}>
+                                    {airline.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
                 {/* Date Navigation */}
                 <div className="flex items-center gap-2">
                     <button
@@ -288,6 +317,7 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                         Today
                     </button>
                 </div>
+
 
                 {/* Timeline Navigation */}
                 {/* {viewMode === "timeline" ? (
