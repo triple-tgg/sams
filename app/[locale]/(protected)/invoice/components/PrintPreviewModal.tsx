@@ -25,6 +25,7 @@ interface PrintPreviewModalProps {
     onClose: () => void;
     invoices: DraftInvoiceItem[];
     airlineCode?: string;
+    stationCodes?: string;
     dateRange?: string;
 }
 
@@ -37,6 +38,7 @@ export const PrintPreviewModal = ({
     onClose,
     invoices,
     airlineCode = "",
+    stationCodes = "",
     dateRange = "",
 }: PrintPreviewModalProps) => {
     const printRef = useRef<HTMLDivElement>(null);
@@ -87,6 +89,7 @@ export const PrintPreviewModal = ({
                 <div class="header">
                     <h1>DRAFT-INVOICE</h1>
                     <p class="sub"><strong>Customer:</strong> ${airlineCode || "All Airlines"}</p>
+                    <p class="sub"><strong>Station:</strong> ${stationCodes || "All Stations"}</p>
                     <p class="sub"><strong>Period:</strong> ${dateRange}</p>
                 </div>
                 <table>
@@ -163,6 +166,9 @@ export const PrintPreviewModal = ({
                                 <strong>Customer:</strong> {airlineCode || "All Airlines"}
                             </p>
                             <p className="text-sm text-muted-foreground">
+                                <strong>Station:</strong> {stationCodes || "All Stations"}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
                                 <strong>Period:</strong> {dateRange}
                             </p>
                         </div>
@@ -187,9 +193,7 @@ export const PrintPreviewModal = ({
                                 {invoices.map((inv, idx) => (
                                     <TableRow key={idx} className={idx % 2 === 1 ? "bg-muted/30" : ""}>
                                         <TableCell className="font-medium">{inv.item}</TableCell>
-                                        <TableCell className="whitespace-pre-line text-xs leading-relaxed">
-                                            {inv.descrition}
-                                        </TableCell>
+                                        <TableCell className="whitespace-pre-line text-xs leading-relaxed py-2" dangerouslySetInnerHTML={{ __html: inv.descrition }} />
                                         <TableCell className="text-right">{formatCurrency(inv.quantity)}</TableCell>
                                         <TableCell className="text-right">{formatCurrency(inv.unitPrice)}</TableCell>
                                         <TableCell className="text-right font-medium">{formatCurrency(inv.amount)}</TableCell>

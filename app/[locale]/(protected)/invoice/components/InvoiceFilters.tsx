@@ -4,18 +4,20 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import {
     Popover,
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
-import { Calendar, ChevronDown, Check, Search, X } from "lucide-react";
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
+import { Calendar, ChevronDown, Check, Search } from "lucide-react";
 import { useAirlineOptions } from "@/lib/api/hooks/useAirlines";
 import { useStationsOptions } from "@/lib/api/hooks/useStations";
 import { useAircraftTypes } from "@/lib/api/hooks/useAircraftTypes";
@@ -91,29 +93,49 @@ export const InvoiceFilters = ({
             <div className="flex items-end gap-2">
                 {/* Customer Airline — optional */}
                 <div className="space-y-2">
-                    <div className="relative">
-                        <Select value={selectedAirline || undefined} onValueChange={onAirlineChange}>
-                            <SelectTrigger className="min-w-52 w-auto bg-white">
-                                <SelectValue placeholder={isLoadingAirlines ? "Loading..." : "Select Airline (Optional)"} />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {airlineOptions.map((airline) => (
-                                    <SelectItem key={airline.value} value={airline.value}>
-                                        {airline.label}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        {selectedAirline && (
-                            <button
-                                type="button"
-                                onClick={handleClearAirline}
-                                className="absolute right-8 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground z-10"
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant="outline"
+                                role="combobox"
+                                className="min-w-52 justify-between h-9 bg-white hover:bg-transparent border-slate-300 hover:text-gray-700"
                             >
-                                <X className="h-3.5 w-3.5" />
-                            </button>
-                        )}
-                    </div>
+                                <span className="text-sm truncate">
+                                    {selectedAirline
+                                        ? airlineOptions.find(a => a.value === selectedAirline)?.label || selectedAirline
+                                        : (isLoadingAirlines ? "Loading..." : "All Airline")}
+                                </span>
+                                <ChevronDown className="h-4 w-4 shrink-0 opacity-50 text-slate-500" />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[250px] p-0" align="start">
+                            <Command>
+                                <CommandInput placeholder="Search airline..." />
+                                <CommandList>
+                                    <CommandEmpty>No airline found.</CommandEmpty>
+                                    <CommandGroup>
+                                        <CommandItem
+                                            value="__ALL__"
+                                            onSelect={() => onAirlineChange("")}
+                                        >
+                                            <Check className={cn("mr-2 h-4 w-4", !selectedAirline ? "opacity-100" : "opacity-0")} />
+                                            All Airline
+                                        </CommandItem>
+                                        {airlineOptions.map((airline) => (
+                                            <CommandItem
+                                                key={airline.value}
+                                                value={airline.label}
+                                                onSelect={() => onAirlineChange(airline.value)}
+                                            >
+                                                <Check className={cn("mr-2 h-4 w-4", selectedAirline === airline.value ? "opacity-100" : "opacity-0")} />
+                                                {airline.label}
+                                            </CommandItem>
+                                        ))}
+                                    </CommandGroup>
+                                </CommandList>
+                            </Command>
+                        </PopoverContent>
+                    </Popover>
                 </div>
 
                 {/* Service Location — optional */}
@@ -199,7 +221,7 @@ export const InvoiceFilters = ({
                         <PopoverTrigger asChild>
                             <Button
                                 variant="outline"
-                                className="min-w-44 justify-between h-9 bg-white hover:bg-transparent border-slate-300"
+                                className="min-w-44 justify-between h-9 bg-white hover:bg-transparent border-slate-300 hover:text-gray-700"
                                 disabled={isLoadingAircraftTypes}
                             >
                                 <span className="flex flex-wrap gap-1 max-w-[200px] overflow-hidden">

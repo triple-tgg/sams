@@ -95,7 +95,7 @@ export const ContractFilters = ({
                         <PopoverTrigger asChild>
                             <Button
                                 variant="outline"
-                                className="min-w-44 justify-between h-9 bg-white hover:bg-transparent border-slate-300"
+                                className="min-w-44 justify-between h-9 bg-white hover:bg-transparent border-slate-300 hover:text-gray-700"
                                 disabled={loadingStatuses}
                             >
                                 <span className="flex flex-wrap gap-1 max-w-[200px] overflow-hidden">
@@ -130,7 +130,7 @@ export const ContractFilters = ({
                             <div className="space-y-1 max-h-[200px] overflow-y-auto">
                                 {/* All Status option */}
                                 <div
-                                    className="flex items-center space-x-2 p-2 hover:bg-muted rounded cursor-pointer border-b mb-1 pb-2"
+                                    className="flex items-center space-x-2 p-2 hover:bg-muted rounded cursor-pointer border-b mb-1 pb-2 "
                                     onClick={() => handleStatusToggle(-1, true)}
                                 >
                                     <Checkbox

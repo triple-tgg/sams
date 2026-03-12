@@ -61,7 +61,7 @@ export const DraftInvoiceTable = ({
                         {invoices.map((invoice, idx) => (
                             <TableRow key={idx}>
                                 <TableCell className="font-medium">{invoice.item}</TableCell>
-                                <TableCell className="whitespace-pre-line">{invoice.descrition}</TableCell>
+                                <TableCell className="whitespace-pre-line py-2" dangerouslySetInnerHTML={{ __html: invoice.descrition }} />
                                 <TableCell className="text-right">{formatCurrency(invoice.quantity)}</TableCell>
                                 <TableCell className="text-right">{formatCurrency(invoice.unitPrice)}</TableCell>
                                 <TableCell className="text-right font-medium">{formatCurrency(invoice.amount)}</TableCell>

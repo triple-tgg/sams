@@ -21,16 +21,25 @@ import type { InvoiceRequest } from "@/lib/api/contract/invoiceApi";
 const InvoicePage = () => {
     const t = useTranslations("Menu");
 
+    // Today's date in YYYY-MM-DD format
+    const today = new Date().toISOString().split("T")[0];
+
     // ── Filter State ────────────────────────────────────────
     const [selectedAirline, setSelectedAirline] = useState<string>("");
-    const [startDate, setStartDate] = useState("");
-    const [endDate, setEndDate] = useState("");
+    const [startDate, setStartDate] = useState(today);
+    const [endDate, setEndDate] = useState(today);
     const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
     const [selectedAircraftTypes, setSelectedAircraftTypes] = useState<string[]>([]);
 
     // ── Search State (committed on Search click) ────────────
-    const [searchParams, setSearchParams] = useState<InvoiceRequest | null>(null);
-    const hasSearched = searchParams !== null;
+    const [searchParams, setSearchParams] = useState<InvoiceRequest>({
+        dateStart: today,
+        dateEnd: today,
+        airlineCode: "",
+        stationCodeList: [],
+        airCraftTypeCodeList: [],
+    });
+    const hasSearched = true;
 
     // ── Tab State ───────────────────────────────────────────
     const [activeTab, setActiveTab] = useState<InvoiceTabType>("pre-invoice");
@@ -41,13 +50,13 @@ const InvoicePage = () => {
         data: preInvoiceData,
         isLoading: isLoadingPre,
         isFetching: isFetchingPre,
-    } = usePreInvoice(searchParams!, hasSearched);
+    } = usePreInvoice(searchParams, hasSearched);
 
     const {
         data: draftInvoiceData,
         isLoading: isLoadingDraft,
         isFetching: isFetchingDraft,
-    } = useDraftInvoice(searchParams!, hasSearched);
+    } = useDraftInvoice(searchParams, hasSearched);
 
     const preInvoices = preInvoiceData?.responseData ?? [];
     const draftInvoices = draftInvoiceData?.responseData ?? [];
@@ -267,6 +276,7 @@ const InvoicePage = () => {
                 onClose={() => setPrintPreviewOpen(false)}
                 invoices={draftInvoices}
                 airlineCode={searchParams?.airlineCode}
+                stationCodes={searchParams?.stationCodeList?.length > 0 ? searchParams.stationCodeList.join(", ") : ""}
                 dateRange={searchParams ? `${searchParams.dateStart} to ${searchParams.dateEnd}` : ""}
             />
         </div>
