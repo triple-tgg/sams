@@ -387,6 +387,7 @@ export function SheetPreviewTable({
 
     // Fetch staff options for CS/MECH columns
     const {
+        allStaff,
         csStaffOptions,
         mechStaffOptions,
         parseAndMatchStaff,
@@ -697,9 +698,9 @@ export function SheetPreviewTable({
                                                     );
                                                 }
 
-                                                // Staff columns: multi-select search dropdown
+                                                // Staff columns: multi-select search dropdown (show all staff)
                                                 if (isStaffColumn) {
-                                                    const options = staffType === 'CS' ? csStaffOptions : mechStaffOptions;
+                                                    const options = allStaff;
                                                     const currentValue = String(editData[header] || '');
                                                     const selectedNames = currentValue.split(',').map(n => n.trim()).filter(Boolean);
 

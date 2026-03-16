@@ -50,10 +50,10 @@ export const useStaffListForImport = (enabled: boolean = true) => {
     /**
      * Find staff by name (case-insensitive, partial match)
      */
-    const findStaffByName = (name: string, type: 'CS' | 'MECH'): StaffOption | undefined => {
-        const options = type === 'CS' ? csStaffOptions : mechStaffOptions;
+    const findStaffByName = (name: string, _type: 'CS' | 'MECH'): StaffOption | undefined => {
+        // Search across all staff regardless of type
         const normalizedName = name.trim().toUpperCase();
-        return options.find((staff) =>
+        return allStaff.find((staff) =>
             staff.name.toUpperCase().includes(normalizedName) ||
             normalizedName.includes(staff.name.toUpperCase())
         );
