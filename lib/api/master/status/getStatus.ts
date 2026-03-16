@@ -4,14 +4,14 @@ import type { ResStatusItem } from "./status.interface";
 
 const getStatus = async (): Promise<ResStatusItem> => {
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_DEVELOPMENT_API
+    const apiUrl = process.env.NEXT_PUBLIC_ENVIRONTMENT !== "production"
       ? `${process.env.NEXT_PUBLIC_DEVELOPMENT_API}/master/Status`
-      : 'https://sam-api-staging-triple-tcoth-production.up.railway.app/master/Status';
+      : `${process.env.NEXT_PUBLIC_PRODUCTION_API}/master/Status`;
 
     const res = await axios.get(apiUrl, {
       headers: { 'Content-Type': 'application/json' },
     });
-    
+
     return res.data as ResStatusItem;
   } catch (error: any) {
     console.error('Error fetching status:', error);

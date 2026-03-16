@@ -3,9 +3,9 @@ import type { RouteListResponse } from "./routes.interface";
 
 const getRoutesList = async (): Promise<RouteListResponse> => {
     try {
-        const apiUrl = process.env.NEXT_PUBLIC_DEVELOPMENT_API
+        const apiUrl = process.env.NEXT_PUBLIC_ENVIRONTMENT !== "production"
             ? `${process.env.NEXT_PUBLIC_DEVELOPMENT_API}/master/Routes-list`
-            : 'https://sam-api-staging-triple-tcoth-production.up.railway.app/master/Routes-list';
+            : `${process.env.NEXT_PUBLIC_PRODUCTION_API}/master/Routes-list`;
 
         const res = await axios.post(apiUrl, {
             page: 1,

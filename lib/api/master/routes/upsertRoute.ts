@@ -3,9 +3,9 @@ import type { RouteUpsertRequest, RouteUpsertResponse } from "./routes.interface
 
 const upsertRoute = async (data: RouteUpsertRequest): Promise<RouteUpsertResponse> => {
     try {
-        const apiUrl = process.env.NEXT_PUBLIC_DEVELOPMENT_API
+        const apiUrl = process.env.NEXT_PUBLIC_ENVIRONTMENT !== "production"
             ? `${process.env.NEXT_PUBLIC_DEVELOPMENT_API}/master/Routes-upsert`
-            : 'https://sam-api-staging-triple-tcoth-production.up.railway.app/master/Routes-upsert';
+            : `${process.env.NEXT_PUBLIC_PRODUCTION_API}/master/Routes-upsert`;
 
         const res = await axios.post(apiUrl, data, {
             headers: { 'Content-Type': 'application/json' },

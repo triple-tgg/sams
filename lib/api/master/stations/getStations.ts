@@ -4,9 +4,9 @@ import type { ResStationItem } from "./stations.interface";
 
 const getStations = async (): Promise<ResStationItem> => {
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_DEVELOPMENT_API
+    const apiUrl = process.env.NEXT_PUBLIC_ENVIRONTMENT !== "production"
       ? `${process.env.NEXT_PUBLIC_DEVELOPMENT_API}/master/Stations`
-      : 'https://sam-api-staging-triple-tcoth-production.up.railway.app/master/Stations';
+      : `${process.env.NEXT_PUBLIC_PRODUCTION_API}/master/Stations`;
 
     const res = await axios.get(apiUrl, {
       headers: { 'Content-Type': 'application/json' },

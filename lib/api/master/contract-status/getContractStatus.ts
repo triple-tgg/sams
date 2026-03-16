@@ -3,9 +3,9 @@ import type { ResContractStatus } from "./contractStatus.interface";
 
 const getContractStatus = async (): Promise<ResContractStatus> => {
     try {
-        const apiUrl = process.env.NEXT_PUBLIC_DEVELOPMENT_API
+        const apiUrl = process.env.NEXT_PUBLIC_ENVIRONTMENT !== "production"
             ? `${process.env.NEXT_PUBLIC_DEVELOPMENT_API}/master/ContractStatus`
-            : 'https://sam-api-staging-triple-tcoth-production.up.railway.app/master/ContractStatus';
+            : `${process.env.NEXT_PUBLIC_PRODUCTION_API}/master/ContractStatus`;
 
         const res = await axios.get(apiUrl, {
             headers: { 'Content-Type': 'application/json' },

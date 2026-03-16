@@ -3,9 +3,9 @@ import type { RouteSearchResponse } from "./routes.interface";
 
 const searchRoutesByName = async (name: string): Promise<RouteSearchResponse> => {
     try {
-        const apiUrl = process.env.NEXT_PUBLIC_DEVELOPMENT_API
+        const apiUrl = process.env.NEXT_PUBLIC_ENVIRONTMENT !== "production"
             ? `${process.env.NEXT_PUBLIC_DEVELOPMENT_API}/master/Routes-bynames/${encodeURIComponent(name)}`
-            : `https://sam-api-staging-triple-tcoth-production.up.railway.app/master/Routes-bynames/${encodeURIComponent(name)}`;
+            : `${process.env.NEXT_PUBLIC_PRODUCTION_API}/master/Routes-bynames/${encodeURIComponent(name)}`;
 
         const res = await axios.get(apiUrl, {
             headers: { 'Content-Type': 'application/json' },

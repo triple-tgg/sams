@@ -4,9 +4,9 @@ import type { ResAirlineItem } from "./airlines.interface";
 
 const getAirlines = async (): Promise<ResAirlineItem> => {
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_DEVELOPMENT_API
+    const apiUrl = process.env.NEXT_PUBLIC_ENVIRONTMENT !== "production"
       ? `${process.env.NEXT_PUBLIC_DEVELOPMENT_API}/master/Airlines`
-      : 'https://sam-api-staging-triple-tcoth-production.up.railway.app/master/Airlines';
+      : `${process.env.NEXT_PUBLIC_PRODUCTION_API}/master/Airlines`;
 
     const res = await axios.get(apiUrl, {
       headers: { 'Content-Type': 'application/json' },

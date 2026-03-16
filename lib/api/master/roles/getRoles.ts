@@ -1,8 +1,9 @@
 import axios from "@/lib/axios.config";
 import type { RolesResponse } from "./roles.interface";
 
-const API_BASE = process.env.NEXT_PUBLIC_DEVELOPMENT_API
-    || 'https://sam-api-staging-triple-tcoth-production.up.railway.app';
+const API_BASE = process.env.NEXT_PUBLIC_ENVIRONTMENT !== "production"
+    ? `${process.env.NEXT_PUBLIC_DEVELOPMENT_API}`
+    : `${process.env.NEXT_PUBLIC_PRODUCTION_API}`;
 
 /**
  * Get all roles for dropdown

@@ -3,9 +3,9 @@ import type { ResContractType } from "./contractTypes.interface";
 
 const getContractTypes = async (): Promise<ResContractType> => {
     try {
-        const apiUrl = process.env.NEXT_PUBLIC_DEVELOPMENT_API
+        const apiUrl = process.env.NEXT_PUBLIC_ENVIRONTMENT !== "production"
             ? `${process.env.NEXT_PUBLIC_DEVELOPMENT_API}/master/ContractTypes`
-            : 'https://sam-api-staging-triple-tcoth-production.up.railway.app/master/ContractTypes';
+            : `${process.env.NEXT_PUBLIC_PRODUCTION_API}/master/ContractTypes`;
 
         const res = await axios.get(apiUrl, {
             headers: { 'Content-Type': 'application/json' },

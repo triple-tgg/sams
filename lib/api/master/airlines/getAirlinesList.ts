@@ -3,9 +3,9 @@ import type { AirlineListRequest, AirlineListResponse } from "./airlines.interfa
 
 export const getAirlinesList = async (params: AirlineListRequest): Promise<AirlineListResponse> => {
     try {
-        const apiUrl = process.env.NEXT_PUBLIC_DEVELOPMENT_API
+        const apiUrl = process.env.NEXT_PUBLIC_ENVIRONTMENT !== "production"
             ? `${process.env.NEXT_PUBLIC_DEVELOPMENT_API}/master/Airlines-list`
-            : 'https://sam-api-staging-triple-tcoth-production.up.railway.app/master/Airlines-list';
+            : `${process.env.NEXT_PUBLIC_PRODUCTION_API}/master/Airlines-list`;
 
         const res = await axios.post(apiUrl, params, {
             headers: { 'Content-Type': 'application/json' },

@@ -212,9 +212,9 @@ export const useExcelImport = () => {
   // ฟังก์ชันส่งข้อมูลไปยัง API
   const sendImportData = async (data: ImportFlightData[]) => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_DEVELOPMENT_API
+      const apiUrl = process.env.NEXT_PUBLIC_ENVIRONTMENT !== "production"
         ? `${process.env.NEXT_PUBLIC_DEVELOPMENT_API}/flight/importlist`
-        : 'https://sam-api-staging-triple-tcoth-production.up.railway.app/flight/importlist';
+        : `${process.env.NEXT_PUBLIC_PRODUCTION_API}/flight/importlist`
 
       console.log('Sending to API:', {
         endpoint: apiUrl,
@@ -231,7 +231,7 @@ export const useExcelImport = () => {
 
       // console.log('Import response:', response.data);
       toast.success(`Successfully imported ${data.length} flight records.`);
-      
+
       // Invalidate flight list queries to refresh data
       qc.invalidateQueries({ queryKey: ["flightList"] });
 

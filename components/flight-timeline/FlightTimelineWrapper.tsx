@@ -162,6 +162,8 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
     // Sanitize: fix items where till <= since (invalid time ranges from API)
     const flightsPlanby = useMemo(() => sanitizeFlightsPlanby(flightsPlanbyRaw), [flightsPlanbyRaw]);
 
+
+
     // const flightsPlanby = mockFlights
     // Transform data for Planby
     const epgData = useMemo(() => transformFlightsToEpg(flights), [flights]);
@@ -182,6 +184,7 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
         d.setHours(0, 0, 0, 0);
         return d.toISOString();
     }, [selectedDate]);
+
 
     // Track container dimensions for Planby
     const [containerDimensions, setContainerDimensions] = useState<{ width: number; height: number }>({ width: 1200, height: 600 });

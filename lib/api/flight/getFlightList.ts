@@ -14,9 +14,9 @@ export type GetFlightListParams = {
 };
 
 const getFlightList = async (params: GetFlightListParams): Promise<ResFlightItem> => {
-  const apiUrl = process.env.NEXT_PUBLIC_DEVELOPMENT_API
+  const apiUrl = process.env.NEXT_PUBLIC_ENVIRONTMENT !== "production"
     ? `${process.env.NEXT_PUBLIC_DEVELOPMENT_API}/flight/listdata`
-    : 'https://sam-api-staging-triple-tcoth-production.up.railway.app/flight/listdata';
+    : `${process.env.NEXT_PUBLIC_PRODUCTION_API}/flight/listdata`;
 
   const res = await axios.post(apiUrl, params, {
     headers: { 'Content-Type': 'application/json' },
