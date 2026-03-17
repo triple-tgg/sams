@@ -40,12 +40,14 @@ import { useAircraftTypes } from '@/lib/api/hooks/useAircraftTypes';
 import { useRoutesOptions, useSearchRoutes, useUpsertRoute } from '@/lib/api/hooks/useRoutes';
 import { useStaffListForImport, StaffOption } from '@/lib/api/hooks/useStaffListForImport';
 import { useMaintenanceStatus } from '@/lib/api/hooks/useMaintenanceStatus';
+import { useStationsOptions } from '@/lib/api/hooks/useStations';
 import useReduxAuth from '@/lib/api/hooks/useReduxAuth';
 
 // Columns that should use Select dropdowns in edit mode
 const AIRLINE_COLUMNS = ['AIRLINE'];
 const AIRCRAFT_TYPE_COLUMNS = ['A/C TYPE'];
 const ROUTE_COLUMNS = ['ROUTE FROM', 'ROUTE TO'];
+const STATION_COLUMNS = ['STATION'];
 
 // Staff columns that should use multi-select search dropdown
 const STAFF_COLUMNS = ['CS', 'MECH'];
@@ -384,6 +386,7 @@ export function SheetPreviewTable({
     const { options: airlineOptions } = useAirlineOptions();
     const { options: aircraftTypeOptions } = useAircraftTypes();
     const { options: routeOptions } = useRoutesOptions();
+    const { options: stationOptions } = useStationsOptions();
 
     // Fetch staff options for CS/MECH columns
     const {
@@ -551,6 +554,7 @@ export function SheetPreviewTable({
                                             const isAirlineColumn = AIRLINE_COLUMNS.includes(header.toUpperCase());
                                             const isAircraftTypeColumn = AIRCRAFT_TYPE_COLUMNS.includes(header.toUpperCase());
                                             const isRouteColumn = ROUTE_COLUMNS.includes(header.toUpperCase());
+                                            const isStationColumn = STATION_COLUMNS.includes(header.toUpperCase());
                                             const isStaffColumn = STAFF_COLUMNS.includes(header.toUpperCase());
                                             const staffType = header.toUpperCase() === 'CS' ? 'CS' : 'MECH';
                                             const isDateColumn = header.toUpperCase().includes('DATE') && TIME_COLUMNS.some(col => header.toUpperCase().includes(col));
@@ -613,6 +617,26 @@ export function SheetPreviewTable({
                                                             onChange={(value) => handleEditChange(header, value)}
                                                             allOptions={routeOptions}
                                                         />
+                                                    );
+                                                }
+
+                                                if (isStationColumn) {
+                                                    return (
+                                                        <Select
+                                                            value={editData[header] ?? ''}
+                                                            onValueChange={(value) => handleEditChange(header, value)}
+                                                        >
+                                                            <SelectTrigger className="h-7 min-w-[100px] text-sm">
+                                                                <SelectValue placeholder="Select Station..." />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {stationOptions.map((option) => (
+                                                                    <SelectItem key={option.value} value={option.value}>
+                                                                        {option.label}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
                                                     );
                                                 }
 
@@ -813,6 +837,11 @@ export function SheetPreviewTable({
                                                     const result = parseAndMatchStaff(String(cellValue), staffType as 'CS' | 'MECH');
                                                     if (result.notFound.length > 0) {
                                                         optionWarning = `Staff not found: ${result.notFound.join(', ')}`;
+                                                    }
+                                                } else if (isStationColumn) {
+                                                    const match = findOptionMatch(cellValue, stationOptions, 'value');
+                                                    if (!match) {
+                                                        optionWarning = `Station "${cellValue}" not found in database`;
                                                     }
                                                 } else if (isCheckColumn) {
                                                     // Check if CHECK value exists in MaintenanceStatus options

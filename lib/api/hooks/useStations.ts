@@ -23,19 +23,21 @@ export function useStationsOptions() {
 
   // Fallback options กรณี API ล้มเหลว
   const fallbackOptions = [
-    { value: "BKK", label: "BKK" },
-    { value: "DMK", label: "DMK" },
-    { value: "HKT", label: "HKT" },
-    { value: "HDY", label: "HDY" },
-    { value: "CNX", label: "CNX" },
-    { value: "CEI", label: "CEI" },
-    { value: "UTH", label: "UTH" },
-    { value: "KBV", label: "KBV" },
+    { value: "", label: "ไม่พบข้อมูล", id: 0 },
+    // { value: "BKK", label: "BKK" },
+    // { value: "DMK", label: "DMK" },
+    // { value: "HKT", label: "HKT" },
+    // { value: "HDY", label: "HDY" },
+    // { value: "CNX", label: "CNX" },
+    // { value: "CEI", label: "CEI" },
+    // { value: "UTH", label: "UTH" },
+    // { value: "KBV", label: "KBV" },
   ];
 
   const apiOptions = data?.responseData?.map((station: StationItem) => ({
     value: station.code,
     label: station.code,
+    id: station.id,
   })) ?? [];
 
   // ใช้ API options ถ้ามีข้อมูล ไม่งั้นใช้ fallback

@@ -297,7 +297,7 @@ export const GeneralInfoStep = ({
             </div>
 
             {/* Attachment */}
-            <div className="bg-muted/30 p-4 rounded-lg space-y-3">
+            <div className="bg-muted/30 p-4 rounded-lg space-y-3 overflow-hidden">
                 <h4 className="text-sm font-semibold text-primary">Contract Document</h4>
 
                 {/* Show drop zone only if no file selected */}
@@ -333,72 +333,74 @@ export const GeneralInfoStep = ({
 
                 {/* File Display */}
                 {file && (
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-3 p-3 bg-background rounded-lg border">
+                    <div className="space-y-2  overflow-hidden">
+                        <div className="flex items-center justify-between gap-3 p-3 bg-background rounded-lg border overflow-hidden">
                             <FileText className="h-6 w-6 text-primary shrink-0" />
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">{file.name}</p>
+                            <div style={{ maxWidth: 350, minWidth: 0 }}>
+                                <span className="text-sm font-medium" style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={file.name}>{file.name}</span>
                                 <p className="text-xs text-muted-foreground">
                                     {formatFileSize(file.size)}
                                 </p>
                             </div>
-
-                            {/* Upload Status Badge */}
-                            {isUploaded && (
-                                <div className="flex items-center gap-1 text-green-600 text-xs">
-                                    <CheckCircle2 className="h-4 w-4" />
-                                    <span>Uploaded</span>
-                                </div>
-                            )}
-
-                            {/* Action Buttons */}
                             <div className="flex items-center gap-1">
-                                {/* Open File Button (only show when uploaded) */}
-                                {isUploaded && formData.contractDocumentPath && (
+
+                                {/* Upload Status Badge */}
+                                {isUploaded && (
+                                    <div className="flex items-center gap-1 text-green-600 text-xs">
+                                        <CheckCircle2 className="h-4 w-4" />
+                                        <span>Uploaded</span>
+                                    </div>
+                                )}
+
+                                {/* Action Buttons */}
+                                <div className="flex items-center gap-1">
+                                    {/* Open File Button (only show when uploaded) */}
+                                    {isUploaded && formData.contractDocumentPath && (
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-primary hover:text-primary"
+                                            onClick={handleOpenFile}
+                                            title="Open file"
+                                        >
+                                            <ExternalLink className="h-4 w-4" />
+                                        </Button>
+                                    )}
+
+                                    {/* Upload Button (only show when not uploaded) */}
+                                    {!isUploaded && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={handleUpload}
+                                            disabled={isUploading}
+                                            className="h-8"
+                                        >
+                                            {isUploading ? (
+                                                <>
+                                                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                                    Uploading...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Upload className="h-4 w-4 mr-1" />
+                                                    Upload
+                                                </>
+                                            )}
+                                        </Button>
+                                    )}
+
+                                    {/* Remove File Button */}
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-8 w-8 text-primary hover:text-primary"
-                                        onClick={handleOpenFile}
-                                        title="Open file"
-                                    >
-                                        <ExternalLink className="h-4 w-4" />
-                                    </Button>
-                                )}
-
-                                {/* Upload Button (only show when not uploaded) */}
-                                {!isUploaded && (
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handleUpload}
+                                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                        onClick={removeFile}
                                         disabled={isUploading}
-                                        className="h-8"
                                     >
-                                        {isUploading ? (
-                                            <>
-                                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                                Uploading...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Upload className="h-4 w-4 mr-1" />
-                                                Upload
-                                            </>
-                                        )}
+                                        <X className="h-4 w-4" />
                                     </Button>
-                                )}
-
-                                {/* Remove File Button */}
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                    onClick={removeFile}
-                                    disabled={isUploading}
-                                >
-                                    <X className="h-4 w-4" />
-                                </Button>
+                                </div>
                             </div>
                         </div>
 
@@ -413,10 +415,10 @@ export const GeneralInfoStep = ({
 
                 {/* Already uploaded file (for editing mode) */}
                 {!file && formData.contractDocumentPath && (
-                    <div className="flex items-center gap-3 p-3 bg-background rounded-lg border">
+                    <div className="flex items-center gap-3 p-3 bg-background rounded-lg border overflow-hidden">
                         <FileText className="h-6 w-6 text-primary shrink-0" />
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">
+                            <p className="text-sm font-medium" style={{ maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }} title={formData.contractDocumentPath.split('/').pop()}>
                                 {formData.contractDocumentPath.split('/').pop()}
                             </p>
                             <p className="text-xs text-muted-foreground">

@@ -50,13 +50,9 @@ export const PersonnelSection = ({
         true
     );
 
-    // Split staff by position
-    const { csStaffList, mechStaffList } = useMemo(() => {
-        const all = allStaffData?.responseData || [];
-        return {
-            csStaffList: all.filter((s: any) => s.position?.code === "CS"),
-            mechStaffList: all.filter((s: any) => s.position?.code === "MECH"),
-        };
+    // Show all staff in both CS and MECH dropdowns (no position group filtering)
+    const allStaffList = useMemo(() => {
+        return allStaffData?.responseData || [];
     }, [allStaffData]);
 
     return (
@@ -79,7 +75,7 @@ export const PersonnelSection = ({
                         )}
                     </Label>
                     <StaffSearchSelect
-                        staffList={csStaffList}
+                        staffList={allStaffList}
                         isLoading={isLoadingAllStaff}
                         selectedIds={csIdList}
                         onChange={onCsChange}
@@ -103,7 +99,7 @@ export const PersonnelSection = ({
                         )}
                     </Label>
                     <StaffSearchSelect
-                        staffList={mechStaffList}
+                        staffList={allStaffList}
                         isLoading={isLoadingAllStaff}
                         selectedIds={mechIdList}
                         onChange={onMechChange}

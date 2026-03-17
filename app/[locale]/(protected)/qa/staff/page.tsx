@@ -108,20 +108,20 @@ export default function HRStaffListPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="w-[50px]">No.</TableHead>
-                                <TableHead className="w-[100px]">Emp. ID</TableHead>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Position</TableHead>
-                                <TableHead>Department</TableHead>
-                                <TableHead className="w-[80px]">Status</TableHead>
-                                <TableHead className="w-[120px]">Start Date</TableHead>
+                                <TableHead className="w-[30px]">No.</TableHead>
+                                <TableHead className="whitespace-nowrap">Name</TableHead>
+
+                                <TableHead className="w-[50px]">Position</TableHead>
+                                <TableHead className="w-[180px]">Department</TableHead>
+                                <TableHead className="w-[100px]">Status</TableHead>
+                                <TableHead className="w-[150px]">Start Date</TableHead>
                                 <TableHead className="w-[60px] text-center">Action</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {paginatedStaff.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                                    <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                                         No staff found
                                     </TableCell>
                                 </TableRow>
@@ -133,9 +133,7 @@ export default function HRStaffListPage() {
                                         onClick={() => router.push(`/en/qa/staff/${staff.id}`)}
                                     >
                                         <TableCell className="text-muted-foreground">{(page - 1) * perPage + index + 1}</TableCell>
-                                        <TableCell>
-                                            <span className="font-mono text-xs text-muted-foreground">{staff.empId}</span>
-                                        </TableCell>
+
                                         <TableCell>
                                             <div className="flex items-center gap-3">
                                                 <div

@@ -1,117 +1,144 @@
-import React from 'react';
-import { User, GraduationCap, Zap, Briefcase } from 'lucide-react';
-import { C, EmploymentItem, EducationItem, ProfileTabProps } from './types';
-import { SectionCard, InfoRow } from './ui-primitives';
-import { STAFF_INFO, LICENSE, EDUCATION, EMPLOYMENT } from './data';
+'use client'
 
-export function ProfileTab({ employment, ratings }: ProfileTabProps) {
+import { useState } from 'react'
+import { User, Phone, Briefcase, Pencil } from 'lucide-react'
+import { StaffData } from '../types'
+import { formatDate } from '../utils'
+import { EditPersonalInfoModal } from './EditPersonalInfoModal'
+import { EditContactModal } from './EditContactModal'
+import { EditEmploymentModal } from './EditEmploymentModal'
+
+// ── Reusable Info Row ──
+function InfoRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            {/* Personal Information */}
-            <SectionCard title="Personal Information" icon={<User className="h-4 w-4 text-blue-500" />}>
-                <InfoRow label="Date of Birth" value={STAFF_INFO.dob} />
-                <InfoRow label="Place of Birth" value={STAFF_INFO.pob} />
-                <InfoRow label="Nationality" value={STAFF_INFO.nationality} />
-                <InfoRow label="Thai ID" value={<code style={{ fontSize: 12, background: C.bg, padding: '1px 6px', borderRadius: 4 }}>{STAFF_INFO.thaiId}</code>} />
-                <InfoRow label="Phone" value={STAFF_INFO.phone} />
-                <InfoRow label="Address" value={<span style={{ fontSize: 11 }}>{STAFF_INFO.address}</span>} />
-            </SectionCard>
+        <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-slate-400 tracking-wide">{label}</span>
+            <span className={`text-sm font-medium text-slate-800 ${mono ? 'font-mono' : ''}`}>{value}</span>
+        </div>
+    )
+}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                {/* Education */}
-                <SectionCard title="Education" icon={<GraduationCap className="h-4 w-4 text-purple-500" />}>
-                    {EDUCATION.map((e: EducationItem) => (
-                        <div key={e.deg} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 10 }}>
-                            <span style={{
-                                padding: '3px 8px', borderRadius: 5, background: C.primary5,
-                                border: `1px solid ${C.primary4}`, fontSize: 9, fontWeight: 700,
-                                color: C.primary, flexShrink: 0, marginTop: 2,
-                            }}>
-                                {e.deg.toUpperCase()}
-                            </span>
-                            <div>
-                                <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{e.inst}</div>
-                                <div style={{ fontSize: 11, color: C.muted }}>{e.period}</div>
-                            </div>
-                        </div>
-                    ))}
-                </SectionCard>
+// ── Section Wrapper ──
+function Section({
+    icon,
+    iconBg,
+    iconColor,
+    title,
+    onEdit,
+    children,
+}: {
+    icon: React.ReactNode
+    iconBg: string
+    iconColor: string
+    title: string
+    onEdit?: () => void
+    children: React.ReactNode
+}) {
+    return (
+        <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 mb-4">
+            <div className="flex items-center justify-between mb-5 pb-3.5 border-b border-slate-100">
+                <div className="flex items-center gap-2.5 text-base font-bold text-slate-800">
+                    <div
+                        className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                        style={{ background: iconBg, color: iconColor }}
+                    >
+                        {icon}
+                    </div>
+                    {title}
+                </div>
+                {onEdit && (
+                    <button
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 cursor-pointer transition-all duration-200 hover:border-blue-400 hover:text-blue-600 hover:shadow-sm"
+                        onClick={onEdit}
+                        title={`Edit ${title}`}
+                    >
+                        <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                )}
+            </div>
+            {children}
+        </div>
+    )
+}
 
-                {/* AMEL License */}
-                <SectionCard title="AMEL License" icon={<Zap className="h-4 w-4 text-amber-500" />}>
-                    <div style={{
-                        background: `linear-gradient(135deg,${C.primary6},${C.primary5})`,
-                        border: `1.5px solid ${C.primary4}`, borderRadius: 10, padding: 16,
-                    }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                            <div>
-                                <div style={{ fontSize: 9, color: C.muted, letterSpacing: 1 }}>LICENSE NO.</div>
-                                <div style={{ fontSize: 30, fontWeight: 900, color: C.primary, letterSpacing: 3, lineHeight: 1 }}>{LICENSE.no}</div>
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                                <div style={{ fontSize: 9, color: C.muted }}>VALID</div>
-                                <div style={{ fontSize: 11, fontWeight: 600, color: C.text }}>{LICENSE.validFrom}</div>
-                                <div style={{ fontSize: 11, fontWeight: 700, color: C.green }}>→ {LICENSE.validTo}</div>
-                            </div>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-                            {ratings.map((r: string) => (
-                                <div key={r} style={{
-                                    padding: '4px 8px', background: '#fff', border: `1px solid ${C.primary4}`,
-                                    borderRadius: 5, fontSize: 9, color: C.primary2, fontWeight: 500,
-                                }}>
-                                    ✓ {r}
-                                </div>
-                            ))}
+// ── Profile Tab ──
+export function ProfileTab({ staff }: { staff: StaffData }) {
+    const [showEditPersonal, setShowEditPersonal] = useState(false)
+    const [showEditContact, setShowEditContact] = useState(false)
+    const [showEditEmployment, setShowEditEmployment] = useState(false)
+
+    return (
+        <>
+        <div className="grid grid-cols-12 gap-4">
+            <div className="col-span-8">
+                {/* Personal Info */}
+                <Section icon={<User className="h-4 w-4" />} iconBg="#eff6ff" iconColor="#2563eb" title="Personal Info" onEdit={() => setShowEditPersonal(true)}>
+                    <div className="grid grid-cols-3 gap-y-5 gap-x-8 max-md:grid-cols-1">
+                        <InfoRow label="Full Name (Thai)" value={staff.name} />
+                        <InfoRow label="Full Name (English)" value={staff.nameEn} />
+                        <InfoRow label="Date of Birth" value={formatDate(staff.dob)} mono />
+                        <InfoRow label="Place of Birth" value={staff.placeOfBirth} />
+                        <InfoRow label="Thai ID Card No." value={staff.idCard} mono />
+                        <InfoRow label="Nationality" value={staff.nationality} />
+                    </div>
+                </Section>
+
+                {/* Contact */}
+                <Section icon={<Phone className="h-4 w-4" />} iconBg="#f0fdf4" iconColor="#16a34a" title="Contact" onEdit={() => setShowEditContact(true)}>
+                    <div className="grid grid-cols-3 gap-y-5 gap-x-8 max-md:grid-cols-1">
+                        <InfoRow label="Phone" value={staff.phone} />
+                        <InfoRow label="Email" value={staff.email} />
+                        <div className="col-span-full flex flex-col gap-1">
+                            <span className="text-xs font-medium text-slate-400 tracking-wide">Address</span>
+                            <span className="text-sm font-medium text-slate-800">{staff.address}</span>
                         </div>
                     </div>
-                </SectionCard>
-            </div>
+                </Section>
 
-            {/* Employment History */}
-            <SectionCard title="Employment History" icon={<Briefcase className="h-4 w-4 text-gray-500" />} style={{ gridColumn: 'span 2' }}>
-                <div style={{ position: 'relative', paddingLeft: 8 }}>
-                    {employment.map((e: EmploymentItem, i: number) => (
-                        <div key={i} style={{
-                            display: 'grid', gridTemplateColumns: '110px 24px 1fr', gap: '0 16px',
-                            paddingBottom: i < employment.length - 1 ? 20 : 0,
-                        }}>
-                            <div style={{ textAlign: 'right', paddingTop: 2 }}>
-                                <div style={{ fontSize: 11, fontWeight: 600, color: C.text }}>{e.from}</div>
-                                <div style={{ fontSize: 11, color: C.muted }}>{e.to}</div>
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                <div style={{
-                                    width: 14, height: 14, borderRadius: '50%',
-                                    background: e.active ? C.primary : C.primary4,
-                                    border: `2px solid ${e.active ? C.primary2 : C.primary4}`,
-                                    boxShadow: e.active ? `0 0 8px ${C.primary}66` : 'none', flexShrink: 0,
-                                }} />
-                                {i < employment.length - 1 && (
-                                    <div style={{
-                                        flex: 1, width: 2,
-                                        background: `linear-gradient(180deg,${C.primary4},${C.primary5})`,
-                                        minHeight: 18, marginTop: 2,
-                                    }} />
-                                )}
-                            </div>
-                            <div>
-                                <div style={{ fontSize: 13, fontWeight: 700, color: e.active ? C.primary : C.text }}>{e.org}</div>
-                                <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{e.role}</div>
-                                {e.active && (
-                                    <span style={{
-                                        display: 'inline-block', marginTop: 4, padding: '1px 8px', borderRadius: 10,
-                                        background: C.primary5, border: `1px solid ${C.primary4}`,
-                                        fontSize: 9, color: C.primary, fontWeight: 700,
-                                    }}>
-                                        CURRENT
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </SectionCard>
+                {/* Employment */}
+                <Section icon={<Briefcase className="h-4 w-4" />} iconBg="#fef3c7" iconColor="#d97706" title="Employment" onEdit={() => setShowEditEmployment(true)}>
+                    <div className="grid grid-cols-3 gap-y-5 gap-x-8 max-md:grid-cols-1">
+                        <InfoRow label="Employee ID" value={staff.empId} mono />
+                        <InfoRow label="Position" value={staff.position} />
+                        <InfoRow label="Department" value={staff.department} />
+                        <InfoRow label="Start Date" value={formatDate(staff.startDate)} mono />
+                    </div>
+                </Section>
+            </div>
+            <div className="col-span-4 bg-white border border-[#e8ecf1] rounded-[14px] py-7 px-8 mb-0">
+
+            </div>
         </div>
-    );
+
+        {/* ── Modals ── */}
+        <EditPersonalInfoModal
+            isOpen={showEditPersonal}
+            onClose={() => setShowEditPersonal(false)}
+            staff={staff}
+            onSave={(data) => {
+                console.log('Save personal info:', data)
+                // TODO: call API to update staff data
+            }}
+        />
+        <EditContactModal
+            isOpen={showEditContact}
+            onClose={() => setShowEditContact(false)}
+            staff={staff}
+            onSave={(data) => {
+                console.log('Save contact:', data)
+                // TODO: call API to update staff data
+            }}
+        />
+        <EditEmploymentModal
+            isOpen={showEditEmployment}
+            onClose={() => setShowEditEmployment(false)}
+            staff={staff}
+            onSave={(data) => {
+                console.log('Save employment:', data)
+                // TODO: call API to update staff data
+            }}
+        />
+        </>
+
+    )
 }

@@ -19,6 +19,7 @@ import { useAircraftTypes } from '@/lib/api/hooks/useAircraftTypes';
 import { useRoutesOptions } from '@/lib/api/hooks/useRoutes';
 import { useStaffListForImport } from '@/lib/api/hooks/useStaffListForImport';
 import { useMaintenanceStatus } from '@/lib/api/hooks/useMaintenanceStatus';
+import { useStationsOptions } from '@/lib/api/hooks/useStations';
 
 // Enable dayjs custom parse format plugin
 dayjs.extend(customParseFormat);
@@ -47,6 +48,7 @@ export const useFlightExcelImport = () => {
     const { options: routeOptions } = useRoutesOptions();
     const { parseAndMatchStaff } = useStaffListForImport();
     const { options: checkStatusOptions } = useMaintenanceStatus();
+    const { options: stationOptions } = useStationsOptions();
 
     /**
      * Find option match and return the option with ID
@@ -467,6 +469,11 @@ export const useFlightExcelImport = () => {
                 const airlineMatch = findOptionMatch(airlineValue, airlineOptions, 'label');
                 const airlinesId = airlineMatch?.id || 0;
 
+                // Get station ID
+                const stationValue = row['STATION'];
+                const stationMatch = findOptionMatch(stationValue, stationOptions, 'value');
+                const stationId = stationMatch?.id || 0;
+
                 // Get A/C Type ID
                 const acTypeValue = row['A/C TYPE'];
                 const acTypeMatch = findOptionMatch(acTypeValue, aircraftTypeOptions, 'value');
@@ -550,10 +557,11 @@ export const useFlightExcelImport = () => {
                 return {
                     rowId,
                     airlinesId,
+                    stationId,
                     acTypeId,
                     acReg: row['A/C REG'] || '',
                     arrivalFlightNo: row['FLT NO. ARRIVAL'] || row['ARR FLT'] || row['ARRIVAL FLT'] || '',
-                    departureFlightNo: row['FLT NO. DEOARTURE'] || row['DEP FLT'] || row['DEPARTURE FLT'] || '',
+                    departureFlightNo: row['FLT NO. DEPARTURE'] || row['FLT NO. DEOARTURE'] || row['DEP FLT'] || row['DEPARTURE FLT'] || '',
                     routeFrom: routeFromValue,
                     routeTo: routeToValue,
                     arrivalStaDate: formatFullDateTime(row['STA Date'], row['STA Time']),
@@ -619,6 +627,7 @@ export const useFlightExcelImport = () => {
 
                     // Check master data matches and collect warnings
                     const airlineMatch = findOptionMatch(row['AIRLINE'], airlineOptions, 'label');
+                    const stationMatch = findOptionMatch(row['STATION'], stationOptions, 'value');
                     const acTypeMatch = findOptionMatch(row['A/C TYPE'], aircraftTypeOptions, 'value');
                     const routeFromMatch = findOptionMatch(row['ROUTE FROM'], routeOptions, 'value');
                     const routeToMatch = findOptionMatch(row['ROUTE TO'], routeOptions, 'value');
@@ -630,6 +639,13 @@ export const useFlightExcelImport = () => {
                             row: rowId,
                             column: 'AIRLINE',
                             message: `Airline "${row['AIRLINE']}" not found in database`,
+                        });
+                    }
+                    if (row['STATION'] && !stationMatch) {
+                        warnings.push({
+                            row: rowId,
+                            column: 'STATION',
+                            message: `Station "${row['STATION']}" not found in database`,
                         });
                     }
                     if (row['A/C TYPE'] && !acTypeMatch) {
@@ -719,7 +735,7 @@ export const useFlightExcelImport = () => {
         } finally {
             setIsValidating(false);
         }
-    }, [sheets, mapRowToApiFormat, findOptionMatch, airlineOptions, aircraftTypeOptions, routeOptions, parseAndMatchStaff, checkStatusOptions, formatDateTime]);
+    }, [sheets, mapRowToApiFormat, findOptionMatch, airlineOptions, aircraftTypeOptions, routeOptions, stationOptions, parseAndMatchStaff, checkStatusOptions, formatDateTime]);
 
     /**
      * Upload valid rows from ALL sheets to the API
@@ -750,6 +766,11 @@ export const useFlightExcelImport = () => {
                 const airlineValue = row['AIRLINE'];
                 const airlineMatch = findOptionMatch(airlineValue, airlineOptions, 'label');
                 const airlinesId = airlineMatch?.id || 0;
+
+                // Get station ID
+                const stationValue = row['STATION'];
+                const stationMatch = findOptionMatch(stationValue, stationOptions, 'value');
+                const stationId = stationMatch?.id || 0;
 
                 // Get A/C Type ID
                 const acTypeValue = row['A/C TYPE'];
@@ -836,10 +857,11 @@ export const useFlightExcelImport = () => {
                 return {
                     rowId,
                     airlinesId,
+                    stationId,
                     acTypeId,
                     acReg: row['A/C REG'] || '',
                     arrivalFlightNo: row['FLT NO. ARRIVAL'] || row['ARR FLT'] || row['ARRIVAL FLT'] || '',
-                    departureFlightNo: row['FLT NO. DEPARTURE'] || row['DEP FLT'] || row['DEPARTURE FLT'] || '',
+                    departureFlightNo: row['FLT NO. DEPARTURE'] || row['FLT NO. DEOARTURE'] || row['DEP FLT'] || row['DEPARTURE FLT'] || '',
                     routeFrom: routeFromValue,
                     routeTo: routeToValue,
                     arrivalStaDate: formatFullDateTime(row['STA Date'], row['STA Time']),
@@ -872,7 +894,7 @@ export const useFlightExcelImport = () => {
         } finally {
             setIsUploading(false);
         }
-    }, [validatedRowsBySheet, sheets, queryClient, findOptionMatch, airlineOptions, aircraftTypeOptions, parseAndMatchStaff, checkStatusOptions]);
+    }, [validatedRowsBySheet, sheets, queryClient, findOptionMatch, airlineOptions, aircraftTypeOptions, stationOptions, parseAndMatchStaff, checkStatusOptions]);
 
     /**
      * Open file picker
@@ -940,6 +962,7 @@ export const useFlightExcelImport = () => {
 
                         // Check master data matches (simplified check based on column values)
                         const airlineMatch = findOptionMatch(updatedData['AIRLINE'], airlineOptions, 'label');
+                        const stationMatch = findOptionMatch(updatedData['STATION'], stationOptions, 'value');
                         const acTypeMatch = findOptionMatch(updatedData['A/C TYPE'], aircraftTypeOptions, 'value');
                         const routeFromMatch = findOptionMatch(updatedData['ROUTE FROM'], routeOptions, 'value');
                         const routeToMatch = findOptionMatch(updatedData['ROUTE TO'], routeOptions, 'value');
@@ -947,6 +970,9 @@ export const useFlightExcelImport = () => {
 
                         if (updatedData['AIRLINE'] && !airlineMatch) {
                             warnings.push({ row: rowId, column: 'AIRLINE', message: `Airline "${updatedData['AIRLINE']}" not found in database` });
+                        }
+                        if (updatedData['STATION'] && !stationMatch) {
+                            warnings.push({ row: rowId, column: 'STATION', message: `Station "${updatedData['STATION']}" not found in database` });
                         }
                         if (updatedData['A/C TYPE'] && !acTypeMatch) {
                             warnings.push({ row: rowId, column: 'A/C TYPE', message: `A/C Type "${updatedData['A/C TYPE']}" not found in database` });
@@ -988,7 +1014,7 @@ export const useFlightExcelImport = () => {
         });
 
         toast.success('Row updated successfully');
-    }, [activeSheetIndex, findOptionMatch, airlineOptions, aircraftTypeOptions, routeOptions, checkStatusOptions, parseAndMatchStaff]);
+    }, [activeSheetIndex, findOptionMatch, airlineOptions, aircraftTypeOptions, routeOptions, stationOptions, checkStatusOptions, parseAndMatchStaff]);
 
     /**
      * Update sheet name and re-parse as date

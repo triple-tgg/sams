@@ -112,6 +112,7 @@ export const EXCEL_COLUMN_MAPPING: Record<string, keyof FlightImportData> = {
 export interface FlightValidateRequestItem {
     rowId: number;
     airlinesId: number;
+    stationId: number;
     acTypeId: number;
     acReg: string;
     arrivalFlightNo: string;

@@ -1,91 +1,134 @@
-import React from 'react';
-import { BarChart3, BookOpen } from 'lucide-react';
-import { C, ExperienceTabProps, TrainingHighlight } from './types';
-import { SectionCard } from './ui-primitives';
+import { useState } from 'react'
+import { Briefcase, GraduationCap, Pencil } from 'lucide-react'
+import { StaffData } from '../types'
+import { EditWorkExperienceModal } from './EditWorkExperienceModal'
+import { EditEducationModal } from './EditEducationModal'
 
-interface TaskGroup {
-    l: string;
-    v: number;
-    t: number;
-    c: string;
-}
-
-export function ExperienceTab({ highlights }: ExperienceTabProps) {
-    const taskGroups: TaskGroup[] = [
-        { l: 'Group 1 Tasks', v: 370, t: 378, c: C.primary },
-        { l: 'Group 2 Tasks', v: 6, t: 378, c: C.primary3 },
-        { l: 'Training/Mgmt (max 20%)', v: 2, t: 378, c: C.green },
-    ];
+// ── Experience Tab ──
+export function ExperienceTab({ staff }: { staff: StaffData }) {
+    const [showEditExp, setShowEditExp] = useState(false)
+    const [showEditEdu, setShowEditEdu] = useState(false)
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            {/* Maintenance Task Summary */}
-            <SectionCard title="Maintenance Task Summary (SAMS-FM-CM-062)" icon={<BarChart3 className="h-4 w-4 text-blue-500" />}>
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
-                    <div style={{
-                        textAlign: 'center', padding: '16px 36px',
-                        background: `linear-gradient(135deg,${C.primary6},${C.primary5})`,
-                        border: `1.5px solid ${C.primary4}`, borderRadius: 12,
-                    }}>
-                        <div style={{ fontSize: 52, fontWeight: 900, color: C.primary, lineHeight: 1 }}>378</div>
-                        <div style={{ fontSize: 11, color: C.muted, marginTop: 4, letterSpacing: 0.5 }}>TOTAL TASKS COMPLETED</div>
+        <div>
+            {/* Work Experience */}
+            <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 mb-4">
+                <div className="flex items-center justify-between mb-5 pb-3.5 border-b border-slate-100">
+                    <div className="flex items-center gap-2.5 text-base font-bold text-slate-800">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-amber-100 text-amber-600">
+                            <Briefcase className="h-4 w-4" />
+                        </div>
+                        Work Experience
                     </div>
+                    <button
+                        onClick={() => setShowEditExp(true)}
+                        className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] border border-slate-200 bg-white text-slate-400 cursor-pointer transition-all duration-200 hover:border-slate-400 hover:text-slate-700 hover:shadow-sm"
+                        title="Edit Work Experience"
+                    >
+                        <Pencil className="h-4 w-4" />
+                    </button>
                 </div>
+                {staff.experience.length > 0 ? (
+                    <div className="relative ml-2">
+                        {/* Timeline vertical line */}
+                        <div className="absolute left-[54px] top-2 bottom-2 w-[2px] bg-slate-200" />
 
-                {taskGroups.map((t: TaskGroup) => (
-                    <div key={t.l} style={{ marginBottom: 14 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                            <span style={{ fontSize: 12, color: C.text }}>{t.l}</span>
-                            <span style={{ fontWeight: 700, color: t.c }}>{t.v}</span>
-                        </div>
-                        <div style={{ height: 6, background: C.primary5, borderRadius: 3, overflow: 'hidden' }}>
-                            <div style={{
-                                height: '100%', width: `${(t.v / t.t) * 100}%`,
-                                background: `linear-gradient(90deg,${t.c},${t.c}bb)`, borderRadius: 3,
-                            }} />
-                        </div>
+                        {staff.experience.map((exp, i) => {
+                            // Parse period like "2021 – Present" into start part
+                            const periodParts = exp.period.split('–').map(s => s.trim())
+                            const startLabel = periodParts[0] || ''
+
+                            return (
+                                <div key={i} className="relative flex gap-0 mb-8 last:mb-0">
+                                    {/* Left: Date label */}
+                                    <div className="w-[44px] shrink-0 text-right pr-0">
+                                        <span className="text-xs font-medium text-rose-400 leading-tight block mt-0.5">
+                                            {startLabel}
+                                        </span>
+                                    </div>
+
+                                    {/* Center: Dot on timeline */}
+                                    <div className="w-[22px] shrink-0 flex justify-center relative z-10">
+                                        <div className="w-3 h-3 rounded-full bg-white border-[2.5px] border-rose-400 mt-1.5" />
+                                    </div>
+
+                                    {/* Right: Content */}
+                                    <div className="flex-1 min-w-0 pl-1">
+                                        <h4 className="text-sm font-bold text-slate-800 mb-1">{exp.title}</h4>
+                                        <div className="text-xs text-slate-500 mb-0.5">
+                                            Company: {exp.company}
+                                        </div>
+                                        <div className="text-xs text-slate-400 mb-2">
+                                            {exp.period}
+                                        </div>
+                                        {exp.description && (
+                                            <div className="text-xs text-slate-400 leading-relaxed border-t border-slate-100 pt-2 mt-1">
+                                                <span className="text-slate-500 font-medium">Notes:</span>{' '}
+                                                <span className="text-slate-400">{exp.description}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )
+                        })}
                     </div>
-                ))}
+                ) : (
+                    <p className="text-slate-400 text-sm">No work experience records.</p>
+                )}
+            </div>
 
-                <div style={{
-                    marginTop: 14, padding: 11, background: C.greenL, border: '1px solid #86efac',
-                    borderRadius: 8, fontSize: 11, color: C.green, fontWeight: 600, textAlign: 'center',
-                }}>
-                    ✓ Exceeds minimum 180 tasks requirement (MOE 3.9.1)
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 10 }}>
-                    {[['Start', '07 Jan 2024'], ['End', '21 Nov 2025']].map(([l, v]) => (
-                        <div key={l} style={{
-                            padding: '10px 12px', background: C.primary5, border: `1px solid ${C.primary4}`,
-                            borderRadius: 8, textAlign: 'center',
-                        }}>
-                            <div style={{ fontSize: 9, color: C.muted, letterSpacing: 1 }}>{l}</div>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: C.text, marginTop: 3 }}>{v}</div>
+            {/* Education */}
+            <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 mb-4">
+                <div className="flex items-center justify-between mb-5 pb-3.5 border-b border-slate-100">
+                    <div className="flex items-center gap-2.5 text-base font-bold text-slate-800">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-blue-50 text-blue-600">
+                            <GraduationCap className="h-4 w-4" />
                         </div>
-                    ))}
+                        Education
+                    </div>
+                    <button
+                        onClick={() => setShowEditEdu(true)}
+                        className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] border border-slate-200 bg-white text-slate-400 cursor-pointer transition-all duration-200 hover:border-slate-400 hover:text-slate-700 hover:shadow-sm"
+                        title="Edit Education"
+                    >
+                        <Pencil className="h-4 w-4" />
+                    </button>
                 </div>
-            </SectionCard>
-
-            {/* Previous Training Highlights */}
-            <SectionCard title="Previous Training Highlights" icon={<BookOpen className="h-4 w-4 text-indigo-500" />}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 500, overflowY: 'auto' }}>
-                    {highlights.map((r: TrainingHighlight, i: number) => (
-                        <div key={i} style={{
-                            display: 'flex', gap: 12, padding: '10px 12px',
-                            background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8,
-                        }}>
-                            <div style={{ width: 58, flexShrink: 0, fontSize: 10, fontFamily: 'monospace', color: C.primary, fontWeight: 600, paddingTop: 1 }}>
-                                {r.d}
+                {staff.education.length > 0 ? (
+                    staff.education.map((edu, i) => (
+                        <div key={i} className="border border-[#e8ecf1] rounded-xl py-4.5 px-5.5 mb-3 bg-[#fafbfc] transition-all duration-200 hover:border-blue-300 hover:shadow-[0_2px_8px_rgba(37,99,235,0.06)] last:mb-0">
+                            <div className="flex justify-between items-start mb-1.5">
+                                <span className="text-sm font-semibold text-slate-800">{edu.degree}</span>
+                                <span className="text-xs font-medium text-slate-500">{edu.year}</span>
                             </div>
-                            <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: 12, color: C.text, fontWeight: 500, lineHeight: 1.4 }}>{r.c}</div>
-                                <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{r.by}</div>
-                            </div>
+                            <div className="text-[13px] text-slate-600 mb-1.5">{edu.institution}</div>
+                            <div className="text-xs text-slate-400 leading-relaxed">{edu.field}</div>
                         </div>
-                    ))}
-                </div>
-            </SectionCard>
+                    ))
+                ) : (
+                    <p className="text-slate-400 text-sm">No education records.</p>
+                )}
+            </div>
+
+            {/* Edit Work Experience Modal */}
+            <EditWorkExperienceModal
+                isOpen={showEditExp}
+                onClose={() => setShowEditExp(false)}
+                staff={staff}
+                onSave={(data) => {
+                    console.log('Save work experience:', data)
+                }}
+            />
+
+            {/* Edit Education Modal */}
+            <EditEducationModal
+                isOpen={showEditEdu}
+                onClose={() => setShowEditEdu(false)}
+                staff={staff}
+                onSave={(data) => {
+                    console.log('Save education:', data)
+                }}
+            />
         </div>
-    );
+    )
 }

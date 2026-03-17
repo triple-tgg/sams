@@ -1,0 +1,308 @@
+/* ── Print Preview Styles ── */
+
+/* Overlay & Container */
+.pp-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: #525659;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.pp-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    background: #323639;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.pp-toolbar-title {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.pp-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pp-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.pp-btn-primary {
+    background: #2563eb;
+    color: #fff;
+}
+
+.pp-btn-primary:hover {
+    background: #1d4ed8;
+}
+
+.pp-btn-close {
+    background: transparent;
+    color: #94a3b8;
+    padding: 8px;
+    border-radius: 8px;
+}
+
+.pp-btn-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+/* Pages Container */
+.pp-pages-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 0;
+    gap: 32px;
+}
+
+/* Individual A4 Page */
+.pp-page {
+    width: 210mm;
+    min-height: 297mm;
+    background: #fff;
+    padding: 15mm 18mm 20mm;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+    position: relative;
+    box-sizing: border-box;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 11px;
+    color: #000;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header */
+.pp-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 4px;
+}
+
+.pp-logo {
+    height: 80px;
+    width: auto;
+}
+
+.pp-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0;
+    flex: 1;
+    text-align: center;
+    padding-right: 60px;
+    /* offset for logo */
+}
+
+/* Footer */
+.pp-footer {
+    margin-top: auto;
+    padding-top: 12px;
+    border-top: 1px solid #ccc;
+    display: flex;
+    justify-content: space-between;
+    font-size: 8px;
+    color: #666;
+}
+
+/* Tables */
+.pp-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.pp-table td,
+.pp-table th {
+    border: 1px solid #000;
+    padding: 4px 8px;
+    vertical-align: top;
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.pp-mt {
+    margin-top: 12px;
+}
+
+/* Section Title (green bg) */
+.pp-section-title {
+    background: #d2e0f7 !important;
+    font-weight: 700;
+    text-align: center;
+    font-size: 12px;
+    padding: 6px 8px !important;
+}
+
+/* Column headers */
+.pp-col-header td {
+    background: #fff;
+    font-weight: 700;
+    text-align: center;
+    font-size: 11px;
+}
+
+/* Label cell */
+.pp-label {
+    font-weight: 600;
+    white-space: nowrap;
+    width: 120px;
+    background: #fafafa;
+}
+
+/* Value cell */
+.pp-value {
+    font-weight: 400;
+}
+
+/* Centered text */
+.pp-center {
+    text-align: center;
+}
+
+/* Nowrap */
+.pp-nowrap {
+    white-space: nowrap;
+}
+
+/* Photo cell */
+.pp-photo-cell {
+    width: 100px;
+    text-align: center;
+    vertical-align: middle;
+    padding: 4px !important;
+}
+
+.pp-photo {
+    width: 90px;
+    height: 120px;
+    object-fit: cover;
+}
+
+.pp-photo-placeholder {
+    width: 90px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px dashed #999;
+    color: #999;
+    font-size: 12px;
+    margin: 0 auto;
+}
+
+/* Certification section */
+.pp-cert-text {
+    border: none !important;
+    padding: 20px 8px !important;
+}
+
+.pp-cert-text p {
+    margin: 0 0 30px;
+    font-size: 12px;
+}
+
+.pp-signature-area {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.pp-sig-row {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.pp-sig-label {
+    font-weight: 600;
+    white-space: nowrap;
+    font-size: 12px;
+}
+
+.pp-sig-value {
+    font-size: 12px;
+}
+
+.pp-sig-line {
+    flex: 1;
+    border-bottom: 1px solid #000;
+    min-width: 200px;
+    height: 40px;
+}
+
+.pp-sig-details {
+    display: flex;
+    justify-content: space-between;
+    gap: 40px;
+}
+
+.pp-sig-details>div {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+/* ── Print Styles ── */
+@media print {
+
+    /* Hide app chrome */
+    body>* {
+        display: none !important;
+    }
+
+    .pp-overlay {
+        display: block !important;
+        position: static !important;
+        background: transparent !important;
+        overflow: visible !important;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    .pp-pages-container {
+        padding: 0;
+        gap: 0;
+    }
+
+    .pp-page {
+        box-shadow: none;
+        margin: 0;
+        page-break-after: always;
+        width: 100%;
+        min-height: auto;
+    }
+
+    .pp-page:last-child {
+        page-break-after: auto;
+    }
+
+    @page {
+        size: A4 portrait;
+        margin: 10mm;
+    }
+}
