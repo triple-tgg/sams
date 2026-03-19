@@ -18,7 +18,7 @@ const SidebarNav = ({ menuList }: { menuList: Group[] }) => {
   const pathname = usePathname();
   const params = useParams<{ locale: string }>();
   const direction = getLangDir(params?.locale ?? "");
-  const activeKey = pathname?.split("/")?.[2];
+  const activeKey = config.activeMenuGroup ?? pathname?.split("/")?.[2];
   const data = menuList.find((item) => item.id === activeKey);
 
   // Render null if config.subMenu is true
@@ -34,14 +34,14 @@ const SidebarNav = ({ menuList }: { menuList: Group[] }) => {
     >
       {config.sidebarBgImage !== undefined && (
         <div
-          className=" absolute left-0 top-0  z-10 w-full h-full bg-cover bg-center opacity-[0.07]"
+          className=" absolute left-0 top-0 z-10 w-full h-full bg-cover bg-center opacity-[0.07] pointer-events-none"
           style={{ backgroundImage: `url(${config.sidebarBgImage})` }}
         ></div>
       )}
 
       <ScrollArea className="[&>div>div[style]]:block! h-full" dir={direction}>
         <div className="px-4 space-y-3 mt-6">
-          <TeamSwitcher />
+          {/* <TeamSwitcher /> */}
           <SearchBar />
         </div>
         <div className="px-4 pt-0  sticky top-0  z-20">

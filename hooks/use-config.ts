@@ -18,6 +18,7 @@ export type Config = {
   isRtl: boolean;
   subMenu: boolean;
   hasSubMenu: boolean;
+  activeMenuGroup?: string;
   sidebarColor: string;
   headerColor: string;
   sidebarBgImage?: string;
@@ -28,7 +29,7 @@ export const defaultConfig: Config = {
   "theme": "zinc",
   "skin": "default",
   "layout": "vertical",
-  "sidebar": "compact",
+  "sidebar": "two-column",
   "menuHidden": false,
   "showSearchBar": false,
   "topHeader": "default",
@@ -37,8 +38,9 @@ export const defaultConfig: Config = {
   "footer": "hidden",
   "isRtl": false,
   "showSwitcher": true,
-  "subMenu": true,
-  "hasSubMenu": false,
+  "subMenu": false,
+  "hasSubMenu": true,
+  "activeMenuGroup": undefined,
   "sidebarColor": "ocean-blue",
   "headerColor": "light",
   "radius": 0.5,

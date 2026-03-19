@@ -20,13 +20,15 @@ export function ExperienceTab({ staff }: { staff: StaffData }) {
                         </div>
                         Work Experience
                     </div>
-                    <button
-                        onClick={() => setShowEditExp(true)}
-                        className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] border border-slate-200 bg-white text-slate-400 cursor-pointer transition-all duration-200 hover:border-slate-400 hover:text-slate-700 hover:shadow-sm"
-                        title="Edit Work Experience"
-                    >
-                        <Pencil className="h-4 w-4" />
-                    </button>
+                    {staff.experience.length > 0 && (
+                        <button
+                            onClick={() => setShowEditExp(true)}
+                            className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] border border-slate-200 bg-white text-slate-400 cursor-pointer transition-all duration-200 hover:border-slate-400 hover:text-slate-700 hover:shadow-sm"
+                            title="Edit Work Experience"
+                        >
+                            <Pencil className="h-4 w-4" />
+                        </button>
+                    )}
                 </div>
                 {staff.experience.length > 0 ? (
                     <div className="relative ml-2">
@@ -73,7 +75,20 @@ export function ExperienceTab({ staff }: { staff: StaffData }) {
                         })}
                     </div>
                 ) : (
-                    <p className="text-slate-400 text-sm">No work experience records.</p>
+                    <div className="flex flex-col items-center justify-center py-10 text-center">
+                        <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center mb-4">
+                            <Briefcase className="h-7 w-7 text-amber-300" />
+                        </div>
+                        <p className="text-sm font-semibold text-slate-500 mb-1">No Work Experience</p>
+                        <p className="text-xs text-slate-400 mb-5">Work experience records have not been added yet.</p>
+                        <button
+                            onClick={() => setShowEditExp(true)}
+                            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-primary rounded-lg cursor-pointer transition-all duration-200 hover:bg-primary/80 border-none"
+                        >
+                            <Briefcase className="h-4 w-4" />
+                            Add Work Experience
+                        </button>
+                    </div>
                 )}
             </div>
 
@@ -86,13 +101,15 @@ export function ExperienceTab({ staff }: { staff: StaffData }) {
                         </div>
                         Education
                     </div>
-                    <button
-                        onClick={() => setShowEditEdu(true)}
-                        className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] border border-slate-200 bg-white text-slate-400 cursor-pointer transition-all duration-200 hover:border-slate-400 hover:text-slate-700 hover:shadow-sm"
-                        title="Edit Education"
-                    >
-                        <Pencil className="h-4 w-4" />
-                    </button>
+                    {staff.education.length > 0 && (
+                        <button
+                            onClick={() => setShowEditEdu(true)}
+                            className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] border border-slate-200 bg-white text-slate-400 cursor-pointer transition-all duration-200 hover:border-slate-400 hover:text-slate-700 hover:shadow-sm"
+                            title="Edit Education"
+                        >
+                            <Pencil className="h-4 w-4" />
+                        </button>
+                    )}
                 </div>
                 {staff.education.length > 0 ? (
                     staff.education.map((edu, i) => (
@@ -106,7 +123,20 @@ export function ExperienceTab({ staff }: { staff: StaffData }) {
                         </div>
                     ))
                 ) : (
-                    <p className="text-slate-400 text-sm">No education records.</p>
+                    <div className="flex flex-col items-center justify-center py-10 text-center">
+                        <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mb-4">
+                            <GraduationCap className="h-7 w-7 text-blue-300" />
+                        </div>
+                        <p className="text-sm font-semibold text-slate-500 mb-1">No Education Records</p>
+                        <p className="text-xs text-slate-400 mb-5">Education records have not been added yet.</p>
+                        <button
+                            onClick={() => setShowEditEdu(true)}
+                            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-primary rounded-lg cursor-pointer transition-all duration-200 hover:bg-primary/80 border-none"
+                        >
+                            <GraduationCap className="h-4 w-4" />
+                            Add Education
+                        </button>
+                    </div>
                 )}
             </div>
 

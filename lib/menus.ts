@@ -87,30 +87,23 @@ export function getMenuList(pathname: string, t: any): Group[] {
     },
 
     {
-      groupLabel: t("humanResources"),
+      groupLabel: t("QualityAssurance"),
       id: "qa",
       menus: [
         {
           id: "qa",
           href: "/qa/training",
-          label: t("HR"),
-          active: pathname.includes("/hr"),
+          label: t("QA"),
+          active: pathname.includes("/qa"),
           icon: "heroicons-outline:clipboard-document-check",
           submenus: [
             {
-              href: "/qa/training",
-              label: t("training"),
-              active: pathname.includes("/qa/training"),
-              icon: "heroicons-outline:academic-cap",
+              href: "/qa/monitoring",
+              label: t("monitoring"),
+              active: pathname.includes("/qa/monitoring"),
+              icon: "heroicons-outline:chart-bar-square",
               children: [],
             },
-            // {
-            //   href: "/hr/dashboard",
-            //   label: t("qaDashboard"),
-            //   active: pathname.includes("/hr/dashboard"),
-            //   icon: "heroicons-outline:presentation-chart-bar",
-            //   children: [],
-            // },
             {
               href: "/qa/staff",
               label: t("qaStaffList"),
@@ -118,18 +111,41 @@ export function getMenuList(pathname: string, t: any): Group[] {
               icon: "heroicons-outline:users",
               children: [],
             },
+            // {
+            //   href: "/qa/training",
+            //   label: t("training"),
+            //   active: pathname.includes("/qa/training") && !pathname.includes("/qa/training-scheduler"),
+            //   icon: "heroicons-outline:academic-cap",
+            //   children: [],
+            // },
+            {
+              href: "/qa/course-management",
+              label: t("courseManagement"),
+              active: pathname.includes("/qa/course-management"),
+              icon: "heroicons-outline:book-open",
+              children: [],
+            },
+            {
+              href: "/qa/training-scheduler",
+              label: t("trainingScheduler"),
+              active: pathname.includes("/qa/training-scheduler"),
+              icon: "heroicons-outline:calendar-days",
+              children: [],
+            },
+
+
           ],
         },
       ],
     },
 
     {
-      groupLabel: t("setting"),
-      id: "setting",
+      groupLabel: t("masterData"),
+      id: "master-data",
       menus: [
         {
           id: "master-data",
-          href: "/master-data",
+          href: "/master-data/customer-airline",
           label: t("master-data"),
           active: pathname.includes("/master-data"),
           icon: "heroicons-outline:cog-6-tooth",
@@ -183,34 +199,5 @@ export function getMenuList(pathname: string, t: any): Group[] {
   ];
 }
 export function getHorizontalMenuList(pathname: string, t: any): Group[] {
-  return [
-    {
-      groupLabel: t("dashboard"),
-      id: "dashboard",
-      menus: [
-        {
-          id: "dashboard",
-          href: "/",
-          label: t("dashboard"),
-          active: pathname.includes("/"),
-          icon: "heroicons-outline:rectangle-group",
-          submenus: [],
-        },
-      ],
-    },
-    {
-      groupLabel: t("dashboard"),
-      id: "dashboard",
-      menus: [
-        {
-          id: "dashboard",
-          href: "/",
-          label: t("dashboard"),
-          active: pathname.includes("/"),
-          icon: "heroicons-outline:rectangle-group",
-          submenus: [],
-        },
-      ],
-    },
-  ];
+  return [];
 }

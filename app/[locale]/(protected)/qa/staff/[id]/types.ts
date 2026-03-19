@@ -13,8 +13,9 @@ export interface StaffLicense {
 export interface TrainingRecord {
     course: string
     type: string
-    completedDate: string
-    expiryDate: string
+    dateFrom: string
+    dateTo: string
+    validUntil: string
     status: string
 }
 
@@ -37,7 +38,7 @@ export interface LogbookEntry {
     aircraft: string
     regNo: string
     taskType: string
-    workOrder: string
+    thfNo: string
     description: string
     hours: number
     signedOff: boolean
@@ -106,4 +107,4 @@ export interface StaffData {
     previousEmployment?: PreviousEmployment[]
 }
 
-export type TabName = 'Profile' | 'Training & License' | 'Experience' | 'Logbook Records'
+export type TabName = 'Profile' | 'Training' | 'Experience' | 'Logbook Records'
