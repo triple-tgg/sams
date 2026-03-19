@@ -125,13 +125,13 @@ export function getMenuList(pathname: string, t: any): Group[] {
               icon: "heroicons-outline:book-open",
               children: [],
             },
-            {
-              href: "/qa/training-scheduler",
-              label: t("trainingScheduler"),
-              active: pathname.includes("/qa/training-scheduler"),
-              icon: "heroicons-outline:calendar-days",
-              children: [],
-            },
+            // {
+            //   href: "/qa/training-scheduler",
+            //   label: t("trainingScheduler"),
+            //   active: pathname.includes("/qa/training-scheduler"),
+            //   icon: "heroicons-outline:calendar-days",
+            //   children: [],
+            // },
 
 
           ],
