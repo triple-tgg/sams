@@ -1,10 +1,12 @@
 "use client";
 import React from "react";
 import { useConfig } from "@/hooks/use-config";
+import { useSidebarHasSubmenu } from "@/hooks/use-sidebar-submenu";
 import { cn } from "@/lib/utils";
 
 const HeaderContent = ({ children }: { children: React.ReactNode }) => {
   const [config] = useConfig();
+  const showSubmenuPanel = useSidebarHasSubmenu();
 
   if (config.sidebar === "two-column") {
     return (
@@ -17,7 +19,7 @@ const HeaderContent = ({ children }: { children: React.ReactNode }) => {
           className={cn(
             "flex-none   bg-header backdrop-blur-lg md:px-6 px-[15px] py-3    xl:ms-[300px] flex items-center justify-between  relative",
             {
-              "xl:ms-[72px]": config.subMenu || !config.hasSubMenu,
+              "xl:ms-[72px]": !showSubmenuPanel,
               "border-b":
                 config.skin === "bordered" && config.layout !== "semi-box",
               "xl:ms-0": config.menuHidden || config.layout === "horizontal",

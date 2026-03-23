@@ -21,8 +21,17 @@ const SidebarNav = ({ menuList }: { menuList: Group[] }) => {
   const activeKey = config.activeMenuGroup ?? pathname?.split("/")?.[2];
   const data = menuList.find((item) => item.id === activeKey);
 
-  // Render null if config.subMenu is true
-  if (config.subMenu || !config.hasSubMenu) {
+  // Check if the current page actually belongs to the found menu group
+  const currentPageBelongsToGroup = data?.menus.some((menu) => {
+    // Check top-level menu href
+    if (pathname?.includes(menu.href)) return true;
+    // Check submenu hrefs
+    return menu.submenus?.some((sub) => pathname?.includes(sub.href));
+  });
+
+  // Render null if config.subMenu is true, hasSubMenu is false, no matching menu group found,
+  // or the current page doesn't belong to the matched group
+  if (config.subMenu || !config.hasSubMenu || !data || !currentPageBelongsToGroup) {
     return null;
   }
 

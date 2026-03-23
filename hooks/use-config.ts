@@ -2,6 +2,9 @@ import { useAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { layoutType, sidebarType, navBarType } from "@/lib/type";
 
+// Increment this version when defaultConfig changes to auto-reset localStorage
+const CONFIG_VERSION = 3;
+
 export type Config = {
   collapsed: boolean;
   theme: string;
@@ -47,8 +50,18 @@ export const defaultConfig: Config = {
   "sidebarBgImage": "/images/all-img/img-2.jpeg"
 }
 
+// Check config version and reset if outdated
+if (typeof window !== "undefined") {
+  const storedVersion = localStorage.getItem("config-version");
+  if (storedVersion !== String(CONFIG_VERSION)) {
+    localStorage.removeItem("config");
+    localStorage.setItem("config-version", String(CONFIG_VERSION));
+  }
+}
+
 const configAtom = atomWithStorage<Config>("config", defaultConfig);
 
 export function useConfig() {
   return useAtom(configAtom);
 }
+

@@ -1,15 +1,17 @@
 'use client'
 import { useConfig } from '@/hooks/use-config'
+import { useSidebarHasSubmenu } from '@/hooks/use-sidebar-submenu'
 import React from 'react'
 import { cn } from "@/lib/utils"
 
 const LayoutContentProvider = ({ children }: { children: React.ReactNode }) => {
     const [config, setConfig] = useConfig();
+    const showSubmenuPanel = useSidebarHasSubmenu();
 
     if (config.sidebar === 'two-column') {
         return (
             <main className={cn('flex-1 xl:ms-[300px]  ', {
-                'xl:ms-[72px]': config.subMenu || !config.hasSubMenu,
+                'xl:ms-[72px]': !showSubmenuPanel,
                 'bg-default-100 dark:bg-background': config.skin === 'default',
                 'bg-transparent': config.skin === 'bordered',
                 'xl:ms-0': config.menuHidden || config.layout === "horizontal",
