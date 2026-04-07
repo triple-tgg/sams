@@ -32,7 +32,7 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
             <div className="px-5 pt-5 pb-4 border-b border-border">
                 <div className="flex items-start justify-between gap-2 mb-3">
                     <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs px-2 py-0.5 rounded font-mono font-medium"
+                        <span className="text-xs px-2 py-0.5 rounded font-medium"
                             style={{ background: cc.light, color: cc.text }}>{s.courseCode}</span>
                         <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${cfg.bg} ${cfg.text} ${cfg.border}`}>
                             <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 ${cfg.dot}`} />

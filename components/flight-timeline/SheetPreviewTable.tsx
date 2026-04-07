@@ -526,7 +526,7 @@ export function SheetPreviewTable({
                                         )}
                                     >
                                         {showRowNumbers && (
-                                            <td className="p-3 text-center text-muted-foreground font-mono text-xs bg-card">
+                                            <td className="p-3 text-center text-muted-foreground text-xs bg-card">
                                                 {rowIndex + 1}
                                             </td>
                                         )}

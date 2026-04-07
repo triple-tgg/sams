@@ -156,7 +156,7 @@ export function EditLicenseModal({ isOpen, onClose, staff, onSave }: EditLicense
                                 value={form.number}
                                 onChange={e => updateField('number', e.target.value)}
                                 placeholder="e.g. TCAR-66.B1.1-XXXX"
-                                className={`${inputClass} font-mono`}
+                                className={`${inputClass}`}
                             />
                         </div>
 

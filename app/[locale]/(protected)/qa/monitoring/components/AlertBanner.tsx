@@ -1,15 +1,18 @@
 'use client'
 
-import { useMemo } from 'react'
-import { AlertTriangle } from 'lucide-react'
-import { Employee, CourseRef, AlertItem, getStatus, getDaysLeft } from '../types'
+import { useMemo, useState } from 'react'
+import { AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react'
+import { CourseRef, AlertItem, getStatus, getDaysLeft } from '../types'
 import { ALL_COURSES, EMPLOYEES } from '../data'
 
 interface AlertBannerProps {
     onSelect: (empId: string) => void
+    maxVisible?: number
 }
 
-export function AlertBanner({ onSelect }: AlertBannerProps) {
+export function AlertBanner({ onSelect, maxVisible = 8 }: AlertBannerProps) {
+    const [expanded, setExpanded] = useState(false)
+
     const alerts = useMemo<AlertItem[]>(() => {
         const list: AlertItem[] = []
         EMPLOYEES.forEach(emp => {
@@ -26,6 +29,9 @@ export function AlertBanner({ onSelect }: AlertBannerProps) {
 
     if (alerts.length === 0) return null
 
+    const hasMore = alerts.length > maxVisible
+    const visible = expanded ? alerts : alerts.slice(0, maxVisible)
+
     return (
         <div className="mb-4">
             <div className="flex items-center gap-1.5 mb-2">
@@ -35,7 +41,7 @@ export function AlertBanner({ onSelect }: AlertBannerProps) {
                 </span>
             </div>
             <div className="flex gap-1.5 flex-wrap">
-                {alerts.map((a, i) => {
+                {visible.map((a, i) => {
                     const isExp = a.status === 'expired'
                     return (
                         <button key={i} onClick={() => onSelect(a.emp.id)}
@@ -52,6 +58,19 @@ export function AlertBanner({ onSelect }: AlertBannerProps) {
                         </button>
                     )
                 })}
+
+                {hasMore && (
+                    <button
+                        onClick={() => setExpanded(v => !v)}
+                        className="flex items-center gap-1 px-3 py-1 rounded-lg border border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-border/80 cursor-pointer transition-colors bg-card"
+                    >
+                        {expanded ? (
+                            <>Show Less <ChevronUp className="w-3 h-3" /></>
+                        ) : (
+                            <>+{alerts.length - maxVisible} more <ChevronDown className="w-3 h-3" /></>
+                        )}
+                    </button>
+                )}
             </div>
         </div>
     )

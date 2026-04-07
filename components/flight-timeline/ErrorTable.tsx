@@ -80,7 +80,7 @@ export function ErrorTable({
                                     key={index}
                                     className="bg-red-50/50 dark:bg-red-950/10 hover:bg-red-100/50 dark:hover:bg-red-950/20"
                                 >
-                                    <TableCell className="text-center font-mono text-xs text-muted-foreground">
+                                    <TableCell className="text-center text-xs text-muted-foreground">
                                         {row.originalIndex}
                                     </TableCell>
                                     {headers.map((header, colIndex) => {

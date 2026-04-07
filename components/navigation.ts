@@ -1,5 +1,1 @@
-import {createNavigation} from 'next-intl/navigation';
-import {locales} from '@/config';
- 
-export const {Link, redirect, usePathname, useRouter} =
-  createNavigation({locales,});
+export { Link, redirect, usePathname, useRouter } from '@/i18n/routing';

@@ -85,7 +85,7 @@ function SessionCard({ session: s, onSelect, isSelected }: { session: Session; o
                     {/* Course info */}
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                            <span className="text-xs px-1.5 py-0.5 rounded font-mono font-medium"
+                            <span className="text-xs px-1.5 py-0.5 rounded font-medium"
                                 style={{ background: cc.light, color: cc.text }}>{s.courseCode}</span>
                             <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${cfg.bg} ${cfg.text} ${cfg.border}`}>
                                 <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 ${cfg.dot}`} />

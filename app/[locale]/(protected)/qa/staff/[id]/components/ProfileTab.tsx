@@ -14,7 +14,7 @@ function InfoRow({ label, value, mono }: { label: string; value: string; mono?: 
     return (
         <div className="flex flex-col gap-1">
             <span className="text-xs font-medium text-slate-400 tracking-wide">{label}</span>
-            <span className={`text-sm font-medium text-slate-800 ${mono ? 'font-mono' : ''}`}>{value}</span>
+            <span className={`text-sm font-medium text-slate-800 ${mono ? '' : ''}`}>{value}</span>
         </div>
     )
 }
@@ -144,7 +144,7 @@ export function ProfileTab({ staff }: { staff: StaffData }) {
                                     </div>
                                     <div>
                                         <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-0.5">License Number</div>
-                                        <div className="font-mono text-base font-bold text-blue-800 tracking-wider">{staff.license.number}</div>
+                                        <div className="text-base font-bold text-blue-800 tracking-wider">{staff.license.number}</div>
                                     </div>
                                 </div>
 
@@ -156,7 +156,7 @@ export function ProfileTab({ staff }: { staff: StaffData }) {
                                     </div>
                                     <div className="flex flex-col gap-1">
                                         <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Validity</span>
-                                        <span className="text-sm font-semibold text-slate-800 font-mono">
+                                        <span className="text-sm font-semibold text-slate-800">
                                             {formatDate(staff.license.issuedDate)} — {formatDate(staff.license.expiryDate)}
                                         </span>
                                     </div>

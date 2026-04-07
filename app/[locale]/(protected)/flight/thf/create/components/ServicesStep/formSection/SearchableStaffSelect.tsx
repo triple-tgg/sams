@@ -152,7 +152,7 @@ const SearchableStaffSelect: React.FC<{
                 >
                   <div className="font-medium text-sm text-gray-900">{option.staff.name}</div>
                   <div className="text-xs text-gray-500">
-                    Code: <span className="font-mono">{option.staff.code}</span> |
+                    Code: <span className="">{option.staff.code}</span> |
                     Position: <span className="font-semibold">{option.staff.position.code}</span>
                   </div>
                 </div>

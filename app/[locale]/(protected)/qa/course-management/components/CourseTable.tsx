@@ -56,7 +56,7 @@ export function CourseTable({
                         >
                             <div className="col-span-1 text-sm text-muted-foreground">{course.id}</div>
                             <div className="col-span-1">
-                                <span className="text-xs font-medium text-muted-foreground font-mono">{course.code}</span>
+                                <span className="text-xs font-medium text-muted-foreground">{course.code}</span>
                             </div>
                             <div className="col-span-6 text-sm text-foreground leading-snug pr-2">{course.name}</div>
                             <div className="col-span-2">

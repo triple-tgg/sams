@@ -18,7 +18,7 @@ export function CourseDetailPanel({ course, onClose, onViewMatrix }: CourseDetai
             {/* Header */}
             <div className="flex items-start justify-between">
                 <div className="min-w-0">
-                    <span className="text-xs font-medium text-muted-foreground font-mono">{course.code}</span>
+                    <span className="text-xs font-medium text-muted-foreground">{course.code}</span>
                     <h3 className="text-sm font-semibold text-foreground mt-0.5 leading-snug">{course.name}</h3>
                 </div>
                 <button
@@ -53,7 +53,7 @@ export function CourseDetailPanel({ course, onClose, onViewMatrix }: CourseDetai
                     </DetailRow>
                 )}
                 <DetailRow label="Course ID">
-                    <span className="text-xs font-medium text-muted-foreground font-mono">#{course.id}</span>
+                    <span className="text-xs font-medium text-muted-foreground">#{course.id}</span>
                 </DetailRow>
             </div>
 

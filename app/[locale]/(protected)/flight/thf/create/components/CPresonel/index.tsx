@@ -351,7 +351,7 @@ export const StaffSearchSelect = ({
                                                     <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                                                         {staff.name}
                                                     </div>
-                                                    <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+                                                    <div className="text-xs text-gray-500 dark:text-gray-400">
                                                         {staff.code}
                                                     </div>
                                                 </div>
@@ -395,7 +395,7 @@ export const StaffSearchSelect = ({
 
                             {/* Staff Info */}
                             <div className="flex-1 min-w-0 flex items-center gap-2">
-                                <span className="text-xs font-mono text-gray-500 dark:text-gray-400 shrink-0">
+                                <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">
                                     {staff.code}
                                 </span>
                                 <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">

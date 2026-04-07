@@ -166,7 +166,7 @@ const AirlineFormDialog = ({
                                     value={colorForeground}
                                     onChange={(e) => setColorForeground(e.target.value)}
                                     disabled={isViewMode || isPending}
-                                    className="flex-1 font-mono text-sm"
+                                    className="flex-1 text-sm"
                                     maxLength={7}
                                 />
                             </div>
@@ -186,7 +186,7 @@ const AirlineFormDialog = ({
                                     value={colorBackground}
                                     onChange={(e) => setColorBackground(e.target.value)}
                                     disabled={isViewMode || isPending}
-                                    className="flex-1 font-mono text-sm"
+                                    className="flex-1 text-sm"
                                     maxLength={7}
                                 />
                             </div>

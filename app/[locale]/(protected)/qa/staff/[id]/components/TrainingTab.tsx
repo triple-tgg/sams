@@ -210,7 +210,7 @@ function TrainingDetailModal({ record, onClose }: { record: CurrentTrainingRecor
                             </div>
                             <div>
                                 <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-0.5">From</span>
-                                <span className="text-sm font-medium text-slate-800 font-mono">{record.dateFrom}</span>
+                                <span className="text-sm font-medium text-slate-800">{record.dateFrom}</span>
                             </div>
                         </div>
                         <div className="bg-slate-50 rounded-xl p-4 flex items-start gap-3">
@@ -219,7 +219,7 @@ function TrainingDetailModal({ record, onClose }: { record: CurrentTrainingRecor
                             </div>
                             <div>
                                 <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-0.5">To</span>
-                                <span className="text-sm font-medium text-slate-800 font-mono">{record.dateTo}</span>
+                                <span className="text-sm font-medium text-slate-800">{record.dateTo}</span>
                             </div>
                         </div>
                         <div className="bg-slate-50 rounded-xl p-4 flex items-start gap-3">
@@ -228,7 +228,7 @@ function TrainingDetailModal({ record, onClose }: { record: CurrentTrainingRecor
                             </div>
                             <div>
                                 <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-0.5">Valid Until</span>
-                                <span className="text-sm font-medium text-slate-800 font-mono">{record.validUntil || 'Never'}</span>
+                                <span className="text-sm font-medium text-slate-800">{record.validUntil || 'Never'}</span>
                             </div>
                         </div>
                         <div className="bg-slate-50 rounded-xl p-4 flex items-start gap-3">
@@ -360,7 +360,7 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
                                         return (
                                             <tr key={i} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => setSelectedTraining(t)}>
                                                 <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700 font-medium">{t.course}</td>
-                                                <td className="text-xs py-3 px-3.5 border-b border-slate-100 text-slate-700 font-mono whitespace-nowrap">{t.validUntil || '—'}</td>
+                                                <td className="text-xs py-3 px-3.5 border-b border-slate-100 text-slate-700 whitespace-nowrap">{t.validUntil || '—'}</td>
                                                 <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-500">{t.provider}</td>
                                                 <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700">
                                                     <StatusBadge status={status} />

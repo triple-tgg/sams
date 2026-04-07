@@ -38,7 +38,7 @@ export function AddCourseModal({ onClose }: AddCourseModalProps) {
                         <div>
                             <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Course Code</label>
                             <input
-                                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary"
+                                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary"
                                 placeholder="e.g. CRS-017"
                                 value={form.code}
                                 onChange={e => setForm({ ...form, code: e.target.value })}

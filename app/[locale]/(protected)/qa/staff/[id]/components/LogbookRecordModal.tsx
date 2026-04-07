@@ -245,7 +245,7 @@ export function LogbookRecordModal({ staff, defect, logEntry, onClose }: Logbook
                         <div>
                             <span className="text-base font-bold text-slate-800 block">Maintenance Experiences Logbook Record</span>
                             <div className="flex items-center gap-2 mt-0.5">
-                                <span className="text-[11px] font-semibold text-slate-400 font-mono">{logEntry.thfNo}</span>
+                                <span className="text-[11px] font-semibold text-slate-400">{logEntry.thfNo}</span>
                                 <span className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-600">{defect.ata}</span>
                             </div>
                         </div>

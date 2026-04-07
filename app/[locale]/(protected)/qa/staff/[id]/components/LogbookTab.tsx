@@ -92,7 +92,7 @@ export function LogbookTab({ staff }: { staff: StaffData }) {
                     </div>
                     <div className="flex flex-col gap-1">
                         <span className="text-xs font-medium text-slate-400 tracking-wide">Total Hours</span>
-                        <span className="text-sm font-medium text-slate-800 font-mono">{totalHours.toFixed(1)} hrs</span>
+                        <span className="text-sm font-medium text-slate-800">{totalHours.toFixed(1)} hrs</span>
                     </div>
                     <div className="flex flex-col gap-1">
                         <span className="text-xs font-medium text-slate-400 tracking-wide">Pending Sign-off</span>
@@ -148,7 +148,7 @@ export function LogbookTab({ staff }: { staff: StaffData }) {
                                                         {log.taskType}
                                                     </span>
                                                 </div>
-                                                <span className="inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-md bg-orange-100 text-orange-700 font-mono">
+                                                <span className="inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-md bg-orange-100 text-orange-700">
                                                     {log.thfNo}
                                                 </span>
                                             </div>
@@ -235,7 +235,7 @@ export function LogbookTab({ staff }: { staff: StaffData }) {
                         <tbody>
                             {staff.logbook.map((log, i) => (
                                 <tr key={i} className="hover:bg-slate-50 transition-colors">
-                                    <td className="text-xs py-3 px-3.5 border-b border-slate-100 text-slate-700 font-mono whitespace-nowrap">
+                                    <td className="text-xs py-3 px-3.5 border-b border-slate-100 text-slate-700 whitespace-nowrap">
                                         {formatDate(log.date)}
                                     </td>
                                     <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700 font-medium whitespace-nowrap">
@@ -251,13 +251,13 @@ export function LogbookTab({ staff }: { staff: StaffData }) {
                                             {log.taskType}
                                         </span>
                                     </td>
-                                    <td className="text-xs py-3 px-3.5 border-b border-slate-100 text-slate-700 font-mono">
+                                    <td className="text-xs py-3 px-3.5 border-b border-slate-100 text-slate-700">
                                         {log.thfNo}
                                     </td>
                                     <td className="text-xs py-3 px-3.5 border-b border-slate-100 text-slate-600 max-w-[280px]">
                                         {log.description}
                                     </td>
-                                    <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-center font-mono font-semibold">
+                                    <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-center font-semibold">
                                         {log.hours.toFixed(1)}
                                     </td>
                                     <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-center">

@@ -1,23 +1,33 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Search } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
+import { Search, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Employee, CourseRef, getStatus, STATUS_META } from '../types'
+import { CourseRef, getStatus, STATUS_META, SortField, SortDir } from '../types'
 import { EMPLOYEES, MANDATORY, TYPE_COURSES, ALL_COURSES } from '../data'
 import { AlertBanner } from '../components/AlertBanner'
 import { StatusMatrix } from '../components/StatusMatrix'
-import { EmployeeDetail } from '../components/EmployeeDetail'
+import { EmployeeDetailDrawer } from '../components/EmployeeDetailDrawer'
 
 const POS_FILTERS = ['All', 'CS', 'AM', 'MGR/QA'] as const
 const STATUS_FILTERS = ['All', 'expired', 'warning', 'valid'] as const
 
 export default function TrainingRecordsPage() {
+    const searchParams = useSearchParams()
+    const courseFilter = searchParams.get('course')
+
     const [search, setSearch] = useState('')
     const [posFilter, setPosFilter] = useState('All')
     const [statusFilter, setStatusFilter] = useState('All')
-    const [tab, setTab] = useState<'mandatory' | 'type'>('mandatory')
+    const [tab, setTab] = useState<'mandatory' | 'type'>(() => {
+        // Auto-select tab based on course query param
+        if (courseFilter && TYPE_COURSES.some(c => c.id === courseFilter)) return 'type'
+        return 'mandatory'
+    })
     const [selectedId, setSelectedId] = useState<string | null>(null)
+    const [sortField, setSortField] = useState<SortField>('no')
+    const [sortDir, setSortDir] = useState<SortDir>('asc')
 
     const courses = tab === 'mandatory' ? MANDATORY : TYPE_COURSES
 
@@ -51,7 +61,49 @@ export default function TrainingRecordsPage() {
         })
     }, [search, posFilter, statusFilter, courses])
 
+    // Sorted employees
+    const sorted = useMemo(() => {
+        const list = [...filtered]
+        list.sort((a, b) => {
+            let cmp = 0
+            switch (sortField) {
+                case 'name': cmp = a.name.localeCompare(b.name); break
+                case 'id': cmp = a.id.localeCompare(b.id); break
+                case 'pos': cmp = a.pos.localeCompare(b.pos); break
+                case 'score': {
+                    const scoreOf = (emp: typeof a) => {
+                        const statuses = courses.map(c => getStatus(emp.courses[c.id]))
+                        const applicable = statuses.filter(s => s !== 'na' && s !== 'missing')
+                        const validCount = applicable.filter(s => s === 'valid').length
+                        return applicable.length > 0 ? validCount / applicable.length : 0
+                    }
+                    cmp = scoreOf(a) - scoreOf(b)
+                    break
+                }
+                default: cmp = a.no - b.no
+            }
+            return sortDir === 'desc' ? -cmp : cmp
+        })
+        return list
+    }, [filtered, sortField, sortDir, courses])
+
     const selEmp = selectedId ? EMPLOYEES.find(e => e.id === selectedId) || null : null
+
+    const handleSort = (field: SortField) => {
+        if (sortField === field) {
+            setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+        } else {
+            setSortField(field)
+            setSortDir('asc')
+        }
+    }
+
+    const SortIcon = ({ field }: { field: SortField }) => {
+        if (sortField !== field) return <ChevronsUpDown className="w-3 h-3 text-muted-foreground/40" />
+        return sortDir === 'asc'
+            ? <ChevronUp className="w-3 h-3 text-primary" />
+            : <ChevronDown className="w-3 h-3 text-primary" />
+    }
 
     return (
         <div>
@@ -99,7 +151,7 @@ export default function TrainingRecordsPage() {
                         </div>
                         <div className="flex items-center gap-1 ml-auto">
                             {STATUS_FILTERS.map(s => {
-                                const m = STATUS_META[s] || {}
+                                const m = STATUS_META[s as keyof typeof STATUS_META] || {}
                                 return (
                                     <button key={s} onClick={() => setStatusFilter(s)}
                                         className={`px-3 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer transition-all ${
@@ -135,16 +187,15 @@ export default function TrainingRecordsPage() {
                     {/* Matrix */}
                     <div className="bg-card rounded-b-xl rounded-tr-xl border border-border overflow-hidden -mt-[1px] relative z-[1]">
                         <StatusMatrix
-                            employees={filtered}
+                            employees={sorted}
                             courses={courses}
                             selectedId={selectedId}
                             onSelect={setSelectedId}
+                            sortField={sortField}
+                            sortDir={sortDir}
+                            onSort={handleSort}
+                            SortIcon={SortIcon}
                         />
-
-                        {/* Detail panel */}
-                        {selEmp && (
-                            <EmployeeDetail employee={selEmp} onClose={() => setSelectedId(null)} />
-                        )}
                     </div>
 
                     {/* Legend */}
@@ -157,11 +208,17 @@ export default function TrainingRecordsPage() {
                             </div>
                         ))}
                         <span className="ml-auto text-[10px] text-muted-foreground">
-                            Showing {filtered.length} of {EMPLOYEES.length} staff · Click row to expand
+                            Showing {sorted.length} of {EMPLOYEES.length} staff · Click row to expand
                         </span>
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Employee Detail Drawer */}
+            <EmployeeDetailDrawer
+                employee={selEmp}
+                onClose={() => setSelectedId(null)}
+            />
         </div>
     )
 }
