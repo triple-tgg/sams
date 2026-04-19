@@ -49,14 +49,16 @@ const TooltipContent = React.forwardRef<
   ToolTipProps
 >(
   ({ className, sideOffset = 4, color, children, ...props }, ref) => (
-    <TooltipPrimitive.Content
-      ref={ref}
-      sideOffset={sideOffset}
-      className={cn(tooltipVariants({ color }), className, {})}
-      {...props}
-    >
-      {children}
-    </TooltipPrimitive.Content>
+    <TooltipPrimitive.Portal>
+      <TooltipPrimitive.Content
+        ref={ref}
+        sideOffset={sideOffset}
+        className={cn(tooltipVariants({ color }), className, {})}
+        {...props}
+      >
+        {children}
+      </TooltipPrimitive.Content>
+    </TooltipPrimitive.Portal>
   )
 );
 TooltipContent.displayName = TooltipPrimitive.Content.displayName;

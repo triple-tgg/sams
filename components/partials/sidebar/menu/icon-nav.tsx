@@ -91,7 +91,9 @@ const IconNav = ({ menuList }: IconNavProps) => {
                                   subMenu: false,
                                   activeMenuGroup: groupId,
                                 }));
-                                router.push(href);
+                                if (!active) {
+                                  router.push(href);
+                                }
                               }}
                               size="icon"
                               color="secondary"

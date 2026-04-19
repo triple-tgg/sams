@@ -162,67 +162,69 @@ export function CollapseMenuButton({
         <Collapsible
             open={isCollapsed}
             onOpenChange={setIsCollapsed} >
-            <CollapsibleTrigger
-                className=""
-                asChild >
-                <div className='peer flex items-center group [&[data-state=open]>button>div>div>svg]:rotate-180' >
-                    <Button
-                        style={style}
-                        ref={setNodeRef}
-                        variant={active ? "default" : "ghost"}
-                        color='secondary'
-                        className={cn('justify-start capitalize group  h-auto py-3 md:px-3 px-3   ring-offset-sidebar group-data-[state=open]:bg-secondary hover:ring-transparent', {
-                            'md:hover:ps-8': config.sidebar === 'draggable' && isDesktop
-                        })}
-                        fullWidth
-                    >
-                        <div className="w-full items-center flex justify-between">
-
-                            <div className="flex items-center">
-                                {config.sidebar === 'draggable' && isDesktop && (
-                                    <GripVertical
-
-                                        {...attributes} {...listeners} className={cn('inset-t-0 absolute me-1 h-5 w-5 ltr:-translate-x-6 rtl:translate-x-6 invisible opacity-0 group-hover:opacity-100 transition-all group-hover:visible group-hover:ltr:-translate-x-5 group-hover:rtl:translate-x-5 ', {
-
-                                        })} />
-                                )}
-                                <span className="me-4">
-                                    <Icon icon={icon} className="h-5 w-5" />
-                                </span>
-                                <p
+            <CollapsibleTrigger asChild>
+                <Button
+                    style={style}
+                    ref={setNodeRef}
+                    variant={active ? "default" : "ghost"}
+                    color="secondary"
+                    className={cn(
+                        "justify-start capitalize peer group h-auto py-3 md:px-3 px-3 ring-offset-sidebar group-data-[state=open]:bg-secondary hover:ring-transparent [&[data-state=open]>div>div>svg]:rotate-180",
+                        {
+                            "md:hover:ps-8": config.sidebar === "draggable" && isDesktop,
+                        }
+                    )}
+                    fullWidth
+                >
+                    <div className="w-full items-center flex justify-between">
+                        <div className="flex items-center">
+                            {config.sidebar === "draggable" && isDesktop && (
+                                <GripVertical
+                                    {...attributes}
+                                    {...listeners}
                                     className={cn(
-                                        "max-w-[150px] truncate",
-                                        !collapsed || hovered
-                                            ? "translate-x-0 opacity-100"
-                                            : "-translate-x-96 opacity-0"
+                                        "inset-t-0 absolute me-1 h-5 w-5 ltr:-translate-x-6 rtl:translate-x-6 invisible opacity-0 group-hover:opacity-100 transition-all group-hover:visible group-hover:ltr:-translate-x-5 group-hover:rtl:translate-x-5",
+                                        {}
                                     )}
-                                >
-                                    {label}
-                                </p>
-                            </div>
-                            <div
+                                />
+                            )}
+                            <span className="me-4">
+                                <Icon icon={icon} className="h-5 w-5" />
+                            </span>
+                            <p
                                 className={cn(
-                                    "whitespace-nowrap inline-flex items-center justify-center rounded-full h-5 w-5 bg-menu-arrow text-menu-menu-foreground  group-hover:bg-menu-arrow-active transition-all duration-300 ",
+                                    "max-w-[150px] truncate",
                                     !collapsed || hovered
                                         ? "translate-x-0 opacity-100"
-                                        : "-translate-x-96 opacity-0", {
-                                    'bg-menu-arrow-active': active
-                                }
+                                        : "-translate-x-96 opacity-0"
                                 )}
                             >
-                                <ChevronDown
-                                    size={16}
-                                    className="transition-transform duration-200"
-                                />
-                            </div>
+                                {label}
+                            </p>
                         </div>
-                    </Button>
-                </div>
+                        <div
+                            className={cn(
+                                "whitespace-nowrap inline-flex items-center justify-center rounded-full h-5 w-5 bg-menu-arrow text-menu-menu-foreground group-hover:bg-menu-arrow-active transition-all duration-300",
+                                !collapsed || hovered
+                                    ? "translate-x-0 opacity-100"
+                                    : "-translate-x-96 opacity-0",
+                                {
+                                    "bg-menu-arrow-active": active,
+                                }
+                            )}
+                        >
+                            <ChevronDown
+                                size={16}
+                                className="transition-transform duration-200"
+                            />
+                        </div>
+                    </div>
+                </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
                 {submenus.map(({ href, label, active, children: subChildren }, index) => (
 
-                    subChildren?.length === 0 ? (
+                    !subChildren || subChildren.length === 0 ? (
                         <Button
                             onClick={() => setMobileMenuConfig({ ...mobileMenuConfig, isOpen: false })}
                             key={index}
@@ -305,7 +307,7 @@ export function CollapseMenuButton({
 
 
                     {submenus.map(({ href, label, icon, active, children }, index) => (
-                        children?.length === 0 ? (
+                        !children || children.length === 0 ? (
                             <DropdownMenuItem key={index} asChild className={cn('focus:bg-secondary', {
                                 'bg-secondary text-secondary-foreground ': active
                             })}>

@@ -40,52 +40,42 @@ export function MultiCollapseMenuButton({
             onOpenChange={setIsCollapsed}
             className="w-full mb-2 last:mb-0 "
         >
-            <CollapsibleTrigger
-                asChild
-            >
-                <div className=' flex items-center group [&[data-state=open]>button>div>div>svg]:rotate-180 first:mt-3 ' >
-
-                    <Button
-                        color='secondary'
-                        variant="ghost"
-                        className="w-full justify-start h-auto hover:bg-transparent hover:ring-offset-0 capitalize text-sm font-normal   md:px-5 px-5 "
-                        fullWidth
-                    >
-                        <div className="w-full items-center flex justify-between">
-                            <div className="flex items-center">
-                                <span
-                                    className={cn(
-                                        "h-1.5 w-1.5 me-3 rounded-full  transition-all duration-150 ring-1 ring-secondary-foreground",
-                                        {
-                                            "ring-4 bg-default ring-default/30": active,
-
-                                        }
-                                    )}
-                                ></span>
-                                <p
-                                    className={cn(
-                                        "max-w-[150px] truncate",
-                                    )}
-                                >
-                                    {label}
-                                </p>
-                            </div>
-                            <div
+            <CollapsibleTrigger asChild>
+                <Button
+                    color="secondary"
+                    variant="ghost"
+                    className="w-full justify-start h-auto hover:bg-transparent hover:ring-offset-0 capitalize text-sm font-normal md:px-5 px-5 group [&[data-state=open]>div>div>svg]:rotate-180 first:mt-3"
+                    fullWidth
+                >
+                    <div className="w-full items-center flex justify-between">
+                        <div className="flex items-center">
+                            <span
                                 className={cn(
-                                    "whitespace-nowrap inline-flex items-center justify-center rounded-full h-5 w-5 bg-menu-arrow text-menu-menu-foreground  group-hover:bg-menu-arrow-active transition-all duration-300 ",
+                                    "h-1.5 w-1.5 me-3 rounded-full transition-all duration-150 ring-1 ring-secondary-foreground",
                                     {
-                                        'bg-menu-arrow-active': active
+                                        "ring-4 bg-default ring-default/30": active,
                                     }
                                 )}
-                            >
-                                <ChevronDown
-                                    size={16}
-                                    className="transition-transform duration-200"
-                                />
-                            </div>
+                            ></span>
+                            <p className={cn("max-w-[150px] truncate")}>
+                                {label}
+                            </p>
                         </div>
-                    </Button>
-                </div>
+                        <div
+                            className={cn(
+                                "whitespace-nowrap inline-flex items-center justify-center rounded-full h-5 w-5 bg-menu-arrow text-menu-menu-foreground group-hover:bg-menu-arrow-active transition-all duration-300",
+                                {
+                                    "bg-menu-arrow-active": active,
+                                }
+                            )}
+                        >
+                            <ChevronDown
+                                size={16}
+                                className="transition-transform duration-200"
+                            />
+                        </div>
+                    </div>
+                </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
                 {safeSubmenus.map(({ href, label, active }, index) => (

@@ -25,8 +25,12 @@ const SidebarNav = ({ menuList }: { menuList: Group[] }) => {
   const currentPageBelongsToGroup = data?.menus.some((menu) => {
     // Check top-level menu href
     if (pathname?.includes(menu.href)) return true;
-    // Check submenu hrefs
-    return menu.submenus?.some((sub) => pathname?.includes(sub.href));
+    // Check submenu hrefs and their children
+    return menu.submenus?.some((sub) => {
+      if (pathname?.includes(sub.href)) return true;
+      // Check nested children hrefs
+      return sub.children?.some((child) => pathname?.includes(child.href));
+    });
   });
 
   // Determine if the submenu panel should be visible

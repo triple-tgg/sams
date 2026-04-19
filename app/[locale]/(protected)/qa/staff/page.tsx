@@ -1,5 +1,5 @@
 'use client'
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -8,55 +8,97 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
-    ChevronLeft, ChevronRight, Plus, MoreHorizontal, Eye, Search, Users, Upload,
+    ChevronLeft, ChevronRight, Plus, MoreHorizontal, Eye, Search, Users, Upload, RefreshCw, AlertCircle,
 } from 'lucide-react'
+import { useQAStaffList } from '@/lib/api/hooks/useQAStaffManagement'
+import type { QAStaffItem } from '@/lib/api/qa/staff-management'
 import './hr-staff.css'
 
-// ── Mock Staff Data ──
-const mockStaff = [
-    { id: 1, empId: 'EMP-0412', name: 'นายสมชาย ชาญชัย', nameEn: 'Somchai Chanchai', position: 'B1 Engineer', department: 'Line Maintenance', status: 'active', startDate: '2021-04-15', initials: 'SC', avatarBg: 'linear-gradient(135deg,#7c3aed,#a855f7)' },
-    { id: 2, empId: 'EMP-0287', name: 'นายวิชัย ทองดี', nameEn: 'Wichai Thongdee', position: 'Technician', department: 'Base Maintenance', status: 'active', startDate: '2019-08-01', initials: 'VT', avatarBg: 'linear-gradient(135deg,#dc2626,#ef4444)' },
-    { id: 3, empId: 'EMP-0521', name: 'Ms. Sarah Weston', nameEn: 'Sarah Weston', position: 'Avionics', department: 'Line Maintenance', status: 'active', startDate: '2024-01-10', initials: 'SW', avatarBg: 'linear-gradient(135deg,#0369a1,#3b82f6)' },
-    { id: 4, empId: 'EMP-0198', name: 'นายกมล มีชัย', nameEn: 'Kamol Meechai', position: 'B2 Engineer', department: 'Workshop', status: 'active', startDate: '2018-06-20', initials: 'KM', avatarBg: 'linear-gradient(135deg,#b45309,#f59e0b)' },
-    { id: 5, empId: 'EMP-0367', name: 'นางสาวพิมพ์ อร่ามศรี', nameEn: 'Pim Aramsri', position: 'Structures', department: 'Base Maintenance', status: 'active', startDate: '2022-03-05', initials: 'PA', avatarBg: 'linear-gradient(135deg,#065f46,#22c55e)' },
-    { id: 6, empId: 'EMP-0523', name: 'นายธนกฤต สุขสวัสดิ์', nameEn: 'Thanakrit Suksawat', position: 'B1 Engineer', department: 'Line Maintenance', status: 'active', startDate: '2020-11-12', initials: 'TS', avatarBg: 'linear-gradient(135deg,#1e40af,#60a5fa)' },
-    { id: 7, empId: 'EMP-0189', name: 'นางสาวนภา แสงทอง', nameEn: 'Napa Saengthong', position: 'Quality Inspector', department: 'Quality Assurance', status: 'active', startDate: '2017-09-25', initials: 'NS', avatarBg: 'linear-gradient(135deg,#9333ea,#c084fc)' },
-    { id: 8, empId: 'EMP-0645', name: 'Mr. James Miller', nameEn: 'James Miller', position: 'Avionics', department: 'Workshop', status: 'inactive', startDate: '2023-07-01', initials: 'JM', avatarBg: 'linear-gradient(135deg,#475569,#94a3b8)' },
-    { id: 9, empId: 'EMP-0334', name: 'นายประสิทธิ์ เจริญพร', nameEn: 'Prasit Chareonporn', position: 'Technician', department: 'Line Maintenance', status: 'active', startDate: '2019-02-14', initials: 'PC', avatarBg: 'linear-gradient(135deg,#0f766e,#2dd4bf)' },
-    { id: 10, empId: 'EMP-0478', name: 'นางสาวรัชนี ศรีสุข', nameEn: 'Ratchanee Srisuk', position: 'Planner', department: 'Planning', status: 'active', startDate: '2021-12-01', initials: 'RS', avatarBg: 'linear-gradient(135deg,#be185d,#f472b6)' },
-    { id: 11, empId: 'EMP-0556', name: 'นายอนุชา วิเศษ', nameEn: 'Anucha Wiset', position: 'B2 Engineer', department: 'Base Maintenance', status: 'active', startDate: '2022-05-18', initials: 'AW', avatarBg: 'linear-gradient(135deg,#ea580c,#fb923c)' },
-    { id: 12, empId: 'EMP-0601', name: 'Ms. Linda Chen', nameEn: 'Linda Chen', position: 'Structures', department: 'Workshop', status: 'active', startDate: '2023-09-15', initials: 'LC', avatarBg: 'linear-gradient(135deg,#4338ca,#818cf8)' },
+// ── Avatar gradient palette (deterministic by staff id) ──
+const avatarGradients = [
+    'linear-gradient(135deg,#7c3aed,#a855f7)',
+    'linear-gradient(135deg,#dc2626,#ef4444)',
+    'linear-gradient(135deg,#0369a1,#3b82f6)',
+    'linear-gradient(135deg,#b45309,#f59e0b)',
+    'linear-gradient(135deg,#065f46,#22c55e)',
+    'linear-gradient(135deg,#1e40af,#60a5fa)',
+    'linear-gradient(135deg,#9333ea,#c084fc)',
+    'linear-gradient(135deg,#475569,#94a3b8)',
+    'linear-gradient(135deg,#0f766e,#2dd4bf)',
+    'linear-gradient(135deg,#be185d,#f472b6)',
+    'linear-gradient(135deg,#ea580c,#fb923c)',
+    'linear-gradient(135deg,#4338ca,#818cf8)',
 ]
 
-const positionColors: Record<string, string> = {
-    'B1 Engineer': '#2563eb',
-    'B2 Engineer': '#7c3aed',
-    'Technician': '#0891b2',
-    'Avionics': '#059669',
-    'Structures': '#d97706',
-    'Quality Inspector': '#dc2626',
-    'Planner': '#6366f1',
+const staffTypeColors: Record<string, string> = {
+    'CS': '#2563eb',
+    'MECH': '#7c3aed',
+    'Back Office': '#0891b2',
+    'INSP': '#059669',
+    'Trainee': '#d97706',
+    'Operational Staff': '#dc2626',
+}
+
+/** Get initials from a name string */
+function getInitials(name: string): string {
+    if (!name) return '?'
+    const words = name.trim().split(/\s+/)
+    if (words.length === 1) return words[0].substring(0, 2).toUpperCase()
+    return (words[0][0] + words[words.length - 1][0]).toUpperCase()
+}
+
+/** Get deterministic avatar gradient based on staff id */
+function getAvatarBg(id: number): string {
+    return avatarGradients[id % avatarGradients.length]
 }
 
 export default function HRStaffListPage() {
     const router = useRouter()
     const [searchQuery, setSearchQuery] = useState('')
     const [page, setPage] = useState(1)
-    const perPage = 10
+    const perPage = 20
 
-    const filteredStaff = mockStaff.filter(s =>
-        s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.nameEn.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.empId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.position.toLowerCase().includes(searchQuery.toLowerCase())
+    // ── Debounced search – send name filter to API for server-side search ──
+    const [debouncedSearch, setDebouncedSearch] = useState('')
+    const searchTimerRef = React.useRef<NodeJS.Timeout | null>(null)
+
+    const handleSearchChange = (value: string) => {
+        setSearchQuery(value)
+        if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+        searchTimerRef.current = setTimeout(() => {
+            setDebouncedSearch(value)
+            setPage(1) // reset to first page on search
+        }, 400)
+    }
+
+    // ── API Hook — uses the correct endpoint ──
+    const { data, isLoading, error, refetch, isFetching } = useQAStaffList(
+        {
+            name: debouncedSearch,
+            employeeId: '',
+            positionId: 0,
+            page,
+            perPage,
+        },
+        true
     )
 
-    const totalPages = Math.ceil(filteredStaff.length / perPage)
-    const paginatedStaff = filteredStaff.slice((page - 1) * perPage, page * perPage)
+    const staffList = data?.responseData ?? []
+    const totalAll = data?.totalAll ?? 0
+    const totalPages = Math.ceil(totalAll / perPage)
+
+    const handlePrevPage = () => {
+        if (page > 1) setPage(page - 1)
+    }
+
+    const handleNextPage = () => {
+        if (page < totalPages) setPage(page + 1)
+    }
 
     return (
         <div className="hr-staff-page">
@@ -68,10 +110,21 @@ export default function HRStaffListPage() {
                         </div>
                         <div>
                             <CardTitle className="text-lg">Staff List</CardTitle>
-                            <p className="text-sm text-muted-foreground mt-0.5">{filteredStaff.length} staff members</p>
+                            <p className="text-sm text-muted-foreground mt-0.5">
+                                {isLoading ? 'Loading...' : `${totalAll} staff members`}
+                            </p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => refetch()}
+                            disabled={isFetching}
+                        >
+                            <RefreshCw className={`h-4 w-4 mr-1.5 ${isFetching ? 'animate-spin' : ''}`} />
+                            Refresh
+                        </Button>
                         <Button
                             size="sm"
                             variant="outline"
@@ -96,120 +149,218 @@ export default function HRStaffListPage() {
                         <div className="relative max-w-sm">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
-                                placeholder="Search by name, ID, or position..."
+                                placeholder="Search by name..."
                                 value={searchQuery}
-                                onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+                                onChange={(e) => handleSearchChange(e.target.value)}
                                 className="pl-9 h-9"
                             />
                         </div>
                     </div>
 
-                    {/* Table */}
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-[30px]">No.</TableHead>
-                                <TableHead className="whitespace-nowrap">Name</TableHead>
-
-                                <TableHead className="w-[50px]">Position</TableHead>
-                                <TableHead className="w-[180px]">Department</TableHead>
-                                <TableHead className="w-[100px]">Status</TableHead>
-                                <TableHead className="w-[150px]">Start Date</TableHead>
-                                <TableHead className="w-[60px] text-center">Action</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {paginatedStaff.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
-                                        No staff found
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                paginatedStaff.map((staff, index) => (
-                                    <TableRow
-                                        key={staff.id}
-                                        className="cursor-pointer hover:bg-blue-50/50 transition-colors"
-                                        onClick={() => router.push(`/en/qa/staff/${staff.id}`)}
-                                    >
-                                        <TableCell className="text-muted-foreground">{(page - 1) * perPage + index + 1}</TableCell>
-
-                                        <TableCell>
-                                            <div className="flex items-center gap-3">
-                                                <div
-                                                    className="hr-staff-avatar"
-                                                    style={{ background: staff.avatarBg }}
-                                                >
-                                                    {staff.initials}
-                                                </div>
-                                                <div>
-                                                    <div className="font-medium text-sm">{staff.name}</div>
-                                                    <div className="text-xs text-muted-foreground">{staff.nameEn}</div>
-                                                </div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <span
-                                                className="hr-position-tag"
-                                                style={{
-                                                    color: positionColors[staff.position] || '#475569',
-                                                    borderColor: `${positionColors[staff.position] || '#475569'}40`,
-                                                    backgroundColor: `${positionColors[staff.position] || '#475569'}08`,
-                                                }}
-                                            >
-                                                {staff.position}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell className="text-sm">{staff.department}</TableCell>
-                                        <TableCell>
-                                            <Badge color={staff.status === 'active' ? 'success' : 'default'} className="text-xs">
-                                                {staff.status === 'active' ? 'Active' : 'Inactive'}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-sm text-muted-foreground">
-                                            {new Date(staff.startDate).toLocaleDateString('en-GB', {
-                                                day: '2-digit', month: 'short', year: 'numeric'
-                                            })}
-                                        </TableCell>
-                                        <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                        <MoreHorizontal className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onClick={() => router.push(`/en/qa/staff/${staff.id}`)}>
-                                                        <Eye className="h-4 w-4 mr-2" />
-                                                        View Profile
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
+                    {/* Error state */}
+                    {error ? (
+                        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                            <AlertCircle className="h-10 w-10 text-destructive mb-3" />
+                            <p className="text-sm font-medium text-destructive">Failed to load staff data</p>
+                            <p className="text-xs mt-1">{error.message}</p>
+                            <Button variant="outline" size="sm" className="mt-4" onClick={() => refetch()}>
+                                <RefreshCw className="h-4 w-4 mr-1.5" />
+                                Try Again
+                            </Button>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Table */}
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="w-[50px]">No.</TableHead>
+                                        <TableHead className="whitespace-nowrap min-w-[220px]">Employee Name</TableHead>
+                                        <TableHead className="w-[200px]">Position</TableHead>
+                                        <TableHead className="w-[160px]">Department</TableHead>
+                                        <TableHead className="w-[220px]">Email</TableHead>
+                                        <TableHead className="w-[100px]">Status</TableHead>
+                                        <TableHead className="w-[60px] text-center">Action</TableHead>
                                     </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {isLoading ? (
+                                        // ── Skeleton loading state ──
+                                        Array.from({ length: perPage > 10 ? 10 : perPage }).map((_, index) => (
+                                            <TableRow key={`skeleton-${index}`}>
+                                                <TableCell><Skeleton className="h-4 w-6" /></TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-3">
+                                                        <Skeleton className="h-[34px] w-[34px] rounded-[10px]" />
+                                                        <div>
+                                                            <Skeleton className="h-4 w-32 mb-1" />
+                                                            <Skeleton className="h-3 w-16" />
+                                                        </div>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                                                <TableCell><Skeleton className="h-5 w-20 rounded-md" /></TableCell>
+                                                <TableCell><Skeleton className="h-4 w-36" /></TableCell>
+                                                <TableCell><Skeleton className="h-5 w-14 rounded-full" /></TableCell>
+                                                <TableCell><Skeleton className="h-8 w-8 rounded mx-auto" /></TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : staffList.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                                                {debouncedSearch ? 'No staff matching your search' : 'No staff found'}
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        staffList.map((staff: QAStaffItem, index: number) => (
+                                            <TableRow
+                                                key={staff.id}
+                                                className="cursor-pointer hover:bg-blue-50/50 transition-colors"
+                                                onClick={() => router.push(`/en/qa/staff/${staff.id}`)}
+                                            >
+                                                <TableCell className="text-muted-foreground">
+                                                    {(page - 1) * perPage + index + 1}
+                                                </TableCell>
 
-                    {/* Pagination */}
-                    <div className="flex items-center justify-between px-5 py-3 border-t">
-                        <div className="text-sm text-muted-foreground">
-                            Showing {paginatedStaff.length > 0 ? (page - 1) * perPage + 1 : 0} to{' '}
-                            {Math.min(page * perPage, filteredStaff.length)} of {filteredStaff.length} entries
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}>
-                                <ChevronLeft className="h-4 w-4" />
-                                Previous
-                            </Button>
-                            <span className="text-sm px-2">Page {page} of {totalPages || 1}</span>
-                            <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
-                                Next
-                                <ChevronRight className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    </div>
+                                                {/* Employee Name + Code */}
+                                                <TableCell>
+                                                    <div className="flex items-center gap-3">
+                                                        <div
+                                                            className="hr-staff-avatar"
+                                                            style={{ background: getAvatarBg(staff.id) }}
+                                                        >
+                                                            {getInitials(staff.name)}
+                                                        </div>
+                                                        <div>
+                                                            <div className="font-medium text-sm">
+                                                                {staff.title ? `${staff.title} ` : ''}{staff.name}
+                                                            </div>
+                                                            <div className="text-xs text-muted-foreground">{staff.code}</div>
+                                                        </div>
+                                                    </div>
+                                                </TableCell>
+
+                                                {/* Position */}
+                                                <TableCell className="text-sm">
+                                                    {staff.jobTitle || staff.positionObj?.name || '—'}
+                                                </TableCell>
+
+                                                {/* Department */}
+                                                <TableCell>
+                                                    {staff.departmentObj?.name || staff.staffstypeObj?.code ? (
+                                                        <span
+                                                            className="hr-position-tag"
+                                                            style={{
+                                                                color: staffTypeColors[staff.departmentObj?.name || staff.staffstypeObj?.code || ''] || '#475569',
+                                                                borderColor: `${staffTypeColors[staff.departmentObj?.name || staff.staffstypeObj?.code || ''] || '#475569'}40`,
+                                                                backgroundColor: `${staffTypeColors[staff.departmentObj?.name || staff.staffstypeObj?.code || ''] || '#475569'}08`,
+                                                            }}
+                                                        >
+                                                            {staff.departmentObj?.name || staff.staffstypeObj?.code}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-muted-foreground text-xs">—</span>
+                                                    )}
+                                                </TableCell>
+
+                                                {/* Email */}
+                                                <TableCell className="text-sm text-muted-foreground">
+                                                    {staff.email || '—'}
+                                                </TableCell>
+
+                                                {/* Status */}
+                                                <TableCell>
+                                                    <Badge color={staff.isActive ? 'success' : 'default'} className="text-xs">
+                                                        {staff.isActive ? 'Active' : 'Inactive'}
+                                                    </Badge>
+                                                </TableCell>
+
+                                                {/* Action */}
+                                                <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                                <MoreHorizontal className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem onClick={() => router.push(`/en/qa/staff/${staff.id}`)}>
+                                                                <Eye className="h-4 w-4 mr-2" />
+                                                                View Profile
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+
+                            {/* Pagination */}
+                            <div className="flex items-center justify-between px-5 py-4 border-t">
+                                <div className="text-sm text-muted-foreground">
+                                    {isLoading ? (
+                                        <Skeleton className="h-4 w-40" />
+                                    ) : (
+                                        <>
+                                            Showing {staffList.length > 0 ? (page - 1) * perPage + 1 : 0} to{' '}
+                                            {Math.min(page * perPage, totalAll)} of {totalAll} entries
+                                        </>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    {/* Previous arrow */}
+                                    <button
+                                        className="hr-page-btn hr-page-arrow"
+                                        onClick={handlePrevPage}
+                                        disabled={page <= 1 || isFetching}
+                                    >
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </button>
+
+                                    {/* Page numbers */}
+                                    {(() => {
+                                        const pages: (number | string)[] = []
+                                        if (totalPages <= 3) {
+                                            for (let i = 1; i <= totalPages; i++) pages.push(i)
+                                        } else {
+                                            let start = page - 1
+                                            let end = page + 1
+                                            if (start < 1) { start = 1; end = 3 }
+                                            if (end > totalPages) { end = totalPages; start = totalPages - 2 }
+                                            if (start > 1) pages.push('start...')
+                                            for (let i = start; i <= end; i++) pages.push(i)
+                                            if (end < totalPages) pages.push('end...')
+                                        }
+                                        return pages.map((p, idx) =>
+                                            typeof p === 'string' ? (
+                                                <span key={`ellipsis-${idx}`} className="hr-page-ellipsis">…</span>
+                                            ) : (
+                                                <button
+                                                    key={p}
+                                                    className={`hr-page-btn ${page === p ? 'hr-page-active' : 'hr-page-num'}`}
+                                                    onClick={() => setPage(p as number)}
+                                                    disabled={isFetching}
+                                                >
+                                                    {p}
+                                                </button>
+                                            )
+                                        )
+                                    })()}
+
+                                    {/* Next arrow */}
+                                    <button
+                                        className="hr-page-btn hr-page-arrow"
+                                        onClick={handleNextPage}
+                                        disabled={page >= totalPages || isFetching}
+                                    >
+                                        <ChevronRight className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </CardContent>
             </Card>
         </div>

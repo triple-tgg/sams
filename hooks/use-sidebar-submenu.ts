@@ -31,7 +31,10 @@ export function useSidebarHasSubmenu(): boolean {
   // Verify current page actually belongs to the matched group
   const currentPageBelongsToGroup = data.menus.some((menu) => {
     if (pathname?.includes(menu.href)) return true;
-    return menu.submenus?.some((sub) => pathname?.includes(sub.href));
+    return menu.submenus?.some((sub) => {
+      if (pathname?.includes(sub.href)) return true;
+      return sub.children?.some((child) => pathname?.includes(child.href));
+    });
   });
   if (!currentPageBelongsToGroup) return false;
 

@@ -3,36 +3,54 @@
 import { useState } from 'react'
 import { X as XIcon } from 'lucide-react'
 import { CATEGORIES } from '../types'
+import { MATRIX_ROLES, MATRIX_DATA } from '../data'
+import dynamic from 'next/dynamic'
+import 'react-quill-new/dist/quill.snow.css'
+import { Users } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+
+const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false })
 
 interface AddCourseModalProps {
+    course?: import('../types').Course
     onClose: () => void
 }
 
-export function AddCourseModal({ onClose }: AddCourseModalProps) {
+export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
+    const isEditing = !!course
+
+    const initialRoles = course && MATRIX_DATA[course.id]
+        ? MATRIX_ROLES.map((_, i) => (MATRIX_DATA[course.id][i] === 1 ? i : -1)).filter(i => i !== -1)
+        : []
+
     const [form, setForm] = useState({
-        code: '',
-        name: '',
-        category: 'Recurrent' as string,
-        recurrent: false,
-        recurrentYears: 2,
-        note: '',
+        code: course?.code || '',
+        name: course?.name || '',
+        category: course?.category || 'Recurrent',
+        recurrent: course ? course.recurrent : false,
+        recurrentYears: course?.recurrentYears || 2,
+        note: course?.note || '',
+        requiredRoles: initialRoles as number[],
     })
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-            <div className="bg-card rounded-2xl shadow-xl w-full max-w-lg mx-4 p-6 border border-border">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-5">
-                    <h2 className="text-base font-bold text-foreground">Add New Course</h2>
-                    <button
-                        onClick={onClose}
-                        className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted cursor-pointer transition-colors border-none bg-transparent"
-                    >
-                        <XIcon className="w-4 h-4" />
-                    </button>
-                </div>
+    const toggleRole = (index: number) => {
+        setForm(prev => {
+            const roles = prev.requiredRoles.includes(index)
+                ? prev.requiredRoles.filter(r => r !== index)
+                : [...prev.requiredRoles, index]
+            return { ...prev, requiredRoles: roles }
+        })
+    }
 
-                <div className="space-y-4">
+    return (
+        <Dialog open onOpenChange={(open) => !open && onClose()}>
+            <DialogContent className="max-w-lg p-6 max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 transition-all duration-300">
+                <DialogHeader>
+                    <DialogTitle>{isEditing ? 'Edit Course' : 'Add New Course'}</DialogTitle>
+                </DialogHeader>
+
+                <div className="space-y-4 pt-2">
                     {/* Code + Category */}
                     <div className="grid grid-cols-2 gap-3">
                         <div>
@@ -115,20 +133,58 @@ export function AddCourseModal({ onClose }: AddCourseModalProps) {
                         </div>
                     </div>
 
-                    {/* Note */}
+                    {/* Required For */}
                     <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                            <label className="text-xs font-semibold text-muted-foreground block">Required For</label>
+                            <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{form.requiredRoles.length} selected</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-2.5 bg-muted/20 border border-border/50 rounded-lg">
+                            <TooltipProvider delayDuration={200}>
+                                {MATRIX_ROLES.map((role, i) => {
+                                    const isSelected = form.requiredRoles.includes(i)
+                                    return (
+                                        <Tooltip key={role.short}>
+                                            <TooltipTrigger asChild>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggleRole(i)}
+                                                    className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-1.5 rounded-md border transition-all cursor-pointer ${
+                                                        isSelected 
+                                                            ? 'bg-primary/90 border-primary text-white shadow-sm' 
+                                                            : 'bg-card border-border text-foreground hover:border-primary/40'
+                                                    }`}
+                                                >
+                                                    <Users className={`h-3 w-3 ${isSelected ? 'text-white' : 'text-muted-foreground'}`} />
+                                                    {role.short}
+                                                </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent className="text-xs font-medium">
+                                                {role.full}
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    )
+                                })}
+                            </TooltipProvider>
+                        </div>
+                    </div>
+
+                    {/* Note */}
+                    <div className="flex flex-col">
                         <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Additional Note (optional)</label>
-                        <input
-                            className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary"
-                            placeholder="e.g. Applicable with Lead Auditor"
-                            value={form.note}
-                            onChange={e => setForm({ ...form, note: e.target.value })}
-                        />
+                        <div className="border border-border rounded-lg bg-card text-foreground [&_.ql-toolbar]:border-none [&_.ql-toolbar]:border-b [&_.ql-toolbar]:border-border [&_.ql-container]:border-none [&_.ql-editor]:min-h-[120px] [&_.ql-editor]:text-sm [&_.ql-editor.ql-blank::before]:text-muted-foreground [&_.ql-stroke]:stroke-foreground [&_.ql-fill]:fill-foreground">
+                            <ReactQuill
+                                theme="snow"
+                                placeholder="e.g. Applicable with Lead Auditor"
+                                value={form.note}
+                                onChange={val => setForm({ ...form, note: val })}
+                            />
+                        </div>
                     </div>
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-2 mt-6">
+                <DialogFooter className="mt-6 pt-0">
                     <button
                         onClick={onClose}
                         className="flex-1 py-2 text-sm rounded-lg border border-border text-foreground hover:bg-muted transition-colors cursor-pointer"
@@ -139,10 +195,10 @@ export function AddCourseModal({ onClose }: AddCourseModalProps) {
                         onClick={onClose}
                         className="flex-1 py-2 text-sm rounded-lg text-white bg-primary hover:bg-primary/90 transition-opacity cursor-pointer border-none"
                     >
-                        Add Course
+                        {isEditing ? 'Save Changes' : 'Add Course'}
                     </button>
-                </div>
-            </div>
-        </div>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     )
 }

@@ -1,17 +1,34 @@
+import { useState } from 'react'
 import { X as XIcon, Users } from 'lucide-react'
 import { Course, CATEGORY_COLORS } from '../types'
 import { MATRIX_ROLES, MATRIX_DATA } from '../data'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface CourseDetailPanelProps {
     course: Course
     onClose: () => void
-    onViewMatrix: () => void
+    onEdit?: () => void
+    onDelete?: () => void
 }
 
-export function CourseDetailPanel({ course, onClose, onViewMatrix }: CourseDetailPanelProps) {
+export function CourseDetailPanel({ course, onClose, onEdit, onDelete }: CourseDetailPanelProps) {
+    const [showAllRoles, setShowAllRoles] = useState(false)
+
     // Derive required roles from MATRIX_DATA
     const requirements = MATRIX_DATA[course.id] || []
     const requiredRoles = MATRIX_ROLES.filter((_, i) => requirements[i] === 1)
+    const visibleRoles = showAllRoles ? requiredRoles : requiredRoles.slice(0, 4)
+    const hasMoreRoles = requiredRoles.length > 4
 
     return (
         <aside className="w-72 bg-card border-l border-border p-5 flex flex-col gap-4 shrink-0 overflow-y-auto">
@@ -64,7 +81,7 @@ export function CourseDetailPanel({ course, onClose, onViewMatrix }: CourseDetai
                         Required For ({requiredRoles.length})
                     </p>
                     <div className="flex flex-wrap gap-1.5">
-                        {requiredRoles.map(role => (
+                        {visibleRoles.map(role => (
                             <span
                                 key={role.short}
                                 className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-lg bg-muted text-foreground"
@@ -72,6 +89,14 @@ export function CourseDetailPanel({ course, onClose, onViewMatrix }: CourseDetai
                                 <Users className="h-3 w-3 text-muted-foreground" /> {role.full}
                             </span>
                         ))}
+                        {hasMoreRoles && (
+                            <button
+                                onClick={() => setShowAllRoles(!showAllRoles)}
+                                className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors border-none cursor-pointer"
+                            >
+                                {showAllRoles ? 'Show less' : `+${requiredRoles.length - 4} more`}
+                            </button>
+                        )}
                     </div>
                 </div>
             )}
@@ -88,15 +113,36 @@ export function CourseDetailPanel({ course, onClose, onViewMatrix }: CourseDetai
 
             {/* Actions */}
             <div className="flex gap-2 mt-auto pt-3 border-t border-border">
-                <button className="flex-1 text-sm py-2 rounded-lg border border-border text-foreground hover:bg-muted transition-colors cursor-pointer">
+                <button 
+                    onClick={onEdit}
+                    className="flex-1 text-sm py-2 rounded-lg border border-border text-foreground hover:bg-muted transition-colors cursor-pointer"
+                >
                     Edit
                 </button>
-                <button
-                    onClick={onViewMatrix}
-                    className="flex-1 text-sm py-2 rounded-lg text-white bg-primary hover:bg-primary/90 transition-colors cursor-pointer border-none"
-                >
-                    View Matrix
-                </button>
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <button
+                            className="flex-1 text-sm py-2 rounded-lg text-white bg-destructive hover:bg-destructive/90 transition-colors cursor-pointer border-none"
+                        >
+                            Delete
+                        </button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This will permanently delete the course <strong className="text-foreground">{course.code}</strong>. 
+                                This action cannot be undone.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                Delete Course
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </div>
         </aside>
     )

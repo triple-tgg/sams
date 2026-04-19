@@ -76,5 +76,5 @@ export const STATUS_CLASSES: Record<StatusType, { bg: string; dot: string; text:
 
 // ─── Sort Type ──────────────────────────────────────────────────────────────
 
-export type SortField = 'no' | 'name' | 'id' | 'pos' | 'score'
+export type SortField = 'no' | 'name' | 'id' | 'pos' | 'expiry'
 export type SortDir = 'asc' | 'desc'

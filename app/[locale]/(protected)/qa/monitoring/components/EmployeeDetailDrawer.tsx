@@ -100,6 +100,20 @@ export function EmployeeDetailDrawer({ employee: emp, onClose }: EmployeeDetailD
                     <div className="space-y-1.5">
                         {courseStatuses.map(({ course: c, status: s, daysLeft: d, due }) => {
                             const m = STATUS_META[s]
+                            
+                            let lastTrainingStr = '-'
+                            let dueDateStr = s === 'na' ? 'N/A' : s === 'missing' ? '—' : s === 'expired' ? 'Expired' : fmtDate(due)
+
+                            if (s !== 'na' && s !== 'missing') {
+                                const dDate = new Date(due)
+                                if (!isNaN(dDate.getTime())) {
+                                    const lastTraining = new Date(dDate)
+                                    lastTraining.setMonth(lastTraining.getMonth() - c.interval)
+                                    lastTrainingStr = lastTraining.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                                    dueDateStr = dDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                                }
+                            }
+
                             return (
                                 <div key={c.id} className="rounded-lg py-2.5 px-3 flex items-center gap-3 transition-colors hover:ring-1 hover:ring-border"
                                     style={{ background: m.bg, border: `1px solid ${m.dot}22` }}>
@@ -112,14 +126,29 @@ export function EmployeeDetailDrawer({ employee: emp, onClose }: EmployeeDetailD
                                             <span className="text-xs font-medium text-foreground truncate">{c.label}</span>
                                         </div>
                                     </div>
-                                    <div className="text-right shrink-0">
-                                        <span className="text-xs font-bold" style={{ color: m.text }}>
-                                            {s === 'na' ? 'N/A' : s === 'missing' ? '—' : s === 'expired' ? 'Expired' : fmtDate(due)}
-                                        </span>
-                                        {d !== null && s !== 'na' && s !== 'missing' && (
-                                            <p className="text-[10px] font-semibold" style={{ color: m.text }}>
-                                                {d < 0 ? `${Math.abs(d)}d overdue` : `${d}d left`}
-                                            </p>
+                                    <div className="text-right shrink-0 flex flex-col items-end">
+                                        {s === 'missing' || s === 'na' ? (
+                                           <div className="text-xs font-bold" style={{ color: m.text }}>
+                                               {s === 'na' ? 'N/A' : '—'}
+                                           </div>
+                                        ) : (
+                                           <>
+                                               <div className="text-[10px] sm:text-[11px] text-muted-foreground flex items-center gap-1.5">
+                                                   <span>Last Training:</span>
+                                                   <span className="font-semibold text-foreground">{lastTrainingStr}</span>
+                                               </div>
+                                               <div className="text-[10px] sm:text-[11px] text-muted-foreground flex items-center gap-1.5 leading-tight">
+                                                   <span>Due Date:</span>
+                                                   <span className="font-bold" style={{ color: m.text }}>
+                                                       {s === 'expired' ? 'Expired' : dueDateStr}
+                                                   </span>
+                                               </div>
+                                               {d !== null && (
+                                                   <div className="text-[9px] font-extrabold mt-0.5 bg-black/5 px-1 rounded-sm" style={{ color: m.text }}>
+                                                       {d < 0 ? `${Math.abs(d)} DAYS OVERDUE` : `${d} DAYS LEFT`}
+                                                   </div>
+                                               )}
+                                           </>
                                         )}
                                     </div>
                                 </div>

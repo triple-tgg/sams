@@ -19,6 +19,7 @@ export default function CourseManagementPage() {
     const [search, setSearch] = useState('')
     const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
     const [showAddModal, setShowAddModal] = useState(false)
+    const [editingCourse, setEditingCourse] = useState<Course | null>(null)
     const [expandedDept, setExpandedDept] = useState<string | null>(null)
 
     const filtered = useMemo(() => {
@@ -173,27 +174,8 @@ export default function CourseManagementPage() {
                                                 <StatCard label="Categories" value={5} color="#f59e0b" />
                                             </div>
 
-                                            {/* Category Breakdown */}
-                                            <div className="bg-muted/30 rounded-xl border border-border p-3">
-                                                <p className="text-xs font-medium text-muted-foreground mb-2">Course distribution by category</p>
-                                                <div className="flex gap-2 flex-wrap">
-                                                    {stats.byCategory.map(({ name, count }) => (
-                                                        <button
-                                                            key={name}
-                                                            onClick={() => setSelectedCategory(name)}
-                                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border transition-all cursor-pointer ${
-                                                                selectedCategory === name
-                                                                    ? 'border-primary bg-primary/5 text-primary font-semibold'
-                                                                    : 'border-border hover:border-primary/30 text-muted-foreground'
-                                                            }`}
-                                                        >
-                                                            <span className={`w-2 h-2 rounded-full ${CATEGORY_DOT[name]}`} />
-                                                            {name}
-                                                            <span className="font-semibold ml-0.5">{count}</span>
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
+
+
 
                                             {/* Course Table */}
                                             <CourseTable
@@ -214,7 +196,11 @@ export default function CourseManagementPage() {
                                     <CourseDetailPanel
                                         course={selectedCourse}
                                         onClose={() => setSelectedCourse(null)}
-                                        onViewMatrix={() => { setSelectedCourse(null); setActiveTab('matrix') }}
+                                        onDelete={() => {
+                                            console.log('Delete course', selectedCourse.id)
+                                            setSelectedCourse(null)
+                                        }}
+                                        onEdit={() => setEditingCourse(selectedCourse)}
                                     />
                                 )}
                             </div>
@@ -223,8 +209,16 @@ export default function CourseManagementPage() {
                 </Card>
             </div>
 
-            {/* Add Course Modal */}
-            {showAddModal && <AddCourseModal onClose={() => setShowAddModal(false)} />}
+            {/* Add/Edit Course Modal */}
+            {(showAddModal || editingCourse) && (
+                <AddCourseModal
+                    course={editingCourse || undefined}
+                    onClose={() => {
+                        setShowAddModal(false)
+                        setEditingCourse(null)
+                    }}
+                />
+            )}
         </>
     )
 }

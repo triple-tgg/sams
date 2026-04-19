@@ -1,19 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { ArrowLeft, User, Shield, Briefcase, ClipboardList, Building2, Calendar, FileText, Printer } from 'lucide-react'
+import { ArrowLeft, User, Shield, Briefcase, ClipboardList, Building2, Calendar, FileText, Printer, Loader2 } from 'lucide-react'
 
 import { ProfileAvatar } from './components/ProfileAvatar'
 import { PrintPreview } from './components/PrintPreview'
 
-import { TabName } from './types'
-import { getStaffData } from './data'
+import { TabName, StaffData } from './types'
 import { formatDate } from './utils'
 import { ProfileTab } from './components/ProfileTab'
 import { TrainingTab } from './components/TrainingTab'
 import { ExperienceTab } from './components/ExperienceTab'
 import { LogbookTab } from './components/LogbookTab'
+import { useStaffById } from '@/lib/api/hooks/useQAStaffManagement'
+import type { StaffByIdData } from '@/lib/api/qa/staff-management'
 
 // ── Tab Configuration ──
 const TABS: { name: TabName; icon: React.ReactNode }[] = [
@@ -24,11 +25,66 @@ const TABS: { name: TabName; icon: React.ReactNode }[] = [
 ]
 
 // ── Tab Content Map ──
-const TAB_CONTENT: Record<TabName, React.ComponentType<{ staff: ReturnType<typeof getStaffData> }>> = {
+const TAB_CONTENT: Record<TabName, React.ComponentType<{ staff: StaffData }>> = {
     'Profile': ProfileTab,
     'Training': TrainingTab,
     'Experience': ExperienceTab,
     'Logbook Records': LogbookTab,
+}
+
+// ── Map API data → StaffData ──
+function mapApiToStaffData(api: StaffByIdData): StaffData {
+    const nameEn = api.fullNameEn || api.name || 'Staff Member'
+    const initials = nameEn
+        .split(' ')
+        .map(w => w[0])
+        .join('')
+        .substring(0, 2)
+        .toUpperCase()
+
+    return {
+        id: api.id,
+        empId: api.employeeId || `EMP-${String(api.id).padStart(4, '0')}`,
+        name: api.name || '-',
+        nameEn: api.fullNameEn || '-',
+        position: api.positionObj?.name || api.jobTitle || '-',
+        department: api.departmentObj?.name || '-',
+        status: api.isActive ? 'active' : 'inactive',
+        startDate: api.startDate || '-',
+        initials,
+        avatarBg: 'linear-gradient(135deg,#475569,#94a3b8)',
+        profileImage: api.profileImagePath && api.profileImagePath !== 'string' ? api.profileImagePath : undefined,
+        titleName: api.title || undefined,
+        dob: api.dateOfBirth || '-',
+        idCard: api.idCardNo || '-',
+        nationality: api.nationality || '-',
+        phone: api.phone || '-',
+        email: api.email || '-',
+        address: api.address || '-',
+        placeOfBirth: api.placeOfBirth || '-',
+        ratings: [],
+        training: [],
+        experience: (api.workExperiences || [])
+            .filter(w => !w.isdelete)
+            .map(w => ({
+                title: w.jobTitle || '-',
+                company: w.company || '-',
+                period: [
+                    w.periodFrom ? formatDate(w.periodFrom) : '',
+                    w.periodTo ? formatDate(w.periodTo) : 'Present',
+                ].filter(Boolean).join(' – '),
+                description: w.description || '-',
+            })),
+        education: (api.educations || [])
+            .filter(e => !e.isdelete)
+            .map(e => ({
+                degree: e.degree || '-',
+                institution: e.institution || '-',
+                year: e.year?.toString() || '-',
+                field: e.fieldOfStudy || '-',
+            })),
+        logbook: [],
+    }
 }
 
 // ── Main Page ──
@@ -36,11 +92,81 @@ export default function StaffProfilePage() {
     const router = useRouter()
     const params = useParams()
     const staffId = Number(params.id)
-    const staff = getStaffData(staffId)
     const [activeTab, setActiveTab] = useState<TabName>('Profile')
     const [showPrintPreview, setShowPrintPreview] = useState(false)
 
+    // ── Fetch from API ──
+    const { data, isLoading, isError, error } = useStaffById(staffId)
+
+    const staff = useMemo<StaffData>(() => {
+        if (data?.responseData) {
+            return mapApiToStaffData(data.responseData)
+        }
+        // Fallback while loading
+        return {
+            id: staffId,
+            empId: `EMP-${String(staffId).padStart(4, '0')}`,
+            name: 'Loading...',
+            nameEn: 'Loading...',
+            position: '-',
+            department: '-',
+            status: 'active',
+            startDate: '-',
+            initials: '--',
+            avatarBg: 'linear-gradient(135deg,#475569,#94a3b8)',
+            dob: '-',
+            idCard: '-',
+            nationality: '-',
+            phone: '-',
+            email: '-',
+            address: '-',
+            placeOfBirth: '-',
+            ratings: [],
+            training: [],
+            experience: [],
+            education: [],
+            logbook: [],
+        }
+    }, [data, staffId])
+
     const ActiveTabContent = TAB_CONTENT[activeTab]
+
+    // ── Loading State ──
+    if (isLoading) {
+        return (
+            <div className="p-8 min-h-screen rounded-xl">
+                <div className="bg-slate-50 rounded-xl p-8 flex items-center justify-center min-h-[400px]">
+                    <div className="flex flex-col items-center gap-3">
+                        <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
+                        <p className="text-sm font-medium text-slate-500">Loading staff profile...</p>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+    // ── Error State ──
+    if (isError) {
+        return (
+            <div className="p-8 min-h-screen rounded-xl">
+                <div className="bg-slate-50 rounded-xl p-8 flex items-center justify-center min-h-[400px]">
+                    <div className="flex flex-col items-center gap-3 text-center">
+                        <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center">
+                            <User className="h-7 w-7 text-red-400" />
+                        </div>
+                        <p className="text-sm font-semibold text-slate-700">Failed to load staff profile</p>
+                        <p className="text-xs text-slate-400 max-w-xs">{error?.message || 'An unexpected error occurred'}</p>
+                        <button
+                            onClick={() => router.push('/en/qa/staff')}
+                            className="mt-2 px-4 py-2 text-sm font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
+                        >
+                            Back to Staff List
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <>
@@ -114,11 +240,6 @@ export default function StaffProfilePage() {
                         {/* ── Active Tab Content ── */}
                         <ActiveTabContent staff={staff} />
                     </div>
-
-                    {/* ── Action summary ── */}
-                    {/* <div className="col-span-4 bg-white border border-[#e8ecf1] rounded-[14px] py-7 px-8 mb-0">
-
-                </div> */}
                 </div>
             </div>
 

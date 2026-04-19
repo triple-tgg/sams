@@ -1,0 +1,387 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);color:var(--color-text-primary)}
+.wrap{padding:1rem 0}
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:8px}
+.year-nav{display:flex;align-items:center;gap:10px}
+.year-nav button{background:none;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:4px 10px;cursor:pointer;font-size:13px;color:var(--color-text-primary)}
+.year-nav button:hover{background:var(--color-background-secondary)}
+.year-label{font-size:16px;font-weight:500}
+.legend{display:flex;gap:12px;flex-wrap:wrap}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--color-text-secondary)}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot-exp{background:#E24B4A}
+.dot-crit{background:#EF9F27}
+.dot-warn{background:#BA7517}
+.dot-ok{background:#639922}
+.filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem}
+.fchip{font-size:12px;padding:4px 10px;border-radius:20px;border:0.5px solid var(--color-border-secondary);background:none;cursor:pointer;color:var(--color-text-secondary)}
+.fchip.active{background:var(--color-background-info);color:var(--color-text-info);border-color:var(--color-border-info)}
+.summary-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1.25rem}
+.sum-card{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 14px;text-align:center}
+.sum-num{font-size:20px;font-weight:500;line-height:1}
+.sum-lbl{font-size:11px;color:var(--color-text-secondary);margin-top:3px}
+.sum-exp .sum-num{color:#E24B4A}
+.sum-crit .sum-num{color:#EF9F27}
+.sum-warn .sum-num{color:#BA7517}
+.sum-ok .sum-num{color:#639922}
+.cal-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media(max-width:600px){.cal-grid{grid-template-columns:repeat(2,1fr)}.summary-row{grid-template-columns:repeat(2,1fr)}}
+.month-card{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:12px;cursor:pointer;background:var(--color-background-primary);transition:border-color 0.15s}
+.month-card:hover{border-color:var(--color-border-primary)}
+.month-card.active{border-color:#185FA5;border-width:1px}
+.month-card.today-month{border-color:#185FA5}
+.mth-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.mth-name{font-size:13px;font-weight:500}
+.mth-badge{font-size:11px;font-weight:500;padding:2px 7px;border-radius:10px;background:var(--color-background-secondary);color:var(--color-text-secondary)}
+.mth-badge.has-exp{background:#FCEBEB;color:#A32D2D}
+.bar-stack{display:flex;height:6px;border-radius:3px;overflow:hidden;gap:1px;margin-bottom:8px}
+.bar-seg{height:100%;border-radius:2px}
+.mth-people{display:flex;flex-direction:column;gap:3px}
+.person-row{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--color-text-secondary);overflow:hidden}
+.person-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.person-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.more-lbl{font-size:11px;color:var(--color-text-tertiary);margin-top:2px}
+.no-exp{font-size:11px;color:var(--color-text-tertiary);padding:4px 0}
+.detail-panel{margin-top:1rem;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-lg);padding:1rem;background:var(--color-background-primary)}
+.dp-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.dp-title{font-size:15px;font-weight:500}
+.dp-close{background:none;border:none;cursor:pointer;font-size:16px;color:var(--color-text-secondary);line-height:1}
+.dp-list{display:flex;flex-direction:column;gap:8px}
+.dp-item{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:10px 12px;display:flex;align-items:flex-start;gap:10px}
+.dp-item-left{flex:1;min-width:0}
+.dp-name{font-size:13px;font-weight:500;margin-bottom:2px}
+.dp-role{font-size:11px;color:var(--color-text-secondary);margin-bottom:4px}
+.dp-courses{display:flex;flex-wrap:wrap;gap:4px}
+.course-tag{font-size:10px;padding:2px 7px;border-radius:10px}
+.tag-exp{background:#FCEBEB;color:#A32D2D}
+.tag-crit{background:#FAEEDA;color:#854F0B}
+.tag-warn{background:#FAEEDA;color:#633806}
+.tag-ok{background:#EAF3DE;color:#3B6D11}
+.dp-date{font-size:11px;font-weight:500;white-space:nowrap;margin-top:2px}
+.date-exp{color:#A32D2D}
+.date-crit{color:#854F0B}
+.date-warn{color:#633806}
+.date-ok{color:#3B6D11}
+.status-pill{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:500;white-space:nowrap}
+.pill-exp{background:#FCEBEB;color:#A32D2D}
+.pill-crit{background:#FAEEDA;color:#854F0B}
+.pill-warn{background:#FAC775;color:#633806}
+.pill-ok{background:#EAF3DE;color:#3B6D11}
+.dp-empty{text-align:center;padding:2rem;color:var(--color-text-tertiary);font-size:13px}
+</style>
+
+<h2 class="sr-only">ปฏิทินภาพรวมรายปีสำหรับพนักงานที่ใกล้หมดอายุการรับรอง</h2>
+
+<div class="wrap">
+  <div class="toolbar">
+    <div class="year-nav">
+      <button id="prevY">&#8249;</button>
+      <span class="year-label" id="yearLabel">2026</span>
+      <button id="nextY">&#8250;</button>
+    </div>
+    <div class="legend">
+      <span class="leg-item"><span class="dot dot-exp"></span>หมดอายุแล้ว</span>
+      <span class="leg-item"><span class="dot dot-crit"></span>วิกฤต &lt;30 วัน</span>
+      <span class="leg-item"><span class="dot dot-warn"></span>เฝ้าระวัง 30–90 วัน</span>
+      <span class="leg-item"><span class="dot dot-ok"></span>ปกติ</span>
+    </div>
+  </div>
+
+  <div class="filter-row" id="filterRow"></div>
+  <div class="summary-row" id="summaryRow"></div>
+  <div class="cal-grid" id="calGrid"></div>
+  <div id="detailPanel"></div>
+</div>
+
+<script>
+const TODAY = new Date(2026, 3, 17);
+
+const STAFF = [
+  {id:1,name:"นพ. อรรถพล วงศ์สว่าง",role:"LAE A320",items:[
+    {course:"HF Training",exp:new Date(2026,0,15)},{course:"SMS",exp:new Date(2026,4,10)}
+  ]},
+  {id:2,name:"สมชาย ปิยะรัตน์",role:"B1.1 B737",items:[
+    {course:"EWIS",exp:new Date(2026,0,28)},{course:"FTS",exp:new Date(2026,6,20)}
+  ]},
+  {id:3,name:"วิชัย ธรรมรักษา",role:"B2 A330",items:[
+    {course:"RVSM",exp:new Date(2026,1,5)},{course:"ERP",exp:new Date(2026,7,15)}
+  ]},
+  {id:4,name:"ประทีป สุขสมบูรณ์",role:"LAE B777",items:[
+    {course:"DG Awareness",exp:new Date(2026,1,20)},{course:"HF Training",exp:new Date(2026,10,8)}
+  ]},
+  {id:5,name:"อนุชา ศรีเมือง",role:"B1.3 B737",items:[
+    {course:"SMS",exp:new Date(2026,2,3)},{course:"RVSM",exp:new Date(2026,9,12)}
+  ]},
+  {id:6,name:"ธนากร มั่นคง",role:"B2 A320",items:[
+    {course:"HF Training",exp:new Date(2026,2,22)},{course:"FTS",exp:new Date(2027,1,10)}
+  ]},
+  {id:7,name:"พิชัย รุ่งเรือง",role:"LAE A320",items:[
+    {course:"EWIS",exp:new Date(2026,3,5)},{course:"ERP",exp:new Date(2026,8,30)}
+  ]},
+  {id:8,name:"สุชาติ ดีเลิศ",role:"B1.1 A330",items:[
+    {course:"DG Awareness",exp:new Date(2026,3,25)},{course:"SMS",exp:new Date(2027,0,20)}
+  ]},
+  {id:9,name:"รัตนา พงษ์ไพร",role:"NDT Inspector",items:[
+    {course:"HF Training",exp:new Date(2026,4,8)},{course:"RVSM",exp:new Date(2026,11,5)}
+  ]},
+  {id:10,name:"กิตติ วัฒนพงศ์",role:"B2 B777",items:[
+    {course:"FTS",exp:new Date(2026,4,30)},{course:"ERP",exp:new Date(2027,2,15)}
+  ]},
+  {id:11,name:"มนัส สายทอง",role:"LAE B737",items:[
+    {course:"SMS",exp:new Date(2026,5,12)},{course:"DG Awareness",exp:new Date(2027,4,22)}
+  ]},
+  {id:12,name:"อำนาจ บุญมา",role:"B1.3 A320",items:[
+    {course:"RVSM",exp:new Date(2026,5,25)},{course:"HF Training",exp:new Date(2026,11,28)}
+  ]},
+  {id:13,name:"ปรีชา หาญกล้า",role:"QC Inspector",items:[
+    {course:"ERP",exp:new Date(2026,6,8)},{course:"EWIS",exp:new Date(2027,3,10)}
+  ]},
+  {id:14,name:"วิรัตน์ ใจดี",role:"B2 A320",items:[
+    {course:"HF Training",exp:new Date(2026,6,18)},{course:"FTS",exp:new Date(2027,6,5)}
+  ]},
+  {id:15,name:"สมบัติ เพชรงาม",role:"LAE A330",items:[
+    {course:"SMS",exp:new Date(2026,7,4)},{course:"DG Awareness",exp:new Date(2026,11,15)}
+  ]},
+  {id:16,name:"ชัยณรงค์ ทองดี",role:"B1.1 B777",items:[
+    {course:"RVSM",exp:new Date(2026,7,22)},{course:"ERP",exp:new Date(2027,7,30)}
+  ]},
+  {id:17,name:"ศักดิ์ดา พรหมเมตตา",role:"NDT Level II",items:[
+    {course:"EWIS",exp:new Date(2026,8,10)},{course:"HF Training",exp:new Date(2027,8,20)}
+  ]},
+  {id:18,name:"สุรพล ลิ้มทอง",role:"LAE B737",items:[
+    {course:"FTS",exp:new Date(2026,8,28)},{course:"SMS",exp:new Date(2027,9,5)}
+  ]},
+  {id:19,name:"ณรงค์ สิทธิ์ดี",role:"B2 A330",items:[
+    {course:"DG Awareness",exp:new Date(2026,9,15)},{course:"RVSM",exp:new Date(2027,10,12)}
+  ]},
+  {id:20,name:"ไพศาล เกียรติชัย",role:"B1.3 A320",items:[
+    {course:"ERP",exp:new Date(2026,9,30)},{course:"HF Training",exp:new Date(2027,1,28)}
+  ]},
+  {id:21,name:"อรพิน รักษาสัตย์",role:"Quality Assurance",items:[
+    {course:"SMS",exp:new Date(2026,10,8)},{course:"EWIS",exp:new Date(2027,5,18)}
+  ]},
+  {id:22,name:"เกษม วงศ์ทอง",role:"LAE B777",items:[
+    {course:"RVSM",exp:new Date(2026,10,20)},{course:"FTS",exp:new Date(2028,0,10)}
+  ]},
+  {id:23,name:"บุญชู แสงทอง",role:"B1.1 A320",items:[
+    {course:"HF Training",exp:new Date(2026,11,5)},{course:"DG Awareness",exp:new Date(2027,11,20)}
+  ]},
+  {id:24,name:"จักรพันธ์ เมธา",role:"B2 B737",items:[
+    {course:"ERP",exp:new Date(2026,11,22)},{course:"SMS",exp:new Date(2028,2,15)}
+  ]},
+];
+
+const MONTH_TH = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+const MONTH_FULL = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+
+const COURSES = ["ทั้งหมด","HF Training","SMS","RVSM","EWIS","DG Awareness","ERP","FTS"];
+
+let selectedYear = 2026;
+let selectedMonth = null;
+let activeFilter = "ทั้งหมด";
+
+function getStatus(expDate){
+  const diff = Math.floor((expDate - TODAY)/(1000*60*60*24));
+  if(diff < 0) return "exp";
+  if(diff < 30) return "crit";
+  if(diff < 90) return "warn";
+  return "ok";
+}
+
+function fmtDate(d){
+  return `${d.getDate()} ${MONTH_TH[d.getMonth()]} ${d.getFullYear()+543}`;
+}
+
+function filterItem(item){
+  return activeFilter === "ทั้งหมด" || item.course === activeFilter;
+}
+
+function getMonthData(month){
+  const results = [];
+  STAFF.forEach(s => {
+    const relevant = s.items.filter(it => {
+      const inYear = it.exp.getFullYear() === selectedYear;
+      const inMonth = it.exp.getMonth() === month;
+      return inYear && inMonth && filterItem(it);
+    });
+    if(relevant.length > 0){
+      results.push({...s, matchedItems: relevant});
+    }
+  });
+  return results;
+}
+
+function countsByStatus(entries){
+  let exp=0,crit=0,warn=0,ok=0;
+  entries.forEach(e => {
+    e.matchedItems.forEach(it => {
+      const st = getStatus(it.exp);
+      if(st==="exp") exp++;
+      else if(st==="crit") crit++;
+      else if(st==="warn") warn++;
+      else ok++;
+    });
+  });
+  return {exp,crit,warn,ok};
+}
+
+function renderFilters(){
+  const row = document.getElementById("filterRow");
+  row.innerHTML = COURSES.map(c =>
+    `<button class="fchip${activeFilter===c?" active":""}" onclick="setFilter('${c}')">${c}</button>`
+  ).join("");
+}
+
+function renderSummary(){
+  let totExp=0,totCrit=0,totWarn=0,totOk=0;
+  for(let m=0;m<12;m++){
+    const entries = getMonthData(m);
+    entries.forEach(e => {
+      e.matchedItems.forEach(it => {
+        const st = getStatus(it.exp);
+        if(st==="exp") totExp++;
+        else if(st==="crit") totCrit++;
+        else if(st==="warn") totWarn++;
+        else totOk++;
+      });
+    });
+  }
+  const row = document.getElementById("summaryRow");
+  row.innerHTML = `
+    <div class="sum-card sum-exp"><div class="sum-num">${totExp}</div><div class="sum-lbl">หมดอายุแล้ว</div></div>
+    <div class="sum-card sum-crit"><div class="sum-num">${totCrit}</div><div class="sum-lbl">วิกฤต &lt;30 วัน</div></div>
+    <div class="sum-card sum-warn"><div class="sum-num">${totWarn}</div><div class="sum-lbl">เฝ้าระวัง 30–90 วัน</div></div>
+    <div class="sum-card sum-ok"><div class="sum-num">${totOk}</div><div class="sum-lbl">ปกติ</div></div>
+  `;
+}
+
+function statusColor(st){
+  if(st==="exp") return "#E24B4A";
+  if(st==="crit") return "#EF9F27";
+  if(st==="warn") return "#BA7517";
+  return "#639922";
+}
+
+function renderCalendar(){
+  const grid = document.getElementById("calGrid");
+  const isToday = (m) => TODAY.getFullYear()===selectedYear && TODAY.getMonth()===m;
+
+  grid.innerHTML = Array.from({length:12},(_,m) => {
+    const entries = getMonthData(m);
+    const cnt = countsByStatus(entries);
+    const total = cnt.exp+cnt.crit+cnt.warn+cnt.ok;
+    const hasExp = cnt.exp > 0;
+    const peopleCnt = entries.length;
+    const preview = entries.slice(0,3);
+    const more = entries.length - 3;
+
+    let barHTML = "";
+    if(total > 0){
+      const segs = [
+        {st:"exp",n:cnt.exp},{st:"crit",n:cnt.crit},{st:"warn",n:cnt.warn},{st:"ok",n:cnt.ok}
+      ].filter(s=>s.n>0).map(s=>`<div class="bar-seg" style="flex:${s.n};background:${statusColor(s.st)}"></div>`).join("");
+      barHTML = `<div class="bar-stack">${segs}</div>`;
+    } else {
+      barHTML = `<div class="bar-stack"><div class="bar-seg" style="flex:1;background:var(--color-border-tertiary)"></div></div>`;
+    }
+
+    const peopleHTML = peopleCnt === 0
+      ? `<div class="no-exp">ไม่มีรายการ</div>`
+      : preview.map(e => {
+          const minSt = e.matchedItems.reduce((best,it) => {
+            const order = {exp:0,crit:1,warn:2,ok:3};
+            const st = getStatus(it.exp);
+            return order[st] < order[best] ? st : best;
+          }, "ok");
+          return `<div class="person-row"><span class="person-dot" style="background:${statusColor(minSt)}"></span><span class="person-name">${e.name}</span></div>`;
+        }).join("") + (more > 0 ? `<div class="more-lbl">+${more} คน</div>` : "");
+
+    return `<div class="month-card${selectedMonth===m?" active":""}${isToday(m)?" today-month":""}" onclick="selectMonth(${m})">
+      <div class="mth-header">
+        <span class="mth-name">${MONTH_FULL[m]}</span>
+        ${peopleCnt>0?`<span class="mth-badge${hasExp?" has-exp":""}">${peopleCnt}</span>`:"<span></span>"}
+      </div>
+      ${barHTML}
+      <div class="mth-people">${peopleHTML}</div>
+    </div>`;
+  }).join("");
+}
+
+function renderDetail(){
+  const panel = document.getElementById("detailPanel");
+  if(selectedMonth === null){ panel.innerHTML = ""; return; }
+
+  const entries = getMonthData(selectedMonth);
+  const sorted = [...entries].sort((a,b) => {
+    const minSt = e => e.matchedItems.reduce((b2,it)=>{
+      const o={exp:0,crit:1,warn:2,ok:3};const st=getStatus(it.exp);return o[st]<o[b2]?st:b2;
+    },"ok");
+    const o={exp:0,crit:1,warn:2,ok:3};
+    return o[minSt(a)] - o[minSt(b)];
+  });
+
+  const stLabel = {exp:"หมดอายุ",crit:"วิกฤต",warn:"เฝ้าระวัง",ok:"ปกติ"};
+  const tagClass = {exp:"tag-exp",crit:"tag-crit",warn:"tag-warn",ok:"tag-ok"};
+  const pillClass = {exp:"pill-exp",crit:"pill-crit",warn:"pill-warn",ok:"pill-ok"};
+  const dateClass = {exp:"date-exp",crit:"date-crit",warn:"date-warn",ok:"date-ok"};
+
+  const itemsHTML = sorted.length === 0
+    ? `<div class="dp-empty">ไม่มีรายการหมดอายุในเดือนนี้</div>`
+    : sorted.map(e => {
+        const minSt = e.matchedItems.reduce((b2,it)=>{
+          const o={exp:0,crit:1,warn:2,ok:3};const st=getStatus(it.exp);return o[st]<o[b2]?st:b2;
+        },"ok");
+        const courses = e.matchedItems.map(it => {
+          const st = getStatus(it.exp);
+          const diff = Math.floor((it.exp - TODAY)/(1000*60*60*24));
+          const diffTxt = diff < 0 ? `${Math.abs(diff)} วันที่แล้ว` : `${diff} วันที่เหลือ`;
+          return `<span class="course-tag ${tagClass[st]}">${it.course} · ${diffTxt}</span>`;
+        }).join("");
+        const nearestDate = e.matchedItems.reduce((mn,it) => it.exp < mn ? it.exp : mn, e.matchedItems[0].exp);
+        return `<div class="dp-item">
+          <div class="dp-item-left">
+            <div class="dp-name">${e.name}</div>
+            <div class="dp-role">${e.role}</div>
+            <div class="dp-courses">${courses}</div>
+          </div>
+          <div style="text-align:right">
+            <div><span class="status-pill ${pillClass[minSt]}">${stLabel[minSt]}</span></div>
+            <div class="dp-date ${dateClass[minSt]}" style="margin-top:4px">${fmtDate(nearestDate)}</div>
+          </div>
+        </div>`;
+      }).join("");
+
+  panel.innerHTML = `<div class="detail-panel">
+    <div class="dp-header">
+      <span class="dp-title">รายละเอียด — ${MONTH_FULL[selectedMonth]} ${selectedYear}</span>
+      <button class="dp-close" onclick="closeDetail()">&#215;</button>
+    </div>
+    <div class="dp-list">${itemsHTML}</div>
+  </div>`;
+}
+
+function render(){
+  document.getElementById("yearLabel").textContent = selectedYear;
+  renderFilters();
+  renderSummary();
+  renderCalendar();
+  renderDetail();
+}
+
+window.selectMonth = function(m){
+  selectedMonth = (selectedMonth === m) ? null : m;
+  render();
+  if(selectedMonth !== null){
+    setTimeout(()=>document.getElementById("detailPanel").scrollIntoView({behavior:"smooth",block:"nearest"}),50);
+  }
+};
+window.closeDetail = function(){ selectedMonth = null; render(); };
+window.setFilter = function(f){ activeFilter = f; selectedMonth = null; render(); };
+
+document.getElementById("prevY").onclick = () => { selectedYear--; selectedMonth=null; render(); };
+document.getElementById("nextY").onclick = () => { selectedYear++; selectedMonth=null; render(); };
+
+render();
+</script>

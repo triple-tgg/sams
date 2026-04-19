@@ -98,47 +98,36 @@ export function getMenuList(pathname: string, t: any): Group[] {
           icon: "heroicons-outline:clipboard-document-check",
           submenus: [
             {
-              href: "/qa/monitoring",
-              label: t("monitoring"),
-              active: pathname.includes("/qa/monitoring"),
-              icon: "heroicons-outline:chart-bar-square",
-              children: [],
-            },
-            {
               href: "/qa/staff",
               label: t("qaStaffList"),
               active: pathname.includes("/qa/staff"),
               icon: "heroicons-outline:users",
               children: [],
             },
-            // {
-            //   href: "/qa/training",
-            //   label: t("training"),
-            //   active: pathname.includes("/qa/training") && !pathname.includes("/qa/training-scheduler"),
-            //   icon: "heroicons-outline:academic-cap",
-            //   children: [],
-            // },
             {
-              href: "/qa/course-management",
-              label: t("courseManagement"),
-              active: pathname.includes("/qa/course-management"),
-              icon: "heroicons-outline:book-open",
-              children: [],
+              href: "/qa/monitoring",
+              label: t("training"),
+              active: pathname.includes("/qa/monitoring") || pathname.includes("/qa/course-management") || pathname.includes("/qa/training-scheduler"),
+              icon: "heroicons-outline:academic-cap",
+              children: [
+                {
+                  href: "/qa/monitoring",
+                  label: t("monitoring"),
+                  active: pathname.includes("/qa/monitoring"),
+                },
+                {
+                  href: "/qa/course-management",
+                  label: t("courseManagement"),
+                  active: pathname.includes("/qa/course-management"),
+                },
+                {
+                  href: "/qa/training-scheduler",
+                  label: t("trainingScheduler"),
+                  active: pathname.includes("/qa/training-scheduler"),
+                },
+              ],
             },
-            {
-              href: "/qa/training-scheduler",
-              label: t("trainingScheduler"),
-              active: pathname.includes("/qa/training-scheduler"),
-              icon: "heroicons-outline:calendar-days",
-              children: [],
-            },
-            {
-              href: "/qa/enrollment",
-              label: t("enrollment"),
-              active: pathname.includes("/qa/enrollment"),
-              icon: "heroicons-outline:user-plus",
-              children: [],
-            },
+
             {
               href: "/qa/authorization",
               label: t("authorization"),
@@ -146,8 +135,6 @@ export function getMenuList(pathname: string, t: any): Group[] {
               icon: "heroicons-outline:shield-check",
               children: [],
             },
-
-
           ],
         },
       ],
