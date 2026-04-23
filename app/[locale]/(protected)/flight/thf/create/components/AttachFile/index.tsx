@@ -26,6 +26,7 @@ import { useAttachFileUpload } from '@/lib/api/hooks/useAttachFileUpload'
 
 import { FlightFormData } from '@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId'
 import { LineMaintenanceThfResponse } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
+import { splitUtcDateTime } from '@/lib/utils/flightDatetime'
 
 interface AttachFileStepProps {
   initialData?: LineMaintenanceThfResponse | null
@@ -267,18 +268,18 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
         {flight && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FlightTimeCard
-              title="Arrival (UTC Time)"
+              title="Arrival (Local Time)"
               flightNo={flight.arrivalFlightNo || ''}
-              date={flight.arrivalDate || ''}
-              timeLabels={['STA (UTC)', 'ATA (UTC)']}
-              times={[flight.arrivalStatime || '', flight.arrivalAtaTime || '']}
+              date={splitUtcDateTime(flight.arrivalStaDate).date}
+              timeLabels={['STA (Local)', 'ATA (Local)']}
+              times={[splitUtcDateTime(flight.arrivalStaDate).time, splitUtcDateTime(flight.arrivalAtaDate).time]}
             />
             <FlightTimeCard
-              title="Departure (UTC Time)"
+              title="Departure (Local Time)"
               flightNo={flight.departureFlightNo || ''}
-              date={flight.departureDate || ''}
-              timeLabels={['STD (UTC)', 'ATD (UTC)']}
-              times={[flight.departureStdTime || '', flight.departureAtdtime || '']}
+              date={splitUtcDateTime(flight.departureStdDate).date}
+              timeLabels={['STD (Local)', 'ATD (Local)']}
+              times={[splitUtcDateTime(flight.departureStdDate).time, splitUtcDateTime(flight.departureAtdDate).time]}
             />
           </div>
         )}

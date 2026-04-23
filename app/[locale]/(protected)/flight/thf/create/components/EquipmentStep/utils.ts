@@ -3,6 +3,7 @@ import { EquipmentFormData, defaultEquipment } from './types'
 import { dateTimeUtils } from '@/lib/dayjs'
 import { Equipment } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
 import { formatFromPicker } from '@/lib/utils/formatPicker'
+import { utcDatetimeToFormDate, utcDatetimeToFormTime } from '@/lib/utils/flightDatetime'
 
 /**
  * Get default values for the equipment form with current date/time
@@ -63,10 +64,10 @@ export const mapApiDataToEquipmentForm = (equipments: Equipment[]): EquipmentFor
       equipmentName: equipment.equipmentName || '',
       hrs: equipment.hrs?.toString() || '',
       svc: equipment.svc?.toString() || '',
-      fromDate: equipment.fromDate ? formatFromPicker(equipment.fromDate) : formatFromPicker(currentDate),
-      fromTime: equipment.fromTime || currentTime,
-      toDate: equipment.toDate ? formatFromPicker(equipment.toDate) : formatFromPicker(currentDate),
-      toTime: equipment.toTime || currentTime,
+      fromDate: equipment.formDate ? utcDatetimeToFormDate(equipment.formDate.replace(' ', 'T')) : formatFromPicker(currentDate),
+      fromTime: equipment.formDate ? utcDatetimeToFormTime(equipment.formDate.replace(' ', 'T')) : currentTime,
+      toDate: equipment.toDate ? utcDatetimeToFormDate(equipment.toDate.replace(' ', 'T')) : formatFromPicker(currentDate),
+      toTime: equipment.toDate ? utcDatetimeToFormTime(equipment.toDate.replace(' ', 'T')) : currentTime,
       isLoan: equipment.isLoan ?? false,
       loanRemark: equipment.loanRemark || '',
       isSamsTool: equipment.isSamsTool ?? true,

@@ -26,7 +26,7 @@ import { useAircraftTypes } from '@/lib/api/hooks/useAircraftTypes'
 import { useStatusOptions } from '@/lib/api/hooks/useStatus'
 import { usePushThf } from '@/lib/api/hooks/usePushThf'
 import { PushThfRequest } from '@/lib/api/lineMaintenances/flight-thf/pushThf'
-import { convertDateToBackend } from '@/lib/utils/formatPicker'
+import { combineFormToUtcDatetime } from '@/lib/utils/flightDatetime'
 
 interface FlightStepProps {
   flightInfosId: number | null;
@@ -108,17 +108,17 @@ const FlightStep = (props: FlightStepProps) => {
         acReg: data.acReg || '',
         acTypeCode: data.acTypeCode?.value || '',
         arrivalFlightNo: data.flightArrival,
-        arrivalDate: data.arrivalDate ? convertDateToBackend(data.arrivalDate) : "",
-        arrivalStaTime: sendTime(data.sta),
-        arrivalAtaTime: sendTime(data.ata),
+        arrivalStaDate: combineFormToUtcDatetime(data.arrivalDate, data.sta),
+        arrivalAtaDate: combineFormToUtcDatetime(data.arrivalDate, data.ata),
         departureFlightNo: data.flightDeparture,
-        departureDate: data.departureDate ? convertDateToBackend(data.departureDate) : "",
-        departureStdTime: sendTime(data.std),
-        departureAtdTime: sendTime(data.atd),
+        departureStdDate: combineFormToUtcDatetime(data.departureDate, data.std),
+        departureAtdDate: combineFormToUtcDatetime(data.departureDate, data.atd),
         bayNo: data.bay || '',
         statusCode: data.status?.value || "Normal",
         note: data.note || '',
         thfNo: data.thfNumber,
+        routeFrom: data.routeFrom?.value || '',
+        routeTo: data.routeTo?.value || '',
       }
 
       await pushThfMutation.mutateAsync(payload)
@@ -263,7 +263,7 @@ const FlightStep = (props: FlightStepProps) => {
           {/* Arrival Section */}
           <Card className='border border-blue-200'>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Arrival (UTC Time)</CardTitle>
+              <CardTitle>Arrival (Local Time)</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -285,15 +285,15 @@ const FlightStep = (props: FlightStepProps) => {
                   <InputField
                     name="sta"
                     control={control}
-                    label="STA (UTC) *"
-                    placeholder="HH:MM"
+                    label="STA (Local) *"
+                    type="time"
                     errorMessage={errors.sta?.message}
                   />
                   <InputField
                     name="ata"
                     control={control}
-                    label="ATA (UTC)"
-                    placeholder="HH:MM"
+                    label="ATA (Local)"
+                    type="time"
                     errorMessage={errors.ata?.message}
                   />
                 </div>
@@ -304,7 +304,7 @@ const FlightStep = (props: FlightStepProps) => {
           {/* Departure Section */}
           <Card className='border border-blue-200'>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Departure (UTC Time)</CardTitle>
+              <CardTitle>Departure (Local Time)</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -326,15 +326,15 @@ const FlightStep = (props: FlightStepProps) => {
                   <InputField
                     name="std"
                     control={control}
-                    label="STD (UTC) *"
-                    placeholder="HH:MM"
+                    label="STD (Local) *"
+                    type="time"
                     errorMessage={errors.std?.message}
                   />
                   <InputField
                     name="atd"
                     control={control}
-                    label="ATD (UTC)"
-                    placeholder="HH:MM"
+                    label="ATD (Local)"
+                    type="time"
                     errorMessage={errors.atd?.message}
                   />
                 </div>

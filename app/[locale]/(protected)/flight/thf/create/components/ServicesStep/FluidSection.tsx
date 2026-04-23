@@ -109,7 +109,6 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
   aircraftTypeFlags,
   isLoadingFlags,
 }) => {
-  const servicingPerformed = form.watch('servicingPerformed')
   const engOilSets = form.watch('fluid.engOilSets')
   const csdIdgVsfgSets = form.watch('fluid.csdIdgVsfgSets')
 
@@ -132,34 +131,7 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
-        <FormField
-          control={form.control}
-          name="servicingPerformed"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-              <FormControl>
-                <Checkbox
-                  color='primary'
-                  checked={field.value}
-                  onCheckedChange={(value) => {
-                    field.onChange(value)
-                    if (field.value) {
-
-                    } else {
-
-                    }
-                  }}
-                />
-              </FormControl>
-              <FormLabel className="text-sm font-medium cursor-pointer">
-                Fluid Servicing Performed
-              </FormLabel>
-            </FormItem>
-          )}
-        />
-
-        {servicingPerformed && (
-          <div className="space-y-6">
+        <div className="space-y-6">
 
             {/* ── Engine Oil Sets ── */}
             {maxEngineOilSets > 0 && (
@@ -394,7 +366,6 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
               </div>
             </div>
           </div>
-        )}
       </CardContent>
     </Card>
   )

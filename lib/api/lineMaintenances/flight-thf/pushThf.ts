@@ -9,17 +9,17 @@ export interface PushThfRequest {
   acReg: string;
   acTypeCode: string;
   arrivalFlightNo: string;
-  arrivalDate: string;
-  arrivalStaTime: string;
-  arrivalAtaTime: string;
+  arrivalStaDate: string;      // UTC datetime "YYYY-MM-DD HH:mm"
+  arrivalAtaDate: string;      // UTC datetime "YYYY-MM-DD HH:mm"
   departureFlightNo: string;
-  departureDate: string;
-  departureStdTime: string;
-  departureAtdTime: string;
+  departureStdDate: string;    // UTC datetime "YYYY-MM-DD HH:mm"
+  departureAtdDate: string;    // UTC datetime "YYYY-MM-DD HH:mm"
   bayNo: string;
   statusCode: string;
   note: string;
   thfNo: string;
+  routeFrom: string;
+  routeTo: string;
 }
 
 // Interface for push THF response

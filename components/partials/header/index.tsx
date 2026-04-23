@@ -5,12 +5,12 @@ import ProfileInfo from './profile-info'
 import Notifications from './notifications'
 import Messages from "./messages"
 import { Cart } from './cart'
-import ThemeSwitcher from './theme-switcher'
 import { SidebarToggle } from '@/components/partials/sidebar/sidebar-toggle'
 import { SheetMenu } from '@/components/partials/sidebar/menu/sheet-menu'
 import HorizontalMenu from "./horizontal-menu"
 import LocalSwitcher from './locale-switcher'
 import HeaderLogo from "./header-logo"
+import HeaderClock from "./header-clock"
 
 
 const DashCodeHeader = async () => {
@@ -23,12 +23,12 @@ const DashCodeHeader = async () => {
                     {/* <HeaderSearch /> */}
                 </div>
                 <div className="nav-tools flex items-center  md:gap-4 gap-3">
+                    <HeaderClock />
                     {/* <LocalSwitcher /> */}
                     {/* <Cart /> */}
                     {/* <Messages /> */}
                     {/* <Notifications /> */}
                     <ProfileInfo />
-                    <ThemeSwitcher />
                     <SheetMenu />
                 </div>
             </HeaderContent>

@@ -2,6 +2,7 @@ import { LineMaintenanceThfResponse } from '@/lib/api/lineMaintenances/flight/ge
 import { ServicesFormInputs } from './types'
 import { AircraftCheckType } from '@/lib/api/master/aircraft-check-types/airlines.interface'
 import { convertDateToBackend, formatFromPicker } from '@/lib/utils/formatPicker'
+import { utcDatetimeToFormDate, utcDatetimeToFormTime } from '@/lib/utils/flightDatetime'
 
 type FluidFormData = ServicesFormInputs['fluid']
 
@@ -22,7 +23,7 @@ export const getDefaultValues = (checkTypes?: AircraftCheckType[]): ServicesForm
     }],
     additionalDefectRectification: false,
     additionalDefects: [],
-    servicingPerformed: false,
+    servicingPerformed: true,
     fluid: {
       fluidName: null,
       engOilSets: [],
@@ -145,8 +146,8 @@ export const transformServicesDataToAPI = (data: ServicesFormInputs) => {
     aircraftChecks,
     additionalDefectRectification: data.additionalDefectRectification,
     additionalDefects: data.additionalDefectRectification ? (data.additionalDefects || []) : [],
-    servicingPerformed: data.servicingPerformed,
-    fluid: data.servicingPerformed ? data.fluid : null,
+    servicingPerformed: true,
+    fluid: data.fluid,
     addPersonnels: data.addPersonnels,
     personnel,
     flightDeck: data.flightDeck,
@@ -205,6 +206,7 @@ export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse |
   // Map additional defects
   const additionalDefects = aircraft?.additionalDefect?.map(defect => ({
     defect: defect.details || "",
+    maintenancePerformed: defect.maintenancePerformed || "",
     ataChapter: defect.ataChapter || "",
     laeMH: defect.lae?.toString() || "",
     mechMH: defect.mech?.toString() || "",
@@ -246,19 +248,19 @@ export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse |
     staffCode: person.staff?.code || "",
     name: person.staff?.name || "",
     type: (person.staff?.staffTypeId) ? person.staff.staffTypeId.toString() : "",
-    formDate: person.formDate ? formatFromPicker(person.formDate) : "",
-    toDate: person.toDate ? formatFromPicker(person.toDate) : "",
-    formTime: person.formTime || "",
-    toTime: person.toTime || "",
+    formDate: person.formDate ? utcDatetimeToFormDate(person.formDate) : "",
+    toDate: person.toDate ? utcDatetimeToFormDate(person.toDate) : "",
+    formTime: person.formDate ? utcDatetimeToFormTime(person.formDate) : "",
+    toTime: person.toDate ? utcDatetimeToFormTime(person.toDate) : "",
     remark: person.note || "",
   })) || [];
 
 
   const aircraftTowingInfo = aircraft?.aircraftTowing?.map(towing => ({
-    onDate: formatFromPicker(towing.onDate || "") || "",
-    offDate: formatFromPicker(towing.offDate || "") || "",
-    onTime: towing.onTime || "",
-    offTime: towing.offTime || "",
+    onDate: towing.onDate ? utcDatetimeToFormDate(towing.onDate) : "",
+    offDate: towing.offDate ? utcDatetimeToFormDate(towing.offDate) : "",
+    onTime: towing.onDate ? utcDatetimeToFormTime(towing.onDate) : "",
+    offTime: towing.offDate ? utcDatetimeToFormTime(towing.offDate) : "",
     bayFrom: towing.bayFrom || "", // API field is bayFrom, mapping to bayFrom
     bayTo: towing.bayTo || "", // Add bay to field
   })) || [];
@@ -267,7 +269,7 @@ export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse |
     aircraftChecks,
     additionalDefectRectification: lineMaintenance?.isAdditionalDefect || false,
     additionalDefects: lineMaintenance?.isAdditionalDefect ? additionalDefects : [],
-    servicingPerformed: lineMaintenance?.isFluidServicing || false,
+    servicingPerformed: true,
     fluid,
     addPersonnels: lineMaintenance?.isPersonnels || false,
     personnel: lineMaintenance?.isPersonnels ? personnel : [],

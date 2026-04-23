@@ -40,19 +40,24 @@ export interface FlightImportData {
     acReg: string;
     acTypeCode: string;
     arrivalFlightNo: string;
-    arrivalDate: string;
-    arrivalStaTime: string;
-    arrivalAtaTime: string;
+    arrivalStaDate: string;      // UTC datetime "YYYY-MM-DD HH:mm"
+    arrivalAtaDate: string;      // UTC datetime "YYYY-MM-DD HH:mm"
     departureFlightNo: string;
-    departureDate: string;
-    departureStdTime: string;
-    departureAtdTime: string;
+    departureStdDate: string;    // UTC datetime "YYYY-MM-DD HH:mm"
+    departureAtdDate: string;    // UTC datetime "YYYY-MM-DD HH:mm"
     bayNo: string;
     statusCode: string;
     note: string;
     csStaffIds: number[];  // CS staff IDs
     mechStaffIds: number[]; // MECH staff IDs
     maintenanceStatusId: number;  // CHECK column - MaintenanceStatus ID
+    // Internal: intermediate fields for Excel mapping (date + time separate before combine)
+    _arrivalDate?: string;
+    _arrivalStaTime?: string;
+    _arrivalAtaTime?: string;
+    _departureDate?: string;
+    _departureStdTime?: string;
+    _departureAtdTime?: string;
 }
 
 /**
@@ -72,7 +77,7 @@ export interface ImportState {
 /**
  * Excel column to API field mapping
  */
-export const EXCEL_COLUMN_MAPPING: Record<string, keyof FlightImportData> = {
+export const EXCEL_COLUMN_MAPPING: Record<string, string> = {
     'Airlines Code': 'airlinesCode',
     'airlinesCode': 'airlinesCode',
     'Station Code': 'stationsCode',
@@ -84,20 +89,20 @@ export const EXCEL_COLUMN_MAPPING: Record<string, keyof FlightImportData> = {
     'acTypeCode': 'acTypeCode',
     'Arrival Flight No': 'arrivalFlightNo',
     'arrivalFlightNo': 'arrivalFlightNo',
-    'Arrival Date': 'arrivalDate',
-    'arrivalDate': 'arrivalDate',
-    'Arrival STA (UTC)': 'arrivalStaTime',
-    'arrivalStaTime': 'arrivalStaTime',
-    'Arrival ATA (UTC)': 'arrivalAtaTime',
-    'arrivalAtaTime': 'arrivalAtaTime',
+    'Arrival Date': '_arrivalDate',
+    'arrivalDate': '_arrivalDate',
+    'Arrival STA (UTC)': '_arrivalStaTime',
+    'arrivalStaTime': '_arrivalStaTime',
+    'Arrival ATA (UTC)': '_arrivalAtaTime',
+    'arrivalAtaTime': '_arrivalAtaTime',
     'Departure Flight No': 'departureFlightNo',
     'departureFlightNo': 'departureFlightNo',
-    'Departure Date': 'departureDate',
-    'departureDate': 'departureDate',
-    'Departure STA (UTC)': 'departureStdTime',
-    'departureStdTime': 'departureStdTime',
-    'Departure ATA (UTC)': 'departureAtdTime',
-    'departureAtdTime': 'departureAtdTime',
+    'Departure Date': '_departureDate',
+    'departureDate': '_departureDate',
+    'Departure STA (UTC)': '_departureStdTime',
+    'departureStdTime': '_departureStdTime',
+    'Departure ATA (UTC)': '_departureAtdTime',
+    'departureAtdTime': '_departureAtdTime',
     'Bay': 'bayNo',
     'bayNo': 'bayNo',
     'Status': 'statusCode',

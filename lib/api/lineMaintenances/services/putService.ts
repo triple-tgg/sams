@@ -1,5 +1,6 @@
 import axiosConfig from "@/lib/axios.config";
 import { convertDateToBackend } from "@/lib/utils/formatPicker";
+import { combineFormToUtcDatetime } from "@/lib/utils/flightDatetime";
 
 // Interface for attachment files
 export interface AttachFiles {
@@ -17,8 +18,9 @@ export interface AircraftCheckType {
 // Interface for personnel
 export interface Personnel {
   staffId: number;
-  fromTime: string;
-  toTime: string;
+  staffTypeId?: number;
+  formDate: string;
+  toDate: string;
   note?: string;
 }
 
@@ -47,11 +49,10 @@ export interface FluidServicing {
 
 // Interface for aircraft towing
 export interface AircraftTowing {
-  aircraftDate: string;
-  onTime: string;
-  offTime: string;
   bayFrom?: string;
   bayTo?: string;
+  onDate: string;
+  offDate: string;
 }
 
 // Interface for aircraft data
@@ -208,11 +209,9 @@ export const createServiceRequestFromForm = (
       personnels: shouldIncludePersonnels
         ? formData.personnel.map((person: any) => ({
           staffId: person.staffId || "",
-          formTime: person.formTime || "",
-          formDate: person.formDate ? convertDateToBackend(person.formDate) : "",
-          toDate: person.toDate ? convertDateToBackend(person.toDate) : "",
-          toTime: person.toTime || "",
           staffTypeId: person.type ? Number(person.type) : undefined,
+          formDate: person.formDate ? combineFormToUtcDatetime(person.formDate, person.formTime).replace(' ', 'T') : "",
+          toDate: person.toDate ? combineFormToUtcDatetime(person.toDate, person.toTime).replace(' ', 'T') : "",
           note: person.remark || ""
         }))
         : null,
@@ -237,11 +236,8 @@ export const createServiceRequestFromForm = (
 
       aircraftTowing: shouldIncludeTowing
         ? formData.aircraftTowingInfo.map((towing: any) => ({
-          aircraftDate: towing.aircraftDate ? convertDateToBackend(towing.aircraftDate) : "",
-          onDate: towing.onDate ? convertDateToBackend(towing.onDate) : "",
-          onTime: towing.onTime || "",
-          offDate: towing.offDate ? convertDateToBackend(towing.offDate) : "",
-          offTime: towing.offTime || "",
+          onDate: towing.onDate ? combineFormToUtcDatetime(towing.onDate, towing.onTime).replace(' ', 'T') : "",
+          offDate: towing.offDate ? combineFormToUtcDatetime(towing.offDate, towing.offTime).replace(' ', 'T') : "",
           ...(towing.bayFrom && { bayFrom: towing.bayFrom }),
           ...(towing.bayTo && { bayTo: towing.bayTo })
         }))

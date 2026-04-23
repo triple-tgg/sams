@@ -18,11 +18,13 @@ import { exportPreInvoiceToExcel } from "./components/exportExcel";
 import { usePreInvoice, useDraftInvoice } from "@/lib/api/hooks/useInvoice";
 import type { InvoiceRequest } from "@/lib/api/contract/invoiceApi";
 
+import { dateTimeUtils } from "@/lib/dayjs";
+
 const InvoicePage = () => {
     const t = useTranslations("Menu");
 
-    // Today's date in YYYY-MM-DD format
-    const today = new Date().toISOString().split("T")[0];
+    // Today's date in YYYY-MM-DD format (user's local timezone)
+    const today = dateTimeUtils.todayLocal();
 
     // ── Filter State ────────────────────────────────────────
     const [selectedAirline, setSelectedAirline] = useState<string>("");

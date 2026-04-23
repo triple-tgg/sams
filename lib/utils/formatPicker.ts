@@ -60,7 +60,9 @@ export const formatForPicker = (dateStr: string): string => {
 // Convert YYYY-MM-DD from date picker to DD/MM/YYYY
 export const formatFromPicker = (pickerStr: string): string => {
   if (!pickerStr) return "";
-  const parts = pickerStr.split("-");
+  if (pickerStr.includes('/')) return pickerStr; // Already DD/MM/YYYY
+  const datePart = pickerStr.split('T')[0];
+  const parts = datePart.split("-");
   if (parts.length !== 3) return "";
   const [year, month, day] = parts;
   return `${day}/${month}/${year}`;

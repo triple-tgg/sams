@@ -1,5 +1,7 @@
 // Utility functions for transforming flight data to Planby format
 import dayjs from 'dayjs';
+import '@/lib/dayjs'; // ensure utc plugin is registered
+import { splitUtcDateTimeToLocal } from '@/lib/utils/flightDatetime';
 import { FlightItem } from '@/lib/api/flight/filghtlist.interface';
 import { FlightEpgItem, AirlineChannel, AirlineChannelPlanby } from './types';
 import { FlightPlanbyItem } from '@/lib/api/flight/getFlightListPlanby';
@@ -11,12 +13,12 @@ import { FlightPlanbyItem } from '@/lib/api/flight/getFlightListPlanby';
  */
 export function sanitizeFlightsPlanby(flights: FlightPlanbyItem[]): FlightPlanbyItem[] {
     return flights.map(flight => {
-        const since = new Date(flight.since);
-        const till = new Date(flight.till);
+        const since = dayjs(flight.since);
+        const till = dayjs(flight.till);
 
-        if (till <= since) {
+        if (till.isBefore(since) || till.isSame(since)) {
             // Fix: set till to since + 1 hour
-            const fixedTill = new Date(since.getTime() + 60 * 60 * 1000);
+            const fixedTill = since.add(1, 'hour');
             return { ...flight, till: fixedTill.toISOString() };
         }
         return flight;
@@ -34,23 +36,26 @@ export function transformFlightsToEpg(flights: FlightItem[]): FlightEpgItem[] {
     flights.forEach((f, i) => {
         console.log(`Flight ${i}:`, {
             arrivalFlightNo: f.arrivalFlightNo,
-            arrivalStatime: f.arrivalStatime,
+            arrivalStaDate: f.arrivalStaDate,
             departureFlightNo: f.departureFlightNo,
-            departureStdTime: f.departureStdTime,
+            departureStdDate: f.departureStdDate,
         });
     });
     const epgItems: FlightEpgItem[] = [];
 
     flights.forEach((flight: FlightItem, index: number) => {
         // Create arrival EPG item if arrival flight number exists
-        if (flight.arrivalFlightNo && flight.arrivalDate) {
-            // arrivalSince: ใช้ arrivalDate + arrivalStatime
-            const arrivalSince = combineDateAndTime(flight.arrivalDate, flight.arrivalStatime);
-            // arrivalTill: ใช้ departureDate + departureStdTime (หรือ default 60 นาที ถ้าไม่มี)
-            const hasValidDeparture = flight.departureDate && flight.departureStdTime && flight.departureStdTime !== '00:00' && flight.departureStdTime !== '00:00:00';
+        if (flight.arrivalFlightNo && flight.arrivalStaDate) {
+            // arrivalSince: use arrivalStaDate (UTC datetime)
+            const arrivalSince = utcDatetimeToIso(flight.arrivalStaDate);
+            // arrivalTill: use departureStdDate or default 60 min
+            const hasValidDeparture = flight.departureStdDate && !flight.departureStdDate.endsWith('00:00');
             const arrivalTill = hasValidDeparture
-                ? combineDateAndTime(flight.departureDate!, flight.departureStdTime)
+                ? utcDatetimeToIso(flight.departureStdDate!)
                 : addMinutes(arrivalSince, 60);
+
+            const arrivalLocal = splitUtcDateTimeToLocal(flight.arrivalStaDate);
+            const departureLocal = splitUtcDateTimeToLocal(flight.departureStdDate);
 
             epgItems.push({
                 channelUuid: flight?.airlineObj?.code || "unknown",
@@ -58,15 +63,14 @@ export function transformFlightsToEpg(flights: FlightItem[]): FlightEpgItem[] {
                 title: flight.arrivalFlightNo,
                 since: arrivalSince,
                 till: arrivalTill,
-                // flightType: 'arrival',
                 acReg: flight.acReg,
                 bayNo: flight.bayNo,
                 status: flight.statusObj?.code ?? '',
                 flightNo: flight.arrivalFlightNo,
-                arrivalDate: flight.arrivalDate,
-                departureDate: flight.departureDate ?? '',
-                arrivalStatime: flight.arrivalStatime ?? '',
-                departureStdTime: flight.departureStdTime ?? '',
+                arrivalDate: arrivalLocal.date,
+                departureDate: departureLocal.date,
+                arrivalStatime: arrivalLocal.time,
+                departureStdTime: departureLocal.time,
                 departureFlightNo: flight.departureFlightNo ?? '',
                 arrivalFlightNo: flight.arrivalFlightNo ?? '',
                 color: {
@@ -179,39 +183,44 @@ function getAirlineLogo(airlineCode: string): string {
 }
 
 /**
+ * Convert UTC datetime string "YYYY-MM-DD HH:mm" to ISO string
+ */
+function utcDatetimeToIso(utcDatetime: string): string {
+    if (!utcDatetime) return dayjs().toISOString();
+    const d = dayjs.utc(utcDatetime);
+    return d.isValid() ? d.toISOString() : dayjs().toISOString();
+}
+
+/**
  * Combine date and time strings into ISO datetime format
+ * Uses local timezone for display — date/time from API are date-only strings
  */
 function combineDateAndTime(dateStr: string, timeStr: string | null): string {
-    if (!dateStr) return new Date().toISOString();
+    if (!dateStr) return dayjs().toISOString();
     if (!timeStr) timeStr = '00:00:00';
 
-    // Handle different date formats
-    const date = new Date(dateStr);
     const [hours, minutes, seconds = '00'] = timeStr.split(':');
 
-    date.setHours(parseInt(hours, 10), parseInt(minutes, 10), parseInt(seconds, 10));
+    // Parse the date string locally, then set time components
+    const dateOnly = dateStr.split('T')[0]; // Handle both ISO and plain date strings
+    const combined = dayjs(`${dateOnly} ${hours}:${minutes}:${seconds}`);
 
-    return date.toISOString();
+    return combined.toISOString();
 }
 
 /**
  * Add minutes to a datetime string
  */
 function addMinutes(isoString: string, minutes: number): string {
-    const date = new Date(isoString);
-    date.setMinutes(date.getMinutes() + minutes);
-    return date.toISOString();
+    return dayjs(isoString).add(minutes, 'minute').toISOString();
 }
 
 /**
- * Get today's date range for timeline
+ * Get today's date range for timeline (in user's local timezone)
  */
 export function getTodayDateRange(): { startDate: string; endDate: string } {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const today = dayjs().startOf('day');
+    const tomorrow = today.add(1, 'day');
 
     return {
         startDate: today.toISOString(),
@@ -221,7 +230,9 @@ export function getTodayDateRange(): { startDate: string; endDate: string } {
 
 /**
  * Format date to YYYY-MM-DD for API calls
+ * Uses user's local timezone — date user sees = date sent to API
  */
 export function formatDateForApi(date: Date): string {
-    return date.toISOString().split('T')[0];
+    return dayjs(date).format('YYYY-MM-DD');
 }
+

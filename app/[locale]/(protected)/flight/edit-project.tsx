@@ -44,6 +44,7 @@ import { useLineMaintenancesQueryThfByFlightId } from "@/lib/api/hooks/uselineMa
 import { PersonnelSection } from "./thf/create/components/CPresonel";
 import ConfirmEditFlight from "./thf/create/components/ConfirmEditFlight";
 import { useMaintenanceStatus } from "@/lib/api/hooks/useMaintenanceStatus";
+import { utcDatetimeToFormDate, utcDatetimeToFormTime, combineFormToUtcDatetime } from "@/lib/utils/flightDatetime";
 
 
 
@@ -166,17 +167,17 @@ const createDefaultValues = (flightData: any): Inputs => {
       label: responseData.acTypeObj.name || responseData.acTypeObj.code
     } : null,
     flightArrival: responseData.arrivalFlightNo || "",
-    arrivalDate: convertDateFromBackend(responseData.arrivalDate),
-    sta: responseData.arrivalStatime || "",
-    ata: responseData.arrivalAtaTime || "",
-    routeFrom: responseData.routeForm ? {
-      value: responseData.routeForm,
-      label: responseData.routeForm
+    arrivalDate: utcDatetimeToFormDate(responseData.arrivalStaDate),
+    sta: utcDatetimeToFormTime(responseData.arrivalStaDate),
+    ata: utcDatetimeToFormTime(responseData.arrivalAtaDate),
+    routeFrom: responseData.routeFrom ? {
+      value: responseData.routeFrom,
+      label: responseData.routeFrom
     } : null,
     flightDeparture: responseData.departureFlightNo || "",
-    departureDate: convertDateFromBackend(responseData.departureDate),
-    std: responseData.departureStdTime || "",
-    atd: responseData.departureAtdtime || "",
+    departureDate: utcDatetimeToFormDate(responseData.departureStdDate),
+    std: utcDatetimeToFormTime(responseData.departureStdDate),
+    atd: utcDatetimeToFormTime(responseData.departureAtdDate),
     routeTo: responseData.routeTo ? {
       value: responseData.routeTo,
       label: responseData.routeTo
@@ -313,13 +314,11 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
       acReg: (values.acReg ?? "").trim(),
       acTypeCode: values.acType!.value.trim(),
       arrivalFlightNo: values.flightArrival.trim(),
-      arrivalDate: convertDateToBackend(values.arrivalDate),
-      arrivalStaTime: sendTime(values.sta),
-      arrivalAtaTime: sendTime(values.ata),
+      arrivalStaDate: combineFormToUtcDatetime(values.arrivalDate, values.sta),
+      arrivalAtaDate: combineFormToUtcDatetime(values.arrivalDate, values.ata),
       departureFlightNo: (values.flightDeparture ?? "").trim(),
-      departureDate: convertDateToBackend(values.departureDate ?? ""),
-      departureStdTime: sendTime(values.std),
-      departureAtdTime: sendTime(values.atd),
+      departureStdDate: combineFormToUtcDatetime(values.departureDate ?? "", values.std),
+      departureAtdDate: combineFormToUtcDatetime(values.departureDate ?? "", values.atd),
       bayNo: (values.bay ?? "").trim(),
       thfNo: (values.thfNumber ?? "").trim(),
       statusCode: values.status?.value ?? "Normal",
@@ -511,7 +510,7 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
                 <div className="grid lg:grid-cols-2 gap-6">
                   {/* ARRIVAL */}
                   <div>
-                    <h4 className="text-sm font-medium mb-2">Arrival (UTC Time)</h4>
+                    <h4 className="text-sm font-medium mb-2">Arrival (Local Time)</h4>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <Label htmlFor="flightArrival">Flight No</Label>
@@ -534,12 +533,12 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
                         <FieldError msg={errors.arrivalDate?.message} />
                       </div>
                       <div className="space-y-1">
-                        <Label htmlFor="sta">STA (UTC)</Label>
+                        <Label htmlFor="sta">STA (Local)</Label>
                         <Input type="time" {...register("sta")} />
                         <FieldError msg={errors.sta?.message} />
                       </div>
                       <div className="space-y-1">
-                        <Label htmlFor="ata">ATA (UTC)</Label>
+                        <Label htmlFor="ata">ATA (Local)</Label>
                         <Input type="time" {...register("ata")} />
                         <FieldError msg={errors.ata?.message} />
                       </div>
@@ -548,7 +547,7 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
 
                   {/* DEPARTURE */}
                   <div>
-                    <h4 className="text-sm font-medium mb-2">Departure (UTC Time)</h4>
+                    <h4 className="text-sm font-medium mb-2">Departure (Local Time)</h4>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <Label htmlFor="flightDeparture">Flight No</Label>
@@ -571,12 +570,12 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
                         <FieldError msg={errors.departureDate?.message} />
                       </div>
                       <div className="space-y-1">
-                        <Label htmlFor="std">STD (UTC)</Label>
+                        <Label htmlFor="std">STD (Local)</Label>
                         <Input type="time" {...register("std")} />
                         <FieldError msg={errors.std?.message} />
                       </div>
                       <div className="space-y-1">
-                        <Label htmlFor="atd">ATD (UTC)</Label>
+                        <Label htmlFor="atd">ATD (Local)</Label>
                         <Input type="time" {...register("atd")} />
                         <FieldError msg={errors.atd?.message} />
                       </div>

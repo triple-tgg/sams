@@ -56,7 +56,14 @@ export const DAYS_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
 export function daysInMonth(y: number, m: number) { return new Date(y, m + 1, 0).getDate() }
 export function firstDayOfMonth(y: number, m: number) { return new Date(y, m, 1).getDay() }
-export function toYMD(d: Date) { return d.toISOString().slice(0, 10) }
+
+/** Convert Date to YYYY-MM-DD string using local date components (timezone-safe) */
+export function toYMD(d: Date) {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+}
 export function parseYMD(s: string) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d) }
 
 export function formatDate(s: string) {

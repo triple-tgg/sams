@@ -83,13 +83,11 @@ export interface Flight {
   stationObj: CodeObject;
   acReg: string | null;
   arrivalFlightNo: string | null;
-  arrivalDate: string | null;
-  arrivalStatime: string | null;
-  arrivalAtaTime: string | null;
+  arrivalStaDate: string | null;    // UTC datetime "YYYY-MM-DD HH:mm"
+  arrivalAtaDate: string | null;    // UTC datetime "YYYY-MM-DD HH:mm"
   departureFlightNo: string | null;
-  departureDate: string | null;
-  departureStdTime: string | null;
-  departureAtdtime: string | null;
+  departureStdDate: string | null;  // UTC datetime "YYYY-MM-DD HH:mm"
+  departureAtdDate: string | null;  // UTC datetime "YYYY-MM-DD HH:mm"
   bayNo: string | null;
   statusObj: CodeObject;
   note: string | null;
@@ -102,7 +100,7 @@ export interface Flight {
   isFiles: boolean | null;
   isLlineMaintenances: boolean | null;
   state: string | null;
-  routeForm: string | null;
+  routeFrom: string | null;
   routeTo: string | null;
   acTypeObj: AcTypeCodeObject | null;
   filePath: string | null;
@@ -112,6 +110,7 @@ export interface Flight {
   etaDate: string | null;
   etaTime: string | null;
   maintenanceStatusObj: MaintenanceStatus | null;
+  emailSuccessCount: number | null;
 }
 
 // ── Line Maintenance ──
@@ -208,8 +207,6 @@ export interface Equipment {
   svc: number | null;
   formDate: string | null;
   toDate: string | null;
-  formTime: string | null;
-  toTime: string | null;
   hrs: number | null;
   loanRemark: string | null;
 }
@@ -226,8 +223,6 @@ export interface PartsTool {
   hrs: number | null;
   formDate: string | null;
   toDate: string | null;
-  formTime: string | null;
-  toTime: string | null;
   loanRemark: string | null;
 }
 

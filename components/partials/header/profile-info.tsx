@@ -35,13 +35,12 @@ const ProfileInfo = () => {
               height={36}
               className="rounded-full"
             />
-
-            <div className="text-sm font-medium  capitalize lg:block hidden  ">
+            {/* <div className="text-sm font-medium  capitalize lg:block hidden  ">
               {users?.fullName}
             </div>
             <span className="text-base  me-2.5 lg:inline-block hidden">
               <Icon icon="heroicons-outline:chevron-down"></Icon>
-            </span>
+            </span> */}
           </div>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-56 p-0" align="end">

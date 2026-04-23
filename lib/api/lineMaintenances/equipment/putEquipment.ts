@@ -1,4 +1,5 @@
 import { convertDateToBackend } from '@/lib/utils/formatPicker'
+import { combineFormToUtcDatetime } from '@/lib/utils/flightDatetime'
 import apiClient from '../../../axios.config'
 
 // Interface สำหรับ Equipment data ที่จะส่งไป
@@ -7,10 +8,8 @@ export interface PutEquipmentRequest {
   isLoan: boolean
   equipmentName: string
   svc: number
-  formDate: string // YYYY-MM-DD format
+  formDate: string // YYYY-MM-DD HH:mm format
   toDate: string
-  formTime: string // HH:mm format
-  toTime: string
   hrs: number
   loanRemark: string
 }
@@ -67,12 +66,10 @@ export const transformEquipmentDataForAPI = (
     isSamsTool: equipment.isSamsTool || false,
     isLoan: equipment.isLoan || false,
     equipmentName: equipment.equipmentName || '',
-    svc: equipment.svc || 0,
-    formDate: equipment.fromDate ? convertDateToBackend(equipment.fromDate) : '',
-    toDate: equipment.toDate ? convertDateToBackend(equipment.toDate) : '',
-    formTime: equipment.fromTime || '',
-    toTime: equipment.toTime || '',
-    hrs: equipment.hrs || 0,
+    svc: Number(equipment.svc) || 0,
+    formDate: equipment.fromDate ? combineFormToUtcDatetime(equipment.fromDate, equipment.fromTime) : '',
+    toDate: equipment.toDate ? combineFormToUtcDatetime(equipment.toDate, equipment.toTime) : '',
+    hrs: Number(equipment.hrs) || 0,
     loanRemark: equipment.loanRemark || '',
   }))
 }

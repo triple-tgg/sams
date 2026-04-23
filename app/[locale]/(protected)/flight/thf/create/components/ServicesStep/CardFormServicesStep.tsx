@@ -95,43 +95,30 @@ const CardFormServicesStep = (props: Props) => {
     })
   }, [form])
 
-  // Auto-set servicingPerformed and initialize fluid sets when aircraft type flags load
+  // Auto-initialize fluid sets when aircraft type flags load or initial data is applied
   useEffect(() => {
     const flags = props.aircraftTypeFlags
     if (!flags) return
-    const hasAnyFlag =
-      flags.engineCount > 0 ||
-      flags.csdCount > 0 ||
-      flags.flagHydrolicGreen ||
-      flags.flagHydrolicBlue ||
-      flags.flagHydrolicYellow ||
-      flags.flagApu
-    if (hasAnyFlag) {
-      form.setValue('servicingPerformed', true)
 
-      // Auto-initialize Engine Oil sets to match flag count
-      const currentEngSets = form.getValues('fluid.engOilSets')
-      if (flags.engineCount > 0 && (!currentEngSets || currentEngSets.length === 0)) {
-        const engSets = Array.from({ length: flags.engineCount }, () => ({ quantity: 0 }))
-        form.setValue('fluid.engOilSets', engSets)
-      }
-
-      // Auto-initialize CSD/IDG/VSFG sets to match flag count
-      const currentCsdSets = form.getValues('fluid.csdIdgVsfgSets')
-      if (flags.csdCount > 0 && (!currentCsdSets || currentCsdSets.length === 0)) {
-        const csdSets = Array.from({ length: flags.csdCount }, () => ({ quantity: 0 }))
-        form.setValue('fluid.csdIdgVsfgSets', csdSets)
-      }
+    // Auto-initialize Engine Oil sets to match flag count
+    const currentEngSets = form.getValues('fluid.engOilSets') || []
+    if (flags.engineCount > 0 && currentEngSets.length < flags.engineCount) {
+      const additionalSets = Array.from({ length: flags.engineCount - currentEngSets.length }, () => ({ quantity: 0 }))
+      form.setValue('fluid.engOilSets', [...currentEngSets, ...additionalSets])
     }
-  }, [props.aircraftTypeFlags, form])
+
+    // Auto-initialize CSD/IDG/VSFG sets to match flag count
+    const currentCsdSets = form.getValues('fluid.csdIdgVsfgSets') || []
+    if (flags.csdCount > 0 && currentCsdSets.length < flags.csdCount) {
+      const additionalSets = Array.from({ length: flags.csdCount - currentCsdSets.length }, () => ({ quantity: 0 }))
+      form.setValue('fluid.csdIdgVsfgSets', [...currentCsdSets, ...additionalSets])
+    }
+  }, [props.aircraftTypeFlags, form, props.initialData])
 
   // Flag-based validation: check required fluid fields before submission
   const validateAircraftTypeFlags = useCallback((): boolean => {
     const flags = props.aircraftTypeFlags
     if (!flags) return true // No flags = skip validation
-
-    const servicingPerformed = form.getValues('servicingPerformed')
-    if (!servicingPerformed) return true // Servicing not enabled = skip
 
     let isValid = true
 

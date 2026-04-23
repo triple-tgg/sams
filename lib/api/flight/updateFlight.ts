@@ -1,7 +1,7 @@
 import axios from "@/lib/axios.config";
 import type { AxiosError } from "axios";
 
-// Flight Update Data Interface
+// Flight Update Data Interface (matches /flight/update-v2 body)
 export interface UpdateFlightData {
   id: number;
   airlinesCode: string;
@@ -9,15 +9,12 @@ export interface UpdateFlightData {
   acReg: string;
   acTypeCode: string;
   arrivalFlightNo: string;
-  arrivalDate: string;       // "YYYY-MM-DD"
-  arrivalStaTime: string;    // "HH:mm"
-  arrivalAtaTime: string;    // "HH:mm"
+  arrivalStaDate: string;      // UTC datetime "YYYY-MM-DD HH:mm"
+  arrivalAtaDate: string;      // UTC datetime "YYYY-MM-DD HH:mm"
   departureFlightNo: string;
-  departureDate: string;     // "YYYY-MM-DD"
-  departureStdTime: string;  // "HH:mm"
-  departureAtdTime: string;  // "HH:mm"
+  departureStdDate: string;    // UTC datetime "YYYY-MM-DD HH:mm"
+  departureAtdDate: string;    // UTC datetime "YYYY-MM-DD HH:mm"
   bayNo: string;
-  thfNo: string;
   statusCode: string;
   note: string;
   routeFrom?: string;
@@ -25,7 +22,6 @@ export interface UpdateFlightData {
   userName?: string;
   csIdList?: number[] | null;
   mechIdList?: number[] | null;
-  maintenanceStatusCode?: string;
   maintenanceStatusId?: number;
 }
 
@@ -95,8 +91,7 @@ export function validateUpdateFlightData(data: Partial<UpdateFlightData>): data 
     data.airlinesCode &&
     data.stationsCode &&
     data.arrivalFlightNo &&
-    data.arrivalDate &&
-    data.arrivalStaTime &&
+    data.arrivalStaDate &&
     data.statusCode
   );
 }

@@ -14,6 +14,7 @@ import {
 import { Link, useRouter } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
 import { useConfig } from "@/hooks/use-config";
+import ThemeSwitcher from "@/components/partials/header/theme-switcher";
 
 interface IconNavProps {
   menuList: Group[];
@@ -25,7 +26,7 @@ const IconNav = ({ menuList }: IconNavProps) => {
   return (
     <div
       className={cn(
-        "h-full bg-sidebar  border-r border-default-200 dark:border-secondary border-dashed w-[72px]",
+        "h-full flex flex-col bg-sidebar  border-r border-default-200 dark:border-secondary border-dashed w-[72px]",
         {
           [`dark theme-${config.sidebarColor}`]:
             config.sidebarColor !== "light",
@@ -43,7 +44,7 @@ const IconNav = ({ menuList }: IconNavProps) => {
           />
         </Link>
       </div>
-      <ScrollArea className="[&>div>div[style]]:block! h-full">
+      <ScrollArea className="[&>div>div[style]]:block! flex-1">
         <nav className="mt-8 h-full w-full ">
           <ul className=" h-full flex flex-col min-h-[calc(100vh-48px-36px-16px-32px)] lg:min-h-[calc(100vh-32px-40px-32px)] items-start space-y-2 ">
             {menuList?.map(({ groupLabel, menus, id: groupId }, index) => (
@@ -124,6 +125,9 @@ const IconNav = ({ menuList }: IconNavProps) => {
           </ul>
         </nav>
       </ScrollArea>
+      {/* <div className="mt-auto flex justify-center pb-4 pt-2 border-t border-default-200 dark:border-default-800">
+        <ThemeSwitcher />
+      </div> */}
     </div>
   );
 };

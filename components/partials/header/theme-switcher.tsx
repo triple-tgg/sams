@@ -52,7 +52,6 @@ const ThemeButton = () => {
                         }
                     )}
                 >
-
                     <Icon icon="heroicons-outline:moon" className="w-5 h-5 me-2" />
                     <span className="me-2">Dark</span>
                     <Check

@@ -38,6 +38,7 @@ import { useStationsOptions } from "@/lib/api/hooks/useStations";
 import { useStatusOptions } from "@/lib/api/hooks/useStatus";
 import { FieldError } from "@/components/ui/field-error";
 import { convertDateToBackend } from "@/lib/utils/formatPicker";
+import { combineFormToUtcDatetime } from "@/lib/utils/flightDatetime";
 import { CustomDateInput } from "@/components/ui/input-date/CustomDateInput";
 import { SearchableSelectField } from "@/components/ui/search-select";
 import { CreatableRouteSelect } from "@/components/ui/creatable-route-select";
@@ -188,19 +189,17 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
       acReg: (values.acReg ?? "").trim(),
       acTypeCode: values.acType!.value.trim(),
       arrivalFlightNo: values.flightArrival.trim(),
-      arrivalDate: convertDateToBackend(values.arrivalDate),
-      arrivalStaTime: sendTime(values.sta),
-      arrivalAtaTime: sendTime(values.ata),
+      arrivalStaDate: combineFormToUtcDatetime(values.arrivalDate, values.sta),
+      arrivalAtaDate: combineFormToUtcDatetime(values.arrivalDate, values.ata),
       departureFlightNo: (values.flightDeparture ?? "").trim(),
-      departureDate: convertDateToBackend(values.departureDate ?? ""),
-      departureStdTime: sendTime(values.std),
-      departureAtdTime: sendTime(values.atd),
+      departureStdDate: combineFormToUtcDatetime(values.departureDate ?? "", values.std),
+      departureAtdDate: combineFormToUtcDatetime(values.departureDate ?? "", values.atd),
       bayNo: (values.bay ?? "").trim(),
       thfNo: (values.thfNumber ?? "").trim(),
       statusCode: values.status?.value ?? "Normal",
       note: (values.note ?? "").trim(),
 
-      routeFrom: values.routeFrom?.value ?? "",
+      routeForm: values.routeFrom?.value ?? "",
       routeTo: values.routeTo?.value ?? "",
 
       userName: values.userName.trim() ?? "",
@@ -384,7 +383,7 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
             <div className="grid lg:grid-cols-2 gap-6">
               {/* ARRIVAL */}
               <div>
-                <h4 className="text-sm font-medium mb-2">Arrival (UTC Time)</h4>
+                <h4 className="text-sm font-medium mb-2">Arrival (Local Time)</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <Label htmlFor="flightArrival">Flight No</Label>
@@ -407,12 +406,12 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                     <FieldError msg={errors.arrivalDate?.message} />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="sta">STA (UTC)</Label>
+                    <Label htmlFor="sta">STA (Local)</Label>
                     <Input type="time" {...register("sta")} />
                     <FieldError msg={errors.sta?.message} />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="ata">ATA (UTC)</Label>
+                    <Label htmlFor="ata">ATA (Local)</Label>
                     <Input type="time" {...register("ata")} />
                     <FieldError msg={errors.ata?.message} />
                   </div>
@@ -421,7 +420,7 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
 
               {/* DEPARTURE */}
               <div>
-                <h4 className="text-sm font-medium mb-2">Departure (UTC Time)</h4>
+                <h4 className="text-sm font-medium mb-2">Departure (Local Time)</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <Label htmlFor="flightDeparture">Flight No</Label>
@@ -444,12 +443,12 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                     <FieldError msg={errors.departureDate?.message} />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="std">STD (UTC)</Label>
+                    <Label htmlFor="std">STD (Local)</Label>
                     <Input type="time" {...register("std")} />
                     <FieldError msg={errors.std?.message} />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="atd">ATD (UTC)</Label>
+                    <Label htmlFor="atd">ATD (Local)</Label>
                     <Input type="time" {...register("atd")} />
                     <FieldError msg={errors.atd?.message} />
                   </div>

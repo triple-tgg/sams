@@ -66,6 +66,7 @@ export const servicesFormSchema = z.object({
   additionalDefectRectification: z.boolean().default(false),
   additionalDefects: z.array(z.object({
     defect: z.string().min(5, "Defect details must be at least 5 characters").max(500, "Defect details cannot exceed 500 characters"),
+    maintenancePerformed: z.string().optional().default(""),
     ataChapter: ataChapterSchema,
     attachFiles: attachFilesSchema,
     laeMH: z.string().optional().refine((val) => !val || numericStringSchema.safeParse(val).success, {
@@ -81,8 +82,8 @@ export const servicesFormSchema = z.object({
     message: "Maximum 6 additional defects allowed"
   }),
 
-  // Servicing Performed
-  servicingPerformed: z.boolean().default(false),
+  // Servicing Performed (always true)
+  servicingPerformed: z.boolean().default(true),
   fluid: z.object({
     fluidName: z.object({
       label: z.string(),

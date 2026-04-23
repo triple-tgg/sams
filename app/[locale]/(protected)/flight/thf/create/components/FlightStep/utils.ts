@@ -1,5 +1,4 @@
 import { FlightFormData } from "@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId";
-import { formatFromPicker } from "@/lib/utils/formatPicker";
 import type { Step1FormInputs } from "./types";
 
 // Time formatting utilities
@@ -54,13 +53,13 @@ export const sanitizeFormData = (existingData: FlightFormData): Step1FormInputs 
 
     // Arrival (UTC Time)
     flightArrival: existingData.flightArrival || '',
-    arrivalDate: existingData.arrivalDate ? formatFromPicker(existingData.arrivalDate) : '',
+    arrivalDate: existingData.arrivalDate || '',
     sta: existingData.sta || '',
     ata: existingData.ata || '',
 
     // Departure (UTC Time)
     flightDeparture: existingData.flightDeparture || '',
-    departureDate: existingData.departureDate ? formatFromPicker(existingData.departureDate) : '',
+    departureDate: existingData.departureDate || '',
     std: existingData.std || '',
     atd: existingData.atd || '',
 

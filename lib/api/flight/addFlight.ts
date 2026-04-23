@@ -9,23 +9,24 @@ export interface FlightData {
   acReg: string;
   acTypeCode: string;
   arrivalFlightNo: string;
-  arrivalDate: string;       // "YYYY-MM-DD"
-  arrivalStaTime: string;    // "HH:mm" (ถ้า API ต้อง HHmm ให้แปลงก่อน)
-  arrivalAtaTime: string;    // "HH:mm"
-  routeFrom?: string;        // Station code for route from
+  arrivalStaDate: string;      // UTC datetime "YYYY-MM-DD HH:mm"
+  arrivalAtaDate: string;      // UTC datetime "YYYY-MM-DD HH:mm"
   departureFlightNo: string;
-  departureDate: string;     // "YYYY-MM-DD"
-  departureStdTime: string;  // "HH:mm"
-  departureAtdTime: string;  // "HH:mm"
-  routeTo?: string;          // Station code for route to
+  departureStdDate: string;    // UTC datetime "YYYY-MM-DD HH:mm"
+  departureAtdDate: string;    // UTC datetime "YYYY-MM-DD HH:mm"
   bayNo: string;
   thfNo: string;
   statusCode: string;
   note: string;
 
+  routeForm?: string;          // NOTE: API uses "routeForm" not "routeFrom"
+  routeTo?: string;
+
   userName: string;
-  csIdList: number[] | null;
-  mechIdList: number[] | null;
+  csId?: number | null;          // Single CS staff ID
+  mechId?: number | null;        // Single MECH staff ID
+  csIdList?: number[] | null;    // Array of CS staff IDs
+  mechIdList?: number[] | null;  // Array of MECH staff IDs
 }
 
 // ถ้า API ห่อ response เป็น envelope อื่น ปรับให้ตรงได้

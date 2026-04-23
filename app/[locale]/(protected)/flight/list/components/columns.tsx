@@ -6,7 +6,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { CircleOff, MoreHorizontal, FileCheck, FilePenLine, Paperclip, SquarePen, Eye, Mail } from "lucide-react";
 import clsx from "clsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { formatForDisplay, formatForDisplayDateTime, formatForValue, formatFromPicker } from "@/lib/utils/formatPicker";
+import { formatUtcToLocalDisplay } from "@/lib/utils/flightDatetime";
 
 export function getFlightColumns({
   onCreateTHF,
@@ -58,13 +58,23 @@ export function getFlightColumns({
       cell: ({ row }) => <span className={clsx("whitespace-nowrap", row.original.datasource === "adhoc" ? "text-orange-400" : "")}>{row.getValue("acType") || "-"}</span>,
     },
     {
-      id: "ata", header: "ATA(UTC)",
-      accessorFn: (row) => `${row?.arrivalDate ? formatForDisplayDateTime(row?.arrivalDate, row?.arrivalAtaTime) : ""}`,
+      id: "sta", header: "STA(Local)",
+      accessorFn: (row) => formatUtcToLocalDisplay(row?.arrivalStaDate),
+      cell: ({ row }) => <span className={clsx("whitespace-nowrap", row.original.datasource === "adhoc" ? "text-orange-400" : "")}>{(row.getValue("sta") as string) || "-"}</span>
+    },
+    {
+      id: "std", header: "STD(Local)",
+      accessorFn: (row) => formatUtcToLocalDisplay(row?.departureStdDate),
+      cell: ({ row }) => <span className={clsx("whitespace-nowrap", row.original.datasource === "adhoc" ? "text-orange-400" : "")}>{(row.getValue("std") as string) || "-"}</span>
+    },
+    {
+      id: "ata", header: "ATA(Local)",
+      accessorFn: (row) => formatUtcToLocalDisplay(row?.arrivalAtaDate),
       cell: ({ row }) => <span className={clsx("whitespace-nowrap", row.original.datasource === "adhoc" ? "text-orange-400" : "")}>{(row.getValue("ata") as string) || "-"}</span>
     },
     {
-      id: "atd", header: "ATD(UTC)",
-      accessorFn: (row) => `${row?.departureDate ? formatForDisplayDateTime(row?.departureDate, row?.departureAtdtime) : ""}`,
+      id: "atd", header: "ATD(Local)",
+      accessorFn: (row) => formatUtcToLocalDisplay(row?.departureAtdDate),
       cell: ({ row }) => <span className={clsx("whitespace-nowrap", row.original.datasource === "adhoc" ? "text-orange-400" : "")}>{row.getValue("atd") as string || "-"}</span>
     },
     {

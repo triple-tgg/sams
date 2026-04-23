@@ -493,13 +493,16 @@ const ListTable = ({
             </FormProvider>
             {(isLoading || isFetching) && <TableSkeleton columns={7} rows={5} />}
             {!isLoading && !isFetching && (
-                <CardContent className="p-0">
-                    <Table>
+                <CardContent className="p-0 overflow-x-auto">
+                    <Table className="relative">
                         <TableHeader>
                             {table.getHeaderGroups().map((hg) => (
                                 <TableRow key={hg.id}>
                                     {hg.headers.map((h) => (
-                                        <TableHead key={h.id}>
+                                        <TableHead 
+                                            key={h.id}
+                                            className={h.id === 'actions' ? 'sticky right-0 z-20 bg-default-100 dark:bg-default-100 shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.1)]' : ''}
+                                        >
                                             {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
                                         </TableHead>
                                     ))}
@@ -521,7 +524,12 @@ const ListTable = ({
                                             )}
                                         >
                                             {row.getVisibleCells().map((cell) => (
-                                                <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                                                <TableCell 
+                                                    key={cell.id}
+                                                    className={cell.column.id === 'actions' ? 'sticky right-0 z-10 bg-background shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.1)]' : ''}
+                                                >
+                                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                                </TableCell>
                                             ))}
                                         </TableRow>
                                     );

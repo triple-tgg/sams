@@ -2,7 +2,7 @@ import { toast } from '@/components/ui/use-toast'
 import { usePushThf } from '@/lib/api/hooks/usePushThf'
 import type { Step1FormInputs } from './types'
 import { sendTime } from './utils'
-import { convertDateToBackend } from '@/lib/utils/formatPicker';
+import { combineFormToUtcDatetime } from '@/lib/utils/flightDatetime';
 
 export const useFlightSubmission = (flightData: any, onSave: (data: any) => void, goNext: () => void) => {
   const { mutate, isPending, error: mError } = usePushThf();
@@ -16,19 +16,17 @@ export const useFlightSubmission = (flightData: any, onSave: (data: any) => void
       acReg: data.acReg || "",
       acTypeCode: data.acTypeCode?.value || "",
       arrivalFlightNo: data.flightArrival || "",
-      arrivalDate: data.arrivalDate ? convertDateToBackend(data.arrivalDate) : "",
-      arrivalStaTime: sendTime(data.sta),
-      arrivalAtaTime: sendTime(data.ata),
+      arrivalStaDate: combineFormToUtcDatetime(data.arrivalDate, data.sta),
+      arrivalAtaDate: combineFormToUtcDatetime(data.arrivalDate, data.ata),
       departureFlightNo: data.flightDeparture || "",
-      departureDate: data.departureDate ? convertDateToBackend(data.departureDate) : "",
-      departureStdTime: sendTime(data.std),
-      departureAtdTime: sendTime(data.atd),
+      departureStdDate: combineFormToUtcDatetime(data.departureDate, data.std),
+      departureAtdDate: combineFormToUtcDatetime(data.departureDate, data.atd),
       bayNo: data.bay || "",
       statusCode: data.status?.value || "Normal",
       note: data.note || "",
       thfNo: data.thfNumber || "",
-      // routeForm: data.routeFrom || "",
-      // routeTo: data.routeTo || "",
+      routeFrom: data.routeFrom?.value || "",
+      routeTo: data.routeTo?.value || "",
     };
 
     // Call push THF API

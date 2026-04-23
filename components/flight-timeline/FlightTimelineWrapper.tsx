@@ -2,21 +2,15 @@
 
 import { useTheme } from "next-themes";
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
-import { useEpg, Epg, Layout } from 'planby';
-import { FlightProgram } from './FlightProgram';
-import { FlightChannel } from './FlightChannel';
+import { CustomFlightTimeline } from './CustomFlightTimeline';
 import { FlightTable } from './FlightTable';
 import { FlightSkeleton } from './FlightSkeleton';
-import { flightTimelineThemeDark, flightTimelineThemeLight } from './types';
-import {
-    formatDateForApi, transformFlightsToEpg, transformAirlinesToChannelsPlanby, sanitizeFlightsPlanby
-} from './utils';
+import { formatDateForApi, sanitizeFlightsPlanby } from './utils';
 
 import { useFlightListQuery } from '@/lib/api/hooks/useFlightListQuery';
 import { GetFlightListParams } from "@/lib/api/flight/getFlightList";
 import { FlightItem } from "@/lib/api/flight/filghtlist.interface";
 import { AlignStartVertical, ArrowLeftFromLine, ArrowRightFromLine, Table, Maximize2, Minimize2, X, Plus, AlarmClockOff, AlarmClock, FileUp, Download } from "lucide-react";
-import { FlightTimeline } from "./FlightTimeline";
 import { FlightPlanbyItem, useFlightListPlanbyQuery } from "@/lib/api/hooks/useFlightListPlanbyQuery";
 import dayjs from "dayjs";
 import CreateProject from "@/app/[locale]/(protected)/flight/create-project";
@@ -29,6 +23,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
+import Tooltip from "../ui/c-tooltip";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Check, ChevronDown } from "lucide-react";
 
@@ -38,20 +33,17 @@ interface FlightTimelineWrapperProps {
     initialDate?: Date;
 }
 
-const PLANBY_LICENSE_KEY = process.env.NEXT_PUBLIC_PRODUCTION_API || '8EEEEB33-692F-4F92-8135-0AE2136A70D3';
-
 export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProps) {
     const { theme } = useTheme();
     const [selectedDate, setSelectedDate] = useState<Date>(initialDate || new Date());
     const [viewMode, setViewMode] = useState<'timeline' | 'table'>('timeline');
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isAlarm, setIsAlarm] = useState(false);
-    const [containerKey, setContainerKey] = useState(0);
     const [currentTime, setCurrentTime] = useState(new Date());
     const contentRef = useRef<HTMLDivElement>(null);
-    const timelineContainerRef = useRef<HTMLDivElement>(null);
     const [openAddFlight, setOpenAddFlight] = useState<boolean>(false);
     const [selectedStations, setSelectedStations] = useState<string[]>([]);
+    const [minuteScale, setMinuteScale] = useState<number>(60);
 
     // Station options from API
     const { options: stationOptions, isLoading: loadingStations } = useStationsOptions();
@@ -100,6 +92,17 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
         });
     }, [currentTime]);
 
+    const formattedLocalTime = useMemo(() => {
+        return dayjs(currentTime).format('DD MMM YYYY HH:mm:ss');
+    }, [currentTime]);
+
+    const formattedUtcTime = useMemo(() => {
+        // Fallback using native Date to avoid dayjs.utc plugin issues if not registered
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return `${pad(currentTime.getUTCDate())} ${months[currentTime.getUTCMonth()]} ${currentTime.getUTCFullYear()} ${pad(currentTime.getUTCHours())}:${pad(currentTime.getUTCMinutes())}:${pad(currentTime.getUTCSeconds())}`;
+    }, [currentTime]);
+
     // Toggle fullscreen using Browser Fullscreen API
     const toggleFullscreen = useCallback(async () => {
         if (!contentRef.current) return;
@@ -129,8 +132,6 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
     useEffect(() => {
         const handleFullscreenChange = () => {
             setIsFullscreen(!!document.fullscreenElement);
-            // Force re-render when fullscreen changes
-            setContainerKey(prev => prev + 1);
         };
 
         document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -162,93 +163,6 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
     // Sanitize: fix items where till <= since (invalid time ranges from API)
     const flightsPlanby = useMemo(() => sanitizeFlightsPlanby(flightsPlanbyRaw), [flightsPlanbyRaw]);
 
-
-
-    // const flightsPlanby = mockFlights
-    // Transform data for Planby
-    const epgData = useMemo(() => transformFlightsToEpg(flights), [flights]);
-    // const channels = useMemo(() => transformAirlinesToChannels(flights), [flights]);
-    const channels = useMemo(() => transformAirlinesToChannelsPlanby(flightsPlanby), [flightsPlanby]);
-
-    // Format start date for Planby (00:00 of selected date)
-    const startDateFormatted = useMemo(() => {
-        const d = new Date(selectedDate);
-        d.setHours(0, 0, 0, 0);
-        return d.toISOString();
-    }, [selectedDate]);
-
-    // Format end date for Planby (00:00 of next day for full 24 hours)
-    const endDateFormatted = useMemo(() => {
-        const d = new Date(selectedDate);
-        d.setDate(d.getDate() + 1); // Move to next day
-        d.setHours(0, 0, 0, 0);
-        return d.toISOString();
-    }, [selectedDate]);
-
-
-    // Track container dimensions for Planby
-    const [containerDimensions, setContainerDimensions] = useState<{ width: number; height: number }>({ width: 1200, height: 600 });
-    // Initialize Planby with explicit dimensions and full 24-hour view
-
-    // const channels1 = useMemo(() => transformAirlinesToChannels(flights), [flights]);
-
-    const { getEpgProps, getLayoutProps, onScrollToNow, onScrollLeft, onScrollRight } = useEpg({
-        epg: flightsPlanby,
-        // epg: mockData,
-        channels: channels,
-        startDate: startDateFormatted,
-        endDate: endDateFormatted,
-        theme: theme === 'dark' ? flightTimelineThemeDark : flightTimelineThemeLight,
-        sidebarWidth: 10,
-        itemHeight: 60,
-        isCurrentTime: true,
-        isInitialScrollToNow: true,
-        isLine: true,
-        licenseKey: PLANBY_LICENSE_KEY,
-        width: containerDimensions.width,
-        height: containerDimensions.height,
-        dayWidth: 1850,
-        // hourWidth: 30,
-        // dayWidth: 720, // Width for full 24 hours (300px per hour * 24 = 7200px)
-        // dayWidth: 7200, // Width for full 24 hours (300px per hour * 24 = 7200px)
-    } as any);
-
-    // Force Planby to re-render when container dimensions change
-    useEffect(() => {
-        if (!isFetched || viewMode !== 'timeline') return;
-
-        const container = timelineContainerRef.current;
-        if (!container) return;
-
-        const resizeObserver = new ResizeObserver((entries) => {
-            for (const entry of entries) {
-                const { width, height } = entry.contentRect;
-                if (width > 0 && height > 0) {
-                    setContainerDimensions({ width, height });
-                    setContainerKey(prev => prev + 1);
-                }
-            }
-        });
-
-        resizeObserver.observe(container);
-
-        // Also trigger an initial measurement after a short delay
-        const timer = setTimeout(() => {
-            if (container.offsetWidth > 0 && container.offsetHeight > 0) {
-                setContainerDimensions({
-                    width: container.offsetWidth,
-                    height: container.offsetHeight
-                });
-                setContainerKey(prev => prev + 1);
-            }
-        }, 50);
-
-        return () => {
-            resizeObserver.disconnect();
-            clearTimeout(timer);
-        };
-    }, [isFetched, viewMode]);
-
     // Handle date change
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSelectedDate(new Date(e.target.value));
@@ -277,77 +191,138 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
         );
     }
 
+    const stationFilterNode = (
+        <Popover>
+            <PopoverTrigger asChild>
+                <button
+                    className="flex items-center justify-between gap-2 w-52 h-10 rounded-lg dark:bg-slate-700 dark:text-white bg-slate-200 text-slate-700 px-3 text-sm cursor-pointer hover:opacity-80 transition-opacity shadow-sm"
+                    disabled={loadingStations}
+                >
+                    <span className="flex flex-wrap gap-1 max-w-[160px] overflow-hidden">
+                        {selectedStations.length > 0 ? (
+                            selectedStations.length <= 2 ? (
+                                selectedStations.map((s) => (
+                                    <span key={s} className="bg-sky-500/20 text-sky-800 px-2 py-0.5 rounded text-xs font-medium">{s}</span>
+                                ))
+                            ) : (
+                                <span>{selectedStations.length} stations</span>
+                            )
+                        ) : (
+                            <span>{loadingStations ? "Loading..." : "All Stations"}</span>
+                        )}
+                    </span>
+                    <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
+                </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[220px] p-2" align="start">
+                <div className="space-y-1 max-h-[240px] overflow-y-auto">
+                    {/* All Stations option */}
+                    <div
+                        className="flex items-center space-x-2 p-2 hover:bg-muted rounded cursor-pointer border-b mb-1 pb-2"
+                        onClick={() => handleStationToggle('__ALL__', true)}
+                    >
+                        <Checkbox
+                            checked={selectedStations.length === 0}
+                            onCheckedChange={() => handleStationToggle('__ALL__', true)}
+                        />
+                        <span className="text-sm flex-1 font-medium">All Stations</span>
+                        {selectedStations.length === 0 && (
+                            <Check className="h-4 w-4 text-primary" />
+                        )}
+                    </div>
+                    {stationOptions.map((station) => (
+                        <div
+                            key={station.value}
+                            className="flex items-center space-x-2 p-2 hover:bg-muted rounded cursor-pointer"
+                            onClick={() => handleStationToggle(
+                                station.value,
+                                !selectedStations.includes(station.value)
+                            )}
+                        >
+                            <Checkbox
+                                checked={selectedStations.includes(station.value)}
+                                onCheckedChange={(checked) => handleStationToggle(
+                                    station.value,
+                                    checked as boolean
+                                )}
+                            />
+                            <span className="text-sm flex-1">{station.label}</span>
+                            {selectedStations.includes(station.value) && (
+                                <Check className="h-4 w-4 text-primary" />
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </PopoverContent>
+        </Popover>
+    );
+
     return (
         <div className="relative space-y-4">
+
+
             <CreateProject open={openAddFlight} setOpen={setOpenAddFlight} />
+
+            {/* Page Header with Action Buttons */}
+            <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+                <div className="space-y-2">
+                    <h1 className="text-3xl font-bold">Flight Timeline</h1>
+                    <p className="text-slate-500 dark:text-slate-400">
+                        View incoming and outgoing flights on an interactive timeline
+                    </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-4">
+
+                    <div className="flex items-center gap-2">
+                        <Button
+                            className="flex-none"
+                            color="primary"
+                            onClick={() => setOpenAddFlight(true)}
+                            size="md"
+                        >
+                            <Plus className="w-4 h-4 mr-1" />
+                            <span>Add Flight</span>
+                        </Button>
+
+                        <input
+                            type="file"
+                            ref={excelImport.fileInputRef}
+                            onChange={excelImport.handleFileSelect}
+                            accept=".xlsx,.xls"
+                            className="hidden"
+                        />
+                        <Button
+                            className="flex-none"
+                            color="primary"
+                            variant="outline"
+                            onClick={excelImport.openFilePicker}
+                            disabled={excelImport.isParsing}
+                            size="md"
+                        >
+                            <FileUp className="w-4 h-4 mr-2" />
+                            <span>{excelImport.isParsing ? 'Loading...' : 'Import'}</span>
+                        </Button>
+
+                        <Button
+                            className="flex-none"
+                            color="secondary"
+                            variant="outline"
+                            onClick={handleDownloadTemplate}
+                            size="md"
+                        >
+                            <Download className="w-4 h-4 mr-2" />
+                            <span>Template</span>
+                        </Button>
+                    </div>
+                </div>
+            </div>
+
             {/* Controls */}
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg dark:bg-slate-800/50 bg-slate-100 p-4 shadow">
 
                 {/* Station Filter (Multi-Select) */}
                 <div className="flex items-center gap-2">
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <button
-                                className="flex items-center justify-between gap-2 w-52 h-10 rounded-lg dark:bg-slate-700 dark:text-white bg-slate-200 text-slate-700 px-3 text-sm cursor-pointer hover:opacity-80 transition-opacity"
-                                disabled={loadingStations}
-                            >
-                                <span className="flex flex-wrap gap-1 max-w-[160px] overflow-hidden">
-                                    {selectedStations.length > 0 ? (
-                                        selectedStations.length <= 2 ? (
-                                            selectedStations.map((s) => (
-                                                <span key={s} className="bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded text-xs font-medium">{s}</span>
-                                            ))
-                                        ) : (
-                                            <span>{selectedStations.length} stations</span>
-                                        )
-                                    ) : (
-                                        <span>{loadingStations ? "Loading..." : "All Stations"}</span>
-                                    )}
-                                </span>
-                                <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
-                            </button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[220px] p-2" align="start">
-                            <div className="space-y-1 max-h-[240px] overflow-y-auto">
-                                {/* All Stations option */}
-                                <div
-                                    className="flex items-center space-x-2 p-2 hover:bg-muted rounded cursor-pointer border-b mb-1 pb-2"
-                                    onClick={() => handleStationToggle('__ALL__', true)}
-                                >
-                                    <Checkbox
-                                        checked={selectedStations.length === 0}
-                                        onCheckedChange={() => handleStationToggle('__ALL__', true)}
-                                    />
-                                    <span className="text-sm flex-1 font-medium">All Stations</span>
-                                    {selectedStations.length === 0 && (
-                                        <Check className="h-4 w-4 text-primary" />
-                                    )}
-                                </div>
-                                {stationOptions.map((station) => (
-                                    <div
-                                        key={station.value}
-                                        className="flex items-center space-x-2 p-2 hover:bg-muted rounded cursor-pointer"
-                                        onClick={() => handleStationToggle(
-                                            station.value,
-                                            !selectedStations.includes(station.value)
-                                        )}
-                                    >
-                                        <Checkbox
-                                            checked={selectedStations.includes(station.value)}
-                                            onCheckedChange={(checked) => handleStationToggle(
-                                                station.value,
-                                                checked as boolean
-                                            )}
-                                        />
-                                        <span className="text-sm flex-1">{station.label}</span>
-                                        {selectedStations.includes(station.value) && (
-                                            <Check className="h-4 w-4 text-primary" />
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        </PopoverContent>
-                    </Popover>
+                    {stationFilterNode}
                 </div>
                 {/* Date Navigation */}
                 <div className="flex items-center gap-2">
@@ -378,102 +353,41 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                     >
                         Today
                     </button>
+
+                    {viewMode === 'timeline' && (
+                        <div className="flex items-center gap-2 ml-4">
+                            <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Scale:</span>
+                            <select
+                                value={minuteScale}
+                                onChange={(e) => setMinuteScale(Number(e.target.value))}
+                                className="h-10 rounded-lg dark:bg-slate-700 dark:text-white bg-slate-200 text-slate-700 px-3 border-none focus:ring-2 focus:ring-sky-500 text-sm cursor-pointer"
+                            >
+                                <option value={240}>4 hr</option>
+                                <option value={120}>2 hr</option>
+                                <option value={60}>1 hr</option>
+                                <option value={30}>30 mins</option>
+                                <option value={15}>15 mins</option>
+                            </select>
+                        </div>
+                    )}
                 </div>
 
-
-                {/* Timeline Navigation */}
-                {/* {viewMode === "timeline" ? (
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => onScrollLeft(200)}
-                            className="cursor-pointer flex h-10 w-10 items-center justify-center rounded-lg dark:bg-slate-700 dark:text-white bg-slate-200 text-slate-700 hover:bg-slate-600 hover:text-white transition-colors"
-                        >
-                            <span><ChevronLeft className="w-4 h-4" /></span>
-                        </button>
-                        <button
-
-                            onClick={onScrollToNow}
-                            className="cursor-pointer h-10 rounded-lg dark:bg-emerald-600 bg-emerald-400 px-4 text-white font-medium hover:bg-emerald-500 hover:text-white transition-colors"
-                        >
-                            Now
-                        </button>
-
-                        <button
-                            onClick={() => onScrollRight(200)}
-                            className="cursor-pointer flex h-10 w-10 items-center justify-center rounded-lg dark:bg-slate-700 dark:text-white bg-slate-200 text-slate-700 hover:bg-slate-600 hover:text-white transition-colors"
-                        >
-                            <span><ChevronRight className="w-4 h-4" /></span>
-                        </button>
-                    </div>
-                ) : null} */}
-
                 <div className="flex items-center gap-6">
-                    {/* Legend
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                            <div className="h-4 w-4 rounded bg-linear-to-r from-sky-600 to-sky-500" />
-                            <span className="text-sm text-slate-700 dark:text-white">Arrival</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="h-4 w-4 rounded bg-linear-to-r from-emerald-600 to-emerald-500" />
-                            <span className="text-sm text-slate-700 dark:text-white">Departure</span>
-                        </div>
-                    </div> */}
-
-                    <div className="flex items-center gap-2">
-                        {viewMode === 'table' && <Button
-                            onClick={() => setIsAlarm(!isAlarm)}
-                            color={isAlarm ? "warning" : "destructive"}
-                            className="flex space-x-2"
-                            size="md"
-                        >
-                            {!isAlarm ? <AlarmClockOff className="w-4 h-4" /> : <AlarmClock className="w-4 h-4 animate-pulse" />}
-                            {isAlarm ? <span className="text-sm font-bold">{formattedCurrentTime}</span> : <span className="text-sm font-bold">OFF</span>}
-                        </Button>
-                        }
-                        <Button
-                            className="flex-none"
-                            color="primary"
-                            onClick={() => setOpenAddFlight(true)}
-                            size="md"
-                        >
-                            <Plus className="w-4 h-4" />
-                            <span>Add Flight</span>
-                        </Button>
-
-                        {/* Import Button with Excel Preview Modal */}
-                        <input
-                            type="file"
-                            ref={excelImport.fileInputRef}
-                            onChange={excelImport.handleFileSelect}
-                            accept=".xlsx,.xls"
-                            className="hidden"
-                        />
-                        <Button
-                            className="flex-none"
-                            color="primary"
-                            variant="outline"
-                            onClick={excelImport.openFilePicker}
-                            disabled={excelImport.isParsing}
-                            size="md"
-                        >
-                            <FileUp className="w-4 h-4 mr-2" />
-                            <span>{excelImport.isParsing ? 'Loading...' : 'Import'}</span>
-                        </Button>
-                        {/* Download Template Button */}
-                        <Button
-                            className="flex-none"
-                            color="secondary"
-                            variant="outline"
-                            onClick={handleDownloadTemplate}
-                            size="md"
-                        >
-                            <Download className="w-4 h-4 mr-2" />
-                            <span>Template</span>
-                        </Button>
-                    </div>
                     {/* View Toggle */}
                     <div className="flex items-center gap-2">
+                        {viewMode === 'table' && (
+                            <Tooltip content="Filter: Hide today's departed flights">
+                                <Button
+                                    onClick={() => setIsAlarm(!isAlarm)}
+                                    color={isAlarm ? "warning" : "destructive"}
+                                    className="flex space-x-2"
+                                    size="md"
+                                >
+                                    {!isAlarm ? <AlarmClockOff className="w-4 h-4" /> : <AlarmClock className="w-4 h-4 animate-pulse" />}
+                                    {isAlarm ? <span className="text-sm font-bold">{formattedCurrentTime}</span> : <span className="text-sm font-bold">OFF</span>}
+                                </Button>
+                            </Tooltip>
+                        )}
                         <div className="text-sm text-slate-700 dark:text-white">View : </div>
                         <div className="flex items-center gap-1 rounded-lg dark:bg-slate-700 bg-slate-200 p-1">
                             <button
@@ -484,8 +398,6 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                                     }`}
                             >
                                 <span><AlignStartVertical className="w-4 h-4" /></span>
-                                {/* <span><BetweenVerticalStart /></span> */}
-                                {/* <span>Timeline</span> */}
                             </button>
                             <button
                                 onClick={() => setViewMode('table')}
@@ -495,7 +407,6 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                                     }`}
                             >
                                 <span><Table className="w-4 h-4" /></span>
-                                {/* <span>Table</span> */}
                             </button>
                         </div>
 
@@ -523,50 +434,67 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                     : 'relative w-full'
                 }
             >
+                {/* Sticky Timezone Pill - Centered at the top. Needs to be inside contentRef to be visible in fullscreen mode. */}
+                <div className={`fixed left-1/2 -translate-x-1/2 z-[100] transition-all duration-300 pointer-events-none ${isFullscreen ? 'top-2' : 'top-4'}`}>
+                    <div className="flex items-center gap-3 px-6 py-2 rounded-full border border-slate-200/80 dark:border-slate-700/80 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md shadow-lg pointer-events-auto transition-transform hover:scale-105">
+                        <div className="flex items-center gap-2 ">
+                            <span className="text-slate-500 font-bold tracking-wider text-[11px] bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-md">LOCAL (BANGKOK)</span>
+                            <span className="text-slate-800 dark:text-slate-200 text-[11px] font-mono font-medium tracking-tight">{formattedLocalTime}</span>
+                        </div>
+                        <div className="h-5 w-px bg-slate-300 dark:bg-slate-600 mx-1"></div>
+                        <div className="flex items-center gap-2">
+                            <span className="text-sky-600 dark:text-sky-400 font-bold tracking-wider text-[11px] bg-sky-50 dark:bg-sky-900/30 px-2 py-0.5 rounded-md">UTC</span>
+                            <span className="text-slate-800 dark:text-slate-200 text-[11px] font-mono font-medium tracking-tight">{formattedUtcTime}</span>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Fullscreen Header */}
                 {isFullscreen && (
                     <div className="mb-4 flex items-center justify-between">
-                        <h2 className="text-xl font-bold text-slate-800 dark:text-white">Flight {viewMode === 'timeline' ? 'Timeline' : 'Table'}</h2>
-                        <div className="text-slate-800 dark:text-white"> {dayjs(selectedDate).format('ddd DD MMM YYYY')} </div>
-                        <button
-                            onClick={toggleFullscreen}
-                            className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-700 text-white hover:bg-slate-600 transition-colors cursor-pointer"
-                        >
-                            <Minimize2 className="w-5 h-5" />
-                        </button>
+                        <div className="flex items-center gap-4">
+                            <h2 className="text-xl font-bold text-slate-800 dark:text-white">Flight {viewMode === 'timeline' ? 'Timeline' : 'Table'}</h2>
+                            {stationFilterNode}
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <div className="text-slate-800 dark:text-white"> {dayjs(selectedDate).format('ddd DD MMM YYYY')} </div>
+
+                            {viewMode === 'timeline' && (
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Scale:</span>
+                                    <select
+                                        value={minuteScale}
+                                        onChange={(e) => setMinuteScale(Number(e.target.value))}
+                                        className="h-10 rounded-lg dark:bg-slate-700 dark:text-white bg-white border border-slate-300 dark:border-slate-600 text-slate-700 px-3 focus:ring-2 focus:ring-sky-500 text-sm cursor-pointer shadow-sm"
+                                    >
+                                        <option value={240}>4 hr</option>
+                                        <option value={120}>2 hr</option>
+                                        <option value={60}>1 hr</option>
+                                        <option value={30}>30 mins</option>
+                                        <option value={15}>15 mins</option>
+                                    </select>
+                                </div>
+                            )}
+
+                            <button
+                                onClick={toggleFullscreen}
+                                className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-700 text-white hover:bg-slate-600 transition-colors cursor-pointer shadow-sm"
+                            >
+                                <Minimize2 className="w-5 h-5" />
+                            </button>
+                        </div>
                     </div>
                 )}
 
                 {viewMode === 'timeline' ? (
                     isFetched && (
-                        <div
-                            ref={timelineContainerRef}
-                            className="relative overflow-hidden rounded-lg border-2 dark:border-2 dark:border-slate-700 dark:bg-slate-900 bg-white shadow-lg"
-                            style={{ height: isFullscreen ? 'calc(100vh - 80px)' : '600px' }}
-                        >
-                            <Epg key={containerKey} {...getEpgProps()} isLoading={isLoading}>
-                                <Layout
-                                    {...(getLayoutProps() as any)}
-                                    // renderGridCell={(props: any) => (
-                                    //     <GridCell key={props.item?.position?.top} {...props} />
-                                    // )}
-                                    renderTimeline={(props: any) => <FlightTimeline {...props} />}
-                                    renderProgram={({ program, ...rest }: any) => (
-                                        <FlightProgram
-                                            key={program.data.id}
-                                            program={program as any}
-                                            {...rest}
-                                        />
-                                    )}
-                                    renderChannel={({ channel }: any) => (
-                                        <FlightChannel
-                                            key={channel.uuid}
-                                            channel={channel as any}
-                                        />
-                                    )}
-                                />
-                            </Epg>
-                        </div>
+                        <CustomFlightTimeline
+                            flights={flightsPlanby}
+                            flightDetails={flights}
+                            selectedDate={selectedDate}
+                            isFullscreen={isFullscreen}
+                            minuteScale={minuteScale}
+                        />
                     )
                 ) : (
                     isFetched && <FlightTable flights={flights} isLoading={isLoading} isFullscreen={isFullscreen} isAlarm={isAlarm} />

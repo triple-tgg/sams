@@ -6,6 +6,7 @@ import {
   LineMaintenanceThfResponse,
   Flight
 } from "../lineMaintenances/flight/getlineMaintenancesThfByFlightId";
+import { utcDatetimeToFormDate, utcDatetimeToFormTime } from "@/lib/utils/flightDatetime";
 
 // Form data interface for flight information
 export interface FlightFormData {
@@ -52,17 +53,17 @@ export const mapFlightToFormData = (flightItem: Flight | null): FlightFormData |
       { value: flightItem.acTypeObj.code, label: flightItem.acTypeObj.code } :
       null,
 
-    // Arrival information
+    // Arrival information (UTC → Local for form display)
     flightArrival: flightItem.arrivalFlightNo || '',
-    arrivalDate: flightItem.arrivalDate || '',
-    sta: flightItem.arrivalStatime || '',
-    ata: flightItem.arrivalAtaTime || '',
+    arrivalDate: utcDatetimeToFormDate(flightItem.arrivalStaDate),
+    sta: utcDatetimeToFormTime(flightItem.arrivalStaDate),
+    ata: utcDatetimeToFormTime(flightItem.arrivalAtaDate),
 
-    // Departure information
+    // Departure information (UTC → Local for form display)
     flightDeparture: flightItem.departureFlightNo || '',
-    departureDate: flightItem.departureDate || '',
-    std: flightItem.departureStdTime || '',
-    atd: flightItem.departureAtdtime || '',
+    departureDate: utcDatetimeToFormDate(flightItem.departureStdDate),
+    std: utcDatetimeToFormTime(flightItem.departureStdDate),
+    atd: utcDatetimeToFormTime(flightItem.departureAtdDate),
 
     // Other fields
     bay: flightItem.bayNo || '',
@@ -76,8 +77,8 @@ export const mapFlightToFormData = (flightItem: Flight | null): FlightFormData |
     // Note and additional fields
     note: flightItem.note || '',
     delayCode: '', // Default empty as it's not in API response
-    routeFrom: flightItem.routeForm ?
-      { value: flightItem.routeForm, label: flightItem.routeForm } :
+    routeFrom: flightItem.routeFrom ?
+      { value: flightItem.routeFrom, label: flightItem.routeFrom } :
       null,
     routeTo: flightItem.routeTo ?
       { value: flightItem.routeTo, label: flightItem.routeTo } :

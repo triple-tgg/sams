@@ -155,6 +155,25 @@ export const AdditionalDefectsSection: React.FC<{
 
                         <FormField
                           control={form.control}
+                          name={`additionalDefects.${index}.maintenancePerformed` as FieldPath<ServicesFormInputs>}
+                          render={({ field }) => (
+                            <FormItem className="space-y-1">
+                              <FormLabel className="text-xs text-muted-foreground">Maintenance Performed</FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  placeholder="Describe maintenance performed..."
+                                  {...field}
+                                  value={(field.value as unknown as string) ?? ''}
+                                  className="min-h-[72px] resize-none"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
                           name={`additionalDefects.${index}.ataChapter` as FieldPath<ServicesFormInputs>}
                           render={({ field }) => (
                             <FormItem className="space-y-1">
@@ -210,49 +229,51 @@ export const AdditionalDefectsSection: React.FC<{
                           )}
                         />
 
-                        <FormField
-                          control={form.control}
-                          name={`additionalDefects.${index}.laeMH` as FieldPath<ServicesFormInputs>}
-                          render={({ field }) => (
-                            <FormItem className="space-y-1">
-                              <FormLabel className="text-xs text-muted-foreground">LAE MH</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step={0.5}
-                                  placeholder="0.0"
-                                  {...field}
-                                  value={(field.value as unknown as string) ?? ''}
-                                  className="h-9"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                        <div className="grid grid-cols-2 gap-3">
+                          <FormField
+                            control={form.control}
+                            name={`additionalDefects.${index}.laeMH` as FieldPath<ServicesFormInputs>}
+                            render={({ field }) => (
+                              <FormItem className="space-y-1">
+                                <FormLabel className="text-xs text-muted-foreground">LAE MH</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    step={0.5}
+                                    placeholder="0.0"
+                                    {...field}
+                                    value={(field.value as unknown as string) ?? ''}
+                                    className="h-9"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
 
-                        <FormField
-                          control={form.control}
-                          name={`additionalDefects.${index}.mechMH` as FieldPath<ServicesFormInputs>}
-                          render={({ field }) => (
-                            <FormItem className="space-y-1">
-                              <FormLabel className="text-xs text-muted-foreground">Mech MH</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step={0.5}
-                                  placeholder="0.0"
-                                  {...field}
-                                  value={(field.value as unknown as string) ?? ''}
-                                  className="h-9"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                          <FormField
+                            control={form.control}
+                            name={`additionalDefects.${index}.mechMH` as FieldPath<ServicesFormInputs>}
+                            render={({ field }) => (
+                              <FormItem className="space-y-1">
+                                <FormLabel className="text-xs text-muted-foreground">Mech MH</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    step={0.5}
+                                    placeholder="0.0"
+                                    {...field}
+                                    value={(field.value as unknown as string) ?? ''}
+                                    className="h-9"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
 
                         <FormField
                           control={form.control}

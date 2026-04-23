@@ -6,7 +6,7 @@ import { ServicesFormInputs } from '../types'
 import { useStaff } from '@/lib/api/hooks/useStaff'
 import { FlightFormData } from '@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId'
 import { dateTimeUtils } from '@/lib/dayjs'
-import { formatFromPicker } from '@/lib/utils/formatPicker'
+import { formatForPicker, formatFromPicker } from '@/lib/utils/formatPicker'
 import dayjs from 'dayjs'
 import { Search, Loader2 } from 'lucide-react'
 
@@ -88,8 +88,8 @@ const SearchableStaffSelect: React.FC<{
       let resolvedToTime = infoData?.atd || resolvedFromTime
 
       // Sanity check: if To datetime is before From datetime, fall back to From values
-      const fromDT = dayjs(`${resolvedFromDate} ${resolvedFromTime}`, 'YYYY-MM-DD HH:mm')
-      const toDT = dayjs(`${resolvedToDate} ${resolvedToTime}`, 'YYYY-MM-DD HH:mm')
+      const fromDT = dayjs(`${formatForPicker(resolvedFromDate)} ${resolvedFromTime}`, 'YYYY-MM-DD HH:mm')
+      const toDT = dayjs(`${formatForPicker(resolvedToDate)} ${resolvedToTime}`, 'YYYY-MM-DD HH:mm')
       if (toDT.isValid() && fromDT.isValid() && toDT.isBefore(fromDT)) {
         resolvedToDate = resolvedFromDate
         resolvedToTime = resolvedFromTime

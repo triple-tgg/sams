@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { dateTimeUtils } from '@/lib/dayjs';
 
 // Generic function to convert JSON data to Excel and download
 export const exportToExcel = <T extends Record<string, any>>(
@@ -36,7 +37,7 @@ export const exportToExcel = <T extends Record<string, any>>(
     XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
     // Generate filename with timestamp if not provided
-    const timestamp = new Date().toISOString().split('T')[0];
+    const timestamp = dateTimeUtils.todayLocal();
     const finalFilename = filename.includes('.')
       ? filename
       : `${filename}_${timestamp}.xlsx`;

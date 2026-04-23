@@ -1,4 +1,5 @@
 import { convertDateToBackend, formatFromPicker } from '@/lib/utils/formatPicker'
+import { utcDatetimeToFormDate, utcDatetimeToFormTime, combineFormToUtcDatetime } from '@/lib/utils/flightDatetime'
 import { PartsToolsFormInputs, PartToolItem, defaultPartToolItem } from './types'
 import { LineMaintenanceThfResponse } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
 import { PutPartsToolsRequestItem } from '@/lib/api/lineMaintenances/parts-tools/putPartsTools'
@@ -35,10 +36,10 @@ export const mapDataThfToPartsToolsStep = (data: LineMaintenanceThfResponse): Pa
     qty: item.qty || 0,
     equipmentNo: item.equipmentNo || '',
     hrs: item.hrs || 0,
-    formDate: item.formDate ? formatFromPicker(item.formDate) : null,
-    toDate: item.toDate ? formatFromPicker(item.toDate) : null,
-    formTime: item.formTime || null,
-    toTime: item.toTime || null,
+    formDate: item.formDate ? utcDatetimeToFormDate(item.formDate.replace(' ', 'T')) : null,
+    toDate: item.toDate ? utcDatetimeToFormDate(item.toDate.replace(' ', 'T')) : null,
+    formTime: item.formDate ? utcDatetimeToFormTime(item.formDate.replace(' ', 'T')) : "",
+    toTime: item.toDate ? utcDatetimeToFormTime(item.toDate.replace(' ', 'T')) : "",
   }))
 
   return {
@@ -60,10 +61,8 @@ export const transformPartsToolsForApi = (formData: PartsToolsFormInputs): PutPa
     qty: item.qty,
     equipmentNo: item.equipmentNo.trim(),
     hrs: item.hrs,
-    formDate: item.formDate ? convertDateToBackend(item.formDate) : '',
-    toDate: item.toDate ? convertDateToBackend(item.toDate) : '',
-    formTime: item.formTime || '',
-    toTime: item.toTime || '',
+    formDate: item.formDate ? combineFormToUtcDatetime(item.formDate, item.formTime || undefined) : '',
+    toDate: item.toDate ? combineFormToUtcDatetime(item.toDate, item.toTime || undefined) : '',
     loanRemark: item.loanRemark.trim(),
   }))
 }

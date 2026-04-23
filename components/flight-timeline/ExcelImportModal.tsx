@@ -381,8 +381,8 @@ export function ExcelImportModal({
                         </Button>
                         <div className="flex items-center gap-2">
                             <Button
-                                variant="soft"
-                                color="info"
+                                variant="default"
+                                color="warning"
                                 onClick={onValidate}
                                 disabled={isValidating || isUploading || isEditingRow || activeSheet.rows.length === 0}
                             >

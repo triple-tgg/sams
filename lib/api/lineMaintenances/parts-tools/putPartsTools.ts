@@ -13,8 +13,6 @@ export interface PutPartsToolsRequestItem {
   hrs: number
   formDate: string
   toDate: string
-  formTime: string
-  toTime: string
   loanRemark: string
 }
 

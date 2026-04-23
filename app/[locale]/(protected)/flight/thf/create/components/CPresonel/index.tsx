@@ -55,6 +55,7 @@ export const PersonnelSection = ({
         return allStaffData?.responseData || [];
     }, [allStaffData]);
 
+
     return (
         <div className="space-y-5">
             <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
@@ -305,7 +306,7 @@ export const StaffSearchSelect = ({
                                 <span>Loading staff...</span>
                             </div>
                         ) : filteredOptions.length > 0 ? (
-                            <ScrollArea className="max-h-52">
+                            <div className="max-h-60 overflow-y-auto custom-scrollbar">
                                 <div className="py-1">
                                     {filteredOptions.map((staff: any) => {
                                         const isSelected = selectedIds.includes(staff.id);
@@ -359,7 +360,7 @@ export const StaffSearchSelect = ({
                                         );
                                     })}
                                 </div>
-                            </ScrollArea>
+                            </div>
                         ) : (
                             <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
                                 {searchTerm ? `No staff found for "${searchTerm}"` : "No staff available"}

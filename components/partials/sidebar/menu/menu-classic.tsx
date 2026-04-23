@@ -26,6 +26,7 @@ import Logo from '@/components/logo';
 import SidebarHoverToggle from '@/components/partials/sidebar/sidebar-hover-toggle';
 import { useMenuHoverConfig } from '@/hooks/use-menu-hover';
 import { useMediaQuery } from '@/hooks/use-media-query';
+import ThemeSwitcher from '@/components/partials/header/theme-switcher';
 
 
 export function MenuClassic({ }) {
@@ -70,7 +71,7 @@ export function MenuClassic({ }) {
 
 
 
-            <ScrollArea className="[&>div>div[style]]:block!" dir={direction}>
+            <ScrollArea className="[&>div>div[style]]:block! flex-1" dir={direction}>
                 {/* {isDesktop && (
                     <div className={cn(' space-y-3 mt-6 ', {
                         'px-4': !collapsed || hovered,
@@ -144,11 +145,11 @@ export function MenuClassic({ }) {
 
                             </li>
                         ))}
-                        {/* {!collapsed && (
+                        {!collapsed && (
                             <li className="w-full grow flex items-end">
                                 <MenuWidget />
                             </li>
-                        )} */}
+                        )}
                     </ul>
                 </nav>
 

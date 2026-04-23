@@ -366,7 +366,7 @@ export const EquipmentCard: React.FC<EquipmentCardProps> = ({
           </Label>
           <EquipmentNameDropdown
             value={watch(`equipments.${index}.equipmentName`) || ''}
-            onChange={(value) => setValue(`equipments.${index}.equipmentName`, value)}
+            onChange={(value) => setValue(`equipments.${index}.equipmentName`, value, { shouldValidate: true, shouldDirty: true, shouldTouch: true })}
             error={equipmentErrors?.equipmentName?.message}
             index={index}
           />

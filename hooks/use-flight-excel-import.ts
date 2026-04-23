@@ -3,6 +3,8 @@ import * as XLSX from 'xlsx';
 import axios from '@/lib/axios.config';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -21,8 +23,10 @@ import { useStaffListForImport } from '@/lib/api/hooks/useStaffListForImport';
 import { useMaintenanceStatus } from '@/lib/api/hooks/useMaintenanceStatus';
 import { useStationsOptions } from '@/lib/api/hooks/useStations';
 
-// Enable dayjs custom parse format plugin
+// Enable dayjs plugins
 dayjs.extend(customParseFormat);
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 /**
  * Custom hook for Excel import with preview, validation, and upload
@@ -308,6 +312,14 @@ export const useFlightExcelImport = () => {
         const maintenanceStatusId = checkMatch?.id || 0;
 
         // Ensure all fields exist with defaults
+        // Combine intermediate _date + _time fields into new combined datetime fields
+        const arrivalDate = (mapped as any)._arrivalDate || '';
+        const arrivalStaTime = (mapped as any)._arrivalStaTime || '00:00';
+        const arrivalAtaTime = (mapped as any)._arrivalAtaTime || '00:00';
+        const departureDate = (mapped as any)._departureDate || '';
+        const departureStdTime = (mapped as any)._departureStdTime || '00:00';
+        const departureAtdTime = (mapped as any)._departureAtdTime || '00:00';
+
         return {
             id: 0,
             airlinesCode: mapped.airlinesCode || '',
@@ -315,13 +327,11 @@ export const useFlightExcelImport = () => {
             acReg: mapped.acReg || '',
             acTypeCode: mapped.acTypeCode || '',
             arrivalFlightNo: mapped.arrivalFlightNo || '',
-            arrivalDate: mapped.arrivalDate || '',
-            arrivalStaTime: mapped.arrivalStaTime || '',
-            arrivalAtaTime: mapped.arrivalAtaTime || '',
+            arrivalStaDate: arrivalDate ? `${arrivalDate} ${arrivalStaTime}` : '',
+            arrivalAtaDate: arrivalDate ? `${arrivalDate} ${arrivalAtaTime}` : '',
             departureFlightNo: mapped.departureFlightNo || '',
-            departureDate: mapped.departureDate || '',
-            departureStdTime: mapped.departureStdTime || '',
-            departureAtdTime: mapped.departureAtdTime || '',
+            departureStdDate: departureDate ? `${departureDate} ${departureStdTime}` : '',
+            departureAtdDate: departureDate ? `${departureDate} ${departureAtdTime}` : '',
             bayNo: mapped.bayNo || '',
             statusCode: mapped.statusCode || '',
             note: mapped.note || '',
@@ -551,7 +561,9 @@ export const useFlightExcelImport = () => {
                         }
                     }
 
-                    return `${dateFormatted} ${timeFormatted}`;
+                    // Combine date + time as local Bangkok time, then convert to UTC
+                    const localDateTime = dayjs.tz(`${dateFormatted} ${timeFormatted}`, 'YYYY-MM-DD HH:mm', 'Asia/Bangkok');
+                    return localDateTime.utc().format('YYYY-MM-DD HH:mm');
                 };
 
                 return {
@@ -851,7 +863,9 @@ export const useFlightExcelImport = () => {
                         }
                     }
 
-                    return `${dateFormatted} ${timeFormatted}`;
+                    // Combine date + time as local Bangkok time, then convert to UTC
+                    const localDateTime = dayjs.tz(`${dateFormatted} ${timeFormatted}`, 'YYYY-MM-DD HH:mm', 'Asia/Bangkok');
+                    return localDateTime.utc().format('YYYY-MM-DD HH:mm');
                 };
 
                 return {

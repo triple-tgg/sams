@@ -1,12 +1,7 @@
 // Export all FlightTimeline components
 export { FlightTimelineWrapper } from './FlightTimelineWrapper';
-export { FlightProgram } from './FlightProgram';
-export { FlightChannel } from './FlightChannel';
-export { flightTimelineThemeDark, flightTimelineThemeLight } from './types';
-export type { FlightEpgItem, AirlineChannel } from './types';
+export { CustomFlightTimeline } from './CustomFlightTimeline';
 export {
-    transformFlightsToEpg,
-    transformAirlinesToChannels,
-    getTodayDateRange,
+    sanitizeFlightsPlanby,
     formatDateForApi
 } from './utils';

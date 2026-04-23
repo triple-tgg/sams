@@ -6,6 +6,7 @@ import { ArrowLeft, User, Phone, Briefcase, Save, UserPlus, Camera, Trash2, Chev
 import { useUpsertStaff, useUploadStaffFile } from '@/lib/api/hooks/useQAStaffManagement'
 import { UpsertStaffRequest } from '@/lib/api/qa/staff-management'
 import { toast } from 'sonner'
+import { dateTimeUtils } from '@/lib/dayjs'
 
 // ── Form State ──
 interface StaffForm {
@@ -61,7 +62,7 @@ const INITIAL_FORM: StaffForm = {
     department: '',
     staffType: '',
     jobTitle: '',
-    startDate: new Date().toISOString().split('T')[0],
+    startDate: dateTimeUtils.todayLocal(),
 }
 
 const POSITIONS = [

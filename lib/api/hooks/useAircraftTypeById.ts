@@ -16,8 +16,9 @@ export const useAircraftTypeById = (id: number | null | undefined) => {
         queryKey: ["aircraftTypeById", id],
         queryFn: () => getAircraftTypeById(id!),
         enabled: !!id,
-        staleTime: 30 * 60 * 1000, // 30 min — master data rarely changes
+        staleTime: 0, // Always refetch when entering step
         gcTime: 60 * 60 * 1000,
+        refetchOnMount: 'always', // Force refetch every time component mounts
         retry: 2,
     });
 

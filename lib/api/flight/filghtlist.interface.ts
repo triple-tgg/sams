@@ -21,13 +21,11 @@ export interface FlightItem {
   acType?: string
   acTypeObj: AcTypeObj | null
   arrivalFlightNo: string
-  arrivalDate: string
-  arrivalStatime: string
-  arrivalAtaTime: string
+  arrivalStaDate: string | null    // UTC datetime "YYYY-MM-DD HH:mm"
+  arrivalAtaDate: string | null    // UTC datetime "YYYY-MM-DD HH:mm"
   departureFlightNo: string
-  departureDate: string | null
-  departureStdTime: string | null
-  departureAtdtime: string | null
+  departureStdDate: string | null  // UTC datetime "YYYY-MM-DD HH:mm"
+  departureAtdDate: string | null  // UTC datetime "YYYY-MM-DD HH:mm"
   bayNo: string
   statusObj: StatusObj | null
   note: string
@@ -47,7 +45,7 @@ export interface FlightItem {
   // csList and mechList can be array of IDs (number[]) or array of staff objects
   csList?: StaffItem[] | null
   mechList?: StaffItem[] | null
-  // New fields for ETA
+  // ETA fields
   etaDate?: string | null
   etaTime?: string | null
   // Maintenance status object

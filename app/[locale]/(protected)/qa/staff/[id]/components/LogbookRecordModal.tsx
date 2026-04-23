@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import { X, Upload, FileText, Trash2, User, Briefcase, ClipboardCheck, Paperclip, Wrench } from 'lucide-react'
 import { StaffData, LogbookEntry } from '../types'
+import { dateTimeUtils } from '@/lib/dayjs'
 
 // ── Option Constants ──
 const LICENSE_CATEGORIES = [
@@ -187,7 +188,7 @@ export function LogbookRecordModal({ staff, defect, logEntry, onClose }: Logbook
         name: staff.nameEn || staff.name,
         employeeId: staff.empId,
         licenseCategory: staff.license?.category || '',
-        dateToPerform: logEntry?.date || new Date().toISOString().split('T')[0],
+        dateToPerform: logEntry?.date || dateTimeUtils.todayLocal(),
         location: '',
         aircraftType: '',
         aircraftRegistration: logEntry?.regNo || '',
