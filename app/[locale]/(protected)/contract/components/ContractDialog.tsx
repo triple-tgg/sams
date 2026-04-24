@@ -55,6 +55,7 @@ const transformApiToFormData = (data: ContractDetail): ContractFormData => {
         expiresOn: data.expiresOn,
         isNoExpiryDate: data.isNoExpiryDate ?? false,
         domicileCountry: data.domicileCountry || "",
+        currency: data.currencyType || "",
         status: data.contractStatusObj?.code || "",
         pricingRates: data.pricingDataList?.map((p) => ({
             id: p.id,
@@ -195,6 +196,7 @@ const transformFormDataToRequest = (
             email: contact.email,
         })),
         domicileCountry: formData.domicileCountry || "",
+        currencyType: formData.currency || "",
     };
 };
 
@@ -288,6 +290,9 @@ export const ContractDialog = ({
         }
         if (!formData.status) {
             errors.status = "Status is required";
+        }
+        if (!formData.currency) {
+            errors.currency = "Currency is required";
         }
         return errors;
     };

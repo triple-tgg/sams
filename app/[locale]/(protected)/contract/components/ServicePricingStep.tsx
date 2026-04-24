@@ -36,19 +36,21 @@ interface ServicePricingStepProps {
     fieldErrors?: Record<string, string>;
 }
 
-// Reusable Price Input with combined USD suffix
+// Reusable Price Input with combined currency suffix
 const PriceInput = ({
     id,
     label,
     value,
     onChange,
     suffix,
+    currencyLabel = "USD",
 }: {
     id: string;
     label: string;
     value: number;
     onChange: (value: number) => void;
     suffix: string;
+    currencyLabel?: string;
 }) => (
     <div className="space-y-1.5">
         <Label htmlFor={id} className="text-xs">{label}</Label>
@@ -62,7 +64,7 @@ const PriceInput = ({
                 className="rounded-r-none border-r-0 text-right"
             />
             <span className="inline-flex items-center px-3 h-9 text-sm border rounded-r-md bg-muted text-muted-foreground whitespace-nowrap">
-                {suffix.startsWith("%") ? suffix : `USD${suffix}`}
+                {suffix.startsWith("%") ? suffix : `${currencyLabel}${suffix}`}
             </span>
         </div>
     </div>
@@ -82,6 +84,7 @@ const FORM_GROUPS = [
 type FormGroupKey = typeof FORM_GROUPS[number];
 
 export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "create", fieldErrors = {} }: ServicePricingStepProps) => {
+    const currencyLabel = formData.currency ? formData.currency.toUpperCase() : "USD";
     const [expandedRates, setExpandedRates] = useState<Set<number | string>>(new Set());
     const [expandedFormGroups, setExpandedFormGroups] = useState<Map<number | string, Set<FormGroupKey>>>(new Map());
 
@@ -311,42 +314,42 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                             label="Transit Check <2hrs"
                                             value={rate.tsChkUnder2hrsCert}
                                             onChange={handleNumberChange("tsChkUnder2hrsCert")}
-                                            suffix="/Check"
+                                            suffix="/Check" currencyLabel={currencyLabel}
                                         />
                                         <PriceInput
                                             id={`${rate.id}-tsChk2to3hrsCert`}
                                             label="Transit Check ≥2hrs and <3hrs"
                                             value={rate.tsChk2to3hrsCert}
                                             onChange={handleNumberChange("tsChk2to3hrsCert")}
-                                            suffix="/Check"
+                                            suffix="/Check" currencyLabel={currencyLabel}
                                         />
                                         <PriceInput
                                             id={`${rate.id}-tsChk3to4hrsCert`}
                                             label="Transit Check ≥3hrs and <4hrs"
                                             value={rate.tsChk3to4hrsCert}
                                             onChange={handleNumberChange("tsChk3to4hrsCert")}
-                                            suffix="/Check"
+                                            suffix="/Check" currencyLabel={currencyLabel}
                                         />
                                         <PriceInput
                                             id={`${rate.id}-tsChk4to5hrsCert`}
                                             label="Transit Check ≥4hrs and <5hrs"
                                             value={rate.tsChk4to5hrsCert}
                                             onChange={handleNumberChange("tsChk4to5hrsCert")}
-                                            suffix="/Check"
+                                            suffix="/Check" currencyLabel={currencyLabel}
                                         />
                                         <PriceInput
                                             id={`${rate.id}-tsChk5to6hrsCert`}
                                             label="Transit Check ≥5hrs and <6hrs"
                                             value={rate.tsChk5to6hrsCert}
                                             onChange={handleNumberChange("tsChk5to6hrsCert")}
-                                            suffix="/Check"
+                                            suffix="/Check" currencyLabel={currencyLabel}
                                         />
                                         <PriceInput
                                             id={`${rate.id}-additionalFee6hrsPlusCert`}
                                             label="Additional Fee ≥6hrs"
                                             value={rate.additionalFee6hrsPlusCert}
                                             onChange={handleNumberChange("additionalFee6hrsPlusCert")}
-                                            suffix="/Check"
+                                            suffix="/Check" currencyLabel={currencyLabel}
                                         />
                                     </div>
                                 </div>
@@ -360,42 +363,42 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                             label="Transit Check <2hrs"
                                             value={rate.tsChkUnder2hrsNoCert}
                                             onChange={handleNumberChange("tsChkUnder2hrsNoCert")}
-                                            suffix="/Check"
+                                            suffix="/Check" currencyLabel={currencyLabel}
                                         />
                                         <PriceInput
                                             id={`${rate.id}-tsChk2to3hrsNoCert`}
                                             label="Transit Check ≥2hrs and <3hrs"
                                             value={rate.tsChk2to3hrsNoCert}
                                             onChange={handleNumberChange("tsChk2to3hrsNoCert")}
-                                            suffix="/Check"
+                                            suffix="/Check" currencyLabel={currencyLabel}
                                         />
                                         <PriceInput
                                             id={`${rate.id}-tsChk3to4hrsNoCert`}
                                             label="Transit Check ≥3hrs and <4hrs"
                                             value={rate.tsChk3to4hrsNoCert}
                                             onChange={handleNumberChange("tsChk3to4hrsNoCert")}
-                                            suffix="/Check"
+                                            suffix="/Check" currencyLabel={currencyLabel}
                                         />
                                         <PriceInput
                                             id={`${rate.id}-tsChk4to5hrsNoCert`}
                                             label="Transit Check ≥4hrs and <5hrs"
                                             value={rate.tsChk4to5hrsNoCert}
                                             onChange={handleNumberChange("tsChk4to5hrsNoCert")}
-                                            suffix="/Check"
+                                            suffix="/Check" currencyLabel={currencyLabel}
                                         />
                                         <PriceInput
                                             id={`${rate.id}-tsChk5to6hrsNoCert`}
                                             label="Transit Check ≥5hrs and <6hrs"
                                             value={rate.tsChk5to6hrsNoCert}
                                             onChange={handleNumberChange("tsChk5to6hrsNoCert")}
-                                            suffix="/Check"
+                                            suffix="/Check" currencyLabel={currencyLabel}
                                         />
                                         <PriceInput
                                             id={`${rate.id}-additionalFee6hrsPlusNoCert`}
                                             label="Additional Fee ≥6hrs"
                                             value={rate.additionalFee6hrsPlusNoCert}
                                             onChange={handleNumberChange("additionalFee6hrsPlusNoCert")}
-                                            suffix="/Check"
+                                            suffix="/Check" currencyLabel={currencyLabel}
                                         />
                                     </div>
                                 </div>
@@ -409,14 +412,14 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                             label="Stand-by"
                                             value={rate.standbyPerCheck}
                                             onChange={handleNumberChange("standbyPerCheck")}
-                                            suffix="/Check"
+                                            suffix="/Check" currencyLabel={currencyLabel}
                                         />
                                         <PriceInput
                                             id={`${rate.id}-onCallPerCheck`}
                                             label="On Call"
                                             value={rate.onCallPerCheck}
                                             onChange={handleNumberChange("onCallPerCheck")}
-                                            suffix="/Check"
+                                            suffix="/Check" currencyLabel={currencyLabel}
                                         />
                                     </div>
                                 </div>
@@ -450,28 +453,28 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                         label="Daily Check"
                                         value={rate.dailyCheck}
                                         onChange={handleNumberChange("dailyCheck")}
-                                        suffix="/Check"
+                                        suffix="/Check" currencyLabel={currencyLabel}
                                     />
                                     <PriceInput
                                         id={`${rate.id}-preFlightCheck`}
                                         label="Pre-Flight Check"
                                         value={rate.preFlightCheck}
                                         onChange={handleNumberChange("preFlightCheck")}
-                                        suffix="/Check"
+                                        suffix="/Check" currencyLabel={currencyLabel}
                                     />
                                     <PriceInput
                                         id={`${rate.id}-weeklyCheck`}
                                         label="Weekly Check"
                                         value={rate.weeklyCheck}
                                         onChange={handleNumberChange("weeklyCheck")}
-                                        suffix="/Check"
+                                        suffix="/Check" currencyLabel={currencyLabel}
                                     />
                                     <PriceInput
                                         id={`${rate.id}-nightStop`}
                                         label="Night Stop"
                                         value={rate.nightStop}
                                         onChange={handleNumberChange("nightStop")}
-                                        suffix="/Check"
+                                        suffix="/Check" currencyLabel={currencyLabel}
                                     />
                                 </div>
                             </div>
@@ -504,14 +507,14 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                         label="Additional LAE MH"
                                         value={rate.additionalLaeMhHr}
                                         onChange={handleNumberChange("additionalLaeMhHr")}
-                                        suffix="/Hr"
+                                        suffix="/Hr" currencyLabel={currencyLabel}
                                     />
                                     <PriceInput
                                         id={`${rate.id}-additionalMechMhHr`}
                                         label="Additional Mechanic MH"
                                         value={rate.additionalMechMhHr}
                                         onChange={handleNumberChange("additionalMechMhHr")}
-                                        suffix="/Hr"
+                                        suffix="/Hr" currencyLabel={currencyLabel}
                                     />
                                 </div>
                             </div>
@@ -544,42 +547,42 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                         label="LH or RH Nose Wheel RPL"
                                         value={rate.lhOrRhNoseWheelRpl}
                                         onChange={handleNumberChange("lhOrRhNoseWheelRpl")}
-                                        suffix="/Service"
+                                        suffix="/Service" currencyLabel={currencyLabel}
                                     />
                                     <PriceInput
                                         id={`${rate.id}-lhAndRhNoseWheelRpl`}
                                         label="LH & RH Nose Wheel RPL"
                                         value={rate.lhAndRhNoseWheelRpl}
                                         onChange={handleNumberChange("lhAndRhNoseWheelRpl")}
-                                        suffix="/Service"
+                                        suffix="/Service" currencyLabel={currencyLabel}
                                     />
                                     <PriceInput
                                         id={`${rate.id}-mainWheelRpl`}
                                         label="Main Wheel RPL"
                                         value={rate.mainWheelRpl}
                                         onChange={handleNumberChange("mainWheelRpl")}
-                                        suffix="/Service"
+                                        suffix="/Service" currencyLabel={currencyLabel}
                                     />
                                     <PriceInput
                                         id={`${rate.id}-twoMwRplNoReposition`}
                                         label="2 MW RPL (Jack not reposition)"
                                         value={rate.twoMwRplNoReposition}
                                         onChange={handleNumberChange("twoMwRplNoReposition")}
-                                        suffix="/Service"
+                                        suffix="/Service" currencyLabel={currencyLabel}
                                     />
                                     <PriceInput
                                         id={`${rate.id}-twoMwRplReposition`}
                                         label="2 MW RPL (Jack reposition)"
                                         value={rate.twoMwRplReposition}
                                         onChange={handleNumberChange("twoMwRplReposition")}
-                                        suffix="/Service"
+                                        suffix="/Service" currencyLabel={currencyLabel}
                                     />
                                     <PriceInput
                                         id={`${rate.id}-brakeRpl`}
                                         label="Brake RPL"
                                         value={rate.brakeRpl}
                                         onChange={handleNumberChange("brakeRpl")}
-                                        suffix="/Service"
+                                        suffix="/Service" currencyLabel={currencyLabel}
                                     />
                                 </div>
                             </div>
@@ -612,35 +615,35 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                         label="Towing"
                                         value={rate.towingPerService}
                                         onChange={handleNumberChange("towingPerService")}
-                                        suffix="/Service"
+                                        suffix="/Service" currencyLabel={currencyLabel}
                                     />
                                     <PriceInput
                                         id={`${rate.id}-storageFeeMonth`}
                                         label="Storage Fee"
                                         value={rate.storageFeeMonth}
                                         onChange={handleNumberChange("storageFeeMonth")}
-                                        suffix="/Sq.M./Month"
+                                        suffix="/Sq.M./Month" currencyLabel={currencyLabel}
                                     />
                                     <PriceInput
                                         id={`${rate.id}-storageHandlingFee`}
                                         label="Storage Handling Fee"
                                         value={rate.storageHandlingFee}
                                         onChange={handleNumberChange("storageHandlingFee")}
-                                        suffix="/Service"
+                                        suffix="/Service" currencyLabel={currencyLabel}
                                     />
                                     <PriceInput
                                         id={`${rate.id}-maintStepHr`}
                                         label="Maint. Step"
                                         value={rate.maintStepHr}
                                         onChange={handleNumberChange("maintStepHr")}
-                                        suffix="/Hr"
+                                        suffix="/Hr" currencyLabel={currencyLabel}
                                     />
                                     <PriceInput
                                         id={`${rate.id}-marshalling`}
                                         label="Marshalling"
                                         value={rate.marshalling}
                                         onChange={handleNumberChange("marshalling")}
-                                        suffix="/Service"
+                                        suffix="/Service" currencyLabel={currencyLabel}
                                     />
                                 </div>
                             </div>
@@ -673,28 +676,28 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                         label="Engine Oil"
                                         value={rate.engineOilQuad}
                                         onChange={handleNumberChange("engineOilQuad")}
-                                        suffix="/Quart"
+                                        suffix="/Quart" currencyLabel={currencyLabel}
                                     />
                                     <PriceInput
                                         id={`${rate.id}-hydraulicFluidQuad`}
                                         label="Hydraulic Fluid"
                                         value={rate.hydraulicFluidQuad}
                                         onChange={handleNumberChange("hydraulicFluidQuad")}
-                                        suffix="/Quart"
+                                        suffix="/Quart" currencyLabel={currencyLabel}
                                     />
                                     <PriceInput
                                         id={`${rate.id}-lowPressureN2`}
                                         label="Low Pressure N2"
                                         value={rate.lowPressureN2}
                                         onChange={handleNumberChange("lowPressureN2")}
-                                        suffix="/Service"
+                                        suffix="/Service" currencyLabel={currencyLabel}
                                     />
                                     <PriceInput
                                         id={`${rate.id}-highPressureN2`}
                                         label="High Pressure N2"
                                         value={rate.highPressureN2}
                                         onChange={handleNumberChange("highPressureN2")}
-                                        suffix="/Service"
+                                        suffix="/Service" currencyLabel={currencyLabel}
                                     />
                                 </div>
                             </div>
@@ -727,14 +730,14 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                         label="Defect Rectification Tools"
                                         value={rate.defectRectificationTools}
                                         onChange={handleNumberChange("defectRectificationTools")}
-                                        suffix="%/Service"
+                                        suffix="%/Service" currencyLabel={currencyLabel}
                                     />
                                     <PriceInput
                                         id={`${rate.id}-materialHandlingFee`}
                                         label="Material Handling Fee"
                                         value={rate.materialHandlingFee}
                                         onChange={handleNumberChange("materialHandlingFee")}
-                                        suffix="%/Service"
+                                        suffix="%/Service" currencyLabel={currencyLabel}
                                     />
                                 </div>
                             </div>

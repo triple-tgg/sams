@@ -1,6 +1,6 @@
 // ─── Authorization Data — FM-CM-063 Rev.08 ──────────────────────────────────
-import type { AirlineKey, Airline, Staff } from './types-v2'
-import { AIRLINE_KEYS } from './types-v2'
+import type { AirlineKey, Airline, AuthorityKey, Authority, Staff } from './types-v2'
+import { AIRLINE_KEYS, AUTHORITY_KEYS } from './types-v2'
 
 // ─── Airlines ───────────────────────────────────────────────────────────────
 
@@ -27,6 +27,26 @@ export const AIRLINES: Record<AirlineKey, Airline> = {
 
 export { AIRLINE_KEYS }
 
+// ─── Authorities ────────────────────────────────────────────────────────────
+
+export const AUTHORITIES: Record<AuthorityKey, Authority> = {
+  CAAT: { code: 'CAAT', name: 'Civil Aviation Authority of Thailand', color: '#1d4ed8' },
+  CAAM: { code: 'CAAM', name: 'Civil Aviation Authority of Malaysia', color: '#7c3aed' },
+  CAAP: { code: 'CAAP', name: 'Civil Aviation Authority of Philippines', color: '#059669' },
+  CAAS: { code: 'CAAS', name: 'Civil Aviation Authority of Singapore', color: '#dc2626' },
+  DGCA_India: { code: 'DGCA_India', name: 'The Directorate General of Civil Aviation of India', color: '#ea580c' },
+  DGCA_Indonesia: { code: 'DGCA_Indonesia', name: 'The Directorate General of Civil Aviation of Indonesia', color: '#16a34a' },
+  CAASL: { code: 'CAASL', name: 'Civil Aviation Authority of Sri Lanka', color: '#4338ca' },
+  GCAA: { code: 'GCAA', name: 'General Civil Aviation Authority', color: '#0284c7' },
+  MOLIT: { code: 'MOLIT', name: 'Ministry of Land, Infrastructure and Transport', color: '#eab308' },
+  FAA: { code: 'FAA', name: 'Federal Aviation Administration', color: '#dc2626' },
+  EASA: { code: 'EASA', name: 'European Union Aviation Safety Agency', color: '#0369a1' },
+  GACA: { code: 'GACA', name: 'General Authority of Civil Aviation', color: '#1e40af' },
+  DGCA_Kuwait: { code: 'DGCA_Kuwait', name: 'The Directorate General of Civil Aviation of Kuwait', color: '#ea580c' },
+}
+
+export { AUTHORITY_KEYS }
+
 // ─── Staff — 16 Certifying Staff (FM-CM-063 Rev.08) ─────────────────────────
 
 export const STAFF: Staff[] = [
@@ -42,6 +62,11 @@ export const STAFF: Staff[] = [
       QDO: 'valid', CEBU: 'valid', AI: 'valid', AKASA: 'valid', ASA: 'valid',
       TGW: 'valid', MH: 'valid', ZE: 'valid',
     },
+    auth: {
+      CAAT: 'valid', CAAM: 'valid', CAAP: 'valid', CAAS: 'valid', DGCA_India: 'valid',
+      DGCA_Indonesia: 'valid', CAASL: 'valid', GCAA: 'valid', MOLIT: 'valid', FAA: 'valid',
+      EASA: 'valid', GACA: 'valid', DGCA_Kuwait: 'valid',
+    },
   },
   {
     no: 2, id: '0013', name: 'Mr. Pissanu Arunbutr',
@@ -54,6 +79,11 @@ export const STAFF: Staff[] = [
       RLH: 'valid', INDIGO: 'valid', AIXL: 'valid', HLF: 'valid', PAL: 'valid',
       QDO: 'valid', CEBU: 'valid', AI: 'valid', AKASA: 'valid', ASA: 'valid',
       TGW: 'valid', MH: 'valid', ZE: 'valid',
+    },
+    auth: {
+      CAAT: 'valid', CAAM: 'valid', CAAP: 'valid', CAAS: 'valid', DGCA_India: 'valid',
+      DGCA_Indonesia: 'valid', CAASL: 'valid', GCAA: 'valid', MOLIT: 'valid', FAA: 'valid',
+      EASA: 'valid', GACA: 'valid', DGCA_Kuwait: 'valid',
     },
   },
   {
@@ -69,6 +99,11 @@ export const STAFF: Staff[] = [
       QDO: 'valid', CEBU: 'valid', AI: 'valid', AKASA: 'not_complete', ASA: 'valid',
       TGW: 'valid', MH: 'valid', ZE: 'valid',
     },
+    auth: {
+      CAAT: 'valid', CAAM: 'valid', CAAP: 'valid', CAAS: 'valid', DGCA_India: 'valid',
+      DGCA_Indonesia: 'valid', CAASL: 'valid', GCAA: 'valid', MOLIT: 'valid', FAA: 'valid',
+      EASA: 'valid', GACA: 'valid', DGCA_Kuwait: 'valid',
+    },
   },
   {
     no: 4, id: '0022', name: 'Mr. Chalong Siri',
@@ -82,6 +117,11 @@ export const STAFF: Staff[] = [
       RLH: 'valid', INDIGO: 'valid', AIXL: 'valid', HLF: 'valid', PAL: 'valid',
       QDO: 'pending', CEBU: 'valid', AI: 'valid', AKASA: 'pending', ASA: 'valid',
       TGW: 'valid', MH: 'valid', ZE: 'valid',
+    },
+    auth: {
+      CAAT: 'valid', CAAM: 'valid', CAAP: 'valid', CAAS: 'valid', DGCA_India: 'valid',
+      DGCA_Indonesia: 'valid', CAASL: 'valid', GCAA: 'valid', MOLIT: 'valid', FAA: 'valid',
+      EASA: 'valid', GACA: 'valid', DGCA_Kuwait: 'valid',
     },
   },
   {
@@ -97,6 +137,11 @@ export const STAFF: Staff[] = [
       QDO: 'valid', CEBU: 'valid', AI: 'valid', AKASA: 'valid', ASA: 'valid',
       TGW: 'valid', MH: 'valid', ZE: 'valid',
     },
+    auth: {
+      CAAT: 'valid', CAAM: 'valid', CAAP: 'valid', CAAS: 'valid', DGCA_India: 'valid',
+      DGCA_Indonesia: 'valid', CAASL: 'valid', GCAA: 'valid', MOLIT: 'valid', FAA: 'valid',
+      EASA: 'valid', GACA: 'valid', DGCA_Kuwait: 'valid',
+    },
   },
   {
     no: 6, id: '0041', name: 'Mr. Prakarn Sribudh',
@@ -109,6 +154,11 @@ export const STAFF: Staff[] = [
       RLH: 'valid', INDIGO: 'valid', AIXL: 'valid', HLF: 'valid', PAL: 'valid',
       QDO: 'valid', CEBU: 'valid', AI: 'valid', AKASA: 'valid', ASA: 'valid',
       TGW: 'valid', MH: 'valid', ZE: 'valid',
+    },
+    auth: {
+      CAAT: 'valid', CAAM: 'valid', CAAP: 'valid', CAAS: 'valid', DGCA_India: 'valid',
+      DGCA_Indonesia: 'valid', CAASL: 'valid', GCAA: 'valid', MOLIT: 'valid', FAA: 'valid',
+      EASA: 'valid', GACA: 'valid', DGCA_Kuwait: 'valid',
     },
   },
   {
@@ -124,6 +174,11 @@ export const STAFF: Staff[] = [
       QDO: 'valid', CEBU: 'valid', AI: 'suspended', AKASA: 'valid', ASA: 'valid',
       TGW: 'valid', MH: 'not_complete', ZE: 'valid',
     },
+    auth: {
+      CAAT: 'valid', CAAM: 'valid', CAAP: 'valid', CAAS: 'valid', DGCA_India: 'valid',
+      DGCA_Indonesia: 'valid', CAASL: 'valid', GCAA: 'valid', MOLIT: 'valid', FAA: 'valid',
+      EASA: 'valid', GACA: 'valid', DGCA_Kuwait: 'valid',
+    },
   },
   {
     no: 8, id: '0049', name: 'Mr. Thawansak Bharmmano',
@@ -136,6 +191,11 @@ export const STAFF: Staff[] = [
       RLH: 'valid', INDIGO: 'valid', AIXL: 'valid', HLF: 'valid', PAL: 'valid',
       QDO: 'valid', CEBU: 'valid', AI: 'valid', AKASA: 'valid', ASA: 'valid',
       TGW: 'valid', MH: 'valid', ZE: 'valid',
+    },
+    auth: {
+      CAAT: 'valid', CAAM: 'valid', CAAP: 'valid', CAAS: 'valid', DGCA_India: 'valid',
+      DGCA_Indonesia: 'valid', CAASL: 'valid', GCAA: 'valid', MOLIT: 'valid', FAA: 'valid',
+      EASA: 'valid', GACA: 'valid', DGCA_Kuwait: 'valid',
     },
   },
   {
@@ -151,6 +211,11 @@ export const STAFF: Staff[] = [
       QDO: 'valid', CEBU: 'valid', AI: 'valid', AKASA: 'valid', ASA: 'valid',
       TGW: 'not_approve', MH: 'valid', ZE: 'valid',
     },
+    auth: {
+      CAAT: 'valid', CAAM: 'valid', CAAP: 'valid', CAAS: 'valid', DGCA_India: 'valid',
+      DGCA_Indonesia: 'valid', CAASL: 'valid', GCAA: 'valid', MOLIT: 'valid', FAA: 'valid',
+      EASA: 'valid', GACA: 'valid', DGCA_Kuwait: 'valid',
+    },
   },
   {
     no: 10, id: '0055', name: 'Mr. Chinnapat Kitpaiboon',
@@ -164,6 +229,11 @@ export const STAFF: Staff[] = [
       QDO: 'valid', CEBU: 'valid', AI: 'valid', AKASA: 'valid', ASA: 'pending',
       TGW: 'valid', MH: 'valid', ZE: 'valid',
     },
+    auth: {
+      CAAT: 'valid', CAAM: 'valid', CAAP: 'valid', CAAS: 'valid', DGCA_India: 'valid',
+      DGCA_Indonesia: 'valid', CAASL: 'valid', GCAA: 'valid', MOLIT: 'valid', FAA: 'valid',
+      EASA: 'valid', GACA: 'valid', DGCA_Kuwait: 'valid',
+    },
   },
   {
     no: 11, id: '0058', name: 'Mr. Surasak Mongkolkij',
@@ -176,6 +246,11 @@ export const STAFF: Staff[] = [
       RLH: 'valid', INDIGO: 'valid', AIXL: 'valid', HLF: 'valid', PAL: 'valid',
       QDO: 'valid', CEBU: 'valid', AI: 'valid', AKASA: 'valid', ASA: 'valid',
       TGW: 'valid', MH: 'valid', ZE: 'valid',
+    },
+    auth: {
+      CAAT: 'valid', CAAM: 'valid', CAAP: 'valid', CAAS: 'valid', DGCA_India: 'valid',
+      DGCA_Indonesia: 'valid', CAASL: 'valid', GCAA: 'valid', MOLIT: 'valid', FAA: 'valid',
+      EASA: 'valid', GACA: 'valid', DGCA_Kuwait: 'valid',
     },
   },
   {
@@ -191,6 +266,11 @@ export const STAFF: Staff[] = [
       QDO: 'valid', CEBU: 'valid', AI: 'valid', AKASA: 'valid', ASA: 'valid',
       TGW: 'valid', MH: 'valid', ZE: 'valid',
     },
+    auth: {
+      CAAT: 'valid', CAAM: 'valid', CAAP: 'valid', CAAS: 'valid', DGCA_India: 'valid',
+      DGCA_Indonesia: 'valid', CAASL: 'valid', GCAA: 'valid', MOLIT: 'valid', FAA: 'valid',
+      EASA: 'valid', GACA: 'valid', DGCA_Kuwait: 'valid',
+    },
   },
   {
     no: 13, id: '0064', name: 'Mr. Nattapong Keeplong',
@@ -203,6 +283,11 @@ export const STAFF: Staff[] = [
       RLH: 'valid', INDIGO: 'valid', AIXL: 'valid', HLF: 'valid', PAL: 'valid',
       QDO: 'valid', CEBU: 'valid', AI: 'valid', AKASA: 'valid', ASA: 'valid',
       TGW: 'valid', MH: 'valid', ZE: 'valid',
+    },
+    auth: {
+      CAAT: 'valid', CAAM: 'valid', CAAP: 'valid', CAAS: 'valid', DGCA_India: 'valid',
+      DGCA_Indonesia: 'valid', CAASL: 'valid', GCAA: 'valid', MOLIT: 'valid', FAA: 'valid',
+      EASA: 'valid', GACA: 'valid', DGCA_Kuwait: 'valid',
     },
   },
   {
@@ -218,6 +303,11 @@ export const STAFF: Staff[] = [
       QDO: 'not_complete', CEBU: 'valid', AI: 'valid', AKASA: 'valid', ASA: 'valid',
       TGW: 'valid', MH: 'suspended', ZE: 'valid',
     },
+    auth: {
+      CAAT: 'valid', CAAM: 'valid', CAAP: 'valid', CAAS: 'valid', DGCA_India: 'valid',
+      DGCA_Indonesia: 'valid', CAASL: 'valid', GCAA: 'valid', MOLIT: 'valid', FAA: 'valid',
+      EASA: 'valid', GACA: 'valid', DGCA_Kuwait: 'valid',
+    },
   },
   {
     no: 15, id: '0070', name: 'Mr. Kittisak Rungsri',
@@ -232,6 +322,11 @@ export const STAFF: Staff[] = [
       QDO: 'valid', CEBU: 'not_complete', AI: 'valid', AKASA: 'valid', ASA: 'valid',
       TGW: 'valid', MH: 'valid', ZE: 'pending',
     },
+    auth: {
+      CAAT: 'valid', CAAM: 'valid', CAAP: 'valid', CAAS: 'valid', DGCA_India: 'valid',
+      DGCA_Indonesia: 'valid', CAASL: 'valid', GCAA: 'valid', MOLIT: 'valid', FAA: 'valid',
+      EASA: 'valid', GACA: 'valid', DGCA_Kuwait: 'valid',
+    },
   },
   {
     no: 16, id: '0073', name: 'Mr. Thanawat Boonprasert',
@@ -244,6 +339,11 @@ export const STAFF: Staff[] = [
       RLH: 'valid', INDIGO: 'valid', AIXL: 'valid', HLF: 'valid', PAL: 'valid',
       QDO: 'valid', CEBU: 'valid', AI: 'valid', AKASA: 'valid', ASA: 'valid',
       TGW: 'valid', MH: 'valid', ZE: 'valid',
+    },
+    auth: {
+      CAAT: 'valid', CAAM: 'valid', CAAP: 'valid', CAAS: 'valid', DGCA_India: 'valid',
+      DGCA_Indonesia: 'valid', CAASL: 'valid', GCAA: 'valid', MOLIT: 'valid', FAA: 'valid',
+      EASA: 'valid', GACA: 'valid', DGCA_Kuwait: 'valid',
     },
   },
 ]

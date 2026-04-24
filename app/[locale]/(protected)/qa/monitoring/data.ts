@@ -3,23 +3,23 @@ import { CourseRef, Employee } from './types'
 // ─── Course Definitions ─────────────────────────────────────────────────────
 
 export const MANDATORY: CourseRef[] = [
-    { id: 'hf',   short: 'HF',    label: 'Human Factors',        interval: 24 },
-    { id: 'sms',  short: 'SMS',   label: 'Safety Mgmt System',   interval: 24 },
-    { id: 'dga',  short: 'DGA',   label: 'Dangerous Goods',      interval: 24 },
-    { id: 'cp',   short: 'CP',    label: 'Company Policy / MOE', interval: 24 },
-    { id: 'fts',  short: 'FTS',   label: 'Fuel Tank Safety',     interval: 24 },
-    { id: 'ewis', short: 'EWIS',  label: 'EWIS',                 interval: 24 },
-    { id: 'rvsm', short: 'RVSM',  label: 'Spec Ops RVSM',        interval: 12 },
-    { id: 'edto', short: 'EDTO',  label: 'Spec Ops EDTO',        interval: 24 },
+    { id: 'hf',   short: 'HF',    label: 'Human Factors',        interval: 24, code: 'SAMS-HFM-001' },
+    { id: 'sms',  short: 'SMS',   label: 'Safety Mgmt System',   interval: 24, code: 'SAMS-SMS-001' },
+    { id: 'dga',  short: 'DGA',   label: 'Dangerous Goods',      interval: 24, code: 'SAMS-DGR-001' },
+    { id: 'cp',   short: 'CP',    label: 'Company Policy / MOE', interval: 24, code: 'SAMS-INT-001' },
+    { id: 'fts',  short: 'FTS',   label: 'Fuel Tank Safety',     interval: 24, code: 'SAMS-FTS2-004' },
+    { id: 'ewis', short: 'EWIS',  label: 'EWIS',                 interval: 24, code: 'SAMS-EWIS-004' },
+    { id: 'rvsm', short: 'RVSM',  label: 'Spec Ops RVSM',        interval: 12, code: 'SAMS-SPO1-004' },
+    { id: 'edto', short: 'EDTO',  label: 'Spec Ops EDTO',        interval: 24, code: 'SAMS-SPO2-004' },
 ]
 
 export const TYPE_COURSES: CourseRef[] = [
-    { id: 'tb737cfm',  short: 'B737',  label: 'B737 CFM56', interval: 24 },
-    { id: 'tb737leap', short: 'B737M', label: 'B737 LEAP',  interval: 24 },
-    { id: 'ta320',     short: 'A320',  label: 'A320 fam',   interval: 24 },
-    { id: 'tb777',     short: 'B777',  label: 'B777',       interval: 24 },
-    { id: 'ta330',     short: 'A330',  label: 'A330',       interval: 24 },
-    { id: 'tb787',     short: 'B787',  label: 'B787',       interval: 24 },
+    { id: 'tb737cfm',  short: 'B737',  label: 'B737 CFM56', interval: 24, code: 'SAMS-ATL/B738-002' },
+    { id: 'tb737leap', short: 'B737M', label: 'B737 LEAP',  interval: 24, code: 'SAMS-ATL/B738-002' },
+    { id: 'ta320',     short: 'A320',  label: 'A320 fam',   interval: 24, code: 'SAMS-ATL/A318/A319/A320/A321-002' },
+    { id: 'tb777',     short: 'B777',  label: 'B777',       interval: 24, code: 'SAMS-ATL/B777-200/300/300ER-002' },
+    { id: 'ta330',     short: 'A330',  label: 'A330',       interval: 24, code: 'SAMS-ATL/A330-200/300-002' },
+    { id: 'tb787',     short: 'B787',  label: 'B787',       interval: 24, code: 'SAMS-ATL/B787-8/9-002' },
 ]
 
 export const ALL_COURSES = [...MANDATORY, ...TYPE_COURSES]

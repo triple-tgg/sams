@@ -2,8 +2,10 @@
 
 import React, { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Clock, MapPin, Search, UserPlus, Trash2, Calendar as CalendarIcon, AlertCircle, Users, GraduationCap } from 'lucide-react'
+import { ArrowLeft, Clock, MapPin, Search, UserPlus, Trash2, Calendar as CalendarIcon, AlertCircle, Users, GraduationCap, Mail, Printer, Lock, MoreVertical, CheckCircle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { PrintAttendanceModal } from '../components/PrintAttendanceModal'
 import { INITIAL_SESSIONS } from '../data'
 import { STATUS_CONFIG, CAT_COLOR, formatDate } from '../types'
 
@@ -30,7 +32,7 @@ export default function ScheduleDetailPage() {
     const params = useParams()
     const router = useRouter()
     const sessionId = Number(params?.id)
-    
+
     // Fallback to a mock full session if not found in INITIAL_SESSIONS
     const session = INITIAL_SESSIONS.find(s => s.id === sessionId) || {
         id: sessionId,
@@ -47,7 +49,9 @@ export default function ScheduleDetailPage() {
     const [availableStaff, setAvailableStaff] = useState(MOCK_AVAILABLE_STAFF)
     const [staffSearch, setStaffSearch] = useState('')
     const [enrolledSearch, setEnrolledSearch] = useState('')
-    
+    const [isRegistrationClosed, setIsRegistrationClosed] = useState(false)
+    const [showPrintModal, setShowPrintModal] = useState(false)
+
     const cfg = STATUS_CONFIG[session.status] || STATUS_CONFIG.Scheduled
     const enrolledCount = enrolledStaff.length
     const pct = session.maxParticipants > 0 ? (enrolledCount / session.maxParticipants) * 100 : 0
@@ -66,7 +70,7 @@ export default function ScheduleDetailPage() {
         const mm = String(now.getMonth() + 1).padStart(2, '0');
         const dd = String(now.getDate()).padStart(2, '0');
         const enrolledDate = `${yyyy}-${mm}-${dd}`;
-        
+
         setEnrolledStaff(prev => [...prev, { ...staff, date: enrolledDate, status: 'enrolled' }]);
         setAvailableStaff(prev => prev.filter(s => s.id !== staff.id));
     }
@@ -96,6 +100,42 @@ export default function ScheduleDetailPage() {
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${cfg.bg} ${cfg.text}`}>
                                 {session.status}
                             </span>
+                        </div>
+                        <div className="flex items-center gap-2 ml-auto">
+                            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer bg-primary hover:bg-primary/80 text-white">
+                                <Mail className="w-3.5 h-3.5" />
+                                Send Email
+                            </button>
+                            <button 
+                                onClick={() => setShowPrintModal(true)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-foreground hover:bg-muted border border-border transition-colors cursor-pointer bg-white"
+                            >
+                                <Printer className="w-3.5 h-3.5" />
+                                Print Form
+                            </button>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <button className="flex items-center justify-center w-8 h-8 rounded-lg text-foreground hover:bg-muted border border-border transition-colors cursor-pointer bg-white">
+                                        <MoreVertical className="w-4 h-4" />
+                                    </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-44">
+                                    <DropdownMenuItem
+                                        onClick={() => setIsRegistrationClosed(!isRegistrationClosed)}
+                                        className={`cursor-pointer text-xs font-medium ${isRegistrationClosed
+                                            ? 'text-amber-600 focus:text-amber-600 focus:bg-amber-50'
+                                            : 'text-foreground focus:bg-muted'
+                                            }`}
+                                    >
+                                        <Lock className="w-3.5 h-3.5 mr-2" />
+                                        {isRegistrationClosed ? 'Open Registration' : 'Close Registration'}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="cursor-pointer text-xs font-medium text-emerald-600 focus:text-emerald-600 focus:bg-emerald-50">
+                                        <CheckCircle className="w-3.5 h-3.5 mr-2" />
+                                        Complete Course
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
                     </div>
                     <CardTitle className="mt-2">{session.courseName}</CardTitle>
@@ -174,11 +214,22 @@ export default function ScheduleDetailPage() {
                                     </div>
                                     <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                                         <div
-                                            className={`h-full rounded-full transition-all duration-500 ${
-                                                isFull ? 'bg-red-500' : pct >= 80 ? 'bg-amber-500' : 'bg-emerald-500'
-                                            }`}
+                                            className={`h-full rounded-full transition-all duration-500 ${isFull ? 'bg-red-500' : pct >= 80 ? 'bg-amber-500' : 'bg-emerald-500'
+                                                }`}
                                             style={{ width: `${Math.min(pct, 100)}%` }}
                                         />
+                                    </div>
+                                </div>
+
+                                {/* Course Objective */}
+                                <div className="pt-2">
+                                    <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Course Objective</h4>
+                                    <div className="bg-blue-50/50 rounded-xl p-3 text-xs text-slate-600 leading-relaxed border border-blue-100">
+                                        {session.objective ? (
+                                            <p>{session.objective}</p>
+                                        ) : (
+                                            <p className="text-muted-foreground italic">No course objective specified</p>
+                                        )}
                                     </div>
                                 </div>
 
@@ -194,74 +245,76 @@ export default function ScheduleDetailPage() {
                             </div>
 
                             {/* Add Staff Panel */}
-                            <div className="bg-white rounded-xl border border-border overflow-hidden">
-                                <div className="p-3 bg-slate-50/80 border-b border-border flex items-center gap-2">
-                                    <UserPlus className="w-4 h-4 text-primary" />
-                                    <span className="text-xs font-bold text-foreground">Add Staff</span>
-                                    <span className="text-[10px] text-muted-foreground ml-auto">
-                                        {availableStaff.length} available
-                                    </span>
-                                </div>
-
-                                {/* Search */}
-                                <div className="p-3 border-b border-border">
-                                    <div className="relative">
-                                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                                        <input
-                                            type="text"
-                                            value={staffSearch}
-                                            onChange={e => setStaffSearch(e.target.value)}
-                                            placeholder="Search by name, ID or department..."
-                                            disabled={isFull}
-                                            className="w-full pl-8 pr-3 py-2 rounded-lg border border-border bg-white text-xs placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all disabled:opacity-60 disabled:bg-muted/30"
-                                        />
+                            {!isRegistrationClosed && (
+                                <div className="bg-white rounded-xl border border-border overflow-hidden">
+                                    <div className="p-3 bg-slate-50/80 border-b border-border flex items-center gap-2">
+                                        <UserPlus className="w-4 h-4 text-primary" />
+                                        <span className="text-xs font-bold text-foreground">Add Staff</span>
+                                        <span className="text-[10px] text-muted-foreground ml-auto">
+                                            {availableStaff.length} available
+                                        </span>
                                     </div>
-                                </div>
 
-                                {/* Full Warning */}
-                                {isFull ? (
-                                    <div className="mx-3 mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200">
-                                        <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
-                                        <span className="text-[11px] font-semibold text-red-700">Session is full. Remove existing enrollment to add more.</span>
+                                    {/* Search */}
+                                    <div className="p-3 border-b border-border">
+                                        <div className="relative">
+                                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                                            <input
+                                                type="text"
+                                                value={staffSearch}
+                                                onChange={e => setStaffSearch(e.target.value)}
+                                                placeholder="Search by name, ID or department..."
+                                                disabled={isFull}
+                                                className="w-full pl-8 pr-3 py-2 rounded-lg border border-border bg-white text-xs placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all disabled:opacity-60 disabled:bg-muted/30"
+                                            />
+                                        </div>
                                     </div>
-                                ) : (
-                                    <div className="max-h-[340px] overflow-y-auto">
-                                        {availableStaff
-                                            .filter(s => 
-                                                s.name.toLowerCase().includes(staffSearch.toLowerCase()) || 
-                                                s.code.includes(staffSearch) || 
-                                                s.dept.toLowerCase().includes(staffSearch.toLowerCase())
-                                            )
-                                            .map(staff => (
-                                                <div key={staff.id} className="flex items-center gap-3 px-3 py-2.5 border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors group">
-                                                    <div className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-200 text-slate-600 text-[10px] font-bold shrink-0">
-                                                        {getInitials(staff.name)}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-xs font-semibold text-foreground truncate">{staff.name}</p>
-                                                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                                                            <span className="font-bold">{staff.code}</span>
-                                                            <span>·</span>
-                                                            <span>{staff.license}</span>
-                                                            <span>·</span>
-                                                            <span className="truncate">{staff.dept}</span>
+
+                                    {/* Full Warning */}
+                                    {isFull ? (
+                                        <div className="mx-3 mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200">
+                                            <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                                            <span className="text-[11px] font-semibold text-red-700">Session is full. Remove existing enrollment to add more.</span>
+                                        </div>
+                                    ) : (
+                                        <div className="max-h-[340px] overflow-y-auto">
+                                            {availableStaff
+                                                .filter(s =>
+                                                    s.name.toLowerCase().includes(staffSearch.toLowerCase()) ||
+                                                    s.code.includes(staffSearch) ||
+                                                    s.dept.toLowerCase().includes(staffSearch.toLowerCase())
+                                                )
+                                                .map(staff => (
+                                                    <div key={staff.id} className="flex items-center gap-3 px-3 py-2.5 border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors group">
+                                                        <div className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-200 text-slate-600 text-[10px] font-bold shrink-0">
+                                                            {getInitials(staff.name)}
                                                         </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-xs font-semibold text-foreground truncate">{staff.name}</p>
+                                                            <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                                                                <span className="font-bold">{staff.code}</span>
+                                                                <span>·</span>
+                                                                <span>{staff.license}</span>
+                                                                <span>·</span>
+                                                                <span className="truncate">{staff.dept}</span>
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => handleEnroll(staff)}
+                                                            className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all bg-primary/10 text-primary hover:bg-primary hover:text-white cursor-pointer"
+                                                        >
+                                                            <UserPlus className="w-3 h-3" />
+                                                            Enroll
+                                                        </button>
                                                     </div>
-                                                    <button
-                                                        onClick={() => handleEnroll(staff)}
-                                                        className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all bg-primary/10 text-primary hover:bg-primary hover:text-white cursor-pointer"
-                                                    >
-                                                        <UserPlus className="w-3 h-3" />
-                                                        Enroll
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        {availableStaff.length === 0 && (
-                                            <div className="p-6 text-center text-xs text-muted-foreground">No available staff found</div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
+                                                ))}
+                                            {availableStaff.length === 0 && (
+                                                <div className="p-6 text-center text-xs text-muted-foreground">No available staff found</div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Right — Enrolled Staff List */}
@@ -284,11 +337,12 @@ export default function ScheduleDetailPage() {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-[1fr_100px_100px_110px_80px] gap-3 px-4 py-2.5 bg-muted/30 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border">
+                            <div className="grid grid-cols-[1fr_80px_100px_90px_80px_70px] gap-3 px-4 py-2.5 bg-muted/30 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border">
                                 <span>Employee Name</span>
                                 <span>License</span>
                                 <span>Department</span>
-                                <span>Enrolled Date</span>
+                                <span>Date</span>
+                                <span>Status</span>
                                 <span className="text-center">Action</span>
                             </div>
 
@@ -304,9 +358,8 @@ export default function ScheduleDetailPage() {
                                     enrolledStaff.filter(e => e.name.toLowerCase().includes(enrolledSearch.toLowerCase())).map((staff, idx) => (
                                         <div
                                             key={staff.id}
-                                            className={`grid grid-cols-[1fr_100px_100px_110px_80px] gap-3 px-4 py-3 items-center border-b border-border/50 hover:bg-muted/20 transition-colors ${
-                                                idx % 2 === 0 ? 'bg-white' : 'bg-muted/10'
-                                            }`}
+                                            className={`grid grid-cols-[1fr_80px_100px_90px_80px_70px] gap-3 px-4 py-3 items-center border-b border-border/50 hover:bg-muted/20 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-muted/10'
+                                                }`}
                                         >
                                             <div className="flex items-center gap-2.5 min-w-0">
                                                 <div className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-200 text-slate-600 text-[10px] font-bold shrink-0">
@@ -319,23 +372,29 @@ export default function ScheduleDetailPage() {
                                             </div>
                                             <span className="text-xs font-semibold text-foreground">{staff.license}</span>
                                             <span className="text-[11px] text-muted-foreground font-medium truncate">{staff.dept}</span>
-                                            <div className="flex flex-col gap-0.5">
-                                                <span className="text-[11px] font-medium text-foreground">{staff.date}</span>
+                                            <span className="text-[11px] font-medium text-foreground">{staff.date}</span>
+                                            <div className="flex">
                                                 <span
-                                                    className="inline-flex items-center gap-1 w-fit px-1.5 py-0.5 rounded text-[9px] font-bold"
+                                                    className="inline-flex items-center gap-1 w-fit px-1.5 py-0.5 rounded text-[9px] font-bold capitalize"
                                                     style={{ background: '#dbeafe', color: '#1e40af' }}
                                                 >
                                                     <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#3b82f6' }} />
-                                                    Enrolled
+                                                    {staff.status}
                                                 </span>
                                             </div>
-                                            <div className="flex justify-center">
+                                            <div className="flex items-center justify-center gap-1">
+                                                <button
+                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer border-none bg-transparent"
+                                                    title="Send Email"
+                                                >
+                                                    <Mail className="w-4 h-4" />
+                                                </button>
                                                 <button
                                                     onClick={() => handleRemove(staff)}
-                                                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold text-red-500 bg-red-50 hover:bg-red-100 border border-red-200 transition-all cursor-pointer"
+                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer border-none bg-transparent"
+                                                    title="Remove Staff"
                                                 >
-                                                    <Trash2 className="w-3 h-3" />
-                                                    Remove
+                                                    <Trash2 className="w-4 h-4" />
                                                 </button>
                                             </div>
                                         </div>
@@ -346,6 +405,13 @@ export default function ScheduleDetailPage() {
                     </div>
                 </CardContent>
             </Card>
+
+            <PrintAttendanceModal 
+                isOpen={showPrintModal}
+                onClose={() => setShowPrintModal(false)}
+                session={session as any}
+                enrolledStaff={enrolledStaff}
+            />
         </div>
     )
 }

@@ -174,6 +174,7 @@ export const defaultFormData: ContractFormData = {
     expiresOn: "",
     isNoExpiryDate: false,
     domicileCountry: "",
+    currency: "",
     status: "",
     // Pricing Rates (multi-rate)
     pricingRates: [],

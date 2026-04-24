@@ -17,6 +17,7 @@ export interface Session {
     enrolled: number
     status: string
     type: string
+    objective?: string
 }
 
 export interface Instructor {

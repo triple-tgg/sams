@@ -104,6 +104,7 @@ export interface ContractFormData {
     expiresOn: string;
     isNoExpiryDate: boolean;
     domicileCountry: string;
+    currency: string;
     status: string;
     // Pricing Rates (multi-rate)
     pricingRates: PricingRate[];

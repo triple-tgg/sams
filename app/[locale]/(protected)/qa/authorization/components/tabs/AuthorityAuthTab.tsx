@@ -17,9 +17,9 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { STAFF, AIRLINES } from '../../data-v2'
-import { AIRLINE_KEYS, SAMS_STATUS_META, CUST_STATUS_META } from '../../types-v2'
-import type { CustomerAuthValue, AirlineKey, Staff } from '../../types-v2'
+import { STAFF, AUTHORITIES } from '../../data-v2'
+import { AUTHORITY_KEYS, SAMS_STATUS_META, CUST_STATUS_META } from '../../types-v2'
+import type { CustomerAuthValue, AuthorityKey, Staff } from '../../types-v2'
 import { getSamsStatus } from '../../utils'
 import { cn } from '@/lib/utils'
 
@@ -48,7 +48,7 @@ const AIRCRAFT_OPTIONS = [
 
 interface TooltipInfo {
   staff: Staff
-  airlineCode: AirlineKey
+  authCode: AuthorityKey
   status: CustomerAuthValue
   x: number
   y: number       // cell bottom
@@ -56,9 +56,9 @@ interface TooltipInfo {
 }
 
 function CellTooltip({ info }: { info: TooltipInfo }) {
-  const { staff, airlineCode, status } = info
+  const { staff, authCode, status } = info
   const meta = CUST_STATUS_META[status]
-  const airline = AIRLINES[airlineCode]
+  const authority = AUTHORITIES[authCode]
   const ref = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{ left: number; top: number }>({ left: info.x, top: info.y + 8 })
 
@@ -106,8 +106,8 @@ function CellTooltip({ info }: { info: TooltipInfo }) {
       </div>
       <div className="space-y-1.5 text-[11px]">
         <div className="flex justify-between">
-          <span className="text-muted-foreground">Airline</span>
-          <span className="font-bold" style={{ color: airline.color }}>{airlineCode} — {airline.name}</span>
+          <span className="text-muted-foreground">Authority</span>
+          <span className="font-bold" style={{ color: authority.color }}>{authCode} — {authority.name}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">Date of Initial Issue</span>
@@ -191,11 +191,11 @@ function AutoTooltip({ label, content, className }: { label: string; content: st
   )
 }
 
-export function CustomerAuthTab() {
+export function AuthorityAuthTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-foreground">Customer Authorization</h3>
+        <h3 className="text-sm font-bold text-foreground">Authority Authorization</h3>
       </div>
       <MatrixView />
     </div>
@@ -208,7 +208,7 @@ export function CustomerAuthTab() {
 function MatrixView() {
   const custStatusOrder: CustomerAuthValue[] = ['valid', 'not_approve', 'not_complete', 'suspended', 'pending']
   const [version, setVersion] = useState(0)
-  const [selectedCell, setSelectedCell] = useState<{staff: Staff, airlineCode: AirlineKey, status: CustomerAuthValue} | null>(null)
+  const [selectedCell, setSelectedCell] = useState<{staff: Staff, authCode: AuthorityKey, status: CustomerAuthValue} | null>(null)
   const [editInitDate, setEditInitDate] = useState('')
   const [editCurrDate, setEditCurrDate] = useState('')
   const [editSamsExp, setEditSamsExp] = useState('')
@@ -217,18 +217,18 @@ function MatrixView() {
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<CustomerAuthValue | 'all'>('all')
-  const [airlineFilter, setAirlineFilter] = useState<Set<AirlineKey>>(new Set(AIRLINE_KEYS))
-  const [showAirlineDropdown, setShowAirlineDropdown] = useState(false)
-  const airlineDropdownRef = useRef<HTMLDivElement>(null)
+  const [authFilter, setAuthorityFilter] = useState<Set<AuthorityKey>>(new Set(AUTHORITY_KEYS))
+  const [showAuthorityDropdown, setShowAuthorityDropdown] = useState(false)
+  const authDropdownRef = useRef<HTMLDivElement>(null)
   
   const [showAircraftDropdown, setShowAircraftDropdown] = useState(false)
   const aircraftDropdownRef = useRef<HTMLDivElement>(null)
 
-  // Close airline dropdown on outside click
+  // Close authority dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (airlineDropdownRef.current && !airlineDropdownRef.current.contains(e.target as Node)) {
-        setShowAirlineDropdown(false)
+      if (authDropdownRef.current && !authDropdownRef.current.contains(e.target as Node)) {
+        setShowAuthorityDropdown(false)
       }
       if (aircraftDropdownRef.current && !aircraftDropdownRef.current.contains(e.target as Node)) {
         setShowAircraftDropdown(false)
@@ -238,15 +238,15 @@ function MatrixView() {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const handleCellEnter = useCallback((e: React.MouseEvent, staff: Staff, airlineCode: AirlineKey, status: CustomerAuthValue) => {
+  const handleCellEnter = useCallback((e: React.MouseEvent, staff: Staff, authCode: AuthorityKey, status: CustomerAuthValue) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    setTooltip({ staff, airlineCode, status, x: rect.left + rect.width / 2, y: rect.bottom, cellTop: rect.top })
+    setTooltip({ staff, authCode, status, x: rect.left + rect.width / 2, y: rect.bottom, cellTop: rect.top })
   }, [])
 
   const handleCellLeave = useCallback(() => setTooltip(null), [])
 
-  const handleCellClick = (staff: Staff, airlineCode: AirlineKey, status: CustomerAuthValue) => {
-    setSelectedCell({ staff, airlineCode, status })
+  const handleCellClick = (staff: Staff, authCode: AuthorityKey, status: CustomerAuthValue) => {
+    setSelectedCell({ staff, authCode, status })
     setEditInitDate(staff.initDate)
     setEditCurrDate(staff.currDate)
     setEditSamsExp(staff.samsExp)
@@ -255,21 +255,21 @@ function MatrixView() {
     setTooltip(null) // Hide tooltip when opening modal
   }
 
-  const toggleAirline = (code: AirlineKey) => {
-    setAirlineFilter(prev => {
+  const toggleAuthority = (code: AuthorityKey) => {
+    setAuthorityFilter(prev => {
       const next = new Set(prev)
       if (next.has(code)) { if (next.size > 1) next.delete(code) } // keep at least 1
       else next.add(code)
       return next
     })
   }
-  const selectAllAirlines = () => setAirlineFilter(new Set(AIRLINE_KEYS))
-  const deselectAllAirlines = () => setAirlineFilter(new Set([AIRLINE_KEYS[0]]))
+  const selectAllAuthoritys = () => setAuthorityFilter(new Set(AUTHORITY_KEYS))
+  const deselectAllAuthoritys = () => setAuthorityFilter(new Set([AUTHORITY_KEYS[0]]))
 
-  // Visible airline columns
-  const visibleAirlines = useMemo(() =>
-    AIRLINE_KEYS.filter(code => airlineFilter.has(code))
-  , [airlineFilter])
+  // Visible authority columns
+  const visibleAuthoritys = useMemo(() =>
+    AUTHORITY_KEYS.filter(code => authFilter.has(code))
+  , [authFilter])
 
   // Filtered staff
   const filteredStaff = useMemo(() => {
@@ -280,21 +280,21 @@ function MatrixView() {
         const nameMatch = s.name.toLowerCase().includes(q) || s.id.toLowerCase().includes(q)
         if (!nameMatch) return false
       }
-      // Status match — staff must have at least one visible airline cell matching
+      // Status match — staff must have at least one visible authority cell matching
       if (statusFilter !== 'all') {
-        const hasStatus = visibleAirlines.some(code => s.cust[code] === statusFilter)
+        const hasStatus = visibleAuthoritys.some(code => s.auth[code] === statusFilter)
         if (!hasStatus) return false
       }
       return true
     })
-  }, [search, statusFilter, visibleAirlines, version])
+  }, [search, statusFilter, visibleAuthoritys, version])
 
-  const isFiltering = search !== '' || statusFilter !== 'all' || airlineFilter.size !== AIRLINE_KEYS.length
+  const isFiltering = search !== '' || statusFilter !== 'all' || authFilter.size !== AUTHORITY_KEYS.length
 
   const clearFilters = () => {
     setSearch('')
     setStatusFilter('all')
-    setAirlineFilter(new Set(AIRLINE_KEYS))
+    setAuthorityFilter(new Set(AUTHORITY_KEYS))
   }
 
   const statusOptions: { value: CustomerAuthValue | 'all'; label: string; dot?: string }[] = [
@@ -342,59 +342,59 @@ function MatrixView() {
             </SelectContent>
           </Select>
         </div>
-        {/* Airline Column Filter */}
-        <div className="relative" ref={airlineDropdownRef}>
+        {/* Authority Column Filter */}
+        <div className="relative" ref={authDropdownRef}>
           <button
-            onClick={() => setShowAirlineDropdown(v => !v)}
+            onClick={() => setShowAuthorityDropdown(v => !v)}
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all ${
-              airlineFilter.size !== AIRLINE_KEYS.length
+              authFilter.size !== AUTHORITY_KEYS.length
                 ? 'bg-primary/10 text-primary border-primary/30'
                 : 'bg-white text-muted-foreground border-border hover:border-primary/40 hover:text-foreground'
             }`}
           >
             <Filter className="w-3 h-3" />
-            Airlines
-            {airlineFilter.size !== AIRLINE_KEYS.length && (
+            Authoritys
+            {authFilter.size !== AUTHORITY_KEYS.length && (
               <span className="bg-primary text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none">
-                {airlineFilter.size}/{AIRLINE_KEYS.length}
+                {authFilter.size}/{AUTHORITY_KEYS.length}
               </span>
             )}
           </button>
-          {showAirlineDropdown && (
+          {showAuthorityDropdown && (
             <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-xl border border-border shadow-xl z-50 p-2 animate-in fade-in slide-in-from-top-1 duration-150">
               <div className="flex items-center justify-between px-2 pb-2 mb-2 border-b border-border">
                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Show Columns</span>
                 <div className="flex gap-1.5">
-                  <button onClick={selectAllAirlines} className="text-[10px] text-primary hover:underline font-medium">All</button>
+                  <button onClick={selectAllAuthoritys} className="text-[10px] text-primary hover:underline font-medium">All</button>
                   <span className="text-muted-foreground/40">|</span>
-                  <button onClick={deselectAllAirlines} className="text-[10px] text-primary hover:underline font-medium">Reset</button>
+                  <button onClick={deselectAllAuthoritys} className="text-[10px] text-primary hover:underline font-medium">Reset</button>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-0.5 max-h-[240px] overflow-y-auto">
-                {AIRLINE_KEYS.map(code => (
+                {AUTHORITY_KEYS.map(code => (
                   <button
                     key={code}
-                    onClick={() => toggleAirline(code)}
+                    onClick={() => toggleAuthority(code)}
                     className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-all text-[11px] ${
-                      airlineFilter.has(code)
+                      authFilter.has(code)
                         ? 'bg-primary/10 text-foreground font-semibold'
                         : 'text-muted-foreground hover:bg-muted/50'
                     }`}
                   >
                     <div
                       className={`w-3 h-3 rounded border-2 flex items-center justify-center transition-all ${
-                        airlineFilter.has(code)
+                        authFilter.has(code)
                           ? 'border-primary bg-primary'
                           : 'border-slate-300 bg-white'
                       }`}
                     >
-                      {airlineFilter.has(code) && (
+                      {authFilter.has(code) && (
                         <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                         </svg>
                       )}
                     </div>
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: AIRLINES[code].color }} />
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: AUTHORITIES[code].color }} />
                     {code}
                   </button>
                 ))}
@@ -417,7 +417,7 @@ function MatrixView() {
       {/* Results Count */}
       {isFiltering && (
         <div className="text-[11px] text-muted-foreground">
-          Showing {filteredStaff.length} of {STAFF.length} staff · {visibleAirlines.length} of {AIRLINE_KEYS.length} airlines
+          Showing {filteredStaff.length} of {STAFF.length} staff · {visibleAuthoritys.length} of {AUTHORITY_KEYS.length} authorities
         </div>
       )}
 
@@ -429,14 +429,14 @@ function MatrixView() {
                 <th className="px-3 py-2 text-left text-muted-foreground font-bold whitespace-nowrap sticky left-0 bg-muted/50 z-10 border-r border-border" style={{ minWidth: 200 }}>
                   Staff
                 </th>
-                {visibleAirlines.map(code => (
+                {visibleAuthoritys.map(code => (
                   <th
                     key={code}
                     className="px-1 py-2 text-center font-bold border-l border-border"
                     style={{ minWidth: 50 }}
-                    title={AIRLINES[code].name}
+                    title={AUTHORITIES[code].name}
                   >
-                    <div className="text-[10px] leading-snug font-bold" style={{ color: AIRLINES[code].color }}>{code}</div>
+                    <div className="text-[10px] leading-snug font-bold" style={{ color: AUTHORITIES[code].color }}>{code}</div>
                     <div className="text-[9px] text-muted-foreground/60 font-medium">Auth</div>
                   </th>
                 ))}
@@ -468,8 +468,8 @@ function MatrixView() {
                       </div>
                     </td>
                     {/* Customer Auth Cells — dot style */}
-                    {visibleAirlines.map(code => {
-                      const val = s.cust[code]
+                    {visibleAuthoritys.map(code => {
+                      const val = s.auth[code]
                       if (!val) {
                         return (
                           <td key={code} className="text-center border-l border-border/50" style={{ padding: '6px 4px', minWidth: 45 }}>
@@ -580,9 +580,9 @@ function MatrixView() {
                 {/* Details List */}
                 <div className="space-y-2 text-sm bg-white rounded-lg border border-border/50 p-4 shadow-sm">
                   <div className="flex flex-col gap-1">
-                    <span className="text-muted-foreground font-bold text-xs">Airline</span>
-                    <span className="font-bold text-lg leading-tight" style={{ color: AIRLINES[selectedCell.airlineCode].color }}>
-                      {selectedCell.airlineCode} — {AIRLINES[selectedCell.airlineCode].name}
+                    <span className="text-muted-foreground font-bold text-xs">Authority</span>
+                    <span className="font-bold text-lg leading-tight" style={{ color: AUTHORITIES[selectedCell.authCode].color }}>
+                      {selectedCell.authCode} — {AUTHORITIES[selectedCell.authCode].name}
                     </span>
                   </div>
                 </div>

@@ -5,6 +5,7 @@ export interface CourseRef {
     short: string
     label: string
     interval: number // months
+    code?: string | string[]
 }
 
 export interface Employee {

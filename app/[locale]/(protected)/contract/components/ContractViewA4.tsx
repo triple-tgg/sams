@@ -28,6 +28,7 @@ const formatCurrency = (value: number) => {
 
 // A4 paper aspect ratio: 210mm x 297mm (approximately 1:1.414)
 export const ContractViewA4 = ({ formData, isLoading }: ContractViewA4Props) => {
+    const currencySymbol = formData.currency ? formData.currency.toUpperCase() : "n/a";
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-full">
@@ -129,14 +130,21 @@ export const ContractViewA4 = ({ formData, isLoading }: ContractViewA4Props) => 
                     </div>
                 </div>
 
-                {/* Payment Terms */}
+                {/* Payment Terms & Currency */}
                 <div className="mb-6">
                     <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
                         <DollarSign className="h-3 w-3" />
                         Payment Terms
                     </h3>
-                    <div className="bg-muted/30 rounded-lg p-4">
-                        <p className="text-sm">{formData.creditTerms || "N/A"}</p>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-muted/30 rounded-lg p-4">
+                            <p className="text-xs text-muted-foreground mb-1">Credit Terms</p>
+                            <p className="text-sm font-semibold">{formData.creditTerms || "N/A"}</p>
+                        </div>
+                        <div className="bg-muted/30 rounded-lg p-4">
+                            <p className="text-xs text-muted-foreground mb-1">Currency</p>
+                            <p className="text-sm font-semibold">{currencySymbol}</p>
+                        </div>
                     </div>
                 </div>
 
@@ -183,27 +191,27 @@ export const ContractViewA4 = ({ formData, isLoading }: ContractViewA4Props) => 
                                             <div className="grid grid-cols-6 gap-2">
                                                 <div className="text-center">
                                                     <p className="text-muted-foreground">&lt;2hrs</p>
-                                                    <p className="font-medium">${formatCurrency(rate.tsChkUnder2hrsCert)}</p>
+                                                    <p className="font-medium">{currencySymbol} {formatCurrency(rate.tsChkUnder2hrsCert)}</p>
                                                 </div>
                                                 <div className="text-center">
                                                     <p className="text-muted-foreground">2-3hrs</p>
-                                                    <p className="font-medium">${formatCurrency(rate.tsChk2to3hrsCert)}</p>
+                                                    <p className="font-medium">{currencySymbol} {formatCurrency(rate.tsChk2to3hrsCert)}</p>
                                                 </div>
                                                 <div className="text-center">
                                                     <p className="text-muted-foreground">3-4hrs</p>
-                                                    <p className="font-medium">${formatCurrency(rate.tsChk3to4hrsCert)}</p>
+                                                    <p className="font-medium">{currencySymbol} {formatCurrency(rate.tsChk3to4hrsCert)}</p>
                                                 </div>
                                                 <div className="text-center">
                                                     <p className="text-muted-foreground">4-5hrs</p>
-                                                    <p className="font-medium">${formatCurrency(rate.tsChk4to5hrsCert)}</p>
+                                                    <p className="font-medium">{currencySymbol} {formatCurrency(rate.tsChk4to5hrsCert)}</p>
                                                 </div>
                                                 <div className="text-center">
                                                     <p className="text-muted-foreground">5-6hrs</p>
-                                                    <p className="font-medium">${formatCurrency(rate.tsChk5to6hrsCert)}</p>
+                                                    <p className="font-medium">{currencySymbol} {formatCurrency(rate.tsChk5to6hrsCert)}</p>
                                                 </div>
                                                 <div className="text-center">
                                                     <p className="text-muted-foreground">6+hrs</p>
-                                                    <p className="font-medium">${formatCurrency(rate.additionalFee6hrsPlusCert)}</p>
+                                                    <p className="font-medium">{currencySymbol} {formatCurrency(rate.additionalFee6hrsPlusCert)}</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -214,27 +222,27 @@ export const ContractViewA4 = ({ formData, isLoading }: ContractViewA4Props) => 
                                             <div className="grid grid-cols-6 gap-2">
                                                 <div className="text-center">
                                                     <p className="text-muted-foreground">&lt;2hrs</p>
-                                                    <p className="font-medium">${formatCurrency(rate.tsChkUnder2hrsNoCert)}</p>
+                                                    <p className="font-medium">{currencySymbol} {formatCurrency(rate.tsChkUnder2hrsNoCert)}</p>
                                                 </div>
                                                 <div className="text-center">
                                                     <p className="text-muted-foreground">2-3hrs</p>
-                                                    <p className="font-medium">${formatCurrency(rate.tsChk2to3hrsNoCert)}</p>
+                                                    <p className="font-medium">{currencySymbol} {formatCurrency(rate.tsChk2to3hrsNoCert)}</p>
                                                 </div>
                                                 <div className="text-center">
                                                     <p className="text-muted-foreground">3-4hrs</p>
-                                                    <p className="font-medium">${formatCurrency(rate.tsChk3to4hrsNoCert)}</p>
+                                                    <p className="font-medium">{currencySymbol} {formatCurrency(rate.tsChk3to4hrsNoCert)}</p>
                                                 </div>
                                                 <div className="text-center">
                                                     <p className="text-muted-foreground">4-5hrs</p>
-                                                    <p className="font-medium">${formatCurrency(rate.tsChk4to5hrsNoCert)}</p>
+                                                    <p className="font-medium">{currencySymbol} {formatCurrency(rate.tsChk4to5hrsNoCert)}</p>
                                                 </div>
                                                 <div className="text-center">
                                                     <p className="text-muted-foreground">5-6hrs</p>
-                                                    <p className="font-medium">${formatCurrency(rate.tsChk5to6hrsNoCert)}</p>
+                                                    <p className="font-medium">{currencySymbol} {formatCurrency(rate.tsChk5to6hrsNoCert)}</p>
                                                 </div>
                                                 <div className="text-center">
                                                     <p className="text-muted-foreground">6+hrs</p>
-                                                    <p className="font-medium">${formatCurrency(rate.additionalFee6hrsPlusNoCert)}</p>
+                                                    <p className="font-medium">{currencySymbol} {formatCurrency(rate.additionalFee6hrsPlusNoCert)}</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -245,11 +253,11 @@ export const ContractViewA4 = ({ formData, isLoading }: ContractViewA4Props) => 
                                             <div className="grid grid-cols-3 gap-2">
                                                 <div>
                                                     <span className="text-muted-foreground">Standby Per Check:</span>
-                                                    <span className="font-medium ml-1">${formatCurrency(rate.standbyPerCheck)}/check</span>
+                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.standbyPerCheck)}/check</span>
                                                 </div>
                                                 <div>
                                                     <span className="text-muted-foreground">On-Call Per Check:</span>
-                                                    <span className="font-medium ml-1">${formatCurrency(rate.onCallPerCheck)}/check</span>
+                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.onCallPerCheck)}/check</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -260,15 +268,15 @@ export const ContractViewA4 = ({ formData, isLoading }: ContractViewA4Props) => 
                                             <div className="grid grid-cols-3 gap-2">
                                                 <div>
                                                     <span className="text-muted-foreground">Daily:</span>
-                                                    <span className="font-medium ml-1">${formatCurrency(rate.dailyCheck)}/check</span>
+                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.dailyCheck)}/check</span>
                                                 </div>
                                                 <div>
                                                     <span className="text-muted-foreground">Pre-Flight:</span>
-                                                    <span className="font-medium ml-1">${formatCurrency(rate.preFlightCheck)}/check</span>
+                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.preFlightCheck)}/check</span>
                                                 </div>
                                                 <div>
                                                     <span className="text-muted-foreground">Weekly:</span>
-                                                    <span className="font-medium ml-1">${formatCurrency(rate.weeklyCheck)}/check</span>
+                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.weeklyCheck)}/check</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -279,11 +287,11 @@ export const ContractViewA4 = ({ formData, isLoading }: ContractViewA4Props) => 
                                             <div className="grid grid-cols-3 gap-2">
                                                 <div>
                                                     <span className="text-muted-foreground">Additional LAE MH:</span>
-                                                    <span className="font-medium ml-1">${formatCurrency(rate.additionalLaeMhHr)}/hr</span>
+                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.additionalLaeMhHr)}/hr</span>
                                                 </div>
                                                 <div>
                                                     <span className="text-muted-foreground">Additional Mech MH:</span>
-                                                    <span className="font-medium ml-1">${formatCurrency(rate.additionalMechMhHr)}/hr</span>
+                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.additionalMechMhHr)}/hr</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -294,27 +302,27 @@ export const ContractViewA4 = ({ formData, isLoading }: ContractViewA4Props) => 
                                             <div className="grid grid-cols-3 gap-2">
                                                 <div>
                                                     <span className="text-muted-foreground">LH or RH Nose Wheel Rpl:</span>
-                                                    <span className="font-medium ml-1">${formatCurrency(rate.lhOrRhNoseWheelRpl)}/service</span>
+                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.lhOrRhNoseWheelRpl)}/service</span>
                                                 </div>
                                                 <div>
                                                     <span className="text-muted-foreground">LH & RH Nose Wheel Rpl:</span>
-                                                    <span className="font-medium ml-1">${formatCurrency(rate.lhAndRhNoseWheelRpl)}/service</span>
+                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.lhAndRhNoseWheelRpl)}/service</span>
                                                 </div>
                                                 <div>
                                                     <span className="text-muted-foreground">Main Wheel Rpl:</span>
-                                                    <span className="font-medium ml-1">${formatCurrency(rate.mainWheelRpl)}/service</span>
+                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.mainWheelRpl)}/service</span>
                                                 </div>
                                                 <div>
                                                     <span className="text-muted-foreground">2 MW Rpl (No Repos):</span>
-                                                    <span className="font-medium ml-1">${formatCurrency(rate.twoMwRplNoReposition)}/service</span>
+                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.twoMwRplNoReposition)}/service</span>
                                                 </div>
                                                 <div>
                                                     <span className="text-muted-foreground">2 MW Rpl (Repos):</span>
-                                                    <span className="font-medium ml-1">${formatCurrency(rate.twoMwRplReposition)}/service</span>
+                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.twoMwRplReposition)}/service</span>
                                                 </div>
                                                 <div>
                                                     <span className="text-muted-foreground">Brake Rpl:</span>
-                                                    <span className="font-medium ml-1">${formatCurrency(rate.brakeRpl)}/service</span>
+                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.brakeRpl)}/service</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -325,23 +333,23 @@ export const ContractViewA4 = ({ formData, isLoading }: ContractViewA4Props) => 
                                             <div className="grid grid-cols-3 gap-2">
                                                 <div>
                                                     <span className="text-muted-foreground">Towing Per Service:</span>
-                                                    <span className="font-medium ml-1">${formatCurrency(rate.towingPerService)}/service</span>
+                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.towingPerService)}/service</span>
                                                 </div>
                                                 <div>
                                                     <span className="text-muted-foreground">Storage Fee:</span>
-                                                    <span className="font-medium ml-1">${formatCurrency(rate.storageFeeMonth)}/Sq.M./Month</span>
+                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.storageFeeMonth)}/Sq.M./Month</span>
                                                 </div>
                                                 <div>
                                                     <span className="text-muted-foreground">Storage Handling Fee:</span>
-                                                    <span className="font-medium ml-1">${formatCurrency(rate.storageHandlingFee)}/service</span>
+                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.storageHandlingFee)}/service</span>
                                                 </div>
                                                 <div>
                                                     <span className="text-muted-foreground">Maint Step:</span>
-                                                    <span className="font-medium ml-1">${formatCurrency(rate.maintStepHr)}/hr</span>
+                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.maintStepHr)}/hr</span>
                                                 </div>
                                                 <div>
                                                     <span className="text-muted-foreground">Marshalling:</span>
-                                                    <span className="font-medium ml-1">${formatCurrency(rate.marshalling)}/service</span>
+                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.marshalling)}/service</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -352,19 +360,19 @@ export const ContractViewA4 = ({ formData, isLoading }: ContractViewA4Props) => 
                                             <div className="grid grid-cols-3 gap-2">
                                                 <div>
                                                     <span className="text-muted-foreground">Engine Oil:</span>
-                                                    <span className="font-medium ml-1">${formatCurrency(rate.engineOilQuad)}/qt</span>
+                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.engineOilQuad)}/qt</span>
                                                 </div>
                                                 <div>
                                                     <span className="text-muted-foreground">Hydraulic Fluid:</span>
-                                                    <span className="font-medium ml-1">${formatCurrency(rate.hydraulicFluidQuad)}/qt</span>
+                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.hydraulicFluidQuad)}/qt</span>
                                                 </div>
                                                 <div>
                                                     <span className="text-muted-foreground">Low Pressure N2:</span>
-                                                    <span className="font-medium ml-1">${formatCurrency(rate.lowPressureN2)}/service</span>
+                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.lowPressureN2)}/service</span>
                                                 </div>
                                                 <div>
                                                     <span className="text-muted-foreground">High Pressure N2:</span>
-                                                    <span className="font-medium ml-1">${formatCurrency(rate.highPressureN2)}/service</span>
+                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.highPressureN2)}/service</span>
                                                 </div>
                                             </div>
                                         </div>

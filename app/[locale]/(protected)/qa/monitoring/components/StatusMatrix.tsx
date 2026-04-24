@@ -163,6 +163,11 @@ export function StatusMatrix({ employees, courses, selectedId, onSelect, sortFie
                                                     <TooltipContent side="top" className="max-w-xs bg-white text-foreground border border-border shadow-lg">
                                                         <div className="space-y-1 text-xs">
                                                             <div className="font-bold text-sm">{c.label}</div>
+                                                            {c.code && (
+                                                                <div className="text-[10px] text-muted-foreground/80 mt-1 mb-1 font-mono">
+                                                                    <div>{c.code}</div>
+                                                                </div>
+                                                            )}
                                                             <div className="text-muted-foreground">Interval: {c.interval} months</div>
                                                             <div className="flex items-center justify-start gap-1.5">
                                                                 <span className="w-2 h-2 rounded-full shrink-0" style={{ background: m.dot }} />

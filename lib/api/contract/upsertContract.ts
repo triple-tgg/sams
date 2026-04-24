@@ -76,6 +76,7 @@ export interface ContractUpsertRequest {
     userName: string;
     personnelList: ContractPersonnelRequest[];
     domicileCountry: string;
+    currencyType: string;
 }
 
 // Interface for upsert response data

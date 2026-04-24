@@ -2,7 +2,7 @@
 
 import { useState, useRef, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, User, Phone, Briefcase, Save, UserPlus, Camera, Trash2, ChevronDown, GraduationCap, Plus, Loader2 } from 'lucide-react'
+import { ArrowLeft, User, Phone, Briefcase, Save, UserPlus, Camera, Trash2, ChevronDown, GraduationCap, Plus, Loader2, FileText, Upload, X, CheckCircle2, Shield, Award } from 'lucide-react'
 import { useUpsertStaff, useUploadStaffFile } from '@/lib/api/hooks/useQAStaffManagement'
 import { UpsertStaffRequest } from '@/lib/api/qa/staff-management'
 import { toast } from 'sonner'
@@ -44,6 +44,29 @@ interface ExperienceItem {
     periodFrom: string
     periodTo: string
     description: string
+}
+
+interface AmelLicenseForm {
+    licenseNumber: string
+    selectedCategories: string[]
+    issuedDate: string
+    expiryDate: string
+    limitations: string
+    aircraftRatings: string[]
+    attachmentFile: File | null
+    attachmentFilePath: string
+    attachmentFileName: string
+    attachmentUploading: boolean
+}
+
+interface DocumentUpload {
+    key: string
+    label: string
+    subtitle?: string
+    file: File | null
+    filePath: string
+    fileName: string
+    uploading: boolean
 }
 
 const INITIAL_FORM: StaffForm = {
@@ -96,6 +119,37 @@ const STAFF_TYPES = [
 ]
 
 const TITLE_NAMES = ['Mr.', 'Mrs.', 'Ms.', 'Miss']
+
+const DOCUMENT_TYPES: { key: string; label: string; subtitle?: string }[] = [
+    { key: 'id_card', label: 'ID Card' },
+    { key: 'passport', label: 'Passport' },
+    { key: 'cv', label: 'CV' },
+    { key: 'amel', label: 'AMEL', subtitle: 'For Certifying Staff' },
+    { key: 'experience_log', label: 'Previous Experience Log', subtitle: 'For Certifying Staff' },
+    { key: 'training_records', label: 'Previous Training Records', subtitle: 'For Certifying Staff' },
+    { key: 'aircraft_type_cert', label: 'Aircraft Type Certificate', subtitle: 'For Certifying Staff' },
+]
+
+const AIRCRAFT_TYPE_LICENSES = [
+    'B737-600/700/800/900',
+    'B737-7/8/9',
+    'A318/A319/A320/A321',
+    'B777-200/300/300ER',
+    'A330-200/300/800/900',
+    'B787-8/9/10',
+    'B767-200/300',
+    'A350-900/1000',
+    'ERJ-190',
+]
+
+const AMEL_LICENSE_CATEGORIES = [
+    { code: 'B1.1', label: 'B1.1 — Aeroplane Turbine' },
+    { code: 'B1.2', label: 'B1.2 — Aeroplane Piston' },
+    { code: 'B1.3', label: 'B1.3 — Helicopter Turbine' },
+    { code: 'B1.4', label: 'B1.4 — Helicopter Piston' },
+    { code: 'B2', label: 'B2 — Avionics' },
+    { code: 'C', label: 'C — Base Maintenance' },
+]
 
 // ── Validation Rules ──
 const VALIDATION_RULES: Record<string, { validate: (v: string) => string | null }> = {
@@ -199,6 +253,17 @@ export default function NewStaffPage() {
     const [experiences, setExperiences] = useState<ExperienceItem[]>([])
     const [touched, setTouched] = useState<Record<string, boolean>>({})
     const [submitAttempted, setSubmitAttempted] = useState(false)
+    const [documents, setDocuments] = useState<DocumentUpload[]>(
+        DOCUMENT_TYPES.map(dt => ({ key: dt.key, label: dt.label, subtitle: dt.subtitle, file: null, filePath: '', fileName: '', uploading: false }))
+    )
+    const docInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+    const [selectedLicenses, setSelectedLicenses] = useState<string[]>([])
+    const [amelLicense, setAmelLicense] = useState<AmelLicenseForm>({
+        licenseNumber: '', selectedCategories: [], issuedDate: '', expiryDate: '',
+        limitations: '', aircraftRatings: [], attachmentFile: null, attachmentFilePath: '', attachmentFileName: '', attachmentUploading: false,
+    })
+    const amelAttachmentRef = useRef<HTMLInputElement>(null)
+    const [amelRatingInput, setAmelRatingInput] = useState('')
 
     // ── API Mutations ──
     const upsertMutation = useUpsertStaff()
@@ -286,6 +351,43 @@ export default function NewStaffPage() {
         reader.readAsDataURL(file)
 
         if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+
+    const handleDocUpload = async (docKey: string, e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        setDocuments(prev => prev.map(d => d.key === docKey ? { ...d, file, fileName: file.name, uploading: true } : d))
+
+        const reader = new FileReader()
+        reader.onload = async () => {
+            const base64 = (reader.result as string).split(',')[1]
+            const extension = file.name.split('.').pop() || 'pdf'
+            const fileName = file.name.replace(/\.[^/.]+$/, '')
+
+            uploadMutation.mutate(
+                { FileBase64: base64, FileType: docKey, ExtensionFile: extension, FileName: fileName },
+                {
+                    onSuccess: (response) => {
+                        const filePath = response.responseData?.[0]?.filePath || ''
+                        setDocuments(prev => prev.map(d => d.key === docKey ? { ...d, filePath, uploading: false } : d))
+                        toast.success(`${DOCUMENT_TYPES.find(dt => dt.key === docKey)?.label} uploaded`)
+                    },
+                    onError: (error) => {
+                        setDocuments(prev => prev.map(d => d.key === docKey ? { ...d, file: null, fileName: '', uploading: false } : d))
+                        toast.error(error.message || 'Upload failed')
+                    },
+                }
+            )
+        }
+        reader.readAsDataURL(file)
+
+        const ref = docInputRefs.current[docKey]
+        if (ref) ref.value = ''
+    }
+
+    const handleRemoveDoc = (docKey: string) => {
+        setDocuments(prev => prev.map(d => d.key === docKey ? { ...d, file: null, filePath: '', fileName: '' } : d))
     }
 
     const handleRemovePhoto = () => {
@@ -680,9 +782,334 @@ export default function NewStaffPage() {
                                 </button>
                             </div>
                         </SectionCard>
-                    </div>
 
-                    {/* ── Right Column: Summary Preview ── */}
+                        {/* ─── Section 6: Documents ─── */}
+                        <SectionCard
+                            icon={<FileText className="h-4 w-4" />}
+                            iconBg="#fce7f3"
+                            iconColor="#db2777"
+                            title={`Documents${documents.filter(d => d.filePath).length > 0 ? ` (${documents.filter(d => d.filePath).length}/${documents.length})` : ''}`}
+                            description="Upload required documents and certificates"
+                            defaultOpen={false}
+                        >
+                            <div className="grid grid-cols-2 gap-3">
+                                {documents.map((doc) => (
+                                    <div
+                                        key={doc.key}
+                                        className={`relative border rounded-xl p-4 transition-all duration-200 ${
+                                            doc.filePath
+                                                ? 'border-green-200 bg-green-50/40'
+                                                : 'border-slate-200 bg-slate-50/50 hover:border-blue-200 hover:bg-blue-50/20'
+                                        }`}
+                                    >
+                                        <input
+                                            ref={(el) => { docInputRefs.current[doc.key] = el }}
+                                            type="file"
+                                            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                            className="hidden"
+                                            onChange={(e) => handleDocUpload(doc.key, e)}
+                                        />
+                                        <div className="flex items-start gap-3">
+                                            <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                                                doc.filePath ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'
+                                            }`}>
+                                                {doc.uploading ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                ) : doc.filePath ? (
+                                                    <CheckCircle2 className="h-4 w-4" />
+                                                ) : (
+                                                    <FileText className="h-4 w-4" />
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-xs font-semibold text-slate-700 leading-tight">{doc.label}</p>
+                                                {doc.subtitle && (
+                                                    <p className="text-[10px] text-amber-500 font-medium mt-0.5">{doc.subtitle}</p>
+                                                )}
+                                                {doc.fileName ? (
+                                                    <p className="text-[10px] text-slate-400 mt-1 truncate" title={doc.fileName}>{doc.fileName}</p>
+                                                ) : (
+                                                    <p className="text-[10px] text-slate-300 mt-1">No file uploaded</p>
+                                                )}
+                                            </div>
+                                            {doc.filePath ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleRemoveDoc(doc.key)}
+                                                    className="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 cursor-pointer transition-colors border-none bg-transparent shrink-0"
+                                                >
+                                                    <X className="h-3.5 w-3.5" />
+                                                </button>
+                                            ) : !doc.uploading ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => docInputRefs.current[doc.key]?.click()}
+                                                    className="px-2.5 py-1 text-[10px] font-semibold text-blue-500 bg-blue-50 border border-blue-200 rounded-md cursor-pointer hover:bg-blue-100 transition-colors shrink-0"
+                                                >
+                                                    <Upload className="h-3 w-3 inline mr-1" />
+                                                    Upload
+                                                </button>
+                                            ) : null}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </SectionCard>
+
+                        {/* ─── Section 7: License ─── */}
+                        <SectionCard
+                            icon={<Shield className="h-4 w-4" />}
+                            iconBg="#f0fdf4"
+                            iconColor="#16a34a"
+                            title={`License${selectedLicenses.length > 0 ? ` (${selectedLicenses.length})` : ''}`}
+                            description="Aircraft type licenses and certifications"
+                            defaultOpen={false}
+                        >
+                            <div className="space-y-3">
+                                <Field label="Aircraft Type License">
+                                    <div className="grid grid-cols-2 gap-2 mt-1">
+                                        {AIRCRAFT_TYPE_LICENSES.map((license) => {
+                                            const isSelected = selectedLicenses.includes(license)
+                                            return (
+                                                <label
+                                                    key={license}
+                                                    className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg border cursor-pointer transition-all duration-150 select-none ${
+                                                        isSelected
+                                                            ? 'border-green-300 bg-green-50/60 text-green-800'
+                                                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                                    }`}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isSelected}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) {
+                                                                setSelectedLicenses(prev => [...prev, license])
+                                                            } else {
+                                                                setSelectedLicenses(prev => prev.filter(l => l !== license))
+                                                            }
+                                                        }}
+                                                        className="sr-only"
+                                                    />
+                                                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
+                                                        isSelected ? 'border-green-500 bg-green-500' : 'border-slate-300 bg-white'
+                                                    }`}>
+                                                        {isSelected && (
+                                                            <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                            </svg>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-xs font-medium">{license}</span>
+                                                </label>
+                                            )
+                                        })}
+                                    </div>
+                                </Field>
+                            </div>
+                        </SectionCard>
+
+                        {/* ─── Section 8: AMEL License ─── */}
+                        <SectionCard
+                            icon={<Award className="h-4 w-4" />}
+                            iconBg="#fef3c7"
+                            iconColor="#d97706"
+                            title="AMEL License"
+                            description="Aircraft Maintenance Engineer License details"
+                            defaultOpen={false}
+                        >
+                            <div className="space-y-4">
+                                {/* Row 1: License Number + Category */}
+                                <div className="grid grid-cols-2 gap-x-5 gap-y-4">
+                                    <Field label="License Number">
+                                        <input
+                                            type="text"
+                                            value={amelLicense.licenseNumber}
+                                            onChange={e => setAmelLicense(prev => ({ ...prev, licenseNumber: e.target.value }))}
+                                            placeholder="e.g. AMEL-TH-XXXX"
+                                            className={inputNormal}
+                                        />
+                                    </Field>
+                                    <Field label="Category">
+                                        <select
+                                            value={amelLicense.selectedCategories[0] || ''}
+                                            onChange={e => setAmelLicense(prev => ({ ...prev, selectedCategories: e.target.value ? [e.target.value] : [] }))}
+                                            className={selectNormal}
+                                        >
+                                            <option value="">Select Category</option>
+                                            {AMEL_LICENSE_CATEGORIES.map(cat => (
+                                                <option key={cat.code} value={cat.code}>{cat.label}</option>
+                                            ))}
+                                        </select>
+                                    </Field>
+                                </div>
+
+                                {/* Row 2: Issued Date + Expiry Date */}
+                                <div className="grid grid-cols-2 gap-x-5 gap-y-4">
+                                    <Field label="Issued Date">
+                                        <input
+                                            type="date"
+                                            value={amelLicense.issuedDate}
+                                            onChange={e => setAmelLicense(prev => ({ ...prev, issuedDate: e.target.value }))}
+                                            className={inputNormal}
+                                        />
+                                    </Field>
+                                    <Field label="Expiry Date">
+                                        <input
+                                            type="date"
+                                            value={amelLicense.expiryDate}
+                                            onChange={e => setAmelLicense(prev => ({ ...prev, expiryDate: e.target.value }))}
+                                            className={inputNormal}
+                                        />
+                                    </Field>
+                                </div>
+
+                                {/* Row 3: Limitations */}
+                                <Field label="Limitations">
+                                    <textarea
+                                        value={amelLicense.limitations}
+                                        onChange={e => setAmelLicense(prev => ({ ...prev, limitations: e.target.value }))}
+                                        placeholder="Enter any limitations or restrictions"
+                                        rows={2}
+                                        className={`${inputNormal} resize-none`}
+                                    />
+                                </Field>
+
+                                {/* Row 4: Aircraft Ratings */}
+                                <Field label="Aircraft Ratings">
+                                    <div className="flex gap-2 mb-2">
+                                        <input
+                                            type="text"
+                                            value={amelRatingInput}
+                                            onChange={e => setAmelRatingInput(e.target.value)}
+                                            onKeyDown={e => {
+                                                if (e.key === 'Enter' && amelRatingInput.trim()) {
+                                                    e.preventDefault()
+                                                    if (!amelLicense.aircraftRatings.includes(amelRatingInput.trim())) {
+                                                        setAmelLicense(prev => ({ ...prev, aircraftRatings: [...prev.aircraftRatings, amelRatingInput.trim()] }))
+                                                    }
+                                                    setAmelRatingInput('')
+                                                }
+                                            }}
+                                            placeholder="e.g. A320, B737"
+                                            className={inputNormal}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (amelRatingInput.trim() && !amelLicense.aircraftRatings.includes(amelRatingInput.trim())) {
+                                                    setAmelLicense(prev => ({ ...prev, aircraftRatings: [...prev.aircraftRatings, amelRatingInput.trim()] }))
+                                                }
+                                                setAmelRatingInput('')
+                                            }}
+                                            disabled={!amelRatingInput.trim()}
+                                            className="px-4 py-2.5 text-sm font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                                        >
+                                            <Plus className="h-3.5 w-3.5" />
+                                            Add
+                                        </button>
+                                    </div>
+                                    {amelLicense.aircraftRatings.length > 0 && (
+                                        <div className="flex flex-wrap gap-1.5 mt-2">
+                                            {amelLicense.aircraftRatings.map((rating) => (
+                                                <span
+                                                    key={rating}
+                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg text-xs font-medium"
+                                                >
+                                                    {rating}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setAmelLicense(prev => ({ ...prev, aircraftRatings: prev.aircraftRatings.filter(r => r !== rating) }))}
+                                                        className="w-4 h-4 rounded-full flex items-center justify-center text-amber-400 hover:text-red-500 hover:bg-red-50 cursor-pointer transition-colors border-none bg-transparent"
+                                                    >
+                                                        <X className="h-3 w-3" />
+                                                    </button>
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </Field>
+
+                                {/* Row 5: Attachments */}
+                                <Field label="Attachments">
+                                    <input
+                                        ref={amelAttachmentRef}
+                                        type="file"
+                                        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                        className="hidden"
+                                        onChange={async (e) => {
+                                            const file = e.target.files?.[0]
+                                            if (!file) return
+                                            setAmelLicense(prev => ({ ...prev, attachmentFile: file, attachmentFileName: file.name, attachmentUploading: true }))
+                                            const reader = new FileReader()
+                                            reader.onload = () => {
+                                                const base64 = (reader.result as string).split(',')[1]
+                                                const ext = file.name.split('.').pop() || 'pdf'
+                                                const fname = file.name.replace(/\.[^/.]+$/, '')
+                                                uploadMutation.mutate(
+                                                    { FileBase64: base64, FileType: 'amel_license', ExtensionFile: ext, FileName: fname },
+                                                    {
+                                                        onSuccess: (res) => {
+                                                            setAmelLicense(prev => ({ ...prev, attachmentFilePath: res.responseData?.[0]?.filePath || '', attachmentUploading: false }))
+                                                            toast.success('AMEL attachment uploaded')
+                                                        },
+                                                        onError: (err) => {
+                                                            setAmelLicense(prev => ({ ...prev, attachmentFile: null, attachmentFileName: '', attachmentUploading: false }))
+                                                            toast.error(err.message || 'Upload failed')
+                                                        },
+                                                    }
+                                                )
+                                            }
+                                            reader.readAsDataURL(file)
+                                            if (amelAttachmentRef.current) amelAttachmentRef.current.value = ''
+                                        }}
+                                    />
+                                    <div className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg border transition-all ${
+                                        amelLicense.attachmentFilePath
+                                            ? 'border-green-200 bg-green-50/40'
+                                            : 'border-slate-200 bg-white'
+                                    }`}>
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                                            amelLicense.attachmentFilePath ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'
+                                        }`}>
+                                            {amelLicense.attachmentUploading ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : amelLicense.attachmentFilePath ? (
+                                                <CheckCircle2 className="h-4 w-4" />
+                                            ) : (
+                                                <FileText className="h-4 w-4" />
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            {amelLicense.attachmentFileName ? (
+                                                <p className="text-xs text-slate-600 truncate">{amelLicense.attachmentFileName}</p>
+                                            ) : (
+                                                <p className="text-xs text-slate-300">No file attached</p>
+                                            )}
+                                        </div>
+                                        {amelLicense.attachmentFilePath ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => setAmelLicense(prev => ({ ...prev, attachmentFile: null, attachmentFilePath: '', attachmentFileName: '' }))}
+                                                className="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 cursor-pointer transition-colors border-none bg-transparent shrink-0"
+                                            >
+                                                <X className="h-3.5 w-3.5" />
+                                            </button>
+                                        ) : !amelLicense.attachmentUploading ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => amelAttachmentRef.current?.click()}
+                                                className="px-2.5 py-1 text-[10px] font-semibold text-blue-500 bg-blue-50 border border-blue-200 rounded-md cursor-pointer hover:bg-blue-100 transition-colors shrink-0"
+                                            >
+                                                <Upload className="h-3 w-3 inline mr-1" />
+                                                Upload
+                                            </button>
+                                        ) : null}
+                                    </div>
+                                </Field>
+                            </div>
+                        </SectionCard>
+                    </div>
                     <div className="col-span-4">
                         <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 sticky top-8">
                             <div className="flex items-center gap-2.5 text-base font-bold text-slate-800 mb-5 pb-3.5 border-b border-slate-100">

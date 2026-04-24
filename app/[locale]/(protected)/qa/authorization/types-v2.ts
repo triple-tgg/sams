@@ -5,7 +5,13 @@ export const AIRLINE_KEYS = [
   'PAL', 'QDO', 'CEBU', 'AI', 'AKASA', 'ASA', 'TGW', 'MH', 'ZE',
 ] as const
 
+export const AUTHORITY_KEYS = [
+  'CAAT', 'CAAM', 'CAAP', 'CAAS', 'DGCA_India', 'DGCA_Indonesia',
+  'CAASL', 'GCAA', 'MOLIT', 'FAA', 'EASA', 'GACA', 'DGCA_Kuwait'
+] as const
+
 export type AirlineKey = (typeof AIRLINE_KEYS)[number]
+export type AuthorityKey = (typeof AUTHORITY_KEYS)[number]
 
 export type CustomerAuthValue =
   | 'valid'          // authorized
@@ -32,12 +38,19 @@ export interface Staff {
   license: string           // e.g. "B1", "B2", "B1/B2"
   note?: string             // optional remark
   cust: Partial<Record<AirlineKey, CustomerAuthValue>>
+  auth: Partial<Record<AuthorityKey, CustomerAuthValue>>
 }
 
 export interface Airline {
   code: AirlineKey
   name: string
   color: string             // brand color
+}
+
+export interface Authority {
+  code: AuthorityKey
+  name: string
+  color: string
 }
 
 // ─── Export Types ────────────────────────────────────────────────────────────

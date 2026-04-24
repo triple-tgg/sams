@@ -266,6 +266,24 @@ export const GeneralInfoStep = ({
                     />
                 </div>
                 <div className="space-y-2">
+                    <Label htmlFor="currency">Currency <span className="text-destructive">*</span></Label>
+                    <Select
+                        value={formData.currency}
+                        onValueChange={(value) => onFormChange("currency", value)}
+                    >
+                        <SelectTrigger className={fieldErrors.currency ? "border-destructive" : ""}>
+                            <SelectValue placeholder="Select Currency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="thb">THB</SelectItem>
+                            <SelectItem value="usd">USD</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    {fieldErrors.currency && (
+                        <p className="text-xs text-destructive">{fieldErrors.currency}</p>
+                    )}
+                </div>
+                <div className="space-y-2">
                     <Label htmlFor="status">Status <span className="text-destructive">*</span></Label>
                     <Select
                         value={formData.status}

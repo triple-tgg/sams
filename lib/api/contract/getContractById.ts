@@ -13,6 +13,8 @@ export interface ContractDetailAirlineObj {
     updatedby: string;
     colorForeground: string;
     colorBackground: string;
+    emailTo: string;
+    emailCc: string;
 }
 
 // Interface for Contract Status object
@@ -141,6 +143,7 @@ export interface ContractDetail {
     contractTypeObj: ContractDetailContractTypeObj;
     personnelList: ContractDetailPersonnel[] | null;
     domicileCountry: string | null;
+    currencyType: string | null;
 }
 
 // Interface for get contract by ID API response

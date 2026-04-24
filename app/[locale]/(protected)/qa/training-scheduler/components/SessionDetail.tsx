@@ -93,6 +93,17 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
                         </div>
                     </div>
 
+                    {/* Course Objective */}
+                    <div className="pt-3 border-t border-border">
+                        <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Course Objective</h4>
+                        <div className="bg-blue-50/50 rounded-xl p-3 text-xs text-slate-600 leading-relaxed border border-blue-100">
+                            {s.objective
+                                ? <p>{s.objective}</p>
+                                : <p className="text-muted-foreground italic">No course objective specified</p>
+                            }
+                        </div>
+                    </div>
+
                     {/* Regulatory Notes */}
                     <div className="pt-3">
                         <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Regulatory Notes</h4>

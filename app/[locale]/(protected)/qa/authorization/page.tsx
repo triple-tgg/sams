@@ -2,23 +2,25 @@
 
 import { useState, useMemo, type ReactNode } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { ShieldCheck, RefreshCw, BarChart3, Shield, Building2, Plane } from 'lucide-react'
+import { ShieldCheck, RefreshCw, BarChart3, Shield, Building2, Plane, Globe } from 'lucide-react'
 
 // ─── Tab Components ──────────────────────────────────────────────────────────
 import { OverviewTab } from './components/tabs/OverviewTab'
 import { MonitoringCrsTab } from './components/tabs/MonitoringCrsTab'
 import { SamsAuthTab } from './components/tabs/SamsAuthTab'
 import { CustomerAuthTab } from './components/tabs/CustomerAuthTab'
+import { AuthorityAuthTab } from './components/tabs/AuthorityAuthTab'
 
 // ─── Tab Definitions ─────────────────────────────────────────────────────────
 
-type TabKey = 'dashboard' | 'monitoring' | 'sams' | 'customer'
+type TabKey = 'dashboard' | 'monitoring' | 'sams' | 'customer' | 'authority'
 
 const TABS: { key: TabKey; label: string; icon: ReactNode }[] = [
     { key: 'dashboard',   label: 'Dashboard',       icon: <BarChart3 className="w-3.5 h-3.5" /> },
     { key: 'monitoring',  label: 'Monitoring CRS',  icon: <Shield className="w-3.5 h-3.5" /> },
     { key: 'sams',        label: 'SAMs Auth',       icon: <Building2 className="w-3.5 h-3.5" /> },
     { key: 'customer',    label: 'Customer',        icon: <Plane className="w-3.5 h-3.5" /> },
+    { key: 'authority',   label: 'Authority',       icon: <Globe className="w-3.5 h-3.5" /> },
 ]
 
 // ─── Main Page ───────────────────────────────────────────────────────────────
@@ -70,6 +72,7 @@ export default function AuthorizationPage() {
                         {activeTab === 'monitoring' && <MonitoringCrsTab />}
                         {activeTab === 'sams' && <SamsAuthTab />}
                         {activeTab === 'customer' && <CustomerAuthTab />}
+                        {activeTab === 'authority' && <AuthorityAuthTab />}
                     </div>
                 </CardContent>
             </Card>

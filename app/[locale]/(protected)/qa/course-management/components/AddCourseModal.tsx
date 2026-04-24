@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X as XIcon } from 'lucide-react'
+import { X as XIcon, Plane } from 'lucide-react'
 import { CATEGORIES } from '../types'
 import { MATRIX_ROLES, MATRIX_DATA } from '../data'
 import dynamic from 'next/dynamic'
@@ -32,6 +32,8 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
         recurrentYears: course?.recurrentYears || 2,
         note: course?.note || '',
         requiredRoles: initialRoles as number[],
+        aircraftTypeLicense: '',
+        courseObjective: '',
     })
 
     const toggleRole = (index: number) => {
@@ -45,7 +47,7 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
 
     return (
         <Dialog open onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="max-w-lg p-6 max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 transition-all duration-300">
+            <DialogContent size="md" className="max-w-lg p-6 max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 transition-all duration-300">
                 <DialogHeader>
                     <DialogTitle>{isEditing ? 'Edit Course' : 'Add New Course'}</DialogTitle>
                 </DialogHeader>
@@ -96,22 +98,20 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                                 <button
                                     type="button"
                                     onClick={() => setForm({ ...form, recurrent: false })}
-                                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer border-none ${
-                                        !form.recurrent
+                                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer border-none ${!form.recurrent
                                             ? 'bg-card text-primary shadow-sm'
                                             : 'text-muted-foreground hover:text-foreground bg-transparent'
-                                    }`}
+                                        }`}
                                 >
                                     Initial
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => setForm({ ...form, recurrent: true })}
-                                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer border-none ${
-                                        form.recurrent
+                                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer border-none ${form.recurrent
                                             ? 'bg-card text-orange-600 shadow-sm'
                                             : 'text-muted-foreground hover:text-foreground bg-transparent'
-                                    }`}
+                                        }`}
                                 >
                                     Recurrent
                                 </button>
@@ -149,11 +149,10 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                                                 <button
                                                     type="button"
                                                     onClick={() => toggleRole(i)}
-                                                    className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-1.5 rounded-md border transition-all cursor-pointer ${
-                                                        isSelected 
-                                                            ? 'bg-primary/90 border-primary text-white shadow-sm' 
+                                                    className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-1.5 rounded-md border transition-all cursor-pointer ${isSelected
+                                                            ? 'bg-primary/90 border-primary text-white shadow-sm'
                                                             : 'bg-card border-border text-foreground hover:border-primary/40'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     <Users className={`h-3 w-3 ${isSelected ? 'text-white' : 'text-muted-foreground'}`} />
                                                     {role.short}
@@ -167,6 +166,43 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                                 })}
                             </TooltipProvider>
                         </div>
+                    </div>
+
+                    {/* Aircraft Type License */}
+                    <div>
+                        <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Aircraft Type License</label>
+                        <select
+                            className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary cursor-pointer"
+                            value={form.aircraftTypeLicense}
+                            onChange={e => setForm({ ...form, aircraftTypeLicense: e.target.value })}
+                        >
+                            <option value="">Select Aircraft Type</option>
+                            {[
+                                'B737-600/700/800/900',
+                                'B737-7/8/9',
+                                'A318/A319/A320/A321',
+                                'B777-200/300/300ER',
+                                'A330-200/300/800/900',
+                                'B787-8/9/10',
+                                'B767-200/300',
+                                'A350-900/1000',
+                                'ERJ-190',
+                            ].map(acType => (
+                                <option key={acType} value={acType}>{acType}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Course Objective */}
+                    <div>
+                        <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Course Objective</label>
+                        <textarea
+                            className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary resize-none"
+                            rows={3}
+                            placeholder="Describe the objective of this course..."
+                            value={form.courseObjective}
+                            onChange={e => setForm({ ...form, courseObjective: e.target.value })}
+                        />
                     </div>
 
                     {/* Note */}
