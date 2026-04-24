@@ -26,7 +26,8 @@ import { useAircraftTypes } from '@/lib/api/hooks/useAircraftTypes'
 import { useStatusOptions } from '@/lib/api/hooks/useStatus'
 import { usePushThf } from '@/lib/api/hooks/usePushThf'
 import { PushThfRequest } from '@/lib/api/lineMaintenances/flight-thf/pushThf'
-import { combineFormToUtcDatetime } from '@/lib/utils/flightDatetime'
+import { combineToUtcDatetime } from '@/lib/utils/flightDatetime'
+import { convertDateToBackend } from '@/lib/utils/formatPicker'
 
 interface FlightStepProps {
   flightInfosId: number | null;
@@ -108,11 +109,11 @@ const FlightStep = (props: FlightStepProps) => {
         acReg: data.acReg || '',
         acTypeCode: data.acTypeCode?.value || '',
         arrivalFlightNo: data.flightArrival,
-        arrivalStaDate: combineFormToUtcDatetime(data.arrivalDate, data.sta),
-        arrivalAtaDate: combineFormToUtcDatetime(data.arrivalDate, data.ata),
+        arrivalStaDate: combineToUtcDatetime(convertDateToBackend(data.arrivalDate), data.sta),
+        arrivalAtaDate: combineToUtcDatetime(convertDateToBackend(data.arrivalDate), data.ata),
         departureFlightNo: data.flightDeparture,
-        departureStdDate: combineFormToUtcDatetime(data.departureDate, data.std),
-        departureAtdDate: combineFormToUtcDatetime(data.departureDate, data.atd),
+        departureStdDate: combineToUtcDatetime(convertDateToBackend(data.departureDate), data.std),
+        departureAtdDate: combineToUtcDatetime(convertDateToBackend(data.departureDate), data.atd),
         bayNo: data.bay || '',
         statusCode: data.status?.value || "Normal",
         note: data.note || '',
@@ -263,7 +264,7 @@ const FlightStep = (props: FlightStepProps) => {
           {/* Arrival Section */}
           <Card className='border border-blue-200'>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Arrival (Local Time)</CardTitle>
+              <CardTitle>Arrival (UTC)</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -285,14 +286,14 @@ const FlightStep = (props: FlightStepProps) => {
                   <InputField
                     name="sta"
                     control={control}
-                    label="STA (Local) *"
+                    label="STA (UTC) *"
                     type="time"
                     errorMessage={errors.sta?.message}
                   />
                   <InputField
                     name="ata"
                     control={control}
-                    label="ATA (Local)"
+                    label="ATA (UTC)"
                     type="time"
                     errorMessage={errors.ata?.message}
                   />
@@ -304,7 +305,7 @@ const FlightStep = (props: FlightStepProps) => {
           {/* Departure Section */}
           <Card className='border border-blue-200'>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Departure (Local Time)</CardTitle>
+              <CardTitle>Departure (UTC)</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -326,14 +327,14 @@ const FlightStep = (props: FlightStepProps) => {
                   <InputField
                     name="std"
                     control={control}
-                    label="STD (Local) *"
+                    label="STD (UTC) *"
                     type="time"
                     errorMessage={errors.std?.message}
                   />
                   <InputField
                     name="atd"
                     control={control}
-                    label="ATD (Local)"
+                    label="ATD (UTC)"
                     type="time"
                     errorMessage={errors.atd?.message}
                   />

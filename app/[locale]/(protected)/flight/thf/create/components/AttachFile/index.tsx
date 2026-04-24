@@ -268,17 +268,17 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
         {flight && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FlightTimeCard
-              title="Arrival (Local Time)"
+              title="Arrival (UTC)"
               flightNo={flight.arrivalFlightNo || ''}
               date={splitUtcDateTime(flight.arrivalStaDate).date}
-              timeLabels={['STA (Local)', 'ATA (Local)']}
+              timeLabels={['STA (UTC)', 'ATA (UTC)']}
               times={[splitUtcDateTime(flight.arrivalStaDate).time, splitUtcDateTime(flight.arrivalAtaDate).time]}
             />
             <FlightTimeCard
-              title="Departure (Local Time)"
+              title="Departure (UTC)"
               flightNo={flight.departureFlightNo || ''}
               date={splitUtcDateTime(flight.departureStdDate).date}
-              timeLabels={['STD (Local)', 'ATD (Local)']}
+              timeLabels={['STD (UTC)', 'ATD (UTC)']}
               times={[splitUtcDateTime(flight.departureStdDate).time, splitUtcDateTime(flight.departureAtdDate).time]}
             />
           </div>

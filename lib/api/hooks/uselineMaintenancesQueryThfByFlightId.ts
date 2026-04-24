@@ -6,7 +6,18 @@ import {
   LineMaintenanceThfResponse,
   Flight
 } from "../lineMaintenances/flight/getlineMaintenancesThfByFlightId";
-import { utcDatetimeToFormDate, utcDatetimeToFormTime } from "@/lib/utils/flightDatetime";
+import { splitUtcDateTime } from "@/lib/utils/flightDatetime";
+
+/**
+ * Convert YYYY-MM-DD → DD/MM/YYYY for CustomDateInput form value (keeping UTC, no timezone conversion)
+ */
+const utcDateToFormFormat = (isoDate: string): string => {
+  if (!isoDate) return '';
+  const parts = isoDate.split('-');
+  if (parts.length !== 3) return isoDate;
+  const [year, month, day] = parts;
+  return `${day}/${month}/${year}`;
+};
 
 // Form data interface for flight information
 export interface FlightFormData {
@@ -53,17 +64,17 @@ export const mapFlightToFormData = (flightItem: Flight | null): FlightFormData |
       { value: flightItem.acTypeObj.code, label: flightItem.acTypeObj.code } :
       null,
 
-    // Arrival information (UTC → Local for form display)
+    // Arrival information (keep UTC for form display)
     flightArrival: flightItem.arrivalFlightNo || '',
-    arrivalDate: utcDatetimeToFormDate(flightItem.arrivalStaDate),
-    sta: utcDatetimeToFormTime(flightItem.arrivalStaDate),
-    ata: utcDatetimeToFormTime(flightItem.arrivalAtaDate),
+    arrivalDate: utcDateToFormFormat(splitUtcDateTime(flightItem.arrivalStaDate).date),
+    sta: splitUtcDateTime(flightItem.arrivalStaDate).time,
+    ata: splitUtcDateTime(flightItem.arrivalAtaDate).time,
 
-    // Departure information (UTC → Local for form display)
+    // Departure information (keep UTC for form display)
     flightDeparture: flightItem.departureFlightNo || '',
-    departureDate: utcDatetimeToFormDate(flightItem.departureStdDate),
-    std: utcDatetimeToFormTime(flightItem.departureStdDate),
-    atd: utcDatetimeToFormTime(flightItem.departureAtdDate),
+    departureDate: utcDateToFormFormat(splitUtcDateTime(flightItem.departureStdDate).date),
+    std: splitUtcDateTime(flightItem.departureStdDate).time,
+    atd: splitUtcDateTime(flightItem.departureAtdDate).time,
 
     // Other fields
     bay: flightItem.bayNo || '',
