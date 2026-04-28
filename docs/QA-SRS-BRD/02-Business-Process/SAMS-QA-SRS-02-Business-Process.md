@@ -201,20 +201,75 @@ flowchart TD
 
 ## 5. Process Flow แต่ละ Sub-module
 
-### 5.1 Staff Management Flow
+### 5.1 Staff Management Flow (QA Context)
+
+> **Scope**: การจัดการข้อมูล Staff **ในมุมมอง QA Module** — ครอบคลุม License, Training Record, และ Authorization Eligibility  
+> ข้อมูลการลางาน/ลาออกรับมาจาก HR System ภายนอก ไม่ใช่ scope ของ QA Module
+
+#### 5.1.1 Staff Onboarding เข้า QA System
+
+```mermaid
+flowchart TD
+    A[HR System ส่งข้อมูลพนักงานใหม่] --> B[QA Admin บันทึก Staff Profile]
+    B --> C{ข้อมูลครบ?}
+    C -->|❌ ขาด License/Medical| D[สถานะ: Incomplete<br/>🔔 แจ้ง HR]
+    C -->|✅ ครบ| E[บันทึก License No., Type, Expiry]
+    E --> F[บันทึก Medical Certificate Expiry]
+    F --> G[กำหนด Role และ ATA Chapter]
+    G --> H[สถานะ: Active — พร้อมรับ Training]
+    H --> I[System ตรวจ Training Matrix<br/>สำหรับ Role นั้น]
+    I --> J[สร้าง Training Gap List อัตโนมัติ]
+```
+
+#### 5.1.2 Staff Training Compliance Status
 
 ```mermaid
 stateDiagram-v2
-    [*] --> NewStaff: HR ส่งข้อมูล
-    NewStaff --> Active: บันทึกครบถ้วน
-    Active --> Updating: แก้ไขข้อมูล
-    Updating --> Active: บันทึก
-    Active --> OnLeave: ลาพักงาน
-    OnLeave --> Active: กลับมา
-    Active --> Resigned: ลาออก
-    Resigned --> Archived: 🆕 NEW DESIGN<br/>Auto-archive 90 วันหลังลาออก
-    Archived --> [*]
+    [*] --> TrainingGap: Onboard สำเร็จ<br/>(ยังไม่มี Training)
+    TrainingGap --> InProgress: ลงทะเบียน Training Session
+    InProgress --> PartialCompliant: ผ่านบางหลักสูตร
+    PartialCompliant --> InProgress: ลงทะเบียนเพิ่ม
+    PartialCompliant --> FullyCompliant: ผ่านครบทุกหลักสูตรตาม Matrix
+    FullyCompliant --> AuthEligible: มีสิทธิ์ขอ Authorization
+    AuthEligible --> FullyCompliant: Training ใกล้หมดอายุ (≤ 90 วัน)
+    FullyCompliant --> TrainingGap: Training หมดอายุ / หลักสูตรใหม่ถูกเพิ่ม
+    AuthEligible --> TrainingGap: Training หมดอายุ / หลักสูตรใหม่ถูกเพิ่ม
 ```
+
+#### 5.1.3 Staff Profile — Swimlane (QA Module)
+
+```mermaid
+sequenceDiagram
+    participant HR as HR System
+    participant QA as QA Admin
+    participant SYS as SAMS QA Module
+    participant TR as Trainer
+    participant CS as Certifying Staff
+
+    HR->>SYS: ส่งข้อมูล Staff ใหม่ (API / Manual)
+    QA->>SYS: ตรวจสอบ + บันทึก License, Medical, ATA
+    SYS->>SYS: ตรวจ Training Matrix ตาม Role
+    SYS-->>QA: แสดง Training Gap List
+    SYS-->>CS: 🔔 แจ้ง: หลักสูตรที่ต้องเรียน
+    TR->>SYS: เปิด Training Session
+    CS->>SYS: Enroll + เรียน
+    TR->>SYS: บันทึกผล Passed
+    SYS->>SYS: อัปเดต Compliance Status → FullyCompliant
+    SYS-->>QA: 🔔 แจ้ง: CS พร้อมขอ Authorization
+```
+
+#### 5.1.4 ข้อมูลที่ QA Module จัดการ (ไม่ใช่ HR)
+
+| ข้อมูล | QA Module จัดการ | HR System จัดการ |
+|---|---|---|
+| License Number, Type, Expiry | ✅ | — |
+| Medical Certificate Expiry | ✅ | — |
+| ATA Chapter / Scope | ✅ | — |
+| Training Record + ผล | ✅ | — |
+| Authorization Status | ✅ | — |
+| Training Compliance Gap | ✅ | — |
+| ข้อมูลส่วนตัว (ชื่อ, แผนก) | อ่านอย่างเดียว (sync จาก HR) | ✅ |
+| การลางาน / ลาออก | รับ Event จาก HR เท่านั้น | ✅ |
 
 ### 5.2 Authorization Lifecycle
 
