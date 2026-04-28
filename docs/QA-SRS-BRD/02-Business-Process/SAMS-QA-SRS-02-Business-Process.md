@@ -28,6 +28,7 @@
 5. [Process Flow แต่ละ Sub-module](#5-process-flow-แต่ละ-sub-module)
 6. [Cross-Process Dependencies](#6-cross-process-dependencies)
 7. [Process Metrics & KPI](#7-process-metrics--kpi)
+8. [Exception Flow](#8-exception-flow)
 
 ---
 
@@ -462,6 +463,199 @@ graph TB
 | Authorization หมดอายุโดยไม่รู้ตัว | เกิดขึ้นบ่อย | ≤ 2% | ลด > 90% |
 | เวลาเตรียมรายงาน Audit | 3–5 วัน/ครั้ง | ≤ 1 วัน (auto-generate) | ลด 70–80% |
 | Data entry errors | ~5% (manual Excel) | ≤ 1% | ลด 80% |
+
+---
+
+## 8. Exception Flow
+
+Exception Flow คือกระบวนการที่เกิดขึ้นเมื่อ **กระบวนการหลัก (Happy Path) ไม่สามารถดำเนินต่อได้** ระบบต้องรองรับทุก exception และมีแนวทางแก้ไขที่ชัดเจน
+
+---
+
+### 8.1 Staff Management — Exception Flow
+
+#### EX-S01: ข้อมูลพนักงานไม่ครบถ้วน
+
+```mermaid
+flowchart TD
+    A[HR ส่งข้อมูลพนักงานใหม่] --> B{ข้อมูลครบถ้วน?}
+    B -->|✅ ครบ| C[สร้าง Staff Record → Active]
+    B -->|❌ ขาด License/Medical| D[สร้าง Record สถานะ Incomplete]
+    D --> E[🔔 แจ้ง HR ระบุข้อมูลที่ขาด]
+    E --> F{HR ส่งเพิ่มภายใน 7 วัน?}
+    F -->|✅ ส่งแล้ว| G[อัปเดต Record → Active]
+    F -->|❌ ไม่ส่ง| H[Escalate ไปยัง QA Manager]
+    H --> I[QA Manager ตัดสินใจ: Hold / Proceed]
+```
+
+| Exception | การจัดการ | ผู้รับผิดชอบ |
+|---|---|---|
+| License หมดอายุตั้งแต่วันแรก | บันทึกได้ แต่ Mark: Invalid License | QA Manager |
+| Duplicate Employee ID | Block การบันทึก + แจ้ง HR | System |
+| Medical Certificate หมดอายุ | Warning + แจ้ง Staff ต่ออายุ | CM Officer |
+
+---
+
+#### EX-S02: Staff ลาออกระหว่างมี Active Authorization
+
+```mermaid
+flowchart TD
+    A[Staff ลาออก / ถูกเลิกจ้าง] --> B[HR อัปเดตสถานะ → Resigned]
+    B --> C[System ตรวจ Active Authorization]
+    C --> D{มี Active Auth?}
+    D -->|✅ มี| E[Auto-Suspend Authorization ทั้งหมด]
+    D -->|❌ ไม่มี| F[บันทึก Resigned ตามปกติ]
+    E --> G[📧 Email แจ้ง QA Manager + Customer]
+    G --> H[Cancel Pending Training Sessions]
+    H --> I[กำหนด Archive Date = วันลาออก + 90 วัน]
+    F --> I
+```
+
+---
+
+### 8.2 Authorization Management — Exception Flow
+
+#### EX-A01: Authorization ถูก Reject
+
+```mermaid
+flowchart TD
+    A[QA Manager Review Authorization] --> B{ผลการพิจารณา}
+    B -->|✅ Approve| C[สถานะ → Active]
+    B -->|❌ Reject| D[QA Manager ระบุเหตุผล Rejection]
+    D --> E[สถานะ → Rejected]
+    E --> F[🔔 แจ้ง Trainer + CS พร้อมเหตุผล]
+    F --> G{Trainer ต้องการแก้ไข?}
+    G -->|✅ แก้ไข| H[สร้าง Draft ใหม่ จาก Rejected record]
+    G -->|❌ ยกเลิก| I[สถานะ → Cancelled]
+    H --> J[Submit ใหม่ → รอ Approve อีกครั้ง]
+```
+
+#### EX-A02: Authorization หมดอายุโดยไม่ได้ต่ออายุ
+
+```mermaid
+flowchart TD
+    A[Daily Job ตรวจสอบ 06:00] --> B{Expiry Date < Today?}
+    B -->|✅ ใช่| C[สถานะ → Expired]
+    C --> D[📧 Alert: CS + QA Manager + Customer]
+    D --> E{QA Manager Action ภายใน 48 ชม.}
+    E -->|ต่ออายุ| F[สร้าง Authorization ใหม่]
+    E -->|ไม่ต่ออายุ| G[Lock CRS Eligibility ของ CS]
+    E -->|ไม่มี Action| H[Escalate → QA Director]
+    F --> I[สถานะ → Active]
+    G --> J[📧 แจ้ง Customer: CS ไม่สามารถ Sign CRS]
+```
+
+#### EX-A03: Customer Authorization เกิน SAMS Auth Expiry
+
+```mermaid
+flowchart TD
+    A[Trainer สร้าง Customer Auth] --> B[System ตรวจ SAMS Auth Expiry ของ CS]
+    B --> C{Customer Auth Expiry > SAMS Auth Expiry?}
+    C -->|✅ ไม่เกิน| D[บันทึกได้ตามปกติ]
+    C -->|❌ เกิน| E[Block การบันทึก]
+    E --> F[แสดง Error: 'Customer Auth ต้องไม่เกินวันหมดอายุ SAMS Auth ({date})']
+    F --> G[Trainer แก้ไข Expiry Date]
+    G --> B
+```
+
+---
+
+### 8.3 Training Scheduler — Exception Flow
+
+#### EX-T01: Staff ไม่ผ่าน Training
+
+```mermaid
+flowchart TD
+    A[Trainer บันทึกผล Training] --> B{ผลการอบรม}
+    B -->|✅ ผ่าน| C[Update Training Record → Passed]
+    B -->|❌ ไม่ผ่าน| D[บันทึก Failed + เหตุผล]
+    D --> E[🔔 แจ้ง QA Manager + CS]
+    E --> F{QA Manager กำหนด Action}
+    F -->|Re-training| G[จัด Session ซ้ำ ภายใน 30 วัน]
+    F -->|Waiver| H[🆕 QA Director อนุมัติ Waiver พร้อมเหตุผล]
+    F -->|ไม่ผ่านซ้ำ| I[Review Authorization Eligibility]
+    G --> A
+    H --> J[บันทึก Waiver + เงื่อนไข]
+    I --> K{มี Auth ที่ต้อง Suspend?}
+    K -->|✅ มี| L[Auto-Suspend Auth ที่เกี่ยวข้อง]
+    K -->|❌ ไม่มี| M[บันทึก Non-compliance note]
+```
+
+#### EX-T02: Trainer ยกเลิก Session กะทันหัน
+
+```mermaid
+flowchart TD
+    A[Trainer ยกเลิก Session] --> B[System ตรวจ Enrolled Staff]
+    B --> C{มี Enrolled Staff?}
+    C -->|❌ ไม่มี| D[ยกเลิก Session ได้ทันที]
+    C -->|✅ มี| E[📧 แจ้ง Staff ที่ Enrolled ทั้งหมด]
+    E --> F[Trainer ต้องระบุเหตุผล]
+    F --> G{กำหนด Reschedule ภายใน 7 วัน?}
+    G -->|✅ กำหนดแล้ว| H[ย้าย Enrolled Staff → Session ใหม่ อัตโนมัติ]
+    G -->|❌ ไม่กำหนด| I[Escalate → QA Manager จัด Trainer สำรอง]
+```
+
+#### EX-T03: Training Record ต้องการแก้ไขหลัง Approve
+
+```mermaid
+flowchart TD
+    A[Trainer ต้องการแก้ไข Training Record ที่ Approved แล้ว] --> B[System Block การแก้ไขตรง]
+    B --> C[Trainer สร้าง Amendment Request พร้อมเหตุผล]
+    C --> D[QA Manager Review Amendment]
+    D --> E{อนุมัติ?}
+    E -->|✅ อนุมัติ| F[สร้าง Amendment Record ใหม่]
+    F --> G[บันทึก Audit Log: แก้ไขโดย / วันที่ / เหตุผล]
+    E -->|❌ ปฏิเสธ| H[Lock Record ตามเดิม + บันทึกเหตุผล]
+    
+    note1[🆕 NEW DESIGN: ห้ามแก้ไขตรง<br/>ต้องสร้าง Amendment เสมอ]
+    C -.-> note1
+```
+
+---
+
+### 8.4 Compliance Monitoring — Exception Flow
+
+#### EX-M01: Daily Job ล้มเหลว
+
+```mermaid
+flowchart TD
+    A[Daily Monitoring Job 06:00] --> B{Job สำเร็จ?}
+    B -->|✅ สำเร็จ| C[Log: Success + Timestamp]
+    B -->|❌ ล้มเหลว| D[Retry อัตโนมัติ ทุก 30 นาที x 3 ครั้ง]
+    D --> E{Retry สำเร็จ?}
+    E -->|✅ สำเร็จ| F[Log: Retry Success + จำนวนครั้ง]
+    E -->|❌ ยังล้มเหลว| G[📧 Alert: System Admin + QA Manager]
+    G --> H[Manual Trigger โดย Admin]
+    H --> I{Manual สำเร็จ?}
+    I -->|✅ สำเร็จ| C
+    I -->|❌ ไม่สำเร็จ| J[Incident Report + Escalate to Dev Team]
+```
+
+#### EX-M02: Alert ส่ง Email ไม่ได้ (SMTP Error)
+
+| สถานการณ์ | การจัดการ | Fallback |
+|---|---|---|
+| SMTP timeout | Retry 3 ครั้ง ห่าง 5 นาที | บันทึก Failed Email Queue |
+| Email address ไม่ถูกต้อง | Mark Email Invalid + แจ้ง Admin | แสดง In-app notification แทน |
+| Email rejected by server | Log + Alert Admin | In-app notification + Dashboard warning |
+| ส่งสำเร็จแต่ไม่มีคนเปิด | — | In-app alert ยังคงอยู่จนกว่าจะ Acknowledge |
+
+---
+
+### 8.5 สรุปตาราง Exception ทั้งหมด
+
+| Exception ID | Sub-module | สถานการณ์ | ผลกระทบ | วิธีรับมือ |
+|---|---|---|---|---|
+| EX-S01 | Staff | ข้อมูลไม่ครบ | Record ค้างสถานะ Incomplete | แจ้ง HR + Escalate 7 วัน |
+| EX-S02 | Staff | Staff ลาออกระหว่างมี Auth | Auth ยังใช้งานได้ (risk) | Auto-suspend + แจ้ง Customer |
+| EX-A01 | Authorization | Reject Auth | CS ไม่มี Authorization | แจ้งเหตุผล + เปิด Draft ใหม่ |
+| EX-A02 | Authorization | Auth หมดอายุ ไม่ต่อ | CS ออก CRS ไม่ได้ | Lock CRS + Escalate 48 ชม. |
+| EX-A03 | Authorization | Customer Auth เกิน SAMS | ผิด BR-02 | Block บันทึก + แจ้ง Error |
+| EX-T01 | Training | Staff ไม่ผ่านการอบรม | Compliance ลด | Re-training / Waiver / Suspend Auth |
+| EX-T02 | Training | Trainer ยกเลิก Session | Staff ขาด Training | Auto-reschedule + Escalate |
+| EX-T03 | Training | แก้ไข Record ที่ Approved | Audit trail ขาด | Amendment workflow + บันทึก Audit |
+| EX-M01 | Monitoring | Daily Job ล้มเหลว | Alert ไม่ส่ง | Retry x3 → Manual → Incident |
+| EX-M02 | Monitoring | Email ส่งไม่ได้ | ไม่ได้รับการแจ้งเตือน | Queue + In-app fallback |
 
 ---
 
