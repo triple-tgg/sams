@@ -27,6 +27,7 @@
 4. [To-Be Process: กระบวนการใหม่](#4-to-be-process-กระบวนการใหม่)
 5. [Process Flow แต่ละ Sub-module](#5-process-flow-แต่ละ-sub-module)
 6. [Cross-Process Dependencies](#6-cross-process-dependencies)
+7. [Process Metrics & KPI](#7-process-metrics--kpi)
 
 ---
 
@@ -354,6 +355,113 @@ graph TB
 | BR-04 | Staff ที่ลาออกแล้ว → Auto-suspend ทุก Authorization |
 | BR-05 | Training expiry ≤ 30 days → Auto-alert CS + Trainer + QA Manager |
 | BR-06 | ห้ามแก้ไข Training Record ที่ approved แล้ว ต้องสร้าง Amendment record |
+
+---
+
+## 7. Process Metrics & KPI
+
+### 7.1 KPI หลักของแต่ละ Sub-module
+
+#### Staff Management
+
+| KPI | คำอธิบาย | Target | วิธีวัด |
+|---|---|---|---|
+| Staff Record Completeness | % พนักงานที่มีข้อมูลครบถ้วน (License, Medical, Training) | ≥ 95% | นับ record ที่ไม่มี null field สำคัญ / ทั้งหมด |
+| Onboarding Lead Time | เวลาเฉลี่ยตั้งแต่รับเข้าถึงระบบ Active | ≤ 3 วันทำการ | วันที่ Active − วันที่ HR ส่งข้อมูล |
+| Archive Compliance | % พนักงานลาออกที่ถูก Archive ตามกำหนด 90 วัน | 100% | Auto-check ทุกวัน |
+
+#### Authorization Management
+
+| KPI | คำอธิบาย | Target | วิธีวัด |
+|---|---|---|---|
+| Authorization Approval Time | เวลาเฉลี่ยจาก Submitted → Active | ≤ 3 วันทำการ | วันที่ Active − วันที่ Submitted |
+| Authorization Expiry Rate | % Authorization ที่หมดอายุโดยไม่ได้ต่ออายุ | ≤ 2% | นับ Expired / ทั้งหมด ต่อเดือน |
+| Active Authorization Coverage | % Certifying Staff ที่มี Authorization Active | ≥ 98% | นับ CS ที่ Active / CS ทั้งหมด |
+| CRS Eligibility Rate | % CS ที่มีสิทธิ์ออก CRS | ≥ 90% | นับ isCrsEligible = true / CS ทั้งหมด |
+| Customer Auth Coverage | จำนวน Customer ที่ CS แต่ละคนครอบคลุม | ตามแผน | Average customer auth per CS |
+
+#### Compliance Monitoring
+
+| KPI | คำอธิบาย | Target | วิธีวัด |
+|---|---|---|---|
+| Alert Response Time | เวลาเฉลี่ยที่ QA จัดการ Alert หลังได้รับ | ≤ 5 วันทำการ | วันที่แก้ไข − วันที่ Alert สร้าง |
+| Expiring Authorization (30d) | จำนวน Authorization ที่จะหมดอายุใน 30 วัน | = 0 (ไม่มีรายการค้าง) | Dashboard counter |
+| System Uptime (Monitoring Job) | % เวลาที่ Daily Job ทำงานสำเร็จ | ≥ 99.5% | Job log success / total runs |
+| False Alert Rate | % Alert ที่เกิดจาก data ผิดพลาด | ≤ 1% | นับ Alert ที่ถูก dismiss ว่า invalid |
+
+#### Course Management
+
+| KPI | คำอธิบาย | Target | วิธีวัด |
+|---|---|---|---|
+| Training Matrix Coverage | % Role ที่มีหลักสูตรครบตาม CAAT requirement | 100% | นับ Role-Course mapping / requirement |
+| Course Catalog Completeness | % หลักสูตรที่มีรายละเอียดครบ (วัตถุประสงค์, ระยะเวลา, Validity) | ≥ 95% | นับ course ที่ field ครบ |
+
+#### Training Scheduler
+
+| KPI | คำอธิบาย | Target | วิธีวัด |
+|---|---|---|---|
+| Training Pass Rate | % ผู้เข้าอบรมที่ผ่าน per session | ≥ 85% | นับ Passed / Total enrolled |
+| Session Utilization Rate | % ที่นั่งที่ถูกใช้จริง / ที่นั่งทั้งหมด | ≥ 70% | นับ Attended / Capacity |
+| Training Completion Rate | % Staff ที่ทำ Training ครบตาม Matrix รายปี | ≥ 95% | นับ Staff ที่ passed all required / ทั้งหมด |
+| Result Entry Lead Time | เวลาเฉลี่ยที่ Trainer บันทึกผลหลัง Training เสร็จ | ≤ 1 วันทำการ | วันที่บันทึก − วันที่ training |
+
+#### QA Dashboard
+
+| KPI | คำอธิบาย | Target | วิธีวัด |
+|---|---|---|---|
+| Dashboard Load Time | เวลาโหลด Dashboard | ≤ 3 วินาที | Frontend performance log |
+| Data Freshness | ความล่าช้าของข้อมูลบน Dashboard | ≤ 1 ชั่วโมง | Timestamp last updated |
+
+---
+
+### 7.2 KPI ระดับ Organization (Cross-module)
+
+| KPI | คำอธิบาย | Target | ความถี่รายงาน |
+|---|---|---|---|
+| Overall Compliance Rate | % Staff ที่ compliant ทั้ง Training + Authorization | ≥ 95% | รายเดือน |
+| Audit Readiness Score | % เอกสารที่พร้อม audit (ครบ, ถูกต้อง, ทันสมัย) | ≥ 98% | รายไตรมาส |
+| Time Saved vs As-Is | ชั่วโมง/เดือนที่ประหยัดได้เทียบกับ Excel | ≥ 40 ชม./เดือน | รายไตรมาส |
+| System Adoption Rate | % User ที่ใช้ระบบจริง (login ≥ 1 ครั้ง/สัปดาห์) | ≥ 90% | รายเดือน |
+| Data Accuracy Rate | % record ที่ถูกต้องเทียบกับเอกสารต้นฉบับ | ≥ 99% | รายไตรมาส (sample audit) |
+
+---
+
+### 7.3 Measurement Dashboard (ตำแหน่งแสดงผล)
+
+```mermaid
+graph TB
+    subgraph EXEC["Executive View (QA Director)"]
+        K1[Overall Compliance %]
+        K2[CRS Eligibility Rate]
+        K3[Audit Readiness Score]
+    end
+
+    subgraph OPS["Operational View (QA Manager)"]
+        K4[Expiring Auth Count]
+        K5[Pending Approvals]
+        K6[Alert Response Time]
+    end
+
+    subgraph TRAIN["Training View (Trainer)"]
+        K7[Session Utilization %]
+        K8[Pass Rate]
+        K9[Result Entry Lag]
+    end
+
+    DB[(Database)] --> EXEC & OPS & TRAIN
+```
+
+---
+
+### 7.4 Baseline & Target (เปรียบ As-Is vs To-Be)
+
+| KPI | As-Is (ปัจจุบัน) | To-Be (Target) | ปรับปรุง |
+|---|---|---|---|
+| เวลาตรวจ Compliance รายเดือน | 2–3 วัน/เดือน (manual) | อัตโนมัติ ทุกวัน | ลด 100% manual effort |
+| เวลาออก Authorization | 5–7 วันทำการ | ≤ 3 วันทำการ | ลด 50% |
+| Authorization หมดอายุโดยไม่รู้ตัว | เกิดขึ้นบ่อย | ≤ 2% | ลด > 90% |
+| เวลาเตรียมรายงาน Audit | 3–5 วัน/ครั้ง | ≤ 1 วัน (auto-generate) | ลด 70–80% |
+| Data entry errors | ~5% (manual Excel) | ≤ 1% | ลด 80% |
 
 ---
 
