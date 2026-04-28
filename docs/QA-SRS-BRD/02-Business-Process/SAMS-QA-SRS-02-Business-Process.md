@@ -210,9 +210,9 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[HR System ส่งข้อมูลพนักงานใหม่] --> B[QA Admin บันทึก Staff Profile]
+    A[HR Admin ส่งข้อมูลพนักงานใหม่] --> B[HR Admin บันทึก Staff Profile]
     B --> C{ข้อมูลครบ?}
-    C -->|❌ ขาด License/Medical| D[สถานะ: Incomplete<br/>🔔 แจ้ง HR]
+    C -->|❌ ขาด License/Medical| D[สถานะ: Incomplete<br/>🔔 แจ้ง HR Admin]
     C -->|✅ ครบ| E[บันทึก License No., Type, Expiry]
     E --> F[บันทึก Medical Certificate Expiry]
     F --> G[กำหนด Role และ ATA Chapter]
@@ -236,18 +236,17 @@ stateDiagram-v2
     AuthEligible --> TrainingGap: Training หมดอายุ / หลักสูตรใหม่ถูกเพิ่ม
 ```
 
-#### 5.1.3 Staff Profile — Swimlane (QA Module)
+#### 5.1.3 Staff Onboarding — Swimlane (QA Module)
 
 ```mermaid
 sequenceDiagram
-    participant HR as HR System
-    participant QA as QA Admin
+    participant HR as HR Admin
     participant SYS as SAMS QA Module
+    participant QA as QA Manager
     participant TR as Trainer
     participant CS as Certifying Staff
 
-    HR->>SYS: ส่งข้อมูล Staff ใหม่ (API / Manual)
-    QA->>SYS: ตรวจสอบ + บันทึก License, Medical, ATA
+    HR->>SYS: บันทึก Staff Profile (License, Medical, ATA, Role)
     SYS->>SYS: ตรวจ Training Matrix ตาม Role
     SYS-->>QA: แสดง Training Gap List
     SYS-->>CS: 🔔 แจ้ง: หลักสูตรที่ต้องเรียน
