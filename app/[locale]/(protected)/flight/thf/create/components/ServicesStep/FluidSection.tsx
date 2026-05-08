@@ -271,7 +271,7 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                         name="fluid.hydOilGreen"
                         render={({ field: { onChange, value, ...field } }) => (
                           <FormItem className="space-y-1">
-                            <FormLabel className="text-xs text-muted-foreground">Hyd Oil Green</FormLabel>
+                            <FormLabel className="text-xs text-muted-foreground">GREEN/A/LH</FormLabel>
                             <FormControl>
                               <NumberInput value={value} onChange={onChange} field={field} />
                             </FormControl>
@@ -286,7 +286,7 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                         name="fluid.hydOilBlue"
                         render={({ field: { onChange, value, ...field } }) => (
                           <FormItem className="space-y-1">
-                            <FormLabel className="text-xs text-muted-foreground">Hyd Oil Blue</FormLabel>
+                            <FormLabel className="text-xs text-muted-foreground">BLUE/CENTER</FormLabel>
                             <FormControl>
                               <NumberInput value={value} onChange={onChange} field={field} />
                             </FormControl>
@@ -301,7 +301,7 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                         name="fluid.hydOilYellow"
                         render={({ field: { onChange, value, ...field } }) => (
                           <FormItem className="space-y-1">
-                            <FormLabel className="text-xs text-muted-foreground">Hyd Oil Yellow</FormLabel>
+                            <FormLabel className="text-xs text-muted-foreground">YELLOW/B/2RH</FormLabel>
                             <FormControl>
                               <NumberInput value={value} onChange={onChange} field={field} />
                             </FormControl>
@@ -315,14 +315,14 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
               </div>
             )}
 
-            {/* ── APU Oil + Fuel (grouped 3-col) ── */}
-            <div className="space-y-3 pt-4 border-t border-dashed">
-              <SectionHeader
-                icon={<Fuel className="h-4 w-4" />}
-                title={showApu ? "APU Oil & Fuel" : "Fuel"}
-              />
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {showApu && (
+            {/* ── APU Oil ── */}
+            {showApu && (
+              <div className="space-y-3 pt-4 border-t border-dashed">
+                <SectionHeader
+                  icon={<Gauge className="h-4 w-4" />}
+                  title="APU Oil"
+                />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <FormField
                     control={form.control}
                     name="fluid.apuOil"
@@ -336,7 +336,17 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                       </FormItem>
                     )}
                   />
-                )}
+                </div>
+              </div>
+            )}
+
+            {/* ── Fuel Information ── */}
+            <div className="space-y-3 pt-4 border-t border-dashed">
+              <SectionHeader
+                icon={<Fuel className="h-4 w-4" />}
+                title="Fuel Information"
+              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <FormField
                   control={form.control}
                   name="fluid.rampFuel"

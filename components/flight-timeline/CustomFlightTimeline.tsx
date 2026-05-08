@@ -4,7 +4,8 @@ import { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { FlightPlanbyItem } from '@/lib/api/flight/getFlightListPlanby';
 import { FlightItem } from '@/lib/api/flight/filghtlist.interface';
 import dayjs from 'dayjs';
-import { splitUtcDateTimeToLocal } from '@/lib/utils/flightDatetime';
+import { splitUtcDateTimeToLocal, formatUtcToLocalDisplay } from '@/lib/utils/flightDatetime';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 
 interface CustomFlightTimelineProps {
@@ -174,6 +175,18 @@ export function CustomFlightTimeline({
         setTooltipInfo(null);
     };
 
+    const renderTooltipTime = (utcDateStr: string | null | undefined, fallbackTime: string | undefined) => {
+        if (!utcDateStr) return fallbackTime || '-';
+        const local = splitUtcDateTimeToLocal(utcDateStr);
+        if (!local.date) return fallbackTime || '-';
+        
+        // Check if it's the same day as selectedDate
+        if (local.date === dayjs(selectedDate).format('YYYY-MM-DD')) {
+            return local.time; // just HH:mm
+        }
+        return formatUtcToLocalDisplay(utcDateStr); // DD-MMM-YYYY HH:mm
+    };
+
     return (
         <div
             className="relative overflow-hidden rounded-xl border-2 dark:border-slate-700/80 border-slate-200 bg-white dark:bg-slate-900 shadow-xl"
@@ -331,9 +344,18 @@ export function CustomFlightTimeline({
                             {/* Flight bars */}
                             {rows.map(([channelId, channelFlights], rowIdx) =>
                                 channelFlights.map((flight) => {
-                                    const left = getPos(flight.since);
-                                    const right = getPos(flight.till);
+                                    const rawLeft = getPos(flight.since);
+                                    const rawRight = getPos(flight.till);
+                                    
+                                    const isPreviousDay = rawLeft < 0;
+                                    const isNextDay = rawRight > TOTAL_WIDTH;
+
+                                    if (rawRight <= 0 || rawLeft >= TOTAL_WIDTH) return null;
+
+                                    const left = Math.max(0, rawLeft);
+                                    const right = Math.min(TOTAL_WIDTH, rawRight);
                                     const width = Math.max(right - left, 36);
+
                                     const detail = findDetail(flight);
 
                                     const acType = detail?.acTypeObj?.code || '';
@@ -354,7 +376,8 @@ export function CustomFlightTimeline({
                                     return (
                                         <div
                                             key={flight.id}
-                                            className={`absolute rounded-lg overflow-hidden cursor-pointer transition-all duration-150
+                                            className={`absolute overflow-hidden cursor-pointer transition-all duration-150
+                                                ${isPreviousDay && isNextDay ? 'rounded-none' : isPreviousDay ? 'rounded-r-lg rounded-l-none' : isNextDay ? 'rounded-l-lg rounded-r-none' : 'rounded-lg'}
                                                 ${isHovered ? 'shadow-xl scale-[1.02] z-10' : 'shadow-md hover:shadow-lg'}`}
                                             style={{
                                                 left,
@@ -363,12 +386,27 @@ export function CustomFlightTimeline({
                                                 height: barHeight,
                                                 background: flight.color?.background || '#3b82f6',
                                                 color: flight.color?.foreground || '#fff',
-                                                border: `1px solid ${isHovered ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.15)'}`,
+                                                borderTop: `1px solid ${isHovered ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.15)'}`,
+                                                borderBottom: `1px solid ${isHovered ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.15)'}`,
+                                                borderRight: isNextDay ? 'none' : `1px solid ${isHovered ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.15)'}`,
+                                                borderLeft: isPreviousDay ? 'none' : `1px solid ${isHovered ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.15)'}`,
                                             }}
                                             onMouseEnter={(e) => handleBarMouseEnter(e, flight)}
                                             onMouseLeave={handleBarMouseLeave}
                                         >
-                                            <div className={`h-full flex flex-col justify-start py-2 gap-0.5 ${width < 80 ? 'px-1.5' : 'px-3'}`}>
+                                            {/* Indicators for spanning flights */}
+                                            {isPreviousDay && (
+                                                <div className="absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-black/30 to-transparent flex items-center justify-start opacity-90 z-0">
+                                                    <ChevronLeft className="w-3 h-3 text-white ml-0.5" />
+                                                </div>
+                                            )}
+                                            {isNextDay && (
+                                                <div className="absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-black/30 to-transparent flex items-center justify-end opacity-90 z-0">
+                                                    <ChevronRight className="w-3 h-3 text-white mr-0.5" />
+                                                </div>
+                                            )}
+
+                                            <div className={`h-full flex flex-col justify-start py-2 gap-0.5 ${width < 80 ? 'px-1.5' : 'px-3'} ${isPreviousDay ? 'pl-4' : ''} ${isNextDay ? 'pr-4' : ''} relative z-10`}>
                                                 {/* Airline name */}
                                                 <div className={`${minuteScale === 30 || minuteScale === 60 ? 'text-[10px] sm:text-[12px]' : 'text-[12px] sm:text-[14px]'} font-bold truncate leading-tight tracking-tight`}>
                                                     {airlineName || 'No Airline'}
@@ -445,9 +483,9 @@ export function CustomFlightTimeline({
                                         ` / ${tooltipInfo.flight.departureFlightNo}`}
                                 </div>
                                 <div className="space-y-0.5 text-slate-300">
-                                    <div>
-                                        STA: {tooltipInfo.flight.arrivalStatime || '-'} → STD:{' '}
-                                        {tooltipInfo.flight.departureStdTime || '-'}
+                                    <div className="flex flex-col gap-0.5">
+                                        <div>STA: {renderTooltipTime(tooltipInfo.detail?.arrivalStaDate, tooltipInfo.flight.arrivalStatime)}</div>
+                                        <div>STD: {renderTooltipTime(tooltipInfo.detail?.departureStdDate, tooltipInfo.flight.departureStdTime)}</div>
                                     </div>
                                     {(tooltipInfo.detail?.airlineObj?.name || tooltipInfo.flight.airlineObj?.name) && (
                                         <div>Airline: {tooltipInfo.detail?.airlineObj?.name || tooltipInfo.flight.airlineObj?.name}</div>

@@ -11,21 +11,21 @@ import { STATUS_CONFIG, CAT_COLOR, formatDate } from '../types'
 
 // Mock Data for Enrolled Staff Table
 const MOCK_ENROLLED_STAFF = [
-    { id: '1', name: 'Mr. Sanmanas Ruangsri', code: '0012', license: 'B1', dept: 'Maintenance', date: '2026-03-20', status: 'enrolled' },
-    { id: '2', name: 'Mr. Pissanu Arunbutr', code: '0013', license: 'B1/B2', dept: 'Maintenance', date: '2026-03-20', status: 'enrolled' },
-    { id: '3', name: 'Mr. Phaisal Sangasang', code: '0020', license: 'B1', dept: 'Maintenance', date: '2026-03-21', status: 'enrolled' },
-    { id: '4', name: 'Mr. Papoj Imudom', code: '0028', license: 'B1', dept: 'Maintenance', date: '2026-03-21', status: 'enrolled' },
-    { id: '5', name: 'Mr. Prakarn Sribudh', code: '0041', license: 'B1', dept: 'Technical Services', date: '2026-03-22', status: 'enrolled' },
-    { id: '6', name: 'Mr. Trairattana Klinkaewboonvong', code: '0047', license: 'B1/B2', dept: 'Maintenance', date: '2026-03-22', status: 'enrolled' },
-    { id: '7', name: 'Mr. Thawansak Bharmmano', code: '0049', license: 'B1', dept: 'Maintenance', date: '2026-03-23', status: 'enrolled' },
-    { id: '8', name: 'Mr. Pongsak Wongrak', code: '0052', license: 'B2', dept: 'Compliance Monitoring', date: '2026-03-23', status: 'enrolled' },
+    { id: '1', name: 'Mr. Sanmanas Ruangsri', code: '0012', license: 'B1', dept: 'Maintenance', date: '2026-03-20', status: 'enrolled', result: 'Pending' },
+    { id: '2', name: 'Mr. Pissanu Arunbutr', code: '0013', license: 'B1/B2', dept: 'Maintenance', date: '2026-03-20', status: 'enrolled', result: 'Pending' },
+    { id: '3', name: 'Mr. Phaisal Sangasang', code: '0020', license: 'B1', dept: 'Maintenance', date: '2026-03-21', status: 'enrolled', result: 'Pending' },
+    { id: '4', name: 'Mr. Papoj Imudom', code: '0028', license: 'B1', dept: 'Maintenance', date: '2026-03-21', status: 'enrolled', result: 'Pending' },
+    { id: '5', name: 'Mr. Prakarn Sribudh', code: '0041', license: 'B1', dept: 'Technical Services', date: '2026-03-22', status: 'enrolled', result: 'Pending' },
+    { id: '6', name: 'Mr. Trairattana Klinkaewboonvong', code: '0047', license: 'B1/B2', dept: 'Maintenance', date: '2026-03-22', status: 'enrolled', result: 'Pending' },
+    { id: '7', name: 'Mr. Thawansak Bharmmano', code: '0049', license: 'B1', dept: 'Maintenance', date: '2026-03-23', status: 'enrolled', result: 'Pending' },
+    { id: '8', name: 'Mr. Pongsak Wongrak', code: '0052', license: 'B2', dept: 'Compliance Monitoring', date: '2026-03-23', status: 'enrolled', result: 'Pending' },
 ]
 
 const MOCK_AVAILABLE_STAFF = [
-    { id: '101', name: 'Mr. Chalong Siri', code: '0022', license: 'B1/B2', dept: 'Maintenance', date: '-', status: 'available' },
-    { id: '102', name: 'Eng. Somchai Kitti', code: '0025', license: 'B2', dept: 'Technical Services', date: '-', status: 'available' },
-    { id: '103', name: 'Ms. Kanjana Wattana', code: '0030', license: 'B1', dept: 'Compliance Monitoring', date: '-', status: 'available' },
-    { id: '104', name: 'Mr. Anan Sritape', code: '0085', license: 'B1/B2', dept: 'Maintenance', date: '-', status: 'available' },
+    { id: '101', name: 'Mr. Chalong Siri', code: '0022', license: 'B1/B2', dept: 'Maintenance', expireStatus: 'Expired', date: '-', status: 'available' },
+    { id: '102', name: 'Eng. Somchai Kitti', code: '0025', license: 'B2', dept: 'Technical Services', expireStatus: 'Expiring_Soon', date: '-', status: 'available' },
+    { id: '103', name: 'Ms. Kanjana Wattana', code: '0030', license: 'B1', dept: 'Compliance Monitoring', expireStatus: 'Valid', date: '-', status: 'available' },
+    { id: '104', name: 'Mr. Anan Sritape', code: '0085', license: 'B1/B2', dept: 'Maintenance', expireStatus: 'Valid', date: '-', status: 'available' },
 ]
 
 export default function ScheduleDetailPage() {
@@ -49,7 +49,7 @@ export default function ScheduleDetailPage() {
     const [availableStaff, setAvailableStaff] = useState(MOCK_AVAILABLE_STAFF)
     const [staffSearch, setStaffSearch] = useState('')
     const [enrolledSearch, setEnrolledSearch] = useState('')
-    const [isRegistrationClosed, setIsRegistrationClosed] = useState(false)
+    const [sessionStatus, setSessionStatus] = useState<'Draft' | 'Open Registration' | 'Registration Closed' | 'In Progress' | 'Grading' | 'Completed' | 'Cancelled'>('Open Registration')
     const [showPrintModal, setShowPrintModal] = useState(false)
 
     const cfg = STATUS_CONFIG[session.status] || STATUS_CONFIG.Scheduled
@@ -64,20 +64,25 @@ export default function ScheduleDetailPage() {
     }
 
     const handleEnroll = (staff: typeof MOCK_AVAILABLE_STAFF[0]) => {
-        if (isFull) return;
+        if (isFull || sessionStatus !== 'Open Registration') return;
         const now = new Date();
         const yyyy = now.getFullYear();
         const mm = String(now.getMonth() + 1).padStart(2, '0');
         const dd = String(now.getDate()).padStart(2, '0');
         const enrolledDate = `${yyyy}-${mm}-${dd}`;
 
-        setEnrolledStaff(prev => [...prev, { ...staff, date: enrolledDate, status: 'enrolled' }]);
+        setEnrolledStaff(prev => [...prev, { ...staff, date: enrolledDate, status: 'enrolled', result: 'Pending' }]);
         setAvailableStaff(prev => prev.filter(s => s.id !== staff.id));
     }
 
-    const handleRemove = (staff: typeof MOCK_ENROLLED_STAFF[0]) => {
+    const handleRemove = (staff: any) => {
+        if (sessionStatus === 'Completed' || sessionStatus === 'Grading') return;
         setEnrolledStaff(prev => prev.filter(s => s.id !== staff.id));
-        setAvailableStaff(prev => [{ ...staff, date: '-', status: 'available' }, ...prev]);
+        setAvailableStaff(prev => [{ id: staff.id, name: staff.name, code: staff.code, license: staff.license, dept: staff.dept, expireStatus: staff.expireStatus || 'Valid', date: '-', status: 'available' }, ...prev]);
+    }
+
+    const handleUpdateResult = (staffId: string, field: 'score' | 'result', value: string) => {
+        setEnrolledStaff(prev => prev.map(s => s.id === staffId ? { ...s, [field]: value } : s));
     }
 
     return (
@@ -97,8 +102,16 @@ export default function ScheduleDetailPage() {
                             <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
                                 {session.courseCode}
                             </span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${cfg.bg} ${cfg.text}`}>
-                                {session.status}
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                                sessionStatus === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
+                                sessionStatus === 'Cancelled' ? 'bg-red-100 text-red-700' :
+                                sessionStatus === 'Grading' ? 'bg-purple-100 text-purple-700' :
+                                sessionStatus === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                                sessionStatus === 'Registration Closed' ? 'bg-amber-100 text-amber-700' :
+                                sessionStatus === 'Open Registration' ? 'bg-emerald-100 text-emerald-700' :
+                                'bg-slate-100 text-slate-700'
+                            }`}>
+                                {sessionStatus}
                             </span>
                         </div>
                         <div className="flex items-center gap-2 ml-auto">
@@ -106,7 +119,7 @@ export default function ScheduleDetailPage() {
                                 <Mail className="w-3.5 h-3.5" />
                                 Send Email
                             </button>
-                            <button 
+                            <button
                                 onClick={() => setShowPrintModal(true)}
                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-foreground hover:bg-muted border border-border transition-colors cursor-pointer bg-white"
                             >
@@ -119,21 +132,14 @@ export default function ScheduleDetailPage() {
                                         <MoreVertical className="w-4 h-4" />
                                     </button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-44">
-                                    <DropdownMenuItem
-                                        onClick={() => setIsRegistrationClosed(!isRegistrationClosed)}
-                                        className={`cursor-pointer text-xs font-medium ${isRegistrationClosed
-                                            ? 'text-amber-600 focus:text-amber-600 focus:bg-amber-50'
-                                            : 'text-foreground focus:bg-muted'
-                                            }`}
-                                    >
-                                        <Lock className="w-3.5 h-3.5 mr-2" />
-                                        {isRegistrationClosed ? 'Open Registration' : 'Close Registration'}
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem className="cursor-pointer text-xs font-medium text-emerald-600 focus:text-emerald-600 focus:bg-emerald-50">
-                                        <CheckCircle className="w-3.5 h-3.5 mr-2" />
-                                        Complete Course
-                                    </DropdownMenuItem>
+                                <DropdownMenuContent align="end" className="w-48">
+                                    <DropdownMenuItem onClick={() => setSessionStatus('Draft')} className="cursor-pointer text-xs font-medium text-slate-600 focus:bg-slate-50">Draft</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setSessionStatus('Open Registration')} className="cursor-pointer text-xs font-medium text-emerald-600 focus:bg-emerald-50">Open Registration</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setSessionStatus('Registration Closed')} className="cursor-pointer text-xs font-medium text-amber-600 focus:bg-amber-50">Close Registration</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setSessionStatus('In Progress')} className="cursor-pointer text-xs font-medium text-blue-600 focus:bg-blue-50">In Progress</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setSessionStatus('Grading')} className="cursor-pointer text-xs font-medium text-purple-600 focus:bg-purple-50">Grading</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setSessionStatus('Completed')} className="cursor-pointer text-xs font-medium text-slate-800 focus:bg-slate-100">Completed</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setSessionStatus('Cancelled')} className="cursor-pointer text-xs font-medium text-red-600 focus:bg-red-50">Cancelled</DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
@@ -155,8 +161,16 @@ export default function ScheduleDetailPage() {
                                             <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
                                                 {session.courseCode}
                                             </span>
-                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${cfg.bg} ${cfg.text}`}>
-                                                {session.status}
+                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                                                sessionStatus === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
+                                                sessionStatus === 'Cancelled' ? 'bg-red-100 text-red-700' :
+                                                sessionStatus === 'Grading' ? 'bg-purple-100 text-purple-700' :
+                                                sessionStatus === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                                                sessionStatus === 'Registration Closed' ? 'bg-amber-100 text-amber-700' :
+                                                sessionStatus === 'Open Registration' ? 'bg-emerald-100 text-emerald-700' :
+                                                'bg-slate-100 text-slate-700'
+                                            }`}>
+                                                {sessionStatus}
                                             </span>
                                         </div>
                                         <h3 className="text-sm font-bold text-foreground leading-snug">{session.courseName}</h3>
@@ -245,7 +259,7 @@ export default function ScheduleDetailPage() {
                             </div>
 
                             {/* Add Staff Panel */}
-                            {!isRegistrationClosed && (
+                            {sessionStatus === 'Open Registration' ? (
                                 <div className="bg-white rounded-xl border border-border overflow-hidden">
                                     <div className="p-3 bg-slate-50/80 border-b border-border flex items-center gap-2">
                                         <UserPlus className="w-4 h-4 text-primary" />
@@ -274,7 +288,7 @@ export default function ScheduleDetailPage() {
                                     {isFull ? (
                                         <div className="mx-3 mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200">
                                             <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
-                                            <span className="text-[11px] font-semibold text-red-700">Session is full. Remove existing enrollment to add more.</span>
+                                            <span className="text-[11px] font-semibold text-red-700">Session is full. Cannot add more.</span>
                                         </div>
                                     ) : (
                                         <div className="max-h-[340px] overflow-y-auto">
@@ -284,14 +298,22 @@ export default function ScheduleDetailPage() {
                                                     s.code.includes(staffSearch) ||
                                                     s.dept.toLowerCase().includes(staffSearch.toLowerCase())
                                                 )
+                                                .sort((a, b) => {
+                                                    const order = { 'Expired': 0, 'Expiring_Soon': 1, 'Valid': 2 };
+                                                    return (order[(a.expireStatus as keyof typeof order) || 'Valid'] || 2) - (order[(b.expireStatus as keyof typeof order) || 'Valid'] || 2);
+                                                })
                                                 .map(staff => (
                                                     <div key={staff.id} className="flex items-center gap-3 px-3 py-2.5 border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors group">
                                                         <div className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-200 text-slate-600 text-[10px] font-bold shrink-0">
                                                             {getInitials(staff.name)}
                                                         </div>
                                                         <div className="flex-1 min-w-0">
-                                                            <p className="text-xs font-semibold text-foreground truncate">{staff.name}</p>
-                                                            <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                                                            <div className="flex items-center gap-2">
+                                                                <p className="text-xs font-semibold text-foreground truncate">{staff.name}</p>
+                                                                {staff.expireStatus === 'Expired' && <span className="text-[9px] font-bold text-red-700 bg-red-100 px-1.5 py-0.5 rounded-sm">Expired</span>}
+                                                                {staff.expireStatus === 'Expiring_Soon' && <span className="text-[9px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-sm">Expiring Soon</span>}
+                                                            </div>
+                                                            <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
                                                                 <span className="font-bold">{staff.code}</span>
                                                                 <span>·</span>
                                                                 <span>{staff.license}</span>
@@ -313,6 +335,14 @@ export default function ScheduleDetailPage() {
                                             )}
                                         </div>
                                     )}
+                                </div>
+                            ) : (
+                                <div className="bg-slate-50 rounded-xl border border-border p-8 text-center flex flex-col items-center justify-center h-[300px]">
+                                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border border-border mb-3 shadow-sm">
+                                        <Lock className="w-5 h-5 text-muted-foreground" />
+                                    </div>
+                                    <p className="text-sm font-semibold text-foreground">Registration Closed</p>
+                                    <p className="text-xs text-muted-foreground mt-1 max-w-[200px]">Status must be "Open Registration" to add new staff members.</p>
                                 </div>
                             )}
                         </div>
@@ -337,12 +367,13 @@ export default function ScheduleDetailPage() {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-[1fr_80px_100px_90px_80px_70px] gap-3 px-4 py-2.5 bg-muted/30 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border">
+                            <div className="grid grid-cols-[1fr_80px_100px_90px_80px_90px_70px] gap-3 px-4 py-2.5 bg-muted/30 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border">
                                 <span>Employee Name</span>
                                 <span>License</span>
                                 <span>Department</span>
                                 <span>Date</span>
                                 <span>Status</span>
+                                <span>Result</span>
                                 <span className="text-center">Action</span>
                             </div>
 
@@ -358,7 +389,7 @@ export default function ScheduleDetailPage() {
                                     enrolledStaff.filter(e => e.name.toLowerCase().includes(enrolledSearch.toLowerCase())).map((staff, idx) => (
                                         <div
                                             key={staff.id}
-                                            className={`grid grid-cols-[1fr_80px_100px_90px_80px_70px] gap-3 px-4 py-3 items-center border-b border-border/50 hover:bg-muted/20 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-muted/10'
+                                            className={`grid grid-cols-[1fr_80px_100px_90px_80px_90px_70px] gap-3 px-4 py-3 items-center border-b border-border/50 hover:bg-muted/20 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-muted/10'
                                                 }`}
                                         >
                                             <div className="flex items-center gap-2.5 min-w-0">
@@ -382,6 +413,32 @@ export default function ScheduleDetailPage() {
                                                     {staff.status}
                                                 </span>
                                             </div>
+                                            <div className="flex items-center">
+                                                {sessionStatus === 'Grading' ? (
+                                                    <div className="flex bg-muted/50 p-0.5 rounded-md border border-border/50">
+                                                        <button
+                                                            onClick={() => handleUpdateResult(staff.id, 'result', 'Pass')}
+                                                            className={`px-2 py-1 text-[10px] font-bold rounded-sm transition-colors cursor-pointer border-none ${staff.result === 'Pass' ? 'bg-emerald-500 text-white shadow-sm' : 'text-emerald-700 hover:bg-emerald-100 bg-transparent'}`}
+                                                        >
+                                                            Pass
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleUpdateResult(staff.id, 'result', 'Fail')}
+                                                            className={`px-2 py-1 text-[10px] font-bold rounded-sm transition-colors cursor-pointer border-none ${staff.result === 'Fail' ? 'bg-red-500 text-white shadow-sm' : 'text-red-700 hover:bg-red-100 bg-transparent'}`}
+                                                        >
+                                                            Fail
+                                                        </button>
+                                                    </div>
+                                                ) : sessionStatus === 'Completed' ? (
+                                                    <span className={`px-2 py-1 text-[10px] font-bold rounded-md ${staff.result === 'Pass' ? 'bg-emerald-100 text-emerald-700' : staff.result === 'Fail' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-500'}`}>
+                                                        {staff.result}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-[10px] text-muted-foreground italic px-2 py-1 bg-slate-100 rounded-md border border-border" title="Result can be edited during Grading">
+                                                        {staff.result === 'Pending' ? 'Pending' : staff.result}
+                                                    </span>
+                                                )}
+                                            </div>
                                             <div className="flex items-center justify-center gap-1">
                                                 <button
                                                     className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer border-none bg-transparent"
@@ -391,7 +448,8 @@ export default function ScheduleDetailPage() {
                                                 </button>
                                                 <button
                                                     onClick={() => handleRemove(staff)}
-                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer border-none bg-transparent"
+                                                    disabled={sessionStatus === 'Completed' || sessionStatus === 'Grading'}
+                                                    className={`p-1.5 rounded-lg transition-colors border-none bg-transparent ${sessionStatus === 'Completed' || sessionStatus === 'Grading' ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-red-600 hover:bg-red-50 cursor-pointer'}`}
                                                     title="Remove Staff"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
@@ -406,7 +464,7 @@ export default function ScheduleDetailPage() {
                 </CardContent>
             </Card>
 
-            <PrintAttendanceModal 
+            <PrintAttendanceModal
                 isOpen={showPrintModal}
                 onClose={() => setShowPrintModal(false)}
                 session={session as any}

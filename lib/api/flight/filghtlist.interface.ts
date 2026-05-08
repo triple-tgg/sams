@@ -41,6 +41,7 @@ export interface FlightItem {
   isLlineMaintenances: boolean
   state: string
   routeForm: string | null
+  routeFrom?: string | null
   routeTo: string | null
   // csList and mechList can be array of IDs (number[]) or array of staff objects
   csList?: StaffItem[] | null

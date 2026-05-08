@@ -356,7 +356,7 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
         setStaffSearch('');
     };
 
-    const staffOptionsForModal = staffModalType === 'cs' ? csStaffOptions : mechStaffOptions;
+    const staffOptionsForModal = allStaff;
     const filteredStaffOptions = staffOptionsForModal.filter((staff) =>
         staff.name.toLowerCase().includes(staffSearch.toLowerCase()) ||
         staff.code.toLowerCase().includes(staffSearch.toLowerCase())
@@ -541,7 +541,7 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
 
                                 {/* Root */}
                                 <td className="p-1 text-sm w-[100px]  leading-none">
-                                    {`${flight.routeForm || "-"} / ${flight.routeTo || "-"}`}
+                                    {`${flight.routeFrom || flight.routeForm || "-"} / ${flight.routeTo || "-"}`}
                                 </td>
                                 {/* A/C Type */}
                                 <td className="p-1 text-sm w-[80px]  leading-none">
