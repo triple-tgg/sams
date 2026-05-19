@@ -27,8 +27,9 @@ const LoginForm = () => {
 
   // Use login mutation hook - Redux only
   const { mutate: loginUser, isPending } = useLogin({
-    onSuccess: (data) => {
-      router.push('/flight/list')
+    onSuccess: (_data) => {
+      // Navigation is handled inside useLogin after permissions are loaded
+      console.log('[LoginForm] login success — useLogin will navigate after permissions');
     },
     onError: (error) => {
       // Error toast will be handled by the hook

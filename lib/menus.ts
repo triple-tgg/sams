@@ -11,6 +11,7 @@ export type Submenu = {
   label: string;
   active: boolean;
   icon: any;
+  permCode?: string;           // API menuCode for permission check
   submenus?: Submenu[];
   children?: SubChildren[];
 };
@@ -22,6 +23,7 @@ export type Menu = {
   icon: any;
   submenus: Submenu[];
   id: string;
+  permCode?: string;           // API menuCode for permission check
 };
 
 export type Group = {
@@ -33,26 +35,13 @@ export type Group = {
 export function getMenuList(pathname: string, t: any): Group[] {
 
   return [
-    // {
-    //   groupLabel: t("dashboard"),
-    //   id: "dashboard",
-    //   menus: [
-    //     {
-    //       id: "dashboard",
-    //       href: "/",
-    //       label: t("dashboard"),
-    //       active: pathname.includes("/"),
-    //       icon: "heroicons-outline:home",
-    //       submenus: [],
-    //     },
-    //   ],
-    // },
     {
       groupLabel: t("aircraftMaintenance"),
       id: "aircraft-maintenance",
       menus: [
         {
           id: "flight",
+          permCode: "FLIGHT",
           href: "/flight",
           label: t("flightList"),
           active: pathname.includes("/flight"),
@@ -61,6 +50,7 @@ export function getMenuList(pathname: string, t: any): Group[] {
         },
         {
           id: "contract",
+          permCode: "CONTRACT",
           href: "/contract",
           label: t("contract"),
           active: pathname.includes("/contract"),
@@ -69,6 +59,7 @@ export function getMenuList(pathname: string, t: any): Group[] {
         },
         {
           id: "invoice",
+          permCode: "INVOICE",
           href: "/invoice",
           label: t("invoice"),
           active: pathname.includes("/invoice"),
@@ -77,6 +68,7 @@ export function getMenuList(pathname: string, t: any): Group[] {
         },
         {
           id: "report",
+          permCode: "REPORT",
           href: "/report",
           label: t("report"),
           active: pathname.includes("/report"),
@@ -92,12 +84,14 @@ export function getMenuList(pathname: string, t: any): Group[] {
       menus: [
         {
           id: "qa",
+          permCode: "QA",
           href: "/qa/monitoring",
           label: t("QA"),
           active: pathname.includes("/qa"),
           icon: "heroicons-outline:clipboard-document-check",
           submenus: [
             {
+              permCode: "QA_STAFF",
               href: "/qa/staff",
               label: t("qaStaffList"),
               active: pathname.includes("/qa/staff"),
@@ -105,6 +99,7 @@ export function getMenuList(pathname: string, t: any): Group[] {
               children: [],
             },
             {
+              permCode: "QA_MONITORING",
               href: "/qa/monitoring",
               label: t("training"),
               active: pathname.includes("/qa/monitoring") || pathname.includes("/qa/course-management") || pathname.includes("/qa/training-scheduler"),
@@ -127,8 +122,8 @@ export function getMenuList(pathname: string, t: any): Group[] {
                 },
               ],
             },
-
             {
+              permCode: "QA_AUTHORIZATION",
               href: "/qa/authorization",
               label: t("authorization"),
               active: pathname.includes("/qa/authorization"),
@@ -146,12 +141,14 @@ export function getMenuList(pathname: string, t: any): Group[] {
       menus: [
         {
           id: "master-data",
+          permCode: "MASTER_DATA",
           href: "/master-data/customer-airline",
           label: t("master-data"),
           active: pathname.includes("/master-data"),
           icon: "heroicons-outline:cog-6-tooth",
           submenus: [
             {
+              permCode: "MASTER_DATA_CUSTOMER_AIRLINE",
               href: "/master-data/customer-airline",
               label: t("customer-airline"),
               active: pathname.includes("/master-data/customer-airline"),
@@ -159,6 +156,7 @@ export function getMenuList(pathname: string, t: any): Group[] {
               children: [],
             },
             {
+              permCode: "MASTER_DATA_STAFF",
               href: "/master-data/staff",
               label: t("staff"),
               active: pathname.includes("/master-data/staff"),
@@ -166,6 +164,7 @@ export function getMenuList(pathname: string, t: any): Group[] {
               children: [],
             },
             {
+              permCode: "MASTER_DATA_STATION",
               href: "/master-data/station",
               label: t("station"),
               active: pathname.includes("/master-data/station"),
@@ -173,6 +172,7 @@ export function getMenuList(pathname: string, t: any): Group[] {
               children: [],
             },
             {
+              permCode: "MASTER_DATA_USER_LOGIN",
               href: "/master-data/user-login",
               label: t("user-login"),
               active: pathname.includes("/master-data/user-login"),
@@ -180,17 +180,11 @@ export function getMenuList(pathname: string, t: any): Group[] {
               children: [],
             },
             {
+              permCode: "MASTER_DATA_ROLE",
               href: "/master-data/role",
               label: t("role"),
-              active: pathname.includes("/master-data/role"),
-              icon: "heroicons-outline:cog-6-tooth",
-              children: [],
-            },
-            {
-              href: "/master-data/set-permission",
-              label: t("set-permission"),
-              active: pathname.includes("/master-data/set-permission"),
-              icon: "heroicons-outline:cog-6-tooth",
+              active: pathname.includes("/master-data/role") || pathname.includes("/master-data/set-permission"),
+              icon: "heroicons-outline:shield-check",
               children: [],
             },
           ],

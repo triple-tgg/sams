@@ -7,7 +7,9 @@ export interface AuthProfile {
   fullName?: string | null;
   email?: string | null;
   username?: string | null;
-  role?: string;
+  role?: string;       // role name
+  roleId?: number;     // role id
+  roleCode?: string;   // role code
   token?: string;
   reToken?: string;
 }

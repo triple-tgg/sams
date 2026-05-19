@@ -4,6 +4,9 @@ import { toast } from 'sonner'
 import { useDispatch } from 'react-redux'
 import { useRouter } from 'next/navigation'
 import { handleLogin } from '@/components/partials/auth/store'
+import { setPermissionsLoading, setPermissions, clearPermissions } from '@/components/partials/auth/permissionSlice'
+import { getMenuPermissions } from '@/lib/api/permission/getMenuPermissions'
+import { getFirstViewableRoute } from '@/lib/api/permission/getFirstViewableRoute'
 
 interface UseLoginOptions {
   onSuccess?: (data: LoginResponse) => void
@@ -29,12 +32,12 @@ export const useLogin = (options: UseLoginOptions = {}) => {
   return useMutation({
     mutationFn: (loginData: LoginRequest) => postLogin(loginData),
 
-    onSuccess: (data: LoginResponse) => {
+    onSuccess: async (data: LoginResponse) => {
       if (showToast) {
         toast.success(data.message || 'Login successful!')
       }
 
-      // Store user data and access token in localStorage
+      // Store user data in localStorage
       if (data.responseData) {
         localStorage.setItem('user', JSON.stringify(data.responseData))
         localStorage.setItem('access_token', 'authenticated-user-token')
@@ -44,8 +47,10 @@ export const useLogin = (options: UseLoginOptions = {}) => {
           id: data.responseData.id,
           fullName: data.responseData.fullName,
           email: data.responseData.email,
-          username: data.responseData.userName, // Map userName to username
-          role: data.responseData.role,
+          username: data.responseData.userName,
+          role: data.responseData.roleObj?.name ?? '',       // role name
+          roleId: data.responseData.roleObj?.id,             // role id
+          roleCode: data.responseData.roleObj?.code ?? '',   // role code
           token: 'authenticated-user-token'
         }
 
@@ -55,8 +60,28 @@ export const useLogin = (options: UseLoginOptions = {}) => {
           users: userData
         }))
 
-        // Navigate to dashboard
-        router.push('/flight/list')
+        // Fetch menu permissions BEFORE navigating
+        const roleId = data.responseData.roleObj?.id
+        if (roleId) {
+          dispatch(setPermissionsLoading())
+          try {
+            const permRes = await getMenuPermissions(roleId)
+            console.log('[useLogin] permissions fetched:', permRes.responseData?.length, 'items')
+            const permissions = permRes.responseData ?? []
+            dispatch(setPermissions(permissions))
+
+            // Navigate to the first menu the user can view
+            const firstRoute = getFirstViewableRoute(permissions)
+            router.push(firstRoute)
+          } catch (err) {
+            console.error('[useLogin] permission fetch failed:', err)
+            dispatch(setPermissions([]))
+            router.push('/flight/list')
+          }
+        } else {
+          dispatch(setPermissions([]))
+          router.push('/flight/list')
+        }
       }
 
       // Call custom success handler

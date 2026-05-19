@@ -1,22 +1,6 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useTranslations } from "next-intl";
+import { redirect } from "next/navigation";
 
-const SetPermissionPage = () => {
-    const t = useTranslations("Menu");
-    return (
-        <div>
-            <Card>
-                <CardHeader>
-                    <CardTitle>{t("set-permission")}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-muted-foreground">
-                        Set Permission management page content will be displayed here.
-                    </p>
-                </CardContent>
-            </Card>
-        </div>
-    );
-};
-
-export default SetPermissionPage;
+// Redirect old /master-data/set-permission to unified Role & Permission page
+export default function SetPermissionPage() {
+    redirect("/master-data/role");
+}

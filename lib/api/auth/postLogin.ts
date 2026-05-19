@@ -6,6 +6,19 @@ export interface LoginRequest {
   password: string
 }
 
+// Role object returned inside login response
+export interface LoginRoleObj {
+  id: number
+  code: string
+  name: string
+  description: string
+  isdelete: boolean
+  createddate: string
+  createdby: string
+  updateddate: string
+  updatedby: string
+}
+
 // Login response interface
 export interface LoginResponse {
   message: string
@@ -14,7 +27,7 @@ export interface LoginResponse {
     userName: string
     email: string
     fullName: string
-    role: string
+    roleObj: LoginRoleObj
   }
   error: string
 }

@@ -6,6 +6,7 @@ import { RootState } from "@/store/rootReducer"
 import { useRouter, usePathname } from "next/navigation"
 import store from "@/store"
 import { handleLogin } from "@/components/partials/auth/store"
+import { getFirstViewableRoute } from '@/lib/api/permission/getFirstViewableRoute'
 
 // Public routes that don't require authentication (without locale prefix)
 const publicRoutesBase = [
@@ -26,6 +27,7 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
 
     // Redux state
     const { isAuth } = useSelector((state: RootState) => state.auth)
+    const permMenus = useSelector((state: RootState) => state.permission.menus)
 
     // Extract locale from pathname (e.g., /en/dashboard -> en, /ar/auth/login -> ar)
     const getLocale = () => {
@@ -59,7 +61,9 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
                         fullName: userData.fullName,
                         email: userData.email,
                         username: userData.userName || userData.username, // Handle both formats
-                        role: userData.role,
+                        role: userData.roleObj?.name || userData.role || '',
+                        roleId: userData.roleObj?.id || userData.roleId,
+                        roleCode: userData.roleObj?.code || userData.roleCode || '',
                         token: accessToken
                     }
 
@@ -96,7 +100,8 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
         if (isRootRoute) {
             if (isAuth) {
                 // User is authenticated - redirect to dashboard
-                router.push(`/${locale}/flight/list`)
+                const firstRoute = getFirstViewableRoute(permMenus)
+                router.push(`/${locale}${firstRoute}`)
             } else {
                 // User is not authenticated - redirect to login
                 router.push(`/${locale}/auth/login`)
@@ -106,7 +111,8 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
 
         // Handle login page redirect when already authenticated
         if (isAuth && pathWithoutLocale === '/auth/login') {
-            router.push(`/${locale}/flight/list`)
+            const firstRoute = getFirstViewableRoute(permMenus)
+            router.push(`/${locale}${firstRoute}`)
             return
         }
 

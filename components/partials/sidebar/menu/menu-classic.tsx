@@ -1,10 +1,9 @@
 "use client";
 
 import React from 'react'
-import { Ellipsis, LogOut } from "lucide-react";
+import { Ellipsis } from "lucide-react";
 import { usePathname } from "@/components/navigation";
 import { cn } from "@/lib/utils";
-import { getMenuList } from "@/lib/menus";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
     Tooltip,
@@ -27,6 +26,7 @@ import SidebarHoverToggle from '@/components/partials/sidebar/sidebar-hover-togg
 import { useMenuHoverConfig } from '@/hooks/use-menu-hover';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import ThemeSwitcher from '@/components/partials/header/theme-switcher';
+import { useFilteredMenuList } from '@/hooks/use-filtered-menu-list';
 
 
 export function MenuClassic({ }) {
@@ -38,8 +38,10 @@ export function MenuClassic({ }) {
 
     const isDesktop = useMediaQuery('(min-width: 1280px)')
 
+    // Permission-aware menu list (filters by canView)
+    const menuList = useFilteredMenuList(pathname, t);
 
-    const menuList = getMenuList(pathname, t);
+
     const [config, setConfig] = useConfig()
     const collapsed = config.collapsed
     const [hoverConfig] = useMenuHoverConfig();
@@ -145,11 +147,11 @@ export function MenuClassic({ }) {
 
                             </li>
                         ))}
-                        {!collapsed && (
+                        {/* {!collapsed && (
                             <li className="w-full grow flex items-end">
                                 <MenuWidget />
                             </li>
-                        )}
+                        )} */}
                     </ul>
                 </nav>
 

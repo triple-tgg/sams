@@ -7,7 +7,7 @@ import { Ellipsis } from "lucide-react";
 import { usePathname } from "@/components/navigation";
 
 import { cn } from "@/lib/utils";
-import { getMenuList } from "@/lib/menus";
+import { useFilteredMenuList } from '@/hooks/use-filtered-menu-list';
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -50,7 +50,7 @@ import { getLangDir } from 'rtl-detect';
 export function MenuDragAble() {
     const t = useTranslations("Menu")
     const pathname = usePathname();
-    const menuList = getMenuList(pathname, t);
+    const menuList = useFilteredMenuList(pathname, t);
     const [config, setConfig] = useConfig()
     const collapsed = config.collapsed
 
@@ -163,7 +163,7 @@ export function MenuDragAble() {
                                                             <Tooltip delayDuration={100}>
                                                                 <TooltipTrigger asChild>
 
-                                                                <MenuItem label={label} icon={icon} href={href} active={active} id={id} collapsed={collapsed} />
+                                                                    <MenuItem label={label} icon={icon} href={href} active={active} id={id} collapsed={collapsed} />
                                                                 </TooltipTrigger>
                                                                 {collapsed && (
                                                                     <TooltipContent side="right">
@@ -189,11 +189,11 @@ export function MenuDragAble() {
                                     </SortableContext>
                                 </li>
                             ))}
-                            {!collapsed && (
+                            {/* {!collapsed && (
                                 <li className="w-full grow flex items-end">
                                     <MenuWidget />
                                 </li>
-                            )}
+                            )} */}
                         </ul>
                     </nav>
                 </DndContext>

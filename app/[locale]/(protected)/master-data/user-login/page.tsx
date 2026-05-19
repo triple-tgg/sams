@@ -49,6 +49,7 @@ const UserLoginPage = () => {
         fullName: string;
         role: string;
         isActive: boolean;
+        permissions: import('@/lib/api/master/roles/roles.interface').MenuPermission[];
     } | null>(null);
 
     // API hooks
@@ -350,9 +351,8 @@ const UserLoginPage = () => {
                 </CardContent>
             </Card>
 
-            {/* Add Dialog */}
             <Dialog open={dialogMode === 'add'} onOpenChange={(open) => !open && closeDialog()}>
-                <DialogContent className="max-w-lg">
+                <DialogContent size="md" className="max-w-4xl">
                     <UserFormDialog
                         mode="add"
                         onClose={closeDialog}
@@ -363,7 +363,7 @@ const UserLoginPage = () => {
 
             {/* View Dialog */}
             <Dialog open={dialogMode === 'view'} onOpenChange={(open) => !open && closeDialog()}>
-                <DialogContent className="max-w-lg">
+                <DialogContent size="md" className="max-w-4xl">
                     <UserFormDialog
                         mode="view"
                         user={detailUser}
@@ -374,7 +374,7 @@ const UserLoginPage = () => {
 
             {/* Edit Dialog */}
             <Dialog open={dialogMode === 'edit'} onOpenChange={(open) => !open && closeDialog()}>
-                <DialogContent className="max-w-lg">
+                <DialogContent size="md" className="max-w-4xl">
                     <UserFormDialog
                         mode="edit"
                         user={detailUser}
