@@ -243,7 +243,17 @@ const UserFormDialog = ({ mode, user, isPending = false, onClose, onSubmit }: Pr
     // When role permissions load, populate permission panel
     useEffect(() => {
         if (rolePermData?.responseData && rolePermData.responseData.length > 0) {
-            setPermissions(rolePermData.responseData);
+            const mappedPermissions: MenuPermission[] = rolePermData.responseData.map((item) => ({
+                menuId: String(item.menuId),
+                menuName: item.name || "",
+                menuKey: item.menuCode || "",
+                canView: item.canView || false,
+                canCreate: item.canCreate || false,
+                canEdit: item.canEdit || false,
+                canDelete: item.canDelete || false,
+                canExport: item.canExport || false,
+            }));
+            setPermissions(mappedPermissions);
         } else if (selectedRoleId === 0) {
             setPermissions(buildDefaultPermissions());
         }
