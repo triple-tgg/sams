@@ -25,7 +25,7 @@ const TABS: { name: TabName; icon: React.ReactNode }[] = [
 ]
 
 // ── Tab Content Map ──
-const TAB_CONTENT: Record<TabName, React.ComponentType<{ staff: StaffData }>> = {
+const TAB_CONTENT: Record<TabName, React.ComponentType<{ staff: StaffData, apiData?: StaffByIdData }>> = {
     'Profile': ProfileTab,
     'Training': TrainingTab,
     'Experience': ExperienceTab,
@@ -67,6 +67,7 @@ function mapApiToStaffData(api: StaffByIdData): StaffData {
         experience: (api.workExperiences || [])
             .filter(w => !w.isdelete)
             .map(w => ({
+                id: w.id,
                 title: w.jobTitle || '-',
                 company: w.company || '-',
                 period: [
@@ -78,6 +79,7 @@ function mapApiToStaffData(api: StaffByIdData): StaffData {
         education: (api.educations || [])
             .filter(e => !e.isdelete)
             .map(e => ({
+                id: e.id,
                 degree: e.degree || '-',
                 institution: e.institution || '-',
                 year: e.year?.toString() || '-',
@@ -238,7 +240,7 @@ export default function StaffProfilePage() {
                         </div>
 
                         {/* ── Active Tab Content ── */}
-                        <ActiveTabContent staff={staff} />
+                        <ActiveTabContent staff={staff} apiData={data?.responseData} />
                     </div>
                 </div>
             </div>

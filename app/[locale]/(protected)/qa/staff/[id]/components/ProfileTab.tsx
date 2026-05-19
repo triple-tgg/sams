@@ -8,6 +8,9 @@ import { EditPersonalInfoModal } from './EditPersonalInfoModal'
 import { EditContactModal } from './EditContactModal'
 import { EditEmploymentModal } from './EditEmploymentModal'
 import { EditLicenseModal } from './EditLicenseModal'
+import { useUpsertStaff } from '@/lib/api/hooks/useQAStaffManagement'
+import { StaffByIdData, UpsertStaffRequest, UpsertEducation, UpsertWorkExperience } from '@/lib/api/qa/staff-management'
+import { toast } from 'sonner'
 
 // ── Reusable Info Row ──
 function InfoRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
@@ -63,11 +66,107 @@ function Section({
 }
 
 // ── Profile Tab ──
-export function ProfileTab({ staff }: { staff: StaffData }) {
+export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: StaffByIdData }) {
     const [showEditPersonal, setShowEditPersonal] = useState(false)
     const [showEditContact, setShowEditContact] = useState(false)
     const [showEditEmployment, setShowEditEmployment] = useState(false)
     const [showEditLicense, setShowEditLicense] = useState(false)
+
+    const upsertMutation = useUpsertStaff()
+
+    const buildUpsertPayload = (overrideFields: Partial<UpsertStaffRequest>): UpsertStaffRequest | null => {
+        if (!apiData) {
+            toast.error("Cannot edit: raw API data is missing.")
+            return null
+        }
+        
+        return {
+            staffId: apiData.id,
+            title: apiData.title || '',
+            fullNameTh: apiData.name || '',
+            fullNameEn: apiData.fullNameEn || '',
+            dateOfBirth: apiData.dateOfBirth || '',
+            placeOfBirth: apiData.placeOfBirth || '',
+            nationality: apiData.nationality || '',
+            idCardNo: apiData.idCardNo || '',
+            phone: apiData.phone || '',
+            email: apiData.email || '',
+            address: apiData.address || '',
+            employeeId: apiData.employeeId || '',
+            startDate: apiData.startDate || '',
+            positionId: apiData.positionObj?.id || 0,
+            departmentId: apiData.departmentObj?.id || 0,
+            staffstypeid: apiData.staffstypeObj?.id || 0,
+            jobTitle: apiData.jobTitle || '',
+            profileImagePath: apiData.profileImagePath || '',
+            educations: (apiData.educations || []) as UpsertEducation[],
+            workExperiences: (apiData.workExperiences || []) as UpsertWorkExperience[],
+            userName: "system", // Or get from auth context
+            ...overrideFields,
+        }
+    }
+
+    const handleSavePersonal = (data: any) => {
+        const payload = buildUpsertPayload({
+            title: data.titleNameTH || data.titleNameEN || '',
+            fullNameTh: data.name,
+            fullNameEn: data.nameEn,
+            dateOfBirth: data.dob,
+            placeOfBirth: data.placeOfBirth,
+            idCardNo: data.idCard,
+            nationality: data.nationality,
+        })
+        if (!payload) return
+
+        upsertMutation.mutate(payload, {
+            onSuccess: () => {
+                toast.success("Personal info updated successfully")
+                setShowEditPersonal(false)
+            },
+            onError: (err) => toast.error(err.message || "Failed to update personal info")
+        })
+    }
+
+    const handleSaveContact = (data: any) => {
+        const payload = buildUpsertPayload({
+            phone: data.phone,
+            email: data.email,
+            address: data.address,
+        })
+        if (!payload) return
+
+        upsertMutation.mutate(payload, {
+            onSuccess: () => {
+                toast.success("Contact info updated successfully")
+                setShowEditContact(false)
+            },
+            onError: (err) => toast.error(err.message || "Failed to update contact info")
+        })
+    }
+
+    const handleSaveEmployment = (data: any) => {
+        const payload = buildUpsertPayload({
+            employeeId: data.empId,
+            startDate: data.startDate,
+            positionId: data.position ? Number(data.position) : (apiData?.positionObj?.id || 0),
+            departmentId: data.department ? Number(data.department) : (apiData?.departmentObj?.id || 0),
+        })
+        if (!payload) return
+
+        upsertMutation.mutate(payload, {
+            onSuccess: () => {
+                toast.success("Employment info updated successfully")
+                setShowEditEmployment(false)
+            },
+            onError: (err) => toast.error(err.message || "Failed to update employment info")
+        })
+    }
+
+    const handleSaveLicense = (data: any) => {
+        console.log('Save license details (API payload mapping needed):', data)
+        toast.info("AMEL License saving is not fully supported by the Upsert API yet.")
+        setShowEditLicense(false)
+    }
 
     return (
         <>
@@ -220,37 +319,25 @@ export function ProfileTab({ staff }: { staff: StaffData }) {
                 isOpen={showEditPersonal}
                 onClose={() => setShowEditPersonal(false)}
                 staff={staff}
-                onSave={(data) => {
-                    console.log('Save personal info:', data)
-                    // TODO: call API to update staff data
-                }}
+                onSave={handleSavePersonal}
             />
             <EditContactModal
                 isOpen={showEditContact}
                 onClose={() => setShowEditContact(false)}
                 staff={staff}
-                onSave={(data) => {
-                    console.log('Save contact:', data)
-                    // TODO: call API to update staff data
-                }}
+                onSave={handleSaveContact}
             />
             <EditEmploymentModal
                 isOpen={showEditEmployment}
                 onClose={() => setShowEditEmployment(false)}
                 staff={staff}
-                onSave={(data) => {
-                    console.log('Save employment:', data)
-                    // TODO: call API to update staff data
-                }}
+                onSave={handleSaveEmployment}
             />
             <EditLicenseModal
                 isOpen={showEditLicense}
                 onClose={() => setShowEditLicense(false)}
                 staff={staff}
-                onSave={(data) => {
-                    console.log('Save license:', data)
-                    // TODO: call API to update staff data
-                }}
+                onSave={handleSaveLicense}
             />
         </>
 

@@ -13,13 +13,15 @@ import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
+import {
     ChevronLeft, ChevronRight, Plus, MoreHorizontal, Eye, Search, Users, Upload, RefreshCw, AlertCircle,
 } from 'lucide-react'
 import { useQAStaffList } from '@/lib/api/hooks/useQAStaffManagement'
 import type { QAStaffItem } from '@/lib/api/qa/staff-management'
 import './hr-staff.css'
 
-// ── Avatar gradient palette (deterministic by staff id) ──
 const avatarGradients = [
     'linear-gradient(135deg,#7c3aed,#a855f7)',
     'linear-gradient(135deg,#dc2626,#ef4444)',
@@ -33,6 +35,29 @@ const avatarGradients = [
     'linear-gradient(135deg,#be185d,#f472b6)',
     'linear-gradient(135deg,#ea580c,#fb923c)',
     'linear-gradient(135deg,#4338ca,#818cf8)',
+]
+
+const POSITIONS = [
+    { id: 1, name: 'Aircraft Mechanic' },
+    { id: 2, name: 'Aircraft Inspector' },
+    { id: 3, name: 'Certifying Staff (B1)' },
+    { id: 4, name: 'Certifying Staff (B2)' },
+    { id: 5, name: 'Certifying Staff (B1/B2)' },
+    { id: 6, name: 'Avionics Technician' },
+    { id: 7, name: 'Senior Engineer' },
+    { id: 8, name: 'Line Maintenance Engineer' },
+    { id: 9, name: 'Base Maintenance Engineer' },
+    { id: 10, name: 'Quality Assurance Inspector' },
+]
+
+const DEPARTMENTS = [
+    { id: 1, name: 'Line Maintenance' },
+    { id: 2, name: 'Base Maintenance' },
+    { id: 3, name: 'Quality Assurance' },
+    { id: 4, name: 'Engineering' },
+    { id: 5, name: 'Avionics' },
+    { id: 6, name: 'Structures' },
+    { id: 7, name: 'Planning' },
 ]
 
 const staffTypeColors: Record<string, string> = {
@@ -63,6 +88,10 @@ export default function HRStaffListPage() {
     const [page, setPage] = useState(1)
     const perPage = 20
 
+    const [filterPosition, setFilterPosition] = useState<string>("0")
+    const [filterDepartment, setFilterDepartment] = useState<string>("0")
+    const [filterStatus, setFilterStatus] = useState<string>("all")
+
     // ── Debounced search – send name filter to API for server-side search ──
     const [debouncedSearch, setDebouncedSearch] = useState('')
     const searchTimerRef = React.useRef<NodeJS.Timeout | null>(null)
@@ -81,7 +110,9 @@ export default function HRStaffListPage() {
         {
             name: debouncedSearch,
             employeeId: '',
-            positionId: 0,
+            positionId: Number(filterPosition),
+            departmentId: Number(filterDepartment) > 0 ? Number(filterDepartment) : undefined,
+            isActive: filterStatus === "all" ? undefined : filterStatus === "active",
             page,
             perPage,
         },
@@ -144,9 +175,9 @@ export default function HRStaffListPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
-                    {/* Search bar */}
-                    <div className="px-5 py-3 border-b bg-muted/30">
-                        <div className="relative max-w-sm">
+                    {/* Search bar and Filters */}
+                    <div className="px-5 py-3 border-b bg-muted/30 flex flex-col lg:flex-row gap-3 items-center justify-between">
+                        <div className="relative w-full lg:max-w-sm shrink-0">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
                                 placeholder="Search by name..."
@@ -154,6 +185,43 @@ export default function HRStaffListPage() {
                                 onChange={(e) => handleSearchChange(e.target.value)}
                                 className="pl-9 h-9"
                             />
+                        </div>
+                        
+                        <div className="flex items-center gap-2 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0">
+                            <Select value={filterPosition} onValueChange={(val) => { setFilterPosition(val); setPage(1); }}>
+                                <SelectTrigger className="h-9 min-w-[150px] bg-white text-xs">
+                                    <SelectValue placeholder="Position" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="0">All Positions</SelectItem>
+                                    {POSITIONS.map(p => (
+                                        <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            <Select value={filterDepartment} onValueChange={(val) => { setFilterDepartment(val); setPage(1); }}>
+                                <SelectTrigger className="h-9 min-w-[150px] bg-white text-xs">
+                                    <SelectValue placeholder="Department" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="0">All Departments</SelectItem>
+                                    {DEPARTMENTS.map(d => (
+                                        <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            <Select value={filterStatus} onValueChange={(val) => { setFilterStatus(val); setPage(1); }}>
+                                <SelectTrigger className="h-9 min-w-[120px] bg-white text-xs">
+                                    <SelectValue placeholder="Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Status</SelectItem>
+                                    <SelectItem value="active">Active</SelectItem>
+                                    <SelectItem value="inactive">Inactive</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
 

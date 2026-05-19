@@ -20,6 +20,7 @@ export interface TrainingRecord {
 }
 
 export interface WorkExperience {
+    id?: number
     title: string
     company: string
     period: string
@@ -27,6 +28,7 @@ export interface WorkExperience {
 }
 
 export interface Education {
+    id?: number
     degree: string
     institution: string
     year: string

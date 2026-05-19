@@ -5,10 +5,12 @@ import { X, GraduationCap, Plus, Trash2 } from 'lucide-react'
 import { StaffData, Education } from '../types'
 
 interface EducationRow {
+    id?: number
     degree: string
     institution: string
     startYear: string
     endYear: string
+    field: string
 }
 
 interface EditEducationModalProps {
@@ -34,24 +36,27 @@ const YEARS = Array.from({ length: 31 }, (_, i) => String(CURRENT_YEAR - i))
 function parseEducation(edu: Education): EducationRow {
     const parts = edu.year.split('–').map(s => s.trim())
     return {
+        id: edu.id,
         degree: edu.degree,
         institution: edu.institution,
         startYear: parts[0] || edu.year,
         endYear: parts[1] || '',
+        field: edu.field || '',
     }
 }
 
 function toEducation(row: EducationRow): Education {
     return {
+        id: row.id,
         degree: row.degree,
         institution: row.institution,
         year: row.endYear ? `${row.startYear} – ${row.endYear}` : row.startYear,
-        field: '',
+        field: row.field,
     }
 }
 
 function emptyRow(): EducationRow {
-    return { degree: '', institution: '', startYear: '', endYear: '' }
+    return { degree: '', institution: '', startYear: '', endYear: '', field: '' }
 }
 
 export function EditEducationModal({ isOpen, onClose, staff, onSave }: EditEducationModalProps) {
@@ -161,6 +166,20 @@ export function EditEducationModal({ isOpen, onClose, staff, onSave }: EditEduca
                                             value={row.institution}
                                             onChange={e => updateRow(i, 'institution', e.target.value)}
                                             placeholder="Institution name"
+                                            className="w-full px-3.5 py-2.5 text-sm text-slate-800 bg-white border border-slate-200 rounded-lg outline-none transition-all duration-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 placeholder:text-slate-300"
+                                        />
+                                    </div>
+
+                                    {/* Field of Study */}
+                                    <div className="flex flex-col gap-1.5 col-span-full">
+                                        <label className="text-xs font-semibold text-slate-500 tracking-wide">
+                                            Field of Study
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={row.field}
+                                            onChange={e => updateRow(i, 'field', e.target.value)}
+                                            placeholder="e.g. Aeronautical Engineering"
                                             className="w-full px-3.5 py-2.5 text-sm text-slate-800 bg-white border border-slate-200 rounded-lg outline-none transition-all duration-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 placeholder:text-slate-300"
                                         />
                                     </div>

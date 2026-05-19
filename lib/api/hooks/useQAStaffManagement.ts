@@ -36,6 +36,8 @@ export const useQAStaffList = (
             params.name,
             params.employeeId,
             params.positionId,
+            params.departmentId,
+            params.isActive,
         ],
         queryFn: () => getQAStaffList(params),
         enabled,
@@ -54,8 +56,11 @@ export const useUpsertStaff = (): UseMutationResult<UpsertStaffResponse, Error, 
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: upsertStaff,
-        onSuccess: () => {
+        onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ["qa-staff-list"] });
+            if (variables.staffId > 0) {
+                queryClient.invalidateQueries({ queryKey: ["qa-staff-detail", variables.staffId] });
+            }
         },
     });
 };

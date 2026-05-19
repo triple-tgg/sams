@@ -11,23 +11,27 @@ interface EmploymentFormData {
     startDate: string
 }
 
-const POSITION_OPTIONS = [
-    { value: 'B1 Engineer', label: 'B1 Engineer' },
-    { value: 'B2 Engineer', label: 'B2 Engineer' },
-    { value: 'Technician', label: 'Technician' },
-    { value: 'Senior Technician', label: 'Senior Technician' },
-    { value: 'Inspector', label: 'Inspector' },
-    { value: 'Supervisor', label: 'Supervisor' },
-    { value: 'Manager', label: 'Manager' },
+const POSITIONS = [
+    { id: 1, name: 'Aircraft Mechanic' },
+    { id: 2, name: 'Aircraft Inspector' },
+    { id: 3, name: 'Certifying Staff (B1)' },
+    { id: 4, name: 'Certifying Staff (B2)' },
+    { id: 5, name: 'Certifying Staff (B1/B2)' },
+    { id: 6, name: 'Avionics Technician' },
+    { id: 7, name: 'Senior Engineer' },
+    { id: 8, name: 'Line Maintenance Engineer' },
+    { id: 9, name: 'Base Maintenance Engineer' },
+    { id: 10, name: 'Quality Assurance Inspector' },
 ]
 
-const DEPARTMENT_OPTIONS = [
-    { value: 'Line Maintenance', label: 'Line Maintenance' },
-    { value: 'Base Maintenance', label: 'Base Maintenance' },
-    { value: 'Quality Assurance', label: 'Quality Assurance' },
-    { value: 'Engineering', label: 'Engineering' },
-    { value: 'Planning', label: 'Planning' },
-    { value: 'Store / Logistics', label: 'Store / Logistics' },
+const DEPARTMENTS = [
+    { id: 1, name: 'Line Maintenance' },
+    { id: 2, name: 'Base Maintenance' },
+    { id: 3, name: 'Quality Assurance' },
+    { id: 4, name: 'Engineering' },
+    { id: 5, name: 'Avionics' },
+    { id: 6, name: 'Structures' },
+    { id: 7, name: 'Planning' },
 ]
 
 interface EditEmploymentModalProps {
@@ -93,8 +97,8 @@ function FormSelect({ label, name, value, onChange, options }: {
 export function EditEmploymentModal({ isOpen, onClose, staff, onSave }: EditEmploymentModalProps) {
     const [form, setForm] = useState<EmploymentFormData>({
         empId: staff.empId,
-        position: staff.position,
-        department: staff.department,
+        position: POSITIONS.find(p => p.name === staff.position)?.id.toString() || '',
+        department: DEPARTMENTS.find(d => d.name === staff.department)?.id.toString() || '',
         startDate: staff.startDate,
     })
 
@@ -102,8 +106,8 @@ export function EditEmploymentModal({ isOpen, onClose, staff, onSave }: EditEmpl
         if (isOpen) {
             setForm({
                 empId: staff.empId,
-                position: staff.position,
-                department: staff.department,
+                position: POSITIONS.find(p => p.name === staff.position)?.id.toString() || '',
+                department: DEPARTMENTS.find(d => d.name === staff.department)?.id.toString() || '',
                 startDate: staff.startDate,
             })
         }
@@ -169,14 +173,14 @@ export function EditEmploymentModal({ isOpen, onClose, staff, onSave }: EditEmpl
                             name="position"
                             value={form.position}
                             onChange={handleChange}
-                            options={POSITION_OPTIONS}
+                            options={POSITIONS.map(p => ({ value: p.id.toString(), label: p.name }))}
                         />
                         <FormSelect
                             label="Department"
                             name="department"
                             value={form.department}
                             onChange={handleChange}
-                            options={DEPARTMENT_OPTIONS}
+                            options={DEPARTMENTS.map(d => ({ value: d.id.toString(), label: d.name }))}
                         />
                     </div>
 

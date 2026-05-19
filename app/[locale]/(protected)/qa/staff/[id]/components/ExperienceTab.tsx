@@ -3,11 +3,101 @@ import { Briefcase, GraduationCap, Pencil } from 'lucide-react'
 import { StaffData } from '../types'
 import { EditWorkExperienceModal } from './EditWorkExperienceModal'
 import { EditEducationModal } from './EditEducationModal'
+import { StaffByIdData, UpsertStaffRequest, UpsertEducation, UpsertWorkExperience } from '@/lib/api/qa/staff-management'
+import { useUpsertStaff } from '@/lib/api/hooks/useQAStaffManagement'
+import { toast } from 'sonner'
 
 // ── Experience Tab ──
-export function ExperienceTab({ staff }: { staff: StaffData }) {
+export function ExperienceTab({ staff, apiData }: { staff: StaffData, apiData?: StaffByIdData }) {
     const [showEditExp, setShowEditExp] = useState(false)
     const [showEditEdu, setShowEditEdu] = useState(false)
+
+    const upsertMutation = useUpsertStaff()
+
+    const buildUpsertPayload = (overrideFields: Partial<UpsertStaffRequest>): UpsertStaffRequest | null => {
+        if (!apiData) {
+            toast.error("Cannot edit: raw API data is missing.")
+            return null
+        }
+        
+        return {
+            staffId: apiData.id,
+            title: apiData.title || '',
+            fullNameTh: apiData.name || '',
+            fullNameEn: apiData.fullNameEn || '',
+            dateOfBirth: apiData.dateOfBirth || '',
+            placeOfBirth: apiData.placeOfBirth || '',
+            nationality: apiData.nationality || '',
+            idCardNo: apiData.idCardNo || '',
+            phone: apiData.phone || '',
+            email: apiData.email || '',
+            address: apiData.address || '',
+            employeeId: apiData.employeeId || '',
+            startDate: apiData.startDate || '',
+            positionId: apiData.positionObj?.id || 0,
+            departmentId: apiData.departmentObj?.id || 0,
+            staffstypeid: apiData.staffstypeObj?.id || 0,
+            jobTitle: apiData.jobTitle || '',
+            profileImagePath: apiData.profileImagePath || '',
+            educations: (apiData.educations || []) as UpsertEducation[],
+            workExperiences: (apiData.workExperiences || []) as UpsertWorkExperience[],
+            userName: "system",
+            ...overrideFields,
+        }
+    }
+
+    const handleSaveWorkExperience = (data: any[]) => {
+        const mappedExperience: UpsertWorkExperience[] = data.map((exp: any) => {
+            const parts = exp.period.split('–').map((s: string) => s.trim())
+            return {
+                id: exp.id || 0,
+                jobTitle: exp.title,
+                company: exp.company,
+                periodFrom: parts[0] || '',
+                periodTo: parts[1] || '',
+                description: exp.description || ''
+            }
+        })
+
+        const payload = buildUpsertPayload({
+            workExperiences: mappedExperience
+        })
+        if (!payload) return
+
+        upsertMutation.mutate(payload, {
+            onSuccess: () => {
+                toast.success("Work experience updated successfully")
+                setShowEditExp(false)
+            },
+            onError: (err) => toast.error(err.message || "Failed to update work experience")
+        })
+    }
+
+    const handleSaveEducation = (data: any[]) => {
+        const mappedEducation: UpsertEducation[] = data.map((edu: any) => {
+            const parts = edu.year.split('–').map((s: string) => s.trim())
+            return {
+                id: edu.id || 0,
+                degree: edu.degree,
+                institution: edu.institution,
+                year: parseInt(parts[1] || parts[0]) || new Date().getFullYear(),
+                fieldOfStudy: edu.field || ''
+            }
+        })
+
+        const payload = buildUpsertPayload({
+            educations: mappedEducation
+        })
+        if (!payload) return
+
+        upsertMutation.mutate(payload, {
+            onSuccess: () => {
+                toast.success("Education updated successfully")
+                setShowEditEdu(false)
+            },
+            onError: (err) => toast.error(err.message || "Failed to update education")
+        })
+    }
 
     return (
         <div>
@@ -145,9 +235,7 @@ export function ExperienceTab({ staff }: { staff: StaffData }) {
                 isOpen={showEditExp}
                 onClose={() => setShowEditExp(false)}
                 staff={staff}
-                onSave={(data) => {
-                    console.log('Save work experience:', data)
-                }}
+                onSave={handleSaveWorkExperience}
             />
 
             {/* Edit Education Modal */}
@@ -155,9 +243,7 @@ export function ExperienceTab({ staff }: { staff: StaffData }) {
                 isOpen={showEditEdu}
                 onClose={() => setShowEditEdu(false)}
                 staff={staff}
-                onSave={(data) => {
-                    console.log('Save education:', data)
-                }}
+                onSave={handleSaveEducation}
             />
         </div>
     )

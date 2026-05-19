@@ -5,6 +5,7 @@ import { X, Briefcase, Plus, Trash2 } from 'lucide-react'
 import { StaffData, WorkExperience } from '../types'
 
 interface ExperienceRow {
+    id?: number
     company: string
     title: string
     fromMonth: string
@@ -33,6 +34,7 @@ function parseExperience(exp: WorkExperience): ExperienceRow {
     // Parse "2021 – Present" or "2015 – 2021"
     const parts = exp.period.split('–').map(s => s.trim())
     return {
+        id: exp.id,
         company: exp.company,
         title: exp.title,
         fromMonth: '',
@@ -47,6 +49,7 @@ function toWorkExperience(row: ExperienceRow): WorkExperience {
     const from = row.fromMonth ? `${row.fromMonth}-${row.fromYear}` : row.fromYear
     const to = row.toMonth ? `${row.toMonth}-${row.toYear}` : (row.toYear || 'Present')
     return {
+        id: row.id,
         title: row.title,
         company: row.company,
         period: `${from} – ${to}`,

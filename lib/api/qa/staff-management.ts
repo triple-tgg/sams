@@ -63,6 +63,8 @@ export interface QAStaffListRequest {
     name: string;
     employeeId: string;
     positionId: number;
+    departmentId?: number;
+    isActive?: boolean | string;
     page: number;
     perPage: number;
 }
