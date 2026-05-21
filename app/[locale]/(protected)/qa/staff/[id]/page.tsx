@@ -63,7 +63,33 @@ function mapApiToStaffData(api: StaffByIdData): StaffData {
         address: api.address || '-',
         placeOfBirth: api.placeOfBirth || '-',
         ratings: [],
-        training: [],
+        // Mock Training Data
+        training: [
+            {
+                course: 'Human Factors Initial',
+                type: 'Mandatory',
+                dateFrom: '2025-01-15',
+                dateTo: '2025-01-16',
+                validUntil: '2027-01-15',
+                status: 'Completed',
+            },
+            {
+                course: 'A320 Familiarization',
+                type: 'Aircraft Type',
+                dateFrom: '2024-05-10',
+                dateTo: '2024-05-20',
+                validUntil: '2026-05-10',
+                status: 'Completed',
+            },
+            {
+                course: 'Safety Management System',
+                type: 'Mandatory',
+                dateFrom: '2025-08-01',
+                dateTo: '2025-08-02',
+                validUntil: '2027-08-01',
+                status: 'Upcoming',
+            }
+        ],
         experience: (api.workExperiences || [])
             .filter(w => !w.isdelete)
             .map(w => ({
@@ -85,7 +111,39 @@ function mapApiToStaffData(api: StaffByIdData): StaffData {
                 year: e.year?.toString() || '-',
                 field: e.fieldOfStudy || '-',
             })),
-        logbook: [],
+        // Mock Logbook Data
+        logbook: [
+            {
+                date: '2025-05-18',
+                aircraft: 'Airbus A320',
+                regNo: 'HS-TXA',
+                taskType: 'Line Maintenance',
+                thfNo: 'THF-2025-0518',
+                description: 'Daily Check and defect rectification on Engine 1',
+                hours: 4.5,
+                signedOff: true,
+            },
+            {
+                date: '2025-05-15',
+                aircraft: 'Boeing 737-800',
+                regNo: 'HS-TBC',
+                taskType: 'A-Check',
+                thfNo: 'THF-2025-0515',
+                description: 'Cabin inspection and replacing faulty oxygen masks',
+                hours: 6.0,
+                signedOff: true,
+            },
+            {
+                date: '2025-05-10',
+                aircraft: 'Airbus A320',
+                regNo: 'HS-TXB',
+                taskType: 'Base Maintenance',
+                thfNo: 'THF-2025-0510',
+                description: 'Landing gear lubrication and tire replacement',
+                hours: 8.0,
+                signedOff: false,
+            }
+        ],
         amelLicenses: (api.staffAmelLicenseList || [])
             .filter(l => !l.isdelete)
             .map(l => ({
@@ -102,9 +160,31 @@ function mapApiToStaffData(api: StaffByIdData): StaffData {
                 from: w.periodFrom ? formatDate(w.periodFrom) : '-',
                 to: w.periodTo ? formatDate(w.periodTo) : 'Present',
             })),
-        // Training data is not yet available in the API schema
-        previousTraining: [],
-        currentTraining: [],
+        // Mock Training Records for Print Preview
+        previousTraining: [
+            {
+                dateFrom: '2021-03-01',
+                dateTo: '2021-03-05',
+                course: 'Initial Maintenance Training',
+                provider: 'Aviation Academy',
+            }
+        ],
+        currentTraining: [
+            {
+                dateFrom: '2024-05-10',
+                dateTo: '2024-05-20',
+                validUntil: '2026-05-10',
+                course: 'A320 Familiarization',
+                provider: 'Airbus Training Center',
+            },
+            {
+                dateFrom: '2025-01-15',
+                dateTo: '2025-01-16',
+                validUntil: '2027-01-15',
+                course: 'Human Factors Initial',
+                provider: 'In-house',
+            }
+        ],
     }
 }
 
