@@ -1,4 +1,6 @@
 import axiosInstance from '@/lib/axios.config';
+import dayjs from "dayjs";
+import "@/lib/dayjs";
 
 // Types for THF Report API
 export interface ThfReportItem {
@@ -63,9 +65,15 @@ export const getThfReport = async (
       throw new Error('Date range is required');
     }
 
+    const utcParams = {
+      ...request,
+      dateStart: request.dateStart ? dayjs(request.dateStart).startOf('day').utc().format('YYYY-MM-DD HH:mm:ss') : request.dateStart,
+      dateEnd: request.dateEnd ? dayjs(request.dateEnd).endOf('day').utc().format('YYYY-MM-DD HH:mm:ss') : request.dateEnd,
+    };
+
     const response = await axiosInstance.post<ThfReportResponse>(
       '/report/thf',
-      request,
+      utcParams,
       {
         headers: {
           'Content-Type': 'application/json',
@@ -88,9 +96,15 @@ export const downloadThfReport = async (
   request: ThfReportRequest
 ): Promise<Blob> => {
   try {
+    const utcParams = {
+      ...request,
+      dateStart: request.dateStart ? dayjs(request.dateStart).startOf('day').utc().format('YYYY-MM-DD HH:mm:ss') : request.dateStart,
+      dateEnd: request.dateEnd ? dayjs(request.dateEnd).endOf('day').utc().format('YYYY-MM-DD HH:mm:ss') : request.dateEnd,
+    };
+
     const response = await axiosInstance.post(
       '/report/thf/download',
-      request,
+      utcParams,
       {
         responseType: 'blob',
         headers: {
@@ -118,9 +132,15 @@ export const getThfNumberReport = async (
       throw new Error('Date range is required');
     }
 
+    const utcParams = {
+      ...request,
+      dateStart: request.dateStart ? dayjs(request.dateStart).startOf('day').utc().format('YYYY-MM-DD HH:mm:ss') : request.dateStart,
+      dateEnd: request.dateEnd ? dayjs(request.dateEnd).endOf('day').utc().format('YYYY-MM-DD HH:mm:ss') : request.dateEnd,
+    };
+
     const response = await axiosInstance.post<ThfReportResponse>(
       '/report/thfnumber',
-      request,
+      utcParams,
       {
         headers: {
           'Content-Type': 'application/json',
@@ -144,9 +164,15 @@ export const downloadThfNumberReport = async (
   request: ThfReportRequest
 ): Promise<Blob> => {
   try {
+    const utcParams = {
+      ...request,
+      dateStart: request.dateStart ? dayjs(request.dateStart).startOf('day').utc().format('YYYY-MM-DD HH:mm:ss') : request.dateStart,
+      dateEnd: request.dateEnd ? dayjs(request.dateEnd).endOf('day').utc().format('YYYY-MM-DD HH:mm:ss') : request.dateEnd,
+    };
+
     const response = await axiosInstance.post(
       '/report/thfnumber/download',
-      request,
+      utcParams,
       {
         responseType: 'blob',
         headers: {
@@ -188,9 +214,15 @@ export const getThfFileReport = async (
       throw new Error('Date range is required');
     }
 
+    const utcParams = {
+      ...request,
+      dateStart: request.dateStart ? dayjs(request.dateStart).startOf('day').utc().format('YYYY-MM-DD HH:mm:ss') : request.dateStart,
+      dateEnd: request.dateEnd ? dayjs(request.dateEnd).endOf('day').utc().format('YYYY-MM-DD HH:mm:ss') : request.dateEnd,
+    };
+
     const response = await axiosInstance.post<ThfFileReportResponse>(
       '/report/files',
-      request,
+      utcParams,
       {
         headers: {
           'Content-Type': 'application/json',

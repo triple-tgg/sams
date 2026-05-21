@@ -1,4 +1,6 @@
 import axiosConfig from "@/lib/axios.config";
+import dayjs from "dayjs";
+import "@/lib/dayjs";
 
 // Interface for Airline object in contract response
 export interface ContractAirlineObj {
@@ -97,8 +99,13 @@ export interface ContractListResponse {
  */
 export const getContractList = async (data: ContractListRequest): Promise<ContractListResponse> => {
     try {
-        console.log('Fetching contract list with:', data);
-        const response = await axiosConfig.post('/contract/listdata', data);
+        const utcParams = {
+            ...data,
+            dateStart: data.dateStart ? dayjs(data.dateStart).startOf('day').utc().format('YYYY-MM-DD HH:mm:ss') : data.dateStart,
+            dateEnd: data.dateEnd ? dayjs(data.dateEnd).endOf('day').utc().format('YYYY-MM-DD HH:mm:ss') : data.dateEnd,
+        };
+        console.log('Fetching contract list with:', utcParams);
+        const response = await axiosConfig.post('/contract/listdata', utcParams);
         console.log('Contract list response:', response.data);
         return response.data;
     } catch (error) {

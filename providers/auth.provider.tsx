@@ -28,6 +28,7 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
     // Redux state
     const { isAuth } = useSelector((state: RootState) => state.auth)
     const permMenus = useSelector((state: RootState) => state.permission.menus)
+    const isPermLoaded = useSelector((state: RootState) => state.permission.isLoaded)
 
     // Extract locale from pathname (e.g., /en/dashboard -> en, /ar/auth/login -> ar)
     const getLocale = () => {
@@ -110,7 +111,9 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
         }
 
         // Handle login page redirect when already authenticated
-        if (isAuth && pathWithoutLocale === '/auth/login') {
+        // Wait for permissions to be loaded before redirecting so we can
+        // navigate to the correct first viewable route
+        if (isAuth && pathWithoutLocale === '/auth/login' && isPermLoaded) {
             const firstRoute = getFirstViewableRoute(permMenus)
             router.push(`/${locale}${firstRoute}`)
             return
@@ -121,7 +124,7 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
             // User is not authenticated and trying to access protected route
             router.push(`/${locale}/auth/login`)
         }
-    }, [isAuth, pathname, pathWithoutLocale, isPublicRoute, isRootRoute, router, isLoading, locale])
+    }, [isAuth, pathname, pathWithoutLocale, isPublicRoute, isRootRoute, router, isLoading, locale, isPermLoaded])
 
     // Show loading during initialization
     if (isLoading) {

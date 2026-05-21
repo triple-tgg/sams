@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import { postLogin, LoginRequest, LoginResponse } from '@/lib/api/auth/postLogin'
 import { toast } from 'sonner'
 import { useDispatch } from 'react-redux'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { handleLogin } from '@/components/partials/auth/store'
 import { setPermissionsLoading, setPermissions, clearPermissions } from '@/components/partials/auth/permissionSlice'
 import { getMenuPermissions } from '@/lib/api/permission/getMenuPermissions'
@@ -28,6 +28,10 @@ export const useLogin = (options: UseLoginOptions = {}) => {
 
   const dispatch = useDispatch()
   const router = useRouter()
+  const pathname = usePathname()
+
+  // Extract locale from current pathname (e.g. /en/auth/login -> en)
+  const locale = pathname.match(/^\/(en|ar)/)?.[1] ?? 'en'
 
   return useMutation({
     mutationFn: (loginData: LoginRequest) => postLogin(loginData),
@@ -72,15 +76,17 @@ export const useLogin = (options: UseLoginOptions = {}) => {
 
             // Navigate to the first menu the user can view
             const firstRoute = getFirstViewableRoute(permissions)
-            router.push(firstRoute)
+            console.log('[useLogin] firstRoute resolved:', firstRoute)
+            console.log('[useLogin] navigating to:', `/${locale}${firstRoute}`)
+            router.push(`/${locale}${firstRoute}`)
           } catch (err) {
             console.error('[useLogin] permission fetch failed:', err)
             dispatch(setPermissions([]))
-            router.push('/flight/list')
+            router.push(`/${locale}/flight/list`)
           }
         } else {
           dispatch(setPermissions([]))
-          router.push('/flight/list')
+          router.push(`/${locale}/flight/list`)
         }
       }
 

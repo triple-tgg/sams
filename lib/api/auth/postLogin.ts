@@ -44,11 +44,19 @@ export const postLogin = async (loginData: LoginRequest): Promise<LoginResponse>
       password: loginData.password
     })
 
+    if (response.data.error) {
+      throw new Error(response.data.message || response.data.error || 'Login failed')
+    }
+
     return response.data
   } catch (error: any) {
     // Handle API errors
     if (error.response?.data) {
       throw new Error(error.response.data.message || error.response.data.error || 'Login failed')
+    }
+    // If we threw a manual error above, re-throw it
+    if (error instanceof Error && error.message !== 'Network error occurred during login') {
+      throw error;
     }
     throw new Error('Network error occurred during login')
   }

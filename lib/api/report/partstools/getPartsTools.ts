@@ -1,4 +1,6 @@
 import axiosInstance from '@/lib/axios.config';
+import dayjs from "dayjs";
+import "@/lib/dayjs";
 
 // Types for Parts & Tools Report API
 export interface PartsToolsReportItem {
@@ -43,9 +45,15 @@ export const getPartsToolsReport = async (
       throw new Error('Date range is required');
     }
 
+    const utcParams = {
+      ...request,
+      dateStart: request.dateStart ? dayjs(request.dateStart).startOf('day').utc().format('YYYY-MM-DD HH:mm:ss') : request.dateStart,
+      dateEnd: request.dateEnd ? dayjs(request.dateEnd).endOf('day').utc().format('YYYY-MM-DD HH:mm:ss') : request.dateEnd,
+    };
+
     const response = await axiosInstance.post<PartsToolsReportResponse>(
       '/report/partstools',
-      request,
+      utcParams,
       {
         headers: {
           'Content-Type': 'application/json',
@@ -69,9 +77,15 @@ export const downloadPartsToolsReport = async (
   request: PartsToolsReportRequest
 ): Promise<Blob> => {
   try {
+    const utcParams = {
+      ...request,
+      dateStart: request.dateStart ? dayjs(request.dateStart).startOf('day').utc().format('YYYY-MM-DD HH:mm:ss') : request.dateStart,
+      dateEnd: request.dateEnd ? dayjs(request.dateEnd).endOf('day').utc().format('YYYY-MM-DD HH:mm:ss') : request.dateEnd,
+    };
+
     const response = await axiosInstance.post(
       '/report/partstools/download',
-      request,
+      utcParams,
       {
         responseType: 'blob',
         headers: {

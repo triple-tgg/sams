@@ -1,4 +1,6 @@
 import axiosConfig from "@/lib/axios.config";
+import dayjs from "dayjs";
+import "@/lib/dayjs";
 
 // ── Request ──────────────────────────────────────────────
 export interface InvoiceRequest {
@@ -95,8 +97,13 @@ export interface DraftInvoiceResponse {
 // ── API Functions ────────────────────────────────────────
 export const getPreInvoice = async (data: InvoiceRequest): Promise<PreInvoiceResponse> => {
     try {
-        console.log("Fetching pre-invoice with:", data);
-        const response = await axiosConfig.post("/contract/pre-invoice", data);
+        const utcParams = {
+            ...data,
+            dateStart: data.dateStart ? dayjs(data.dateStart).startOf('day').utc().format('YYYY-MM-DD HH:mm:ss') : data.dateStart,
+            dateEnd: data.dateEnd ? dayjs(data.dateEnd).endOf('day').utc().format('YYYY-MM-DD HH:mm:ss') : data.dateEnd,
+        };
+        console.log("Fetching pre-invoice with:", utcParams);
+        const response = await axiosConfig.post("/contract/pre-invoice", utcParams);
         console.log("Pre-invoice response:", response.data);
         return response.data;
     } catch (error) {
@@ -107,8 +114,13 @@ export const getPreInvoice = async (data: InvoiceRequest): Promise<PreInvoiceRes
 
 export const getDraftInvoice = async (data: InvoiceRequest): Promise<DraftInvoiceResponse> => {
     try {
-        console.log("Fetching draft-invoice with:", data);
-        const response = await axiosConfig.post("/contract/draft-invoice", data);
+        const utcParams = {
+            ...data,
+            dateStart: data.dateStart ? dayjs(data.dateStart).startOf('day').utc().format('YYYY-MM-DD HH:mm:ss') : data.dateStart,
+            dateEnd: data.dateEnd ? dayjs(data.dateEnd).endOf('day').utc().format('YYYY-MM-DD HH:mm:ss') : data.dateEnd,
+        };
+        console.log("Fetching draft-invoice with:", utcParams);
+        const response = await axiosConfig.post("/contract/draft-invoice", utcParams);
         console.log("Draft-invoice response:", response.data);
         return response.data;
     } catch (error) {

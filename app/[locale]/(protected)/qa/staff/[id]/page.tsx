@@ -86,6 +86,25 @@ function mapApiToStaffData(api: StaffByIdData): StaffData {
                 field: e.fieldOfStudy || '-',
             })),
         logbook: [],
+        amelLicenses: (api.staffAmelLicenseList || [])
+            .filter(l => !l.isdelete)
+            .map(l => ({
+                licenseNo: l.licenseNumber || '-',
+                ratings: l.aircraftRatings ? l.aircraftRatings.split(',').map(r => r.trim()).filter(Boolean) : [],
+                validFrom: l.issuedDate ? formatDate(l.issuedDate) : '-',
+                validTo: l.expiryDate ? formatDate(l.expiryDate) : '-',
+            })),
+        previousEmployment: (api.workExperiences || [])
+            .filter(w => !w.isdelete)
+            .map(w => ({
+                employer: w.company || '-',
+                position: w.jobTitle || '-',
+                from: w.periodFrom ? formatDate(w.periodFrom) : '-',
+                to: w.periodTo ? formatDate(w.periodTo) : 'Present',
+            })),
+        // Training data is not yet available in the API schema
+        previousTraining: [],
+        currentTraining: [],
     }
 }
 

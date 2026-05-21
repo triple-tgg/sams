@@ -23,6 +23,7 @@ export interface UpdateFlightData {
   csIdList?: number[] | null;
   mechIdList?: number[] | null;
   maintenanceStatusId?: number;
+  etaDate?: string | null;
 }
 
 // API Response Interface

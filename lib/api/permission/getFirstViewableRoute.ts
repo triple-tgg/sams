@@ -23,8 +23,9 @@ function flattenItems(items: MenuPermissionItem[]): MenuPermissionItem[] {
 export function getFirstViewableRoute(permissions: MenuPermissionItem[]): string {
     const flat = flattenItems(permissions);
     const firstViewable = flat
+        .filter((item) => item.canView === true && item.route && item.route !== '#')
         .sort((a, b) => a.sortOrder - b.sortOrder)
-        .find((item) => item.canView === true);
+        .at(0);
 
     return firstViewable?.route ?? '/flight/list';
 }

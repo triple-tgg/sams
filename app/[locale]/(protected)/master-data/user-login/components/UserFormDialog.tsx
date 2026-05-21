@@ -14,6 +14,62 @@ import { useRolesOptions } from "@/lib/api/hooks/useRoles";
 import { useRolePermissions } from "@/lib/api/hooks/useRoleOperations";
 import type { MenuPermission } from "@/lib/api/master/roles/roles.interface";
 
+type FlatPerm = MenuPermission & {
+    _depth: number;
+    _isParent: boolean;
+    _parentId: string | null;
+};
+
+// Helper: flatten nested MenuPermissionItem[] → flat array with depth/parent info
+function flattenPerms(items: any[], depth = 0, parentId: string | null = null): FlatPerm[] {
+    const result: FlatPerm[] = [];
+    for (const item of items) {
+        const hasChildren = !!(item.children && item.children.length > 0);
+        result.push({
+            menuId: String(item.menuId),
+            menuName: item.name || item.menuName || "",
+            menuKey: item.menuCode || item.menuKey || "",
+            canView: item.canView || false,
+            canCreate: item.canCreate || false,
+            canEdit: item.canEdit || false,
+            canDelete: item.canDelete || false,
+            canExport: item.canExport || false,
+            _depth: depth,
+            _isParent: hasChildren,
+            _parentId: parentId,
+        });
+        if (hasChildren) {
+            result.push(...flattenPerms(item.children, depth + 1, String(item.menuId)));
+        }
+    }
+    return result;
+}
+
+/** Recalculate parent permission values from their children */
+function recalcParents(perms: FlatPerm[]): FlatPerm[] {
+    const parentIds = new Set(perms.filter((p) => p._isParent).map((p) => p.menuId));
+    if (parentIds.size === 0) return perms;
+
+    const fields: (keyof Omit<MenuPermission, "menuId" | "menuName" | "menuKey">)[] = [
+        "canView",
+        "canCreate",
+        "canEdit",
+        "canDelete",
+        "canExport",
+    ];
+
+    return perms.map((p) => {
+        if (!p._isParent) return p;
+        const children = perms.filter((c) => c._parentId === p.menuId);
+        const updated = { ...p };
+        for (const field of fields) {
+            updated[field] = children.some((c) => c[field] === true);
+        }
+        return updated;
+    });
+}
+
+
 // ─── Default menu list (fallback when server has no permission data) ───────────
 const DEFAULT_MENUS: Omit<MenuPermission, "canView" | "canCreate" | "canEdit" | "canDelete" | "canExport">[] = [
     { menuId: "flight", menuName: "Flight Management", menuKey: "flight" },
@@ -32,7 +88,7 @@ const DEFAULT_MENUS: Omit<MenuPermission, "canView" | "canCreate" | "canEdit" | 
     { menuId: "master-role", menuName: "Role & Permission", menuKey: "master-role" },
 ];
 
-const buildDefaultPermissions = (): MenuPermission[] =>
+const buildDefaultPermissions = (): FlatPerm[] =>
     DEFAULT_MENUS.map((m) => ({
         ...m,
         canView: false,
@@ -40,6 +96,9 @@ const buildDefaultPermissions = (): MenuPermission[] =>
         canEdit: false,
         canDelete: false,
         canExport: false,
+        _depth: 0,
+        _isParent: false,
+        _parentId: null,
     }));
 
 // ─── Permission toggle cell ────────────────────────────────────────────────────
@@ -80,8 +139,8 @@ const PermissionSection = ({
 }: {
     roleId: number;
     isViewMode: boolean;
-    permissions: MenuPermission[];
-    onPermissionsChange: (perms: MenuPermission[]) => void;
+    permissions: FlatPerm[];
+    onPermissionsChange: (perms: FlatPerm[]) => void;
 }) => {
     const { isLoading } = useRolePermissions(roleId, roleId > 0);
 
@@ -97,18 +156,23 @@ const PermissionSection = ({
         { field: "canExport", icon: Download, label: "Export" },
     ];
 
-    const toggleField = (idx: number, field: keyof MenuPermission) => {
+    const toggleField = (menuId: string, field: keyof MenuPermission) => {
         if (isViewMode) return;
-        const next = permissions.map((p, i) =>
-            i === idx ? { ...p, [field]: !p[field as keyof MenuPermission] } : p
+        const next = permissions.map((p) =>
+            p.menuId === menuId ? { ...p, [field]: !p[field as keyof MenuPermission] } : p
         );
-        onPermissionsChange(next);
+        onPermissionsChange(recalcParents(next));
     };
 
     const toggleAll = (field: keyof Omit<MenuPermission, "menuId" | "menuName" | "menuKey">) => {
         if (isViewMode) return;
-        const allOn = permissions.every((p) => p[field]);
-        onPermissionsChange(permissions.map((p) => ({ ...p, [field]: !allOn })));
+        const visibleChildren = permissions.filter((p) => p.canView && !p._isParent);
+        const allOn = visibleChildren.every((p) => p[field]);
+        const toggled = permissions.map((p) => {
+            if (!p.canView || p._isParent) return p;
+            return { ...p, [field]: !allOn };
+        });
+        onPermissionsChange(recalcParents(toggled));
     };
 
     if (isLoading) {
@@ -128,6 +192,8 @@ const PermissionSection = ({
         );
     }
 
+    const visiblePermissions = permissions.filter((p) => p.canView);
+
     return (
         <div className="flex flex-col h-full">
             {/* Column header row */}
@@ -141,7 +207,7 @@ const PermissionSection = ({
                             onClick={() => toggleAll(col.field)}
                             title={`Toggle all ${col.label}`}
                             className={`w-7 h-5 rounded text-[9px] font-bold transition-colors ${
-                                permissions.every((p) => p[col.field])
+                                visiblePermissions.filter((p) => !p._isParent).every((p) => p[col.field])
                                     ? "bg-primary text-primary-foreground"
                                     : "bg-muted text-muted-foreground"
                             } ${isViewMode ? "cursor-default" : "hover:opacity-80 cursor-pointer"}`}
@@ -154,26 +220,38 @@ const PermissionSection = ({
 
             {/* Rows */}
             <div className="border border-t-0 rounded-b overflow-hidden">
-                {permissions.map((perm, idx) => (
-                    <div
-                        key={perm.menuId}
-                        className={`flex items-center gap-1.5 px-2 py-1.5 border-b border-border/40 last:border-0 ${
-                            idx % 2 === 0 ? "" : "bg-muted/5"
-                        }`}
-                    >
-                        <span className="flex-1 text-xs font-medium truncate">{perm.menuName}</span>
-                        {cols.map((col) => (
-                            <PermCell
-                                key={col.field}
-                                value={perm[col.field] as boolean}
-                                onChange={() => toggleField(idx, col.field)}
-                                icon={col.icon}
-                                label={col.label}
-                                disabled={isViewMode}
-                            />
-                        ))}
+                {visiblePermissions.length === 0 ? (
+                    <div className="p-8 text-center text-xs text-muted-foreground bg-muted/5 font-medium">
+                        No access permissions
                     </div>
-                ))}
+                ) : (
+                    visiblePermissions.map((perm, idx) => (
+                        <div
+                            key={perm.menuId}
+                            className={`flex items-center gap-1.5 px-2 py-1.5 border-b border-border/40 last:border-0 transition-colors hover:bg-muted/10 ${
+                                perm._isParent ? "bg-muted/15" : idx % 2 === 0 ? "" : "bg-muted/5"
+                            }`}
+                        >
+                            <span
+                                className={`flex-1 text-xs truncate ${perm._depth === 0 ? "font-semibold" : "font-normal text-muted-foreground"}`}
+                                style={{ paddingLeft: `${perm._depth * 16}px` }}
+                            >
+                                {perm._depth > 0 && <span className="mr-1 text-muted-foreground/50">└</span>}
+                                {perm.menuName}
+                            </span>
+                            {cols.map((col) => (
+                                <PermCell
+                                    key={col.field}
+                                    value={perm[col.field] as boolean}
+                                    onChange={() => toggleField(perm.menuId, col.field)}
+                                    icon={col.icon}
+                                    label={col.label}
+                                    disabled={isViewMode || perm._isParent}
+                                />
+                            ))}
+                        </div>
+                    ))
+                )}
             </div>
         </div>
     );
@@ -204,7 +282,7 @@ const UserFormDialog = ({ mode, user, isPending = false, onClose, onSubmit }: Pr
     const [fullName, setFullName] = useState("");
     const [role, setRole] = useState("");
     const [isActive, setIsActive] = useState(true);
-    const [permissions, setPermissions] = useState<MenuPermission[]>(buildDefaultPermissions);
+    const [permissions, setPermissions] = useState<FlatPerm[]>(buildDefaultPermissions);
 
     const { options: roleOptions, isLoading: loadingRoles } = useRolesOptions();
     const selectedRoleId = role ? parseInt(role, 10) : 0;
@@ -243,17 +321,7 @@ const UserFormDialog = ({ mode, user, isPending = false, onClose, onSubmit }: Pr
     // When role permissions load, populate permission panel
     useEffect(() => {
         if (rolePermData?.responseData && rolePermData.responseData.length > 0) {
-            const mappedPermissions: MenuPermission[] = rolePermData.responseData.map((item) => ({
-                menuId: String(item.menuId),
-                menuName: item.name || "",
-                menuKey: item.menuCode || "",
-                canView: item.canView || false,
-                canCreate: item.canCreate || false,
-                canEdit: item.canEdit || false,
-                canDelete: item.canDelete || false,
-                canExport: item.canExport || false,
-            }));
-            setPermissions(mappedPermissions);
+            setPermissions(recalcParents(flattenPerms(rolePermData.responseData)));
         } else if (selectedRoleId === 0) {
             setPermissions(buildDefaultPermissions());
         }
@@ -451,7 +519,7 @@ const UserFormDialog = ({ mode, user, isPending = false, onClose, onSubmit }: Pr
                             {selectedRoleId > 0 ? (
                                 <PermissionSection
                                     roleId={selectedRoleId}
-                                    isViewMode={isViewMode}
+                                    isViewMode={true}
                                     permissions={permissions}
                                     onPermissionsChange={setPermissions}
                                 />

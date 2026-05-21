@@ -16,14 +16,22 @@ export interface StaffTypeObj {
 
 export interface PositionObj {
     id: number;
-    code: string;
     name: string;
+    isdelete: boolean;
+    createddate: string;
+    createdby: string;
+    updateddate: string | null;
+    updatedby: string | null;
 }
 
 export interface DepartmentObj {
     id: number;
-    code: string;
     name: string;
+    isdelete: boolean;
+    createddate: string;
+    createdby: string;
+    updateddate: string | null;
+    updatedby: string | null;
 }
 
 // ── Staff Management Item ──
@@ -51,6 +59,9 @@ export interface QAStaffItem {
     isActive: boolean;
     educations: unknown[] | null;
     workExperiences: unknown[] | null;
+    staffDocumentList: unknown[];
+    staffAircraftLicenseList: unknown[];
+    staffAmelLicenseList: unknown[];
     createddate: string;
     createdby: string;
     updateddate: string;
@@ -63,8 +74,8 @@ export interface QAStaffListRequest {
     name: string;
     employeeId: string;
     positionId: number;
-    departmentId?: number;
-    isActive?: boolean | string;
+    departmentId: number;
+    staffstypeId: number;
     page: number;
     perPage: number;
 }
@@ -118,6 +129,30 @@ export interface UpsertWorkExperience {
     description: string;
 }
 
+export interface UpsertStaffDocument {
+    id: number;
+    documentType: string;
+    fileName: string;
+    filePath: string;
+}
+
+export interface UpsertAircraftLicense {
+    id: number;
+    aircraftTypeId: number;
+}
+
+export interface UpsertAmelLicense {
+    id: number;
+    licenseNumber: string;
+    categoryId: number;
+    issuedDate: string;
+    expiryDate: string;
+    limitations: string;
+    aircraftRatings: string;
+    attachmentFilePath: string;
+    attachmentFileName: string;
+}
+
 export interface UpsertStaffRequest {
     staffId: number; // 0 for new, existing id for update
     title: string;
@@ -139,6 +174,9 @@ export interface UpsertStaffRequest {
     profileImagePath: string;
     educations: UpsertEducation[];
     workExperiences: UpsertWorkExperience[];
+    staffDocumentList: UpsertStaffDocument[];
+    staffAircraftLicenseList: UpsertAircraftLicense[];
+    staffAmelLicenseList: UpsertAmelLicense[];
     userName: string;
 }
 
@@ -236,6 +274,49 @@ export interface StaffWorkExperience {
     updatedby: string;
 }
 
+export interface StaffDocumentItem {
+    id: number;
+    staffId: number;
+    documentType: string;
+    fileName: string;
+    filePath: string;
+    uploadDate: string;
+    isdelete: boolean;
+    createddate: string;
+    createdby: string;
+    updateddate: string;
+    updatedby: string;
+}
+
+export interface StaffAircraftLicenseItem {
+    id: number;
+    staffId: number;
+    aircraftTypeId: number;
+    isdelete: boolean;
+    createddate: string;
+    createdby: string;
+    updateddate: string;
+    updatedby: string;
+}
+
+export interface StaffAmelLicenseItem {
+    id: number;
+    staffId: number;
+    licenseNumber: string;
+    categoryId: number;
+    issuedDate: string;
+    expiryDate: string;
+    limitations: string;
+    aircraftRatings: string;
+    attachmentFilePath: string;
+    attachmentFileName: string;
+    isdelete: boolean;
+    createddate: string;
+    createdby: string;
+    updateddate: string;
+    updatedby: string;
+}
+
 export interface StaffByIdData {
     id: number;
     code: string;
@@ -259,6 +340,9 @@ export interface StaffByIdData {
     isActive: boolean;
     educations: StaffEducation[] | null;
     workExperiences: StaffWorkExperience[] | null;
+    staffDocumentList: StaffDocumentItem[];
+    staffAircraftLicenseList: StaffAircraftLicenseItem[];
+    staffAmelLicenseList: StaffAmelLicenseItem[];
     createddate: string;
     createdby: string;
     updateddate: string;

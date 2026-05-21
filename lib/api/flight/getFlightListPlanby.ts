@@ -1,6 +1,8 @@
 // '@/lib/api/flight/getFlightListPlanby.ts'
 import axios from "@/lib/axios.config";
 import { GetFlightListParams } from "./getFlightList";
+import dayjs from "dayjs";
+import "@/lib/dayjs";
 
 export type FlightPlanbyItem = {
     channelUuid: string;
@@ -52,7 +54,14 @@ const getFlightListPlanby = async (params: GetFlightListParams): Promise<GetFlig
         ? `${process.env.NEXT_PUBLIC_DEVELOPMENT_API}/flight/listdata-planby`
         : `${process.env.NEXT_PUBLIC_PRODUCTION_API}/flight/listdata-planby`;
 
-    const res = await axios.post(apiUrl, params, {
+    // Convert Local date range to UTC date-time before sending to API
+    const utcParams = {
+        ...params,
+        dateStart: dayjs(params.dateStart).startOf('day').utc().format('YYYY-MM-DD HH:mm:ss'),
+        dateEnd: dayjs(params.dateEnd).endOf('day').utc().format('YYYY-MM-DD HH:mm:ss'),
+    };
+
+    const res = await axios.post(apiUrl, utcParams, {
         headers: { 'Content-Type': 'application/json' },
     });
     return res.data as GetFlightListPlanbyResponse;

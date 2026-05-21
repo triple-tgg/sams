@@ -249,6 +249,7 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                 departureFlightNo: flightInfo.departureFlightNo || '',
                 departureStdDate: timeEditField === 'std' ? utcString : (flightInfo.departureStdDate || ''),
                 departureAtdDate: flightInfo.departureAtdDate || '',
+                etaDate: timeEditField === 'eta' ? utcString : (flightInfo.etaDate && flightInfo.etaTime ? `${flightInfo.etaDate} ${flightInfo.etaTime}` : null),
                 bayNo: flightInfo.bayNo || '',
                 statusCode: flightInfo.statusObj?.code || 'Normal',
                 note: flightInfo.note || '',
@@ -260,9 +261,7 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                 maintenanceStatusId: timeEditFlight.maintenanceStatusObj?.id,
             };
 
-            // If editing ETA, we may need to handle it differently - for now pass as etaDate/etaTime
-            // But since updateFlight doesn't have etaDate/etaTime, we use arrivalStaDate pattern
-            // TODO: Confirm ETA field mapping with backend
+            // ETA is now mapped and passed as etaDate (UTC combined string) to support inline ETA updates.
 
             updateFlightMutation(updateBody, {
                 onSuccess: () => {
@@ -576,11 +575,11 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                                     onClick={() => handleTimeEditCellClick(flight, 'eta')}
                                 >
                                     {(() => {
-                                        const hasEta = flight.etaDate && flight.etaTime && dayjs(`${flight.etaDate} ${flight.etaTime}`).isValid();
+                                        const local = flight.etaDate && flight.etaTime ? utcToLocalDayjs(`${flight.etaDate} ${flight.etaTime}`) : null;
                                         return (
-                                            <Tooltip content={hasEta ? `${dayjs(`${flight.etaDate} ${flight.etaTime}`).format('DD-MMM-YYYY, HH:mm')} — Click to edit` : 'Click to set ETA'}>
+                                            <Tooltip content={local ? `${local.format('DD-MMM-YYYY, HH:mm')} — Click to edit` : 'Click to set ETA'}>
                                                 <div className="flex items-center gap-1">
-                                                    <span>{hasEta ? dayjs(`${flight.etaDate} ${flight.etaTime}`).format('HH:mm') : '-'}</span>
+                                                    <span>{local ? local.format('HH:mm') : '-'}</span>
                                                     <Edit className="w-3 h-3 text-slate-400 opacity-0 group-hover/eta:opacity-100 transition-opacity" />
                                                 </div>
                                             </Tooltip>

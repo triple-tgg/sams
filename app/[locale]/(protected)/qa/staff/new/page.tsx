@@ -357,6 +357,16 @@ export default function NewStaffPage() {
         const file = e.target.files?.[0]
         if (!file) return
 
+        // Validate file type: images + pdf + doc/docx
+        const allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx']
+        const extension = (file.name.split('.').pop() || '').toLowerCase()
+        if (!allowedExtensions.includes(extension)) {
+            toast.error('Unsupported file type. Please upload an image (JPG, PNG) or document (PDF, DOC, DOCX)')
+            const ref = docInputRefs.current[docKey]
+            if (ref) ref.value = ''
+            return
+        }
+
         setDocuments(prev => prev.map(d => d.key === docKey ? { ...d, file, fileName: file.name, uploading: true } : d))
 
         const reader = new FileReader()
@@ -417,7 +427,7 @@ export default function NewStaffPage() {
 
         return {
             staffId: 0, // new staff
-            title: form.titleName.replace('.', ''), // "Mr." → "Mr"
+            title: form.titleName,
             fullNameTh: form.name,
             fullNameEn: form.nameEn,
             dateOfBirth: form.dob || '',
@@ -449,6 +459,31 @@ export default function NewStaffPage() {
                 periodTo: exp.periodTo || '',
                 description: exp.description || '',
             })),
+            staffDocumentList: documents
+                .filter(d => d.filePath)
+                .map((d, idx) => ({
+                    id: idx,
+                    documentType: d.key,
+                    fileName: d.fileName,
+                    filePath: d.filePath,
+                })),
+            staffAircraftLicenseList: selectedLicenses.map((license, idx) => ({
+                id: idx,
+                aircraftTypeId: AIRCRAFT_TYPE_LICENSES.indexOf(license) + 1,
+            })),
+            staffAmelLicenseList: amelLicense.licenseNumber
+                ? [{
+                    id: 0,
+                    licenseNumber: amelLicense.licenseNumber,
+                    categoryId: AMEL_LICENSE_CATEGORIES.findIndex(c => c.code === amelLicense.selectedCategories[0]) + 1 || 0,
+                    issuedDate: amelLicense.issuedDate || '',
+                    expiryDate: amelLicense.expiryDate || '',
+                    limitations: amelLicense.limitations || '',
+                    aircraftRatings: amelLicense.aircraftRatings.join(','),
+                    attachmentFilePath: amelLicense.attachmentFilePath || '',
+                    attachmentFileName: amelLicense.attachmentFileName || '',
+                }]
+                : [],
             userName: 'system',
         }
     }

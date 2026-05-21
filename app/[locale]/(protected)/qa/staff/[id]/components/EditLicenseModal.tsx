@@ -5,8 +5,8 @@ import { X, Award, Plus, Upload, FileText } from 'lucide-react'
 import { StaffData, StaffLicense } from '../types'
 
 interface LicenseFormData {
-    number: string
-    category: string
+    licenseNumber: string
+    categoryId: string
     issuedDate: string
     expiryDate: string
     limitations: string
@@ -16,27 +16,25 @@ interface LicenseFormData {
 interface EditLicenseModalProps {
     isOpen: boolean
     onClose: () => void
-    staff: StaffData
-    onSave: (data: StaffLicense) => void
+    initialLicense: any // Maps to apiData.staffAmelLicenseList[0]
+    onSave: (data: any) => void
 }
 
 
 
 const CATEGORY_OPTIONS = [
-    'B1.1 (Line & Base Maintenance)',
-    'B1.2',
-    'B1.3',
-    'B1.4',
-    'B2 (Avionics)',
-    'B3',
-    'C',
-    'Other',
+    { id: 1, label: 'B1.1 — Aeroplane Turbine' },
+    { id: 2, label: 'B1.2 — Aeroplane Piston' },
+    { id: 3, label: 'B1.3 — Helicopter Turbine' },
+    { id: 4, label: 'B1.4 — Helicopter Piston' },
+    { id: 5, label: 'B2 — Avionics' },
+    { id: 6, label: 'C — Base Maintenance' },
 ]
 
 function emptyForm(): LicenseFormData {
     return {
-        number: '',
-        category: '',
+        licenseNumber: '',
+        categoryId: '',
         issuedDate: '',
         expiryDate: '',
         limitations: '',
@@ -44,43 +42,38 @@ function emptyForm(): LicenseFormData {
     }
 }
 
-function fromLicense(license: StaffLicense): LicenseFormData {
+function fromLicense(license: any): LicenseFormData {
     return {
-        number: license.number,
-        category: license.category,
-        issuedDate: license.issuedDate,
-        expiryDate: license.expiryDate,
-        limitations: license.limitations || '',
-        aircraftRatings: license.aircraftRatings || [],
+        licenseNumber: license?.licenseNumber || '',
+        categoryId: license?.categoryId ? String(license.categoryId) : '',
+        issuedDate: license?.issuedDate || '',
+        expiryDate: license?.expiryDate || '',
+        limitations: license?.limitations || '',
+        aircraftRatings: license?.aircraftRatings ? license.aircraftRatings.split(',').map((r: string) => r.trim()).filter(Boolean) : [],
     }
 }
 
-function toLicense(form: LicenseFormData): StaffLicense {
+function toLicense(form: LicenseFormData): any {
     return {
-        number: form.number,
-        category: form.category,
+        licenseNumber: form.licenseNumber,
+        categoryId: form.categoryId ? Number(form.categoryId) : 0,
         issuedDate: form.issuedDate,
         expiryDate: form.expiryDate,
-        status: '',
-        limitations: form.limitations || undefined,
-        aircraftRatings: form.aircraftRatings.length > 0 ? form.aircraftRatings : undefined,
+        limitations: form.limitations || '',
+        aircraftRatings: form.aircraftRatings.join(','),
     }
 }
 
-export function EditLicenseModal({ isOpen, onClose, staff, onSave }: EditLicenseModalProps) {
+export function EditLicenseModal({ isOpen, onClose, initialLicense, onSave }: EditLicenseModalProps) {
     const [form, setForm] = useState<LicenseFormData>(emptyForm())
     const [newRating, setNewRating] = useState('')
-    const [files, setFiles] = useState<File[]>([])
-    const [isDragging, setIsDragging] = useState(false)
-    const fileInputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
         if (isOpen) {
-            setForm(staff.license ? fromLicense(staff.license) : emptyForm())
+            setForm(initialLicense ? fromLicense(initialLicense) : emptyForm())
             setNewRating('')
-            setFiles([])
         }
-    }, [isOpen, staff])
+    }, [isOpen, initialLicense])
 
     const updateField = (field: keyof LicenseFormData, value: any) => {
         setForm(prev => ({ ...prev, [field]: value }))
@@ -153,8 +146,8 @@ export function EditLicenseModal({ isOpen, onClose, staff, onSave }: EditLicense
                             <label className={labelClass}>License Number</label>
                             <input
                                 type="text"
-                                value={form.number}
-                                onChange={e => updateField('number', e.target.value)}
+                                value={form.licenseNumber}
+                                onChange={e => updateField('licenseNumber', e.target.value)}
                                 placeholder="e.g. TCAR-66.B1.1-XXXX"
                                 className={`${inputClass}`}
                             />
@@ -164,13 +157,13 @@ export function EditLicenseModal({ isOpen, onClose, staff, onSave }: EditLicense
                         <div className="flex flex-col gap-1.5">
                             <label className={labelClass}>Category</label>
                             <select
-                                value={form.category}
-                                onChange={e => updateField('category', e.target.value)}
+                                value={form.categoryId}
+                                onChange={e => updateField('categoryId', e.target.value)}
                                 className={inputClass}
                             >
                                 <option value="">Select Category</option>
                                 {CATEGORY_OPTIONS.map(c => (
-                                    <option key={c} value={c}>{c}</option>
+                                    <option key={c.id} value={c.id}>{c.label}</option>
                                 ))}
                             </select>
                         </div>
@@ -250,75 +243,7 @@ export function EditLicenseModal({ isOpen, onClose, staff, onSave }: EditLicense
                             )}
                         </div>
 
-                        {/* File Upload */}
-                        <div className="flex flex-col gap-1.5">
-                            <label className={labelClass}>Attachments</label>
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                multiple
-                                accept=".pdf,.jpg,.jpeg,.png"
-                                className="hidden"
-                                onChange={(e) => {
-                                    if (e.target.files) {
-                                        setFiles(prev => [...prev, ...Array.from(e.target.files!)])
-                                    }
-                                    e.target.value = ''
-                                }}
-                            />
-                            <div
-                                className={`
-                                    border-2 border-dashed rounded-xl p-5
-                                    flex flex-col items-center justify-center gap-2
-                                    cursor-pointer transition-all duration-200
-                                    ${isDragging
-                                        ? 'border-blue-400 bg-blue-50/50'
-                                        : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50/30'
-                                    }
-                                `}
-                                onClick={() => fileInputRef.current?.click()}
-                                onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
-                                onDragLeave={() => setIsDragging(false)}
-                                onDrop={(e) => {
-                                    e.preventDefault()
-                                    setIsDragging(false)
-                                    if (e.dataTransfer.files) {
-                                        setFiles(prev => [...prev, ...Array.from(e.dataTransfer.files)])
-                                    }
-                                }}
-                            >
-                                <Upload className="h-5 w-5 text-slate-400" />
-                                <span className="text-sm font-medium text-slate-500">
-                                    Click or drag files here
-                                </span>
-                                <span className="text-xs text-slate-400">
-                                    PDF, JPG, PNG
-                                </span>
-                            </div>
-                            {files.length > 0 && (
-                                <div className="space-y-1.5 mt-2">
-                                    {files.map((file, i) => (
-                                        <div
-                                            key={i}
-                                            className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200"
-                                        >
-                                            <FileText className="h-4 w-4 text-blue-500 shrink-0" />
-                                            <span className="text-sm text-slate-700 truncate flex-1">{file.name}</span>
-                                            <span className="text-xs text-slate-400 shrink-0">
-                                                {(file.size / 1024).toFixed(0)} KB
-                                            </span>
-                                            <button
-                                                type="button"
-                                                onClick={() => setFiles(prev => prev.filter((_, idx) => idx !== i))}
-                                                className="text-slate-400 hover:text-red-500 cursor-pointer bg-transparent border-none transition-colors"
-                                            >
-                                                <X className="h-3.5 w-3.5" />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                        {/* Attachments section removed per user request */}
                     </div>
 
                     {/* Footer */}

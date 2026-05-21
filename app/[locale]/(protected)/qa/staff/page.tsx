@@ -111,15 +111,18 @@ export default function HRStaffListPage() {
             name: debouncedSearch,
             employeeId: '',
             positionId: Number(filterPosition),
-            departmentId: Number(filterDepartment) > 0 ? Number(filterDepartment) : undefined,
-            isActive: filterStatus === "all" ? undefined : filterStatus === "active",
+            departmentId: Number(filterDepartment),
+            staffstypeId: 0,
             page,
             perPage,
         },
         true
     )
 
-    const staffList = data?.responseData ?? []
+    const rawStaffList = data?.responseData ?? []
+    const staffList = filterStatus === 'all'
+        ? rawStaffList
+        : rawStaffList.filter((s) => filterStatus === 'active' ? s.isActive : !s.isActive)
     const totalAll = data?.totalAll ?? 0
     const totalPages = Math.ceil(totalAll / perPage)
 
@@ -147,15 +150,6 @@ export default function HRStaffListPage() {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => refetch()}
-                            disabled={isFetching}
-                        >
-                            <RefreshCw className={`h-4 w-4 mr-1.5 ${isFetching ? 'animate-spin' : ''}`} />
-                            Refresh
-                        </Button>
                         <Button
                             size="sm"
                             variant="outline"
@@ -222,6 +216,26 @@ export default function HRStaffListPage() {
                                     <SelectItem value="inactive">Inactive</SelectItem>
                                 </SelectContent>
                             </Select>
+
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                    setSearchQuery('')
+                                    setDebouncedSearch('')
+                                    setFilterPosition('0')
+                                    setFilterDepartment('0')
+                                    setFilterStatus('all')
+                                    setPage(1)
+                                    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+                                    setTimeout(() => refetch(), 0)
+                                }}
+                                disabled={isFetching}
+                                className="h-9"
+                            >
+                                <RefreshCw className={`h-4 w-4 mr-1.5 ${isFetching ? 'animate-spin' : ''}`} />
+                                Refresh
+                            </Button>
                         </div>
                     </div>
 

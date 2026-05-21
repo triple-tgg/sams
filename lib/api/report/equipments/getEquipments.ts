@@ -1,4 +1,6 @@
 import axiosInstance from '@/lib/axios.config';
+import dayjs from "dayjs";
+import "@/lib/dayjs";
 
 // Types for Equipment Report API
 export interface EquipmentReportItem {
@@ -39,9 +41,15 @@ export const getEquipmentReport = async (
       throw new Error('Date range is required');
     }
 
+    const utcParams = {
+      ...request,
+      dateStart: request.dateStart ? dayjs(request.dateStart).startOf('day').utc().format('YYYY-MM-DD HH:mm:ss') : request.dateStart,
+      dateEnd: request.dateEnd ? dayjs(request.dateEnd).endOf('day').utc().format('YYYY-MM-DD HH:mm:ss') : request.dateEnd,
+    };
+
     const response = await axiosInstance.post<EquipmentReportResponse>(
       '/report/equipments',
-      request,
+      utcParams,
       {
         headers: {
           'Content-Type': 'application/json',
@@ -65,9 +73,15 @@ export const downloadEquipmentReport = async (
   request: EquipmentReportRequest
 ): Promise<Blob> => {
   try {
+    const utcParams = {
+      ...request,
+      dateStart: request.dateStart ? dayjs(request.dateStart).startOf('day').utc().format('YYYY-MM-DD HH:mm:ss') : request.dateStart,
+      dateEnd: request.dateEnd ? dayjs(request.dateEnd).endOf('day').utc().format('YYYY-MM-DD HH:mm:ss') : request.dateEnd,
+    };
+
     const response = await axiosInstance.post(
       '/report/equipments/download',
-      request,
+      utcParams,
       {
         responseType: 'blob',
         headers: {

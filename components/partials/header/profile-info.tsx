@@ -177,15 +177,13 @@ const ProfileInfo = () => {
           </DropdownMenuGroup> */}
           <DropdownMenuSeparator className="mb-0 dark:bg-background" />
           <DropdownMenuItem
-
+            onClick={handleLogout}
             className="flex items-center gap-2 text-sm font-medium text-default-600 capitalize my-1 px-3 cursor-pointer"
           >
 
-            <div>
-              <button type="submit" className=" w-full  flex  items-center gap-2" onClick={handleLogout}>
-                <Icon icon="heroicons:power" className="w-4 h-4" />
-                Log out
-              </button>
+            <div className="w-full flex items-center gap-2">
+              <Icon icon="heroicons:power" className="w-4 h-4" />
+              Log out
             </div>
           </DropdownMenuItem>
         </DropdownMenuContent>
