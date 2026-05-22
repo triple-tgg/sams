@@ -41,6 +41,27 @@ export function ExperienceTab({ staff, apiData }: { staff: StaffData, apiData?: 
             profileImagePath: apiData.profileImagePath || '',
             educations: (apiData.educations || []) as UpsertEducation[],
             workExperiences: (apiData.workExperiences || []) as UpsertWorkExperience[],
+            staffDocumentList: (apiData.staffDocumentList || []).filter(d => !d.isdelete).map(d => ({
+                id: d.id,
+                documentType: d.documentType,
+                fileName: d.fileName,
+                filePath: d.filePath,
+            })),
+            staffAircraftLicenseList: (apiData.staffAircraftLicenseList || []).filter(l => !l.isdelete).map(l => ({
+                id: l.id,
+                aircraftTypeId: l.aircraftTypeId,
+            })),
+            staffAmelLicenseList: (apiData.staffAmelLicenseList || []).filter(l => !l.isdelete).map(l => ({
+                id: l.id,
+                licenseNumber: l.licenseNumber,
+                categoryId: l.categoryId,
+                issuedDate: l.issuedDate,
+                expiryDate: l.expiryDate,
+                limitations: l.limitations,
+                aircraftRatings: l.aircraftRatings,
+                attachmentFilePath: l.attachmentFilePath,
+                attachmentFileName: l.attachmentFileName,
+            })),
             userName: "system",
             ...overrideFields,
         }
