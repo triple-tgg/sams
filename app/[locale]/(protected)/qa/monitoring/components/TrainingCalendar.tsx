@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, Filter, Search, ArrowUp, ArrowDown, ArrowUpDown, Check, ChevronsUpDown } from 'lucide-react'
-import { EMPLOYEES, ALL_COURSES } from '../data'
+import { ALL_COURSES } from '../data'
 import {
     Dialog,
     DialogContent,
@@ -26,6 +26,8 @@ import {
     CommandList,
 } from '@/components/ui/command'
 import { cn } from '@/lib/utils'
+import { useQuery } from '@tanstack/react-query'
+import { getDashboardCalendar, CalendarStaffList } from '@/lib/api/qa/dashboardSummary'
 
 // ─── CourseCombobox ──────────────────────────────────────────────────────────
 
@@ -34,9 +36,9 @@ function CourseCombobox({
     value,
     onChange,
 }: {
-    courses: { value: string; label: string }[]
-    value: string
-    onChange: (v: string) => void
+    courses: { value: string | number; label: string }[]
+    value: string | number
+    onChange: (v: string | number) => void
 }) {
     const [open, setOpen] = useState(false)
     const selected = courses.find(c => c.value === value)
@@ -61,7 +63,7 @@ function CourseCombobox({
                         <CommandGroup>
                             {courses.map(c => (
                                 <CommandItem
-                                    key={c.value}
+                                    key={String(c.value)}
                                     value={c.label}
                                     onSelect={() => {
                                         onChange(c.value)
@@ -83,23 +85,6 @@ function CourseCombobox({
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-interface StaffItem {
-    course: string
-    exp: Date
-    lastTraining: Date
-}
-
-interface StaffEntry {
-    id: number
-    name: string
-    role: string
-    items: StaffItem[]
-}
-
-interface MatchedEntry extends StaffEntry {
-    matchedItems: StaffItem[]
-}
-
 type CalendarStatus = 'exp' | 'crit' | 'warn' | 'ok'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -116,49 +101,30 @@ const STATUS_COLORS: Record<CalendarStatus, string> = {
 
 const STATUS_ORDER: Record<CalendarStatus, number> = { exp: 0, crit: 1, warn: 2, ok: 3 }
 
-// ─── Build STAFF data from existing EMPLOYEES & ALL_COURSES ──────────────────
-
-function buildStaffData(): StaffEntry[] {
-    return EMPLOYEES.map((emp, idx) => {
-        const items: StaffItem[] = []
-        ALL_COURSES.forEach(c => {
-            const dateStr = emp.courses[c.id]
-            if (!dateStr || dateStr === '-' || dateStr === 'na') return
-            const expDate = new Date(dateStr)
-            if (!isNaN(expDate.getTime())) {
-                const lastTraining = new Date(expDate)
-                lastTraining.setMonth(lastTraining.getMonth() - c.interval)
-                items.push({ course: c.label, exp: expDate, lastTraining })
-            }
-        })
-        return { id: idx + 1, name: emp.name, role: emp.pos, items }
-    })
-}
-
 const ALL_FILTER_COURSES = [
-    { value: 'all', label: 'All' },
-    ...ALL_COURSES.map(c => ({ value: c.label, label: c.label })),
+    { value: 0, label: 'All' },
+    ...ALL_COURSES.map(c => ({ value: c.id, label: c.label })),
 ]
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function getCalendarStatus(expDate: Date, today: Date): CalendarStatus {
-    const diff = Math.floor((expDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-    if (diff < 0) return 'exp'
-    if (diff < 30) return 'crit'
-    if (diff < 90) return 'warn'
-    return 'ok'
+function parseDateStr(ds: string) {
+    if (!ds || ds === '-' || ds === 'na') return null
+    const d = new Date(ds)
+    return isNaN(d.getTime()) ? null : d
 }
 
-function fmtDate(d: Date): string {
+function fmtDate(d: Date | null): string {
+    if (!d) return '-'
     return `${d.getDate()} ${MONTH_TH[d.getMonth()]} ${d.getFullYear()}`
 }
 
-function getMinStatus(items: StaffItem[], today: Date): CalendarStatus {
-    return items.reduce<CalendarStatus>((best, it) => {
-        const st = getCalendarStatus(it.exp, today)
-        return STATUS_ORDER[st] < STATUS_ORDER[best] ? st : best
-    }, 'ok')
+function mapStatus(apiStatus: string): CalendarStatus {
+    const s = apiStatus.toLowerCase()
+    if (s === 'expired') return 'exp'
+    if (s === 'critical') return 'crit'
+    if (s === 'warning') return 'warn'
+    return 'ok'
 }
 
 // ─── BarStack ────────────────────────────────────────────────────────────────
@@ -189,19 +155,17 @@ function BarStack({ counts }: { counts: { exp: number; crit: number; warn: numbe
 // ─── DetailModal ─────────────────────────────────────────────────────────────
 
 function DetailModal({
-    open, month, year, entries, today, onClose,
+    open, month, year, staffList, onClose,
 }: {
     open: boolean
     month: number | null
     year: number
-    entries: MatchedEntry[]
-    today: Date
+    staffList: CalendarStaffList[]
     onClose: () => void
 }) {
     const [sortCol, setSortCol] = useState<string>('diff')
     const [sortDesc, setSortDesc] = useState<boolean>(false)
     const [filterName, setFilterName] = useState('')
-    const [filterRole, setFilterRole] = useState('all')
     const [filterCourse, setFilterCourse] = useState('all')
     const [filterStatus, setFilterStatus] = useState('all')
 
@@ -211,38 +175,31 @@ function DetailModal({
     const pillClass: Record<CalendarStatus, string> = { exp: 'bg-[#FCEBEB] text-[#A32D2D]', crit: 'bg-[#FAEEDA] text-[#854F0B]', warn: 'bg-[#FAC775] text-[#633806]', ok: 'bg-[#EAF3DE] text-[#3B6D11]' }
     const dateClass: Record<CalendarStatus, string> = { exp: 'text-[#A32D2D]', crit: 'text-[#854F0B]', warn: 'text-[#633806]', ok: 'text-[#3B6D11]' }
 
-    // Flatten: one row per course item
-    let tableRows = entries.flatMap(e =>
-        e.matchedItems.map(it => {
-            const st = getCalendarStatus(it.exp, today)
-            const diff = Math.floor((it.exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-            return { e, it, st, diff }
-        })
-    )
+    let tableRows = staffList.map(s => ({
+        ...s,
+        st: mapStatus(s.status),
+        parsedExp: parseDateStr(s.expiryDate)
+    }))
 
-    // Unique options for selects
-    const uniqueRoles = [...new Set(tableRows.map(r => r.e.role))].sort()
-    const uniqueCourses = [...new Set(tableRows.map(r => r.it.course))].sort()
+    // Unique options
+    const uniqueCourses = [...new Set(tableRows.map(r => r.courseCode))].sort()
     const uniqueStatuses = [...new Set(tableRows.map(r => r.st))].sort((a, b) => STATUS_ORDER[a] - STATUS_ORDER[b])
 
     // Filter
     if (filterName.trim()) {
         const q = filterName.toLowerCase()
-        tableRows = tableRows.filter(row => row.e.name.toLowerCase().includes(q))
+        tableRows = tableRows.filter(row => row.staffName.toLowerCase().includes(q))
     }
-    if (filterRole !== 'all') tableRows = tableRows.filter(row => row.e.role === filterRole)
-    if (filterCourse !== 'all') tableRows = tableRows.filter(row => row.it.course === filterCourse)
+    if (filterCourse !== 'all') tableRows = tableRows.filter(row => row.courseCode === filterCourse)
     if (filterStatus !== 'all') tableRows = tableRows.filter(row => row.st === filterStatus)
 
     // Sort
     tableRows.sort((a, b) => {
         let cmp = 0
-        if (sortCol === 'name') cmp = a.e.name.localeCompare(b.e.name)
-        else if (sortCol === 'role') cmp = a.e.role.localeCompare(b.e.role)
-        else if (sortCol === 'course') cmp = a.it.course.localeCompare(b.it.course)
-        else if (sortCol === 'lastTraining') cmp = a.it.lastTraining.getTime() - b.it.lastTraining.getTime()
-        else if (sortCol === 'exp') cmp = a.it.exp.getTime() - b.it.exp.getTime()
-        else if (sortCol === 'diff') cmp = a.diff - b.diff
+        if (sortCol === 'name') cmp = a.staffName.localeCompare(b.staffName)
+        else if (sortCol === 'course') cmp = a.courseCode.localeCompare(b.courseCode)
+        else if (sortCol === 'exp') cmp = (a.parsedExp?.getTime() || 0) - (b.parsedExp?.getTime() || 0)
+        else if (sortCol === 'diff') cmp = a.daysLeft - b.daysLeft
         else if (sortCol === 'st') cmp = STATUS_ORDER[a.st] - STATUS_ORDER[b.st]
 
         return sortDesc ? -cmp : cmp
@@ -258,9 +215,7 @@ function DetailModal({
 
     const HEADERS = [
         { id: 'name', label: 'Name' },
-        { id: 'role', label: 'Role' },
         { id: 'course', label: 'Course' },
-        { id: 'lastTraining', label: 'Last Training' },
         { id: 'exp', label: 'Expiry Date' },
         { id: 'diff', label: 'Remaining' },
         { id: 'st', label: 'Status' }
@@ -268,7 +223,7 @@ function DetailModal({
 
     return (
         <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
-            <DialogContent size="md" className="max-h-[85vh] sm:max-w-[1000px] overflow-hidden flex flex-col p-0">
+            <DialogContent size="md" className="max-h-[85vh] sm:max-w-[800px] overflow-hidden flex flex-col p-0">
                 <DialogHeader className="px-6 pt-5 pb-4 border-b border-border">
                     <div className="flex flex-col gap-3">
                         <DialogTitle className="text-base font-semibold flex items-center">
@@ -277,8 +232,8 @@ function DetailModal({
                                 {tableRows.length} Record(s)
                             </span>
                         </DialogTitle>
-                        <div className="grid grid-cols-4 gap-2">
-                            {/* Name: search select */}
+                        <div className="grid grid-cols-3 gap-2">
+                            {/* Name */}
                             <div className="relative">
                                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
                                 <input
@@ -289,19 +244,7 @@ function DetailModal({
                                     onChange={e => setFilterName(e.target.value)}
                                 />
                             </div>
-                            {/* Role: select */}
-                            <Select value={filterRole} onValueChange={setFilterRole}>
-                                <SelectTrigger className="h-8 text-xs rounded-md">
-                                    <SelectValue placeholder="All Roles" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all" className="text-xs">All Roles</SelectItem>
-                                    {uniqueRoles.map(r => (
-                                        <SelectItem key={r} value={r} className="text-xs">{r}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {/* Course: select */}
+                            {/* Course */}
                             <Select value={filterCourse} onValueChange={setFilterCourse}>
                                 <SelectTrigger className="h-8 text-xs rounded-md">
                                     <SelectValue placeholder="All Courses" />
@@ -313,7 +256,7 @@ function DetailModal({
                                     ))}
                                 </SelectContent>
                             </Select>
-                            {/* Status: select */}
+                            {/* Status */}
                             <Select value={filterStatus} onValueChange={setFilterStatus}>
                                 <SelectTrigger className="h-8 text-xs rounded-md">
                                     <SelectValue placeholder="All Status" />
@@ -359,26 +302,24 @@ function DetailModal({
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {tableRows.map(({ e, it, st, diff }, rowIdx) => (
+                                    {tableRows.map((r, rowIdx) => (
                                         <tr
-                                            key={`${rowIdx}-${e.name}-${it.course}`}
+                                            key={`${rowIdx}-${r.staffId}-${r.courseCode}`}
                                             className="border-b border-border/50 hover:bg-muted/40 transition-colors"
                                         >
                                             <td className="py-2.5 px-3 text-muted-foreground">{rowIdx + 1}</td>
-                                            <td className="py-2.5 px-3 font-medium text-foreground whitespace-nowrap">{e.name}</td>
-                                            <td className="py-2.5 px-3 text-muted-foreground whitespace-nowrap">{e.role}</td>
-                                            <td className="py-2.5 px-3 font-medium text-foreground">{it.course}</td>
-                                            <td className="py-2.5 px-3 font-medium whitespace-nowrap text-muted-foreground">{fmtDate(it.lastTraining)}</td>
-                                            <td className={`py-2.5 px-3 font-medium whitespace-nowrap ${dateClass[st]}`}>{fmtDate(it.exp)}</td>
-                                            <td className={`py-2.5 px-3 whitespace-nowrap ${diff < 0 ? 'text-[#A32D2D]'
-                                                : diff < 30 ? 'text-[#854F0B]'
-                                                    : diff < 90 ? 'text-[#633806]'
+                                            <td className="py-2.5 px-3 font-medium text-foreground whitespace-nowrap">{r.staffName}</td>
+                                            <td className="py-2.5 px-3 font-medium text-foreground">{r.courseCode}</td>
+                                            <td className={`py-2.5 px-3 font-medium whitespace-nowrap ${dateClass[r.st]}`}>{fmtDate(r.parsedExp)}</td>
+                                            <td className={`py-2.5 px-3 whitespace-nowrap ${r.daysLeft < 0 ? 'text-[#A32D2D]'
+                                                : r.daysLeft < 30 ? 'text-[#854F0B]'
+                                                    : r.daysLeft < 90 ? 'text-[#633806]'
                                                         : 'text-[#3B6D11]'
                                                 }`}>
-                                                {diff < 0 ? `${Math.abs(diff)} days ago` : `${diff} days`}
+                                                {r.daysLeft < 0 ? `${Math.abs(r.daysLeft)} days ago` : `${r.daysLeft} days`}
                                             </td>
                                             <td className="py-2.5 px-3">
-                                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${pillClass[st]}`}>{stLabel[st]}</span>
+                                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${pillClass[r.st]}`}>{stLabel[r.st]}</span>
                                             </td>
                                         </tr>
                                     ))}
@@ -395,20 +336,19 @@ function DetailModal({
 // ─── MonthCard ───────────────────────────────────────────────────────────────
 
 function MonthCard({
-    month, entries, counts, isActive, isTodayMonth, onClick, today,
+    month, staffList, counts, isActive, isTodayMonth, onClick,
 }: {
     month: number
-    entries: MatchedEntry[]
+    staffList: CalendarStaffList[]
     counts: { exp: number; crit: number; warn: number; ok: number }
     isActive: boolean
     isTodayMonth: boolean
     onClick: () => void
-    today: Date
 }) {
     const hasExp = counts.exp > 0
-    const peopleCnt = entries.length
-    const preview = entries.slice(0, 3)
-    const more = entries.length - 3
+    const peopleCnt = staffList.length
+    const preview = staffList.slice(0, 3)
+    const more = staffList.length - 3
 
     return (
         <div
@@ -427,12 +367,12 @@ function MonthCard({
                     <div className="text-[11px] text-muted-foreground/50 py-1">No records</div>
                 ) : (
                     <>
-                        {preview.map(e => {
-                            const minSt = getMinStatus(e.matchedItems, today)
+                        {preview.map(s => {
+                            const minSt = mapStatus(s.status)
                             return (
-                                <div key={e.id} className="flex items-center gap-1.5 text-[11px] text-muted-foreground overflow-hidden">
+                                <div key={`${s.staffId}-${s.courseCode}`} className="flex items-center gap-1.5 text-[11px] text-muted-foreground overflow-hidden">
                                     <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: STATUS_COLORS[minSt] }} />
-                                    <span className="whitespace-nowrap overflow-hidden text-ellipsis flex-1">{e.name}</span>
+                                    <span className="whitespace-nowrap overflow-hidden text-ellipsis flex-1">{s.staffName}</span>
                                 </div>
                             )
                         })}
@@ -452,87 +392,74 @@ export function TrainingCalendar({
     children?: React.ReactNode
 }) {
     const today = useMemo(() => new Date(), [])
-    const STAFF = useMemo(() => buildStaffData(), [])
-
     const [selectedYear, setSelectedYear] = useState(today.getFullYear())
     const [selectedMonth, setSelectedMonth] = useState<number | null>(null)
-    const [activeFilter, setActiveFilter] = useState('all')
+    const [activeFilter, setActiveFilter] = useState<string | number>(0)
 
-    const filterItem = useCallback((item: StaffItem) => {
-        return activeFilter === 'all' || item.course === activeFilter
-    }, [activeFilter])
+    const { data: calendarResponse, isLoading } = useQuery({
+        queryKey: ['qa-dashboard-calendar', selectedYear, activeFilter],
+        queryFn: () => getDashboardCalendar({ year: selectedYear, courseId: activeFilter }),
+    })
 
-    const getMonthData = useCallback((month: number): MatchedEntry[] => {
-        const results: MatchedEntry[] = []
-        STAFF.forEach(s => {
-            const relevant = s.items.filter(it => {
-                const inYear = it.exp.getFullYear() === selectedYear
-                const inMonth = it.exp.getMonth() === month
-                const status = getCalendarStatus(it.exp, today)
-                return inYear && inMonth && filterItem(it) && status !== 'ok'
-            })
-            if (relevant.length > 0) results.push({ ...s, matchedItems: relevant })
-        })
-        return results
-    }, [STAFF, selectedYear, filterItem])
+    const calendarData = calendarResponse?.responseData
 
-    const countsByStatus = useCallback((entries: MatchedEntry[]) => {
-        let exp = 0, crit = 0, warn = 0, ok = 0
-        entries.forEach(e => {
-            e.matchedItems.forEach(it => {
-                const st = getCalendarStatus(it.exp, today)
+    // Summary totals
+    const totals = calendarData?.summary || { expiredCount: 0, criticalCount: 0, warningCount: 0 }
+
+    // All months (ensure 12 months are rendered)
+    const monthsData = useMemo(() => {
+        if (!calendarData) {
+            return Array.from({ length: 12 }, (_, m) => ({ month: m, staffList: [], counts: { exp: 0, crit: 0, warn: 0, ok: 0 } }))
+        }
+        
+        // Map API response to 0-11 indexed months
+        const monthMap = new Map()
+        calendarData.months.forEach(m => {
+            // API returns month 1-12.
+            let exp = 0, crit = 0, warn = 0, ok = 0
+            m.staffList.forEach(s => {
+                const st = mapStatus(s.status)
                 if (st === 'exp') exp++
                 else if (st === 'crit') crit++
                 else if (st === 'warn') warn++
                 else ok++
             })
-        })
-        return { exp, crit, warn, ok }
-    }, [today])
-
-    // Summary totals
-    const totals = useMemo(() => {
-        let totExp = 0, totCrit = 0, totWarn = 0, totOk = 0
-        for (let m = 0; m < 12; m++) {
-            const entries = getMonthData(m)
-            entries.forEach(e => {
-                e.matchedItems.forEach(it => {
-                    const st = getCalendarStatus(it.exp, today)
-                    if (st === 'exp') totExp++
-                    else if (st === 'crit') totCrit++
-                    else if (st === 'warn') totWarn++
-                    else totOk++
-                })
+            monthMap.set(m.month - 1, {
+                month: m.month - 1,
+                staffList: m.staffList,
+                counts: { exp, crit, warn, ok }
             })
-        }
-        return { exp: totExp, crit: totCrit, warn: totWarn, ok: totOk }
-    }, [getMonthData, today])
-
-    // All months
-    const monthsData = useMemo(() =>
-        Array.from({ length: 12 }, (_, m) => {
-            const entries = getMonthData(m)
-            const counts = countsByStatus(entries)
-            return { month: m, entries, counts }
         })
-        , [getMonthData, countsByStatus])
+
+        return Array.from({ length: 12 }, (_, m) => {
+            return monthMap.get(m) || { month: m, staffList: [], counts: { exp: 0, crit: 0, warn: 0, ok: 0 } }
+        })
+    }, [calendarData])
 
     // Modal entries
-    const modalEntries = useMemo(() =>
-        selectedMonth !== null ? getMonthData(selectedMonth) : []
-        , [selectedMonth, getMonthData])
+    const modalStaffList = useMemo(() => {
+        if (selectedMonth === null) return []
+        return monthsData[selectedMonth]?.staffList || []
+    }, [selectedMonth, monthsData])
 
     const handlePrevYear = () => { setSelectedYear(y => y - 1); setSelectedMonth(null) }
     const handleNextYear = () => { setSelectedYear(y => y + 1); setSelectedMonth(null) }
     const handleSelectMonth = (m: number) => { setSelectedMonth(m) }
     const handleCloseModal = () => { setSelectedMonth(null) }
-    const handleFilter = (v: string) => { setActiveFilter(v); setSelectedMonth(null) }
+    const handleFilter = (v: string | number) => { setActiveFilter(v); setSelectedMonth(null) }
 
     return (
-        <div className="py-2">
+        <div className="py-2 relative">
+
+            {/* Loading Overlay */}
+            {isLoading && (
+                <div className="absolute inset-0 bg-background/50 z-10 flex items-center justify-center backdrop-blur-[1px] rounded-xl">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+            )}
 
             {/* ── Top Toolbar (Year Nav) ──────────────────────────────── */}
-            <div className="flex items-center justify-end mb-4">
+            <div className="flex items-center justify-end mb-4 relative z-20">
                 <div className="flex items-center gap-2">
                     <button onClick={handlePrevYear} className="bg-transparent border border-[0.5px] border-border rounded-md px-2 py-1 cursor-pointer text-foreground flex items-center hover:bg-muted">
                         <ChevronLeft className="w-4 h-4" />
@@ -545,10 +472,10 @@ export function TrainingCalendar({
             </div>
 
             {/* ── Children (Charts Injected) ──────────────────────────── */}
-            {children && <div className="mb-6">{children}</div>}
+            {children && <div className="mb-6 relative z-20">{children}</div>}
 
             {/* ── Bottom Toolbar (Course Filter) ──────────────────────── */}
-            <div className="flex items-center mb-4">
+            <div className="flex items-center mb-4 relative z-20">
                 <div className="flex items-center gap-2">
                     <Filter className="w-4 h-4 text-muted-foreground" />
                     <CourseCombobox
@@ -562,9 +489,9 @@ export function TrainingCalendar({
             {/* ── Summary Row ─────────────────────────────────────────── */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-5">
                 {([
-                    { count: totals.exp, label: 'Expired', textColor: 'text-[#E24B4A]' },
-                    { count: totals.crit, label: 'Critical <30 Days', textColor: 'text-[#EF9F27]' },
-                    { count: totals.warn, label: 'Warning 30–90 Days', textColor: 'text-[#BA7517]' },
+                    { count: totals.expiredCount, label: 'Expired', textColor: 'text-[#E24B4A]' },
+                    { count: totals.criticalCount, label: 'Critical <30 Days', textColor: 'text-[#EF9F27]' },
+                    { count: totals.warningCount, label: 'Warning 30–90 Days', textColor: 'text-[#BA7517]' },
                 ] as const).map(s => (
                     <div key={s.label} className="bg-muted rounded-xl p-2.5 px-3.5 text-center border border-[0.5px] border-border">
                         <div className={`text-xl font-semibold leading-none ${s.textColor}`}>{s.count}</div>
@@ -575,16 +502,15 @@ export function TrainingCalendar({
 
             {/* ── Calendar Grid ────────────────────────────────────────── */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-                {monthsData.map(({ month, entries, counts }) => (
+                {monthsData.map(({ month, staffList, counts }) => (
                     <MonthCard
                         key={month}
                         month={month}
-                        entries={entries}
+                        staffList={staffList}
                         counts={counts}
                         isActive={selectedMonth === month}
                         isTodayMonth={today.getFullYear() === selectedYear && today.getMonth() === month}
                         onClick={() => handleSelectMonth(month)}
-                        today={today}
                     />
                 ))}
             </div>
@@ -608,8 +534,7 @@ export function TrainingCalendar({
                 open={selectedMonth !== null}
                 month={selectedMonth}
                 year={selectedYear}
-                entries={modalEntries}
-                today={today}
+                staffList={modalStaffList}
                 onClose={handleCloseModal}
             />
         </div>
