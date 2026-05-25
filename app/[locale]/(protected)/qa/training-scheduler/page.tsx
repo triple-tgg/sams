@@ -13,6 +13,8 @@ import { ListView } from './components/ListView'
 import { GanttView } from './components/GanttView'
 import { SessionDetail } from './components/SessionDetail'
 import { SessionFormModal } from './components/SessionFormModal'
+import { useQuery } from '@tanstack/react-query'
+import { getSchedulerDashboardCalendar, getSchedulerCalendar } from '@/lib/api/qa/scheduler'
 
 const VIEW_OPTIONS = [
     { id: 'calendar', label: 'Calendar', icon: Calendar },
@@ -38,23 +40,69 @@ export default function TrainingSchedulerPage() {
     const [editSession, setEditSession] = useState<Session | null>(null)
     const [form, setForm] = useState<SessionFormData>(BLANK_FORM)
 
+    // Calendar API
+    const isTimeline = view === 'gantt'
+    const reqMonth = isTimeline ? calMonth + 1 : null
+    const reqYear = isTimeline ? calYear : today.getFullYear()
+    
+    const { data: calendarResp } = useQuery({
+        queryKey: ['scheduler-calendar', reqMonth, reqYear],
+        queryFn: () => getSchedulerCalendar({ month: reqMonth, year: reqYear })
+    })
+
+    const apiSessions = useMemo<Session[]>(() => {
+        if (!calendarResp?.responseData) return []
+        return calendarResp.responseData.map(s => {
+            const startParts = s.startDate.split('T')
+            const endParts = s.endDate.split('T')
+            
+            return {
+                id: s.id,
+                courseId: s.courseId,
+                courseCode: s.courseCode,
+                courseName: s.courseName,
+                category: 'Core', // default fallback
+                type: 'Initial', // default fallback
+                dateStart: startParts[0],
+                dateEnd: endParts[0],
+                timeStart: startParts[1]?.substring(0, 5) || '09:00',
+                timeEnd: endParts[1]?.substring(0, 5) || '17:00',
+                instructor: s.instructorName,
+                venue: s.venueName,
+                status: s.statusName,
+                enrolled: s.enrolledCount,
+                maxParticipants: s.maxParticipants,
+                dept: s.targetDepartmentName
+            }
+        })
+    }, [calendarResp])
+
+    const activeSessions = calendarResp ? apiSessions : sessions
+
     // Filtered
-    const filtered = useMemo(() => sessions.filter(s => {
+    const filtered = useMemo(() => activeSessions.filter(s => {
         if (filterStatus !== 'All' && s.status !== filterStatus) return false
         if (filterDept !== 'All Departments' && s.dept !== filterDept && s.dept !== 'All Departments') return false
         if (filterCat !== 'All' && s.category !== filterCat) return false
         if (search && !s.courseName.toLowerCase().includes(search.toLowerCase()) && !s.courseCode.toLowerCase().includes(search.toLowerCase())) return false
         return true
-    }), [sessions, filterStatus, filterDept, filterCat, search])
+    }), [activeSessions, filterStatus, filterDept, filterCat, search])
+
+    // API Dashboard Stats
+    const { data: dashboardResponse } = useQuery({
+        queryKey: ['scheduler-dashboard-calendar', today.getFullYear()],
+        queryFn: () => getSchedulerDashboardCalendar({ month: null, year: today.getFullYear() })
+    })
+    const apiStats = dashboardResponse?.responseData
 
     // Stats
     const stats = useMemo(() => ({
-        total: sessions.length,
-        scheduled: sessions.filter(s => s.status === 'Scheduled').length,
-        completed: sessions.filter(s => s.status === 'Completed').length,
-        full: sessions.filter(s => s.status === 'Full').length,
-        upcoming: sessions.filter(s => s.dateStart >= toYMD(today) && s.status === 'Scheduled').length,
-    }), [sessions, today])
+        total: apiStats?.totalSessions ?? activeSessions.length,
+        scheduled: apiStats?.scheduled ?? activeSessions.filter(s => s.status === 'Scheduled').length,
+        completed: apiStats?.completed ?? activeSessions.filter(s => s.status === 'Completed').length,
+        full: apiStats?.full ?? activeSessions.filter(s => s.status === 'Full').length,
+        upcoming: apiStats?.upcoming ?? activeSessions.filter(s => s.dateStart >= toYMD(today) && s.status === 'Scheduled').length,
+    }), [apiStats, activeSessions, today])
 
     // Handlers
     function openAdd() { setEditSession(null); setForm(BLANK_FORM); setShowForm(true) }
@@ -165,7 +213,7 @@ export default function TrainingSchedulerPage() {
                                     <CalendarView
                                         calYear={calYear} calMonth={calMonth}
                                         prevMonth={prevMonth} nextMonth={nextMonth}
-                                        sessions={sessions}
+                                        sessions={activeSessions}
                                         today={today}
                                         onSelect={setSelectedSession}
                                         selectedSession={selectedSession}

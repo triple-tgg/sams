@@ -141,9 +141,9 @@ export default function MonitoringPage() {
             else if (c.courseCode.startsWith('SP-')) group = 'SP-*'
             else if (c.courseCode.startsWith('CM-')) group = 'CM-*'
             else if (['SMS-', 'DG-', 'CP-', 'HF-'].some(p => c.courseCode.startsWith(p))) group = 'Core'
-            
+
             const notTaken = Math.max(0, stats.total - (c.validCount + c.warningCount + c.expiredCount))
-            
+
             if (!groups[group]) groups[group] = { valid: 0, warning: 0, expired: 0, notTaken: 0 }
             groups[group].valid += c.validCount
             groups[group].warning += c.warningCount
@@ -314,8 +314,6 @@ export default function MonitoringPage() {
                                             </div>
                                         </div>
                                     </div>
-
-
                                 </div>
                             </TrainingCalendar>
                         </TabsContent>

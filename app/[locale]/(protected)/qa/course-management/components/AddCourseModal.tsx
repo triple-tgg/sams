@@ -12,6 +12,9 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/comp
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false })
 
+import { upsertCourse, getCourseCategories } from '@/lib/api/qa/course'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+
 interface AddCourseModalProps {
     course?: import('../types').Course
     onClose: () => void
@@ -27,7 +30,7 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
     const [form, setForm] = useState({
         code: course?.code || '',
         name: course?.name || '',
-        category: course?.category || 'Recurrent',
+        category: course?.category || 'Core',
         recurrent: course ? course.recurrent : false,
         recurrentYears: course?.recurrentYears || 2,
         note: course?.note || '',
@@ -35,6 +38,37 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
         aircraftTypeLicense: '',
         courseObjective: '',
     })
+
+    const queryClient = useQueryClient()
+    const { mutate: handleSave, isPending } = useMutation({
+        mutationFn: upsertCourse,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['course-list-management'] })
+            onClose()
+        }
+    })
+
+    const { data: categoryListResp } = useQuery({
+        queryKey: ['course-categories'],
+        queryFn: getCourseCategories
+    })
+    const apiCategories = categoryListResp?.responseData || []
+
+    const onSaveClick = () => {
+        const selectedCat = apiCategories.find(c => c.name === form.category)
+        const catId = selectedCat?.id || 1
+        
+        handleSave({
+            courseId: course?.id || 0,
+            courseCode: form.code,
+            courseName: form.name,
+            courseCategoryId: catId,
+            courseType: form.recurrent ? 'Recurrence' : 'Initial',
+            recurrenceIntervalYears: form.recurrent ? form.recurrentYears : null,
+            additionalNote: form.note || '',
+            userName: 'navee'
+        })
+    }
 
     const toggleRole = (index: number) => {
         setForm(prev => {
@@ -71,8 +105,8 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                                 value={form.category}
                                 onChange={e => setForm({ ...form, category: e.target.value })}
                             >
-                                {(CATEGORIES as readonly string[]).slice(1).map(c => (
-                                    <option key={c}>{c}</option>
+                                {apiCategories.map(c => (
+                                    <option key={c.id} value={c.name}>{c.name}</option>
                                 ))}
                             </select>
                         </div>
@@ -228,10 +262,11 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                         Cancel
                     </button>
                     <button
-                        onClick={onClose}
-                        className="flex-1 py-2 text-sm rounded-lg text-white bg-primary hover:bg-primary/90 transition-opacity cursor-pointer border-none"
+                        onClick={onSaveClick}
+                        disabled={isPending}
+                        className="flex-1 py-2 text-sm rounded-lg text-white bg-primary hover:bg-primary/90 transition-opacity cursor-pointer border-none disabled:opacity-50"
                     >
-                        {isEditing ? 'Save Changes' : 'Add Course'}
+                        {isPending ? 'Saving...' : (isEditing ? 'Save Changes' : 'Add Course')}
                     </button>
                 </DialogFooter>
             </DialogContent>

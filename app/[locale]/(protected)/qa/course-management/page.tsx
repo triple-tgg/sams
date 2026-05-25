@@ -11,6 +11,8 @@ import { CourseTable } from './components/CourseTable'
 import { TrainingNeedsMatrix } from './components/TrainingNeedsMatrix'
 import { CourseDetailPanel } from './components/CourseDetailModal'
 import { AddCourseModal } from './components/AddCourseModal'
+import { useQuery } from '@tanstack/react-query'
+import { getCourseList, getCourseCategories } from '@/lib/api/qa/course'
 
 export default function CourseManagementPage() {
     const [activeTab, setActiveTab] = useState<'courses' | 'matrix'>('courses')
@@ -22,25 +24,49 @@ export default function CourseManagementPage() {
     const [editingCourse, setEditingCourse] = useState<Course | null>(null)
     const [expandedDept, setExpandedDept] = useState<string | null>(null)
 
+    const { data: courseListResp, isLoading } = useQuery({
+        queryKey: ['course-list-management'],
+        queryFn: () => getCourseList({ categoryId: null, courseName: '', page: 1, perPage: 999 })
+    })
+
+    const { data: categoryListResp } = useQuery({
+        queryKey: ['course-categories'],
+        queryFn: getCourseCategories
+    })
+    const apiCategories = useMemo(() => categoryListResp?.responseData || [], [categoryListResp])
+
+    const apiCourses = useMemo<Course[]>(() => {
+        if (!courseListResp?.responseData) return []
+        return courseListResp.responseData.map(c => ({
+            id: c.id,
+            code: c.courseCode,
+            name: c.courseName,
+            category: c.courseCategory?.name || 'Core', // default fallback
+            recurrent: c.courseType === 'Recurrent',
+            recurrentYears: c.recurrenceIntervalYears || undefined,
+            note: c.additionalNote || undefined
+        }))
+    }, [courseListResp])
+
     const filtered = useMemo(() => {
-        return COURSES.filter(c => {
+        return apiCourses.filter(c => {
             const matchCat = selectedCategory === 'All' || c.category === selectedCategory
             const matchSearch = !search ||
                 c.name.toLowerCase().includes(search.toLowerCase()) ||
                 c.code.toLowerCase().includes(search.toLowerCase())
             return matchCat && matchSearch
         })
-    }, [selectedCategory, search])
+    }, [selectedCategory, search, apiCourses])
 
     const stats = useMemo(() => ({
-        total: COURSES.length,
-        recurrent: COURSES.filter(c => c.recurrent).length,
-        initial: COURSES.filter(c => !c.recurrent).length,
-        byCategory: (CATEGORIES as readonly string[]).slice(1).map(cat => ({
-            name: cat,
-            count: COURSES.filter(c => c.category === cat).length,
+        total: apiCourses.length,
+        recurrent: apiCourses.filter(c => c.recurrent).length,
+        initial: apiCourses.filter(c => !c.recurrent).length,
+        byCategory: apiCategories.map(cat => ({
+            name: cat.name,
+            count: apiCourses.filter(c => c.category === cat.name).length,
         })),
-    }), [])
+    }), [apiCourses, apiCategories])
 
     return (
         <>
@@ -141,7 +167,7 @@ export default function CourseManagementPage() {
                                 <div className="pt-3 border-t border-border">
                                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Category</p>
                                     <div className="space-y-0.5">
-                                        {(CATEGORIES as readonly string[]).map(cat => (
+                                        {['All', ...apiCategories.map(c => c.name)].map(cat => (
                                             <button
                                                 key={cat}
                                                 onClick={() => setSelectedCategory(cat)}
@@ -178,13 +204,20 @@ export default function CourseManagementPage() {
 
 
                                             {/* Course Table */}
-                                            <CourseTable
-                                                courses={filtered}
-                                                search={search}
-                                                onSearchChange={setSearch}
-                                                onSelectCourse={setSelectedCourse}
-                                                selectedCourseId={selectedCourse?.id ?? null}
-                                            />
+                                            {isLoading ? (
+                                                <div className="py-12 text-center text-muted-foreground flex flex-col items-center justify-center">
+                                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
+                                                    Loading courses...
+                                                </div>
+                                            ) : (
+                                                <CourseTable
+                                                    courses={filtered}
+                                                    search={search}
+                                                    onSearchChange={setSearch}
+                                                    onSelectCourse={setSelectedCourse}
+                                                    selectedCourseId={selectedCourse?.id ?? null}
+                                                />
+                                            )}
                                         </>
                                     ) : (
                                         <TrainingNeedsMatrix />

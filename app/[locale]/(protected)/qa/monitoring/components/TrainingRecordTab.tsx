@@ -11,6 +11,8 @@ import { AlertBanner } from './AlertBanner'
 import { StatusMatrix } from './StatusMatrix'
 import { EmployeeDetailDrawer } from './EmployeeDetailDrawer'
 import { CourseEnrollmentModal } from './CourseEnrollmentModal'
+import { useQuery } from '@tanstack/react-query'
+import { getCourseList } from '@/lib/api/qa/course'
 
 const POS_FILTERS = ['All', 'CS', 'AM', 'MGR/QA'] as const
 const STATUS_FILTERS = ['All', 'expired', 'warning', 'valid'] as const
@@ -26,7 +28,14 @@ export function TrainingRecordTab() {
     const searchParams = useSearchParams()
     const courseFilter = searchParams.get('course')
 
+    const { data: courseListResp } = useQuery({
+        queryKey: ['course-list-filter'],
+        queryFn: () => getCourseList({ categoryId: null, courseName: '', page: 1, perPage: 999 })
+    })
+    const apiCourses = courseListResp?.responseData || []
+
     const [search, setSearch] = useState('')
+    const [courseSelect, setCourseSelect] = useState('All')
     const [posFilter, setPosFilter] = useState('All')
     const [statusFilter, setStatusFilter] = useState('All')
     const [monthFilter, setMonthFilter] = useState('All')
@@ -43,13 +52,37 @@ export function TrainingRecordTab() {
         return 'mandatory'
     })
     const [selectedId, setSelectedId] = useState<string | null>(null)
-    const [enrollingCourse, setEnrollingCourse] = useState<{emp: Employee, course: CourseRef} | null>(null)
+    const [enrollingCourse, setEnrollingCourse] = useState<{ emp: Employee, course: CourseRef } | null>(null)
     const [enrollments, setEnrollments] = useState<Record<string, string>>({})
     const [sortField, setSortField] = useState<SortField>('no')
     const [sortDir, setSortDir] = useState<SortDir>('asc')
 
     const activeTabObj = AVAILABLE_TABS.find(t => t.key === tab) || AVAILABLE_TABS[0]
-    const courses = activeTabObj.data
+    let courses = activeTabObj.data
+
+    if (courseSelect !== 'All') {
+        const selectedApi = apiCourses.find(c => c.id.toString() === courseSelect)
+        if (selectedApi) {
+            const shortCode = selectedApi.courseCode.split('-').pop() || ''
+            const matchedMock = ALL_COURSES.find(c => {
+                if (c.short.includes(shortCode)) return true;
+                if (!c.code) return false;
+                if (Array.isArray(c.code)) return c.code.some(codeItem => codeItem.includes(shortCode));
+                return c.code.includes(shortCode);
+            })
+            if (matchedMock) {
+                courses = [matchedMock]
+            } else {
+                courses = [{
+                    id: selectedApi.id.toString(),
+                    short: selectedApi.courseCode,
+                    label: selectedApi.courseName,
+                    interval: selectedApi.recurrenceIntervalYears ? selectedApi.recurrenceIntervalYears * 12 : 24,
+                    code: selectedApi.courseCode
+                }]
+            }
+        }
+    }
 
     // Aggregate stats
     const stats = useMemo(() => {
@@ -172,6 +205,16 @@ export function TrainingRecordTab() {
 
                     <div className="flex items-center gap-1 ml-auto">
                         <select
+                            value={courseSelect}
+                            onChange={e => setCourseSelect(e.target.value)}
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-card text-foreground focus:outline-none border-border hover:border-border/80 mr-2 max-w-[200px]"
+                        >
+                            <option value="All">All Courses</option>
+                            {apiCourses.map(c => (
+                                <option key={c.id} value={c.id.toString()}>{c.courseCode} - {c.courseName}</option>
+                            ))}
+                        </select>
+                        <select
                             value={monthFilter}
                             onChange={e => setMonthFilter(e.target.value)}
                             className="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-card text-foreground focus:outline-none border-border hover:border-border/80 mr-2"
@@ -211,8 +254,8 @@ export function TrainingRecordTab() {
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <button className={`px-2 py-2 rounded-t-xl text-xs font-bold border cursor-pointer transition-all ${AVAILABLE_TABS.slice(3).some(t => t.key === tab)
-                                            ? 'bg-muted text-foreground border-border z-10 relative'
-                                            : 'bg-card text-muted-foreground border-border/50 hover:text-foreground'
+                                        ? 'bg-muted text-foreground border-border z-10 relative'
+                                        : 'bg-card text-muted-foreground border-border/50 hover:text-foreground'
                                         }`}>
                                         <MoreVertical className="w-4 h-4" />
                                     </button>

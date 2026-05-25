@@ -28,6 +28,7 @@ import {
 import { cn } from '@/lib/utils'
 import { useQuery } from '@tanstack/react-query'
 import { getDashboardCalendar, CalendarStaffList } from '@/lib/api/qa/dashboardSummary'
+import { getCourseList } from '@/lib/api/qa/course'
 
 // ─── CourseCombobox ──────────────────────────────────────────────────────────
 
@@ -100,11 +101,6 @@ const STATUS_COLORS: Record<CalendarStatus, string> = {
 }
 
 const STATUS_ORDER: Record<CalendarStatus, number> = { exp: 0, crit: 1, warn: 2, ok: 3 }
-
-const ALL_FILTER_COURSES = [
-    { value: 0, label: 'All' },
-    ...ALL_COURSES.map(c => ({ value: c.id, label: c.label })),
-]
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -396,6 +392,19 @@ export function TrainingCalendar({
     const [selectedMonth, setSelectedMonth] = useState<number | null>(null)
     const [activeFilter, setActiveFilter] = useState<string | number>(0)
 
+    const { data: courseListResp } = useQuery({
+        queryKey: ['course-list-filter'],
+        queryFn: () => getCourseList({ categoryId: null, courseName: '', page: 1, perPage: 999 })
+    })
+    
+    const filterCourses = useMemo(() => {
+        const apiCourses = courseListResp?.responseData || []
+        return [
+            { value: 0, label: 'All' },
+            ...apiCourses.map(c => ({ value: c.id.toString(), label: `${c.courseCode} - ${c.courseName}` }))
+        ]
+    }, [courseListResp])
+
     const { data: calendarResponse, isLoading } = useQuery({
         queryKey: ['qa-dashboard-calendar', selectedYear, activeFilter],
         queryFn: () => getDashboardCalendar({ year: selectedYear, courseId: activeFilter }),
@@ -479,7 +488,7 @@ export function TrainingCalendar({
                 <div className="flex items-center gap-2">
                     <Filter className="w-4 h-4 text-muted-foreground" />
                     <CourseCombobox
-                        courses={ALL_FILTER_COURSES}
+                        courses={filterCourses}
                         value={activeFilter}
                         onChange={handleFilter}
                     />
