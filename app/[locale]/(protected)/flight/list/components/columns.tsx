@@ -7,6 +7,7 @@ import { CircleOff, MoreHorizontal, FileCheck, FilePenLine, Paperclip, SquarePen
 import clsx from "clsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatUtcToLocalDisplay } from "@/lib/utils/flightDatetime";
+import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard";
 
 export function getFlightColumns({
   onCreateTHF,
@@ -150,22 +151,26 @@ export function getFlightColumns({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  className="cursor-pointer"
-                  disabled={flight.statusObj?.code === "Cancel"}
-                  onClick={() => onEditFlight?.(flight)}
-                >
-                  <SquarePen className="h-4 w-4 mr-2" />
-                  Edit Flight
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="cursor-pointer"
-                  disabled={flight.statusObj?.code === "Cancel"}
-                  onClick={() => onCreateTHF?.(flight)}
-                >
-                  <FilePenLine className="h-4 w-4 mr-2" />
-                  {flight.state === "plan" ? "Create THF" : "Edit THF"}
-                </DropdownMenuItem>
+                <PermissionActionGuard menuCode="FLIGHT" action="canEdit">
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    disabled={flight.statusObj?.code === "Cancel"}
+                    onClick={() => onEditFlight?.(flight)}
+                  >
+                    <SquarePen className="h-4 w-4 mr-2" />
+                    Edit Flight
+                  </DropdownMenuItem>
+                </PermissionActionGuard>
+                <PermissionActionGuard menuCode="FLIGHT" action="canEdit">
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    disabled={flight.statusObj?.code === "Cancel"}
+                    onClick={() => onCreateTHF?.(flight)}
+                  >
+                    <FilePenLine className="h-4 w-4 mr-2" />
+                    {flight.state === "plan" ? "Create THF" : "Edit THF"}
+                  </DropdownMenuItem>
+                </PermissionActionGuard>
                 {flight.isFiles && (
                   <DropdownMenuItem
                     className="cursor-pointer"
@@ -175,15 +180,17 @@ export function getFlightColumns({
                     View Attachment
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="cursor-pointer text-destructive focus:text-destructive"
-                  disabled={flight.statusObj?.code === "Cancel"}
-                  onClick={() => onCancel?.(flight)}
-                >
-                  <CircleOff className="h-4 w-4 mr-2" />
-                  Cancel Flight
-                </DropdownMenuItem>
+                <PermissionActionGuard menuCode="FLIGHT" action="canDelete">
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="cursor-pointer text-destructive focus:text-destructive"
+                    disabled={flight.statusObj?.code === "Cancel"}
+                    onClick={() => onCancel?.(flight)}
+                  >
+                    <CircleOff className="h-4 w-4 mr-2" />
+                    Cancel Flight
+                  </DropdownMenuItem>
+                </PermissionActionGuard>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

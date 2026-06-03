@@ -28,6 +28,7 @@ import { ChevronLeft, ChevronRight, RefreshCw, Plus, MoreHorizontal, Eye, Pencil
 import { toast } from "sonner";
 import type { StationItem } from "@/lib/api/master/stations/stations.interface";
 
+import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard";
 import StationFormDialog from "./components/StationFormDialog";
 import ConfirmCredentialsDialog from "./components/ConfirmCredentialsDialog";
 
@@ -199,10 +200,12 @@ const StationPage = () => {
                             <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
                             Refresh
                         </Button>
-                        <Button size="sm" onClick={openAddDialog}>
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Station
-                        </Button>
+                        <PermissionActionGuard menuCode="MASTER_DATA_STATION" action="canCreate">
+                            <Button size="sm" onClick={openAddDialog}>
+                                <Plus className="h-4 w-4 mr-2" />
+                                Add Station
+                            </Button>
+                        </PermissionActionGuard>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -274,17 +277,21 @@ const StationPage = () => {
                                                                 <Eye className="h-4 w-4 mr-2" />
                                                                 View
                                                             </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => openEditDialog(station)}>
-                                                                <Pencil className="h-4 w-4 mr-2" />
-                                                                Edit
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem
-                                                                onClick={() => openDeleteDialog(station)}
-                                                                className="text-destructive focus:text-destructive"
-                                                            >
-                                                                <Trash2 className="h-4 w-4 mr-2" />
-                                                                Delete
-                                                            </DropdownMenuItem>
+                                                            <PermissionActionGuard menuCode="MASTER_DATA_STATION" action="canEdit">
+                                                                <DropdownMenuItem onClick={() => openEditDialog(station)}>
+                                                                    <Pencil className="h-4 w-4 mr-2" />
+                                                                    Edit
+                                                                </DropdownMenuItem>
+                                                            </PermissionActionGuard>
+                                                            <PermissionActionGuard menuCode="MASTER_DATA_STATION" action="canDelete">
+                                                                <DropdownMenuItem
+                                                                    onClick={() => openDeleteDialog(station)}
+                                                                    className="text-destructive focus:text-destructive"
+                                                                >
+                                                                    <Trash2 className="h-4 w-4 mr-2" />
+                                                                    Delete
+                                                                </DropdownMenuItem>
+                                                            </PermissionActionGuard>
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>
                                                 </TableCell>

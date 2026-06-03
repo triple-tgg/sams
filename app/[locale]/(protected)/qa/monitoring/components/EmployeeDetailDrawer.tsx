@@ -33,7 +33,7 @@ export function EmployeeDetailDrawer({ employee: emp, onClose }: EmployeeDetailD
     const validCount = courseStatuses.filter(c => c.status === 'valid').length
     const warningCount = courseStatuses.filter(c => c.status === 'warning').length
     const expiredCount = courseStatuses.filter(c => c.status === 'expired').length
-    const applicable = courseStatuses.filter(c => c.status !== 'na' && c.status !== 'missing')
+    const applicable = courseStatuses.filter(c => c.status !== 'na' && c.status !== 'missing' && c.status !== 'Not Assigned')
     const overallScore = applicable.length > 0
         ? Math.round(applicable.filter(c => c.status === 'valid').length / applicable.length * 100)
         : null

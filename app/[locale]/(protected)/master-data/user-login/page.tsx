@@ -29,6 +29,7 @@ import { ChevronLeft, ChevronRight, RefreshCw, Plus, MoreHorizontal, Eye, Pencil
 import { toast } from "sonner";
 import type { UserItem } from "@/lib/api/master/users/users.interface";
 
+import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard";
 import UserFormDialog from "./components/UserFormDialog";
 import ConfirmCredentialsDialog from "./components/ConfirmCredentialsDialog";
 
@@ -208,10 +209,12 @@ const UserLoginPage = () => {
                             <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
                             Refresh
                         </Button>
-                        <Button size="sm" onClick={openAddDialog}>
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add User
-                        </Button>
+                        <PermissionActionGuard menuCode="MASTER_DATA_USER_LOGIN" action="canCreate">
+                            <Button size="sm" onClick={openAddDialog}>
+                                <Plus className="h-4 w-4 mr-2" />
+                                Add User
+                            </Button>
+                        </PermissionActionGuard>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -295,17 +298,21 @@ const UserLoginPage = () => {
                                                                 <Eye className="h-4 w-4 mr-2" />
                                                                 View
                                                             </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => openEditDialog(user)}>
-                                                                <Pencil className="h-4 w-4 mr-2" />
-                                                                Edit
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem
-                                                                onClick={() => openDeleteDialog(user)}
-                                                                className="text-destructive focus:text-destructive"
-                                                            >
-                                                                <Trash2 className="h-4 w-4 mr-2" />
-                                                                Delete
-                                                            </DropdownMenuItem>
+                                                            <PermissionActionGuard menuCode="MASTER_DATA_USER_LOGIN" action="canEdit">
+                                                                <DropdownMenuItem onClick={() => openEditDialog(user)}>
+                                                                    <Pencil className="h-4 w-4 mr-2" />
+                                                                    Edit
+                                                                </DropdownMenuItem>
+                                                            </PermissionActionGuard>
+                                                            <PermissionActionGuard menuCode="MASTER_DATA_USER_LOGIN" action="canDelete">
+                                                                <DropdownMenuItem
+                                                                    onClick={() => openDeleteDialog(user)}
+                                                                    className="text-destructive focus:text-destructive"
+                                                                >
+                                                                    <Trash2 className="h-4 w-4 mr-2" />
+                                                                    Delete
+                                                                </DropdownMenuItem>
+                                                            </PermissionActionGuard>
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>
                                                 </TableCell>

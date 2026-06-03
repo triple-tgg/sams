@@ -13,6 +13,7 @@ import { useUpsertStaff, useUploadStaffFile } from '@/lib/api/hooks/useQAStaffMa
 import { StaffByIdData, UpsertStaffRequest, UpsertEducation, UpsertWorkExperience } from '@/lib/api/qa/staff-management'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
+import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
 
 // ── Constants ──
 const AIRCRAFT_TYPE_LICENSES = [
@@ -85,13 +86,15 @@ function Section({
                     {title}
                 </div>
                 {onEdit && (
-                    <button
-                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 cursor-pointer transition-all duration-200 hover:border-blue-400 hover:text-blue-600 hover:shadow-sm"
-                        onClick={onEdit}
-                        title={`Edit ${title}`}
-                    >
-                        <Pencil className="h-3.5 w-3.5" />
-                    </button>
+                    <PermissionActionGuard menuCode="QA_STAFF" action="canEdit">
+                        <button
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 cursor-pointer transition-all duration-200 hover:border-blue-400 hover:text-blue-600 hover:shadow-sm"
+                            onClick={onEdit}
+                            title={`Edit ${title}`}
+                        >
+                            <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                    </PermissionActionGuard>
                 )}
             </div>
             {children}
@@ -598,13 +601,15 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                                     Done
                                 </button>
                             ) : (
-                                <button
-                                    className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 cursor-pointer transition-all duration-200 hover:border-blue-400 hover:text-blue-600 hover:shadow-sm"
-                                    onClick={() => setEditDocMode(true)}
-                                    title="Edit Documents"
-                                >
-                                    <Pencil className="h-3.5 w-3.5" />
-                                </button>
+                                <PermissionActionGuard menuCode="QA_STAFF" action="canEdit">
+                                    <button
+                                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 cursor-pointer transition-all duration-200 hover:border-blue-400 hover:text-blue-600 hover:shadow-sm"
+                                        onClick={() => setEditDocMode(true)}
+                                        title="Edit Documents"
+                                    >
+                                        <Pencil className="h-3.5 w-3.5" />
+                                    </button>
+                                </PermissionActionGuard>
                             )}
                         </div>
 
@@ -750,13 +755,15 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                                     <span className="text-xs font-semibold text-slate-400 ml-1">({aircraftLicenses.length})</span>
                                 )}
                             </div>
-                            <button
-                                className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 cursor-pointer transition-all duration-200 hover:border-blue-400 hover:text-blue-600 hover:shadow-sm"
-                                onClick={() => setShowEditAircraft(true)}
-                                title="Edit Aircraft License"
-                            >
-                                <Pencil className="h-3.5 w-3.5" />
-                            </button>
+                            <PermissionActionGuard menuCode="QA_STAFF" action="canEdit">
+                                <button
+                                    className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 cursor-pointer transition-all duration-200 hover:border-blue-400 hover:text-blue-600 hover:shadow-sm"
+                                    onClick={() => setShowEditAircraft(true)}
+                                    title="Edit Aircraft License"
+                                >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                </button>
+                            </PermissionActionGuard>
                         </div>
 
                         {aircraftLicenses.length > 0 ? (
@@ -778,13 +785,15 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                                 </div>
                                 <p className="text-sm font-semibold text-slate-500 mb-1">No Aircraft License</p>
                                 <p className="text-xs text-slate-400 mb-4">No aircraft type license has been assigned.</p>
-                                <button
-                                    onClick={() => setShowEditAircraft(true)}
-                                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-green-600 rounded-lg cursor-pointer hover:bg-green-700 transition-colors border-none"
-                                >
-                                    <Shield className="h-3.5 w-3.5" />
-                                    Add License
-                                </button>
+                                <PermissionActionGuard menuCode="QA_STAFF" action="canCreate">
+                                    <button
+                                        onClick={() => setShowEditAircraft(true)}
+                                        className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-green-600 rounded-lg cursor-pointer hover:bg-green-700 transition-colors border-none"
+                                    >
+                                        <Shield className="h-3.5 w-3.5" />
+                                        Add License
+                                    </button>
+                                </PermissionActionGuard>
                             </div>
                         )}
                     </div>

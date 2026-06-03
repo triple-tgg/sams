@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { useQAStaffList } from '@/lib/api/hooks/useQAStaffManagement'
 import type { QAStaffItem } from '@/lib/api/qa/staff-management'
+import { PermissionActionGuard } from '@/components/partials/auth/PermissionActionGuard'
 import './hr-staff.css'
 
 const avatarGradients = [
@@ -158,14 +159,16 @@ export default function HRStaffListPage() {
                             <Upload className="h-4 w-4 mr-1.5" />
                             Import
                         </Button>
-                        <Button
-                            size="sm"
-                            className="hr-btn-add"
-                            onClick={() => router.push('/en/qa/staff/new')}
-                        >
-                            <Plus className="h-4 w-4 mr-1.5" />
-                            New Staff
-                        </Button>
+                        <PermissionActionGuard menuCode="QA_STAFF" action="canCreate">
+                            <Button
+                                size="sm"
+                                className="hr-btn-add"
+                                onClick={() => router.push('/en/qa/staff/new')}
+                            >
+                                <Plus className="h-4 w-4 mr-1.5" />
+                                New Staff
+                            </Button>
+                        </PermissionActionGuard>
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">

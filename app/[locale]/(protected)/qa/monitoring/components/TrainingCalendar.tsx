@@ -394,7 +394,7 @@ export function TrainingCalendar({
 
     const { data: courseListResp } = useQuery({
         queryKey: ['course-list-filter'],
-        queryFn: () => getCourseList({ categoryId: null, courseName: '', page: 1, perPage: 999 })
+        queryFn: () => getCourseList({ categoryId: null, courseName: '', courseDepartmentRequirementId: null, page: 1, perPage: 999 })
     })
     
     const filterCourses = useMemo(() => {

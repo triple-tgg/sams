@@ -49,6 +49,7 @@ import {
     useRolePermissions,
 } from "@/lib/api/hooks/useRoleOperations";
 import { useBatchUpsertPermissions } from "@/lib/api/hooks/useBatchUpsertPermissions";
+import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard";
 import type { RoleItem } from "@/lib/api/master/roles/roles.interface";
 import type { MenuPermissionItem } from "@/lib/api/permission/menuPermissions.interface";
 
@@ -327,9 +328,11 @@ function PermissionPanel({ role }: { role: RoleItem }) {
                     </Badge>
                 </div>
 
-                <Button size="sm" onClick={handleSave} disabled={isSaving}>
-                    {isSaving ? "Saving..." : "Save Permissions"}
-                </Button>
+                <PermissionActionGuard menuCode="MASTER_DATA_ROLE" action="canEdit">
+                    <Button size="sm" onClick={handleSave} disabled={isSaving}>
+                        {isSaving ? "Saving..." : "Save Permissions"}
+                    </Button>
+                </PermissionActionGuard>
             </div>
 
             {/* Column headers */}
@@ -547,14 +550,16 @@ const RolePermissionPage = () => {
                             >
                                 <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
                             </Button>
-                            <Button
-                                size="sm"
-                                className="h-7 text-xs px-2"
-                                onClick={() => setDialogMode("add")}
-                            >
-                                <Plus className="h-3.5 w-3.5 mr-1" />
-                                Add
-                            </Button>
+                            <PermissionActionGuard menuCode="MASTER_DATA_ROLE" action="canCreate">
+                                <Button
+                                    size="sm"
+                                    className="h-7 text-xs px-2"
+                                    onClick={() => setDialogMode("add")}
+                                >
+                                    <Plus className="h-3.5 w-3.5 mr-1" />
+                                    Add
+                                </Button>
+                            </PermissionActionGuard>
                         </div>
                     </CardHeader>
 
@@ -605,36 +610,40 @@ const RolePermissionPage = () => {
                                                     : "opacity-0 group-hover:opacity-100"
                                                     }`}
                                             >
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setEditTarget(role);
-                                                        setDialogMode("edit");
-                                                    }}
-                                                    className={`p-1 rounded transition-colors ${isSelected
-                                                        ? "hover:bg-primary-foreground/20 text-primary-foreground"
-                                                        : "hover:bg-muted-foreground/10 text-muted-foreground"
-                                                        }`}
-                                                    title="Edit"
-                                                >
-                                                    <Pencil className="h-3.5 w-3.5" />
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setDeleteTarget(role);
-                                                        setDialogMode("confirm-delete");
-                                                    }}
-                                                    className={`p-1 rounded transition-colors ${isSelected
-                                                        ? "hover:bg-red-400/30 text-primary-foreground"
-                                                        : "hover:bg-destructive/10 text-destructive"
-                                                        }`}
-                                                    title="Delete"
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </button>
+                                                <PermissionActionGuard menuCode="MASTER_DATA_ROLE" action="canEdit">
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setEditTarget(role);
+                                                            setDialogMode("edit");
+                                                        }}
+                                                        className={`p-1 rounded transition-colors ${isSelected
+                                                            ? "hover:bg-primary-foreground/20 text-primary-foreground"
+                                                            : "hover:bg-muted-foreground/10 text-muted-foreground"
+                                                            }`}
+                                                        title="Edit"
+                                                    >
+                                                        <Pencil className="h-3.5 w-3.5" />
+                                                    </button>
+                                                </PermissionActionGuard>
+                                                <PermissionActionGuard menuCode="MASTER_DATA_ROLE" action="canDelete">
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setDeleteTarget(role);
+                                                            setDialogMode("confirm-delete");
+                                                        }}
+                                                        className={`p-1 rounded transition-colors ${isSelected
+                                                            ? "hover:bg-red-400/30 text-primary-foreground"
+                                                            : "hover:bg-destructive/10 text-destructive"
+                                                            }`}
+                                                        title="Delete"
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </button>
+                                                </PermissionActionGuard>
                                             </div>
                                         </div>
                                     );

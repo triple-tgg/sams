@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Building2, Briefcase, Wrench, ShieldCheck } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 
@@ -11,12 +11,16 @@ import { CourseTable } from './components/CourseTable'
 import { TrainingNeedsMatrix } from './components/TrainingNeedsMatrix'
 import { CourseDetailPanel } from './components/CourseDetailModal'
 import { AddCourseModal } from './components/AddCourseModal'
-import { useQuery } from '@tanstack/react-query'
-import { getCourseList, getCourseCategories } from '@/lib/api/qa/course'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { getCourseList, getCourseCategories, getCourseDepartments, getCourseSummary, deleteCourse, DeleteCourseRequest, DeleteCourseResponse } from '@/lib/api/qa/course'
+import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
+import { useReduxAuth } from '@/lib/api/hooks/useReduxAuth'
+import { toast } from 'sonner'
 
 export default function CourseManagementPage() {
     const [activeTab, setActiveTab] = useState<'courses' | 'matrix'>('courses')
     const [selectedDept, setSelectedDept] = useState('all')
+    const [selectedSubDept, setSelectedSubDept] = useState<number | null>(null)
     const [selectedCategory, setSelectedCategory] = useState('All')
     const [search, setSearch] = useState('')
     const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
@@ -24,9 +28,37 @@ export default function CourseManagementPage() {
     const [editingCourse, setEditingCourse] = useState<Course | null>(null)
     const [expandedDept, setExpandedDept] = useState<string | null>(null)
 
+    const { getUserName } = useReduxAuth()
+    const queryClient = useQueryClient()
+
+    const deleteCourseMutation = useMutation<DeleteCourseResponse, Error, DeleteCourseRequest>({
+        mutationFn: (data) => deleteCourse(data),
+        mutationKey: ['courseDelete'],
+        onSuccess: (response) => {
+            if (response.message === 'success') {
+                toast.success('Course deleted successfully!')
+                queryClient.invalidateQueries({ queryKey: ['course-list-management'] })
+                queryClient.invalidateQueries({ queryKey: ['course-summary'] })
+                queryClient.invalidateQueries({ queryKey: ['course-detail'] })
+                setSelectedCourse(null)
+            } else {
+                toast.error(response.error || 'Failed to delete course')
+            }
+        },
+        onError: (error) => {
+            toast.error(error.message || 'Failed to delete course')
+        },
+    })
+
     const { data: courseListResp, isLoading } = useQuery({
-        queryKey: ['course-list-management'],
-        queryFn: () => getCourseList({ categoryId: null, courseName: '', page: 1, perPage: 999 })
+        queryKey: ['course-list-management', selectedSubDept],
+        queryFn: () => getCourseList({
+            categoryId: null,
+            courseName: '',
+            courseDepartmentRequirementId: selectedSubDept ?? null,
+            page: 1,
+            perPage: 999
+        })
     })
 
     const { data: categoryListResp } = useQuery({
@@ -34,6 +66,37 @@ export default function CourseManagementPage() {
         queryFn: getCourseCategories
     })
     const apiCategories = useMemo(() => categoryListResp?.responseData || [], [categoryListResp])
+
+    const { data: deptListResp } = useQuery({
+        queryKey: ['course-departments'],
+        queryFn: getCourseDepartments
+    })
+
+    const { data: courseSummaryResp } = useQuery({
+        queryKey: ['course-summary'],
+        queryFn: getCourseSummary
+    })
+
+    const apiDepartments = useMemo(() => {
+        const defaultAll = { id: 'all', name: 'All Departments', icon: <Building2 className="w-4 h-4" />, roles: [] };
+        if (!deptListResp?.responseData) return [defaultAll];
+
+        const mappedDepts = deptListResp.responseData.map(item => {
+            let icon = <Building2 className="w-4 h-4" />;
+            if (item.courseDepartment.name === 'Executive') icon = <Briefcase className="w-4 h-4" />;
+            else if (item.courseDepartment.name === 'Maintenance') icon = <Wrench className="w-4 h-4" />;
+            else if (item.courseDepartment.name === 'Compliance Monitoring') icon = <ShieldCheck className="w-4 h-4" />;
+
+            return {
+                id: item.courseDepartment.id.toString(),
+                name: item.courseDepartment.name,
+                icon,
+                roles: item.courseDepartmentSubs.map(sub => ({ id: sub.id, name: sub.name }))
+            };
+        });
+
+        return [defaultAll, ...mappedDepts];
+    }, [deptListResp])
 
     const apiCourses = useMemo<Course[]>(() => {
         if (!courseListResp?.responseData) return []
@@ -58,15 +121,17 @@ export default function CourseManagementPage() {
         })
     }, [selectedCategory, search, apiCourses])
 
-    const stats = useMemo(() => ({
-        total: apiCourses.length,
-        recurrent: apiCourses.filter(c => c.recurrent).length,
-        initial: apiCourses.filter(c => !c.recurrent).length,
-        byCategory: apiCategories.map(cat => ({
-            name: cat.name,
-            count: apiCourses.filter(c => c.category === cat.name).length,
-        })),
-    }), [apiCourses, apiCategories])
+    const stats = useMemo(() => {
+        if (courseSummaryResp?.responseData) {
+            return {
+                total: courseSummaryResp.responseData.totalCourses,
+                recurrent: courseSummaryResp.responseData.recurrentCount,
+                initial: courseSummaryResp.responseData.initialOnlyCount,
+                categories: courseSummaryResp.responseData.categoriesCount
+            }
+        }
+        return { total: 0, recurrent: 0, initial: 0, categories: 0 }
+    }, [courseSummaryResp])
 
     return (
         <>
@@ -78,10 +143,12 @@ export default function CourseManagementPage() {
                             Manage training courses and requirements · SAMS-FM-CM-014 Rev.03
                         </CardDescription>
                         <div className="flex items-center gap-2 ml-auto">
-                            <Button onClick={() => setShowAddModal(true)} color="primary">
-                                <Plus className="h-4 w-4 mr-2" />
-                                Add Course
-                            </Button>
+                            <PermissionActionGuard menuCode="QA_MONITORING" action="canCreate">
+                                <Button onClick={() => setShowAddModal(true)} color="primary">
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Add Course
+                                </Button>
+                            </PermissionActionGuard>
                         </div>
                     </CardHeader>
                     <CardContent>
@@ -94,11 +161,10 @@ export default function CourseManagementPage() {
                                         <button
                                             key={tab}
                                             onClick={() => setActiveTab(tab)}
-                                            className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-all cursor-pointer ${
-                                                activeTab === tab
+                                            className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-all cursor-pointer ${activeTab === tab
                                                     ? 'bg-card text-foreground shadow-sm'
                                                     : 'text-muted-foreground hover:text-foreground'
-                                            }`}
+                                                }`}
                                         >
                                             {tab === 'courses' ? 'Courses' : 'Matrix'}
                                         </button>
@@ -109,7 +175,7 @@ export default function CourseManagementPage() {
                                 <div>
                                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Departments</p>
                                     <div className="space-y-0.5">
-                                        {DEPARTMENTS.map(dept => {
+                                        {apiDepartments.map(dept => {
                                             const isSelected = selectedDept === dept.id
                                             const isExpanded = expandedDept === dept.id
                                             const hasRoles = dept.roles.length > 0
@@ -118,18 +184,17 @@ export default function CourseManagementPage() {
                                                     <button
                                                         onClick={() => {
                                                             setSelectedDept(dept.id)
+                                                            setSelectedSubDept(null)
                                                             setExpandedDept(isExpanded ? null : dept.id)
                                                         }}
-                                                        className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-all text-sm cursor-pointer border-none bg-transparent ${
-                                                            isSelected ? 'bg-primary/10 text-primary' : 'text-foreground/70 hover:bg-muted'
-                                                        }`}
+                                                        className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-all text-sm cursor-pointer border-none bg-transparent ${isSelected ? 'bg-primary/10 text-primary' : 'text-foreground/70 hover:bg-muted'
+                                                            }`}
                                                     >
                                                         <span className="text-sm leading-none">{dept.icon}</span>
                                                         <span className={`truncate flex-1 text-xs ${isSelected ? 'font-medium' : ''}`}>{dept.name}</span>
                                                         {hasRoles && (
-                                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${
-                                                                isSelected ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
-                                                            }`}>
+                                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${isSelected ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
+                                                                }`}>
                                                                 {dept.roles.length}
                                                             </span>
                                                         )}
@@ -146,15 +211,26 @@ export default function CourseManagementPage() {
                                                     {/* Roles sub-list */}
                                                     {isExpanded && hasRoles && (
                                                         <div className="ml-3 mt-0.5 mb-1 border-l-2 border-primary/20 pl-3 space-y-0.5">
-                                                            {dept.roles.map((role, i) => (
-                                                                <div
-                                                                    key={i}
-                                                                    className="flex items-center gap-2 py-1 px-2 rounded-md text-[11px] text-foreground/60 hover:bg-primary/5 hover:text-primary cursor-default transition-colors"
-                                                                >
-                                                                    <div className="w-1 h-1 rounded-full bg-primary/30 shrink-0" />
-                                                                    <span className="leading-snug">{role}</span>
-                                                                </div>
-                                                            ))}
+                                                            {dept.roles.map((role) => {
+                                                                const isSubSelected = selectedSubDept === role.id
+                                                                return (
+                                                                    <div
+                                                                        key={role.id}
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation()
+                                                                            setSelectedSubDept(isSubSelected ? null : role.id)
+                                                                        }}
+                                                                        className={`flex items-center gap-2 py-1 px-2 rounded-md text-[11px] cursor-pointer transition-colors ${
+                                                                            isSubSelected
+                                                                                ? 'bg-primary/10 text-primary font-medium'
+                                                                                : 'text-foreground/60 hover:bg-primary/5 hover:text-primary'
+                                                                        }`}
+                                                                    >
+                                                                        <div className={`w-1 h-1 rounded-full shrink-0 ${isSubSelected ? 'bg-primary' : 'bg-primary/30'}`} />
+                                                                        <span className="leading-snug">{role.name}</span>
+                                                                    </div>
+                                                                )
+                                                            })}
                                                         </div>
                                                     )}
                                                 </div>
@@ -171,11 +247,10 @@ export default function CourseManagementPage() {
                                             <button
                                                 key={cat}
                                                 onClick={() => setSelectedCategory(cat)}
-                                                className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left transition-all text-xs cursor-pointer border-none bg-transparent ${
-                                                    selectedCategory === cat
+                                                className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left transition-all text-xs cursor-pointer border-none bg-transparent ${selectedCategory === cat
                                                         ? 'bg-primary/10 text-primary font-medium'
                                                         : 'text-foreground/70 hover:bg-muted'
-                                                }`}
+                                                    }`}
                                             >
                                                 {cat !== 'All' && (
                                                     <span className={`w-2 h-2 rounded-full shrink-0 ${CATEGORY_DOT[cat] || 'bg-muted-foreground'}`} />
@@ -197,7 +272,7 @@ export default function CourseManagementPage() {
                                                 <StatCard label="Total Courses" value={stats.total} color="hsl(var(--primary))" />
                                                 <StatCard label="Recurrent (2yr)" value={stats.recurrent} color="#0ea5e9" />
                                                 <StatCard label="Initial Only" value={stats.initial} color="#6366f1" />
-                                                <StatCard label="Categories" value={5} color="#f59e0b" />
+                                                <StatCard label="Categories" value={stats.categories} color="#f59e0b" />
                                             </div>
 
 
@@ -230,8 +305,10 @@ export default function CourseManagementPage() {
                                         course={selectedCourse}
                                         onClose={() => setSelectedCourse(null)}
                                         onDelete={() => {
-                                            console.log('Delete course', selectedCourse.id)
-                                            setSelectedCourse(null)
+                                            deleteCourseMutation.mutate({
+                                                id: selectedCourse.id,
+                                                userName: getUserName() || 'system',
+                                            })
                                         }}
                                         onEdit={() => setEditingCourse(selectedCourse)}
                                     />

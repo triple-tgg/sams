@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { X as XIcon, Users } from 'lucide-react'
 import { Course, CATEGORY_COLORS } from '../types'
 import { MATRIX_ROLES, MATRIX_DATA } from '../data'
+import { useQuery } from '@tanstack/react-query'
+import { getCourseById } from '@/lib/api/qa/course'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,6 +15,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
 
 interface CourseDetailPanelProps {
     course: Course
@@ -23,6 +26,14 @@ interface CourseDetailPanelProps {
 
 export function CourseDetailPanel({ course, onClose, onEdit, onDelete }: CourseDetailPanelProps) {
     const [showAllRoles, setShowAllRoles] = useState(false)
+
+    // Fetch course detail from API
+    const { data: courseDetailResp } = useQuery({
+        queryKey: ['course-detail', course.id],
+        queryFn: () => getCourseById(course.id),
+        enabled: !!course.id
+    })
+    const courseDetail = courseDetailResp?.responseData
 
     // Derive required roles from MATRIX_DATA
     const requirements = MATRIX_DATA[course.id] || []
@@ -64,9 +75,9 @@ export function CourseDetailPanel({ course, onClose, onEdit, onDelete }: CourseD
                         </span>
                     )}
                 </DetailRow>
-                {course.note && (
-                    <DetailRow label="Note">
-                        <span className="text-xs text-foreground/70">{course.note}</span>
+                {courseDetail?.course?.courseObjective && (
+                    <DetailRow label="Course Objective">
+                        <span className="text-xs text-foreground/70">{courseDetail.course.courseObjective}</span>
                     </DetailRow>
                 )}
                 <DetailRow label="Course ID">
@@ -101,48 +112,53 @@ export function CourseDetailPanel({ course, onClose, onEdit, onDelete }: CourseD
                 </div>
             )}
 
-            {/* Regulatory Notes */}
-            <div className="pt-3 border-t border-border space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Regulatory Notes</p>
-                <div className="text-xs text-foreground/70 leading-relaxed bg-muted/50 rounded-lg p-3 space-y-2">
-                    <p>• Training shall be completed within <strong className="text-foreground">6 months</strong> of joining</p>
-                    <p>• Governed by CAAT MOE Issue 10 Rev.00</p>
-                    <p>• Ref: SAMS-FM-CM-014 Rev.03 (05 AUG 2025)</p>
+            {/* Regulatory Notes (additionalNote) */}
+            {courseDetail?.course?.additionalNote && (
+                <div className="pt-3 border-t border-border space-y-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Regulatory Notes</p>
+                    <div
+                        className="text-xs text-foreground/70 leading-relaxed bg-muted/50 rounded-lg p-3 prose prose-sm max-w-none [&_p]:m-0 [&_ul]:m-0 [&_ol]:m-0"
+                        dangerouslySetInnerHTML={{ __html: courseDetail.course.additionalNote }}
+                    />
                 </div>
-            </div>
+            )}
 
             {/* Actions */}
             <div className="flex gap-2 mt-auto pt-3 border-t border-border">
-                <button 
-                    onClick={onEdit}
-                    className="flex-1 text-sm py-2 rounded-lg border border-border text-foreground hover:bg-muted transition-colors cursor-pointer"
-                >
-                    Edit
-                </button>
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <button
-                            className="flex-1 text-sm py-2 rounded-lg text-white bg-destructive hover:bg-destructive/90 transition-colors cursor-pointer border-none"
-                        >
-                            Delete
-                        </button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                This will permanently delete the course <strong className="text-foreground">{course.code}</strong>. 
-                                This action cannot be undone.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                Delete Course
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
+                <PermissionActionGuard menuCode="QA_MONITORING" action="canEdit">
+                    <button 
+                        onClick={onEdit}
+                        className="flex-1 text-sm py-2 rounded-lg border border-border text-foreground hover:bg-muted transition-colors cursor-pointer"
+                    >
+                        Edit
+                    </button>
+                </PermissionActionGuard>
+                <PermissionActionGuard menuCode="QA_MONITORING" action="canDelete">
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <button
+                                className="flex-1 text-sm py-2 rounded-lg text-white bg-destructive hover:bg-destructive/90 transition-colors cursor-pointer border-none"
+                            >
+                                Delete
+                            </button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This will permanently delete the course <strong className="text-foreground">{course.code}</strong>. 
+                                    This action cannot be undone.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                    Delete Course
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </PermissionActionGuard>
             </div>
         </aside>
     )

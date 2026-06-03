@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Calendar, Clock, MapPin, User, Tag, Building2, Pencil, Trash2 } from 'lucide-react'
 import { Session, STATUS_CONFIG, CAT_COLOR, formatDate, sessionDays } from '../types'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
+import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
 
 interface SessionDetailProps {
     session: Session
@@ -123,16 +124,20 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
                         Manage Enrollment
                     </button>
                     <div className="flex gap-2">
-                        <button onClick={onEdit}
-                            className="flex-1 py-2 text-sm rounded-lg border border-border text-foreground hover:bg-muted transition-colors flex items-center justify-center gap-1.5 cursor-pointer bg-transparent">
-                            <Pencil className="w-3.5 h-3.5" />
-                            Edit
-                        </button>
-                        <button onClick={onDelete}
-                            className="flex-1 py-2 text-sm rounded-lg border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
-                            <Trash2 className="w-3.5 h-3.5" />
-                            Delete
-                        </button>
+                        <PermissionActionGuard menuCode="QA_MONITORING" action="canEdit">
+                            <button onClick={onEdit}
+                                className="flex-1 py-2 text-sm rounded-lg border border-border text-foreground hover:bg-muted transition-colors flex items-center justify-center gap-1.5 cursor-pointer bg-transparent">
+                                <Pencil className="w-3.5 h-3.5" />
+                                Edit
+                            </button>
+                        </PermissionActionGuard>
+                        <PermissionActionGuard menuCode="QA_MONITORING" action="canDelete">
+                            <button onClick={onDelete}
+                                className="flex-1 py-2 text-sm rounded-lg border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
+                                <Trash2 className="w-3.5 h-3.5" />
+                                Delete
+                            </button>
+                        </PermissionActionGuard>
                     </div>
                 </div>
             </DrawerContent>

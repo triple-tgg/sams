@@ -22,6 +22,7 @@ import { AIRLINE_KEYS, SAMS_STATUS_META, CUST_STATUS_META } from '../../types-v2
 import type { CustomerAuthValue, AirlineKey, Staff } from '../../types-v2'
 import { getSamsStatus } from '../../utils'
 import { cn } from '@/lib/utils'
+import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
 
 const AIRCRAFT_OPTIONS = [
   'A318/A319/A320/A321',
@@ -654,19 +655,21 @@ function MatrixView() {
                 <Button variant="outline" onClick={() => setSelectedCell(null)} className="font-bold">
                   Cancel
                 </Button>
-                <Button 
-                  onClick={() => {
-                    selectedCell.staff.initDate = editInitDate
-                    selectedCell.staff.currDate = editCurrDate
-                    selectedCell.staff.samsExp = editSamsExp
-                    selectedCell.staff.rating = Array.from(editRating).join('\n')
-                    setVersion(v => v + 1)
-                    setSelectedCell(null)
-                  }}
-                  className="font-bold bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  Save Changes
-                </Button>
+                <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
+                  <Button 
+                    onClick={() => {
+                      selectedCell.staff.initDate = editInitDate
+                      selectedCell.staff.currDate = editCurrDate
+                      selectedCell.staff.samsExp = editSamsExp
+                      selectedCell.staff.rating = Array.from(editRating).join('\n')
+                      setVersion(v => v + 1)
+                      setSelectedCell(null)
+                    }}
+                    className="font-bold bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    Save Changes
+                  </Button>
+                </PermissionActionGuard>
               </DialogFooter>
             </>
           )}

@@ -21,6 +21,7 @@ import ConfirmCredentialsDialog from "@/app/[locale]/(protected)/master-data/sta
 import { useContractList, defaultContractListRequest } from "@/lib/api/hooks/useContractList";
 import { useDeleteContract } from "@/lib/api/hooks/useContractOperations";
 import { ContractListItem } from "@/lib/api/contract/getContractList";
+import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard";
 
 // Transform API data to table display format
 const transformContractData = (apiData: ContractListItem[]): Contract[] => {
@@ -218,14 +219,18 @@ const ContractPage = () => {
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
-            <Button variant="outline">
-              <Upload className="h-4 w-4 mr-2" />
-              Import
-            </Button>
-            <Button onClick={handleAddNew} color="primary">
-              <Plus className="h-4 w-4 mr-2" />
-              New Contract
-            </Button>
+            <PermissionActionGuard menuCode="CONTRACT" action="canCreate">
+              <>
+                <Button variant="outline">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import
+                </Button>
+                <Button onClick={handleAddNew} color="primary">
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Contract
+                </Button>
+              </>
+            </PermissionActionGuard>
           </div>
         </CardHeader>
         <CardContent>

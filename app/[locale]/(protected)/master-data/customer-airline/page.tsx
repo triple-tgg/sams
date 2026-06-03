@@ -29,6 +29,7 @@ import { ChevronLeft, ChevronRight, RefreshCw, Plus, MoreHorizontal, Eye, Pencil
 import { toast } from "sonner";
 import type { AirlineItem } from "@/lib/api/master/airlines/airlines.interface";
 
+import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard";
 import AirlineFormDialog from "./components/AirlineFormDialog";
 import ConfirmCredentialsDialog from "./components/ConfirmCredentialsDialog";
 
@@ -212,10 +213,12 @@ const CustomerAirlinePage = () => {
                             <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
                             Refresh
                         </Button>
-                        <Button size="sm" onClick={openAddDialog}>
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Airline
-                        </Button>
+                        <PermissionActionGuard menuCode="MASTER_DATA_CUSTOMER_AIRLINE" action="canCreate">
+                            <Button size="sm" onClick={openAddDialog}>
+                                <Plus className="h-4 w-4 mr-2" />
+                                Add Airline
+                            </Button>
+                        </PermissionActionGuard>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -298,17 +301,21 @@ const CustomerAirlinePage = () => {
                                                                 <Eye className="h-4 w-4 mr-2" />
                                                                 View
                                                             </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => openEditDialog(airline)}>
-                                                                <Pencil className="h-4 w-4 mr-2" />
-                                                                Edit
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem
-                                                                onClick={() => openDeleteDialog(airline)}
-                                                                className="text-destructive focus:text-destructive"
-                                                            >
-                                                                <Trash2 className="h-4 w-4 mr-2" />
-                                                                Delete
-                                                            </DropdownMenuItem>
+                                                            <PermissionActionGuard menuCode="MASTER_DATA_CUSTOMER_AIRLINE" action="canEdit">
+                                                                <DropdownMenuItem onClick={() => openEditDialog(airline)}>
+                                                                    <Pencil className="h-4 w-4 mr-2" />
+                                                                    Edit
+                                                                </DropdownMenuItem>
+                                                            </PermissionActionGuard>
+                                                            <PermissionActionGuard menuCode="MASTER_DATA_CUSTOMER_AIRLINE" action="canDelete">
+                                                                <DropdownMenuItem
+                                                                    onClick={() => openDeleteDialog(airline)}
+                                                                    className="text-destructive focus:text-destructive"
+                                                                >
+                                                                    <Trash2 className="h-4 w-4 mr-2" />
+                                                                    Delete
+                                                                </DropdownMenuItem>
+                                                            </PermissionActionGuard>
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>
                                                 </TableCell>

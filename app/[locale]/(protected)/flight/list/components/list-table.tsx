@@ -31,6 +31,7 @@ import { useFlightExcelImport } from "@/hooks/use-flight-excel-import"
 import CreateProject from "../../create-project"
 import CreateThfModal from "../../thf/create/components/CreateThfModal"
 import EmailPreviewModal from "./EmailPreviewModal"
+import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
 
 interface Option {
     value: string; label: string; image?: string;
@@ -305,30 +306,34 @@ const ListTable = ({
                     Manage flight schedules and maintenance service records.
                 </CardDescription>
                 <div className="flex items-center gap-2 ml-auto">
-                    <Button color="primary" onClick={() => setOpen(true)} size="md">
-                        <Plus className="w-4 h-4 mr-2" />
-                        <span>Add Flight</span>
-                    </Button>
+                    <PermissionActionGuard menuCode="FLIGHT" action="canCreate">
+                        <>
+                            <Button color="primary" onClick={() => setOpen(true)} size="md">
+                                <Plus className="w-4 h-4 mr-2" />
+                                <span>Add Flight</span>
+                            </Button>
 
-                    {/* Import Button with Excel Preview Modal (same as Flight Timeline) */}
-                    <input
-                        type="file"
-                        ref={excelImport.fileInputRef}
-                        onChange={excelImport.handleFileSelect}
-                        accept=".xlsx,.xls"
-                        className="hidden"
-                    />
-                    <Button
-                        className="flex-none"
-                        color="primary"
-                        variant="outline"
-                        onClick={excelImport.openFilePicker}
-                        disabled={excelImport.isParsing}
-                        size="md"
-                    >
-                        <FileUp className="w-4 h-4 mr-2" />
-                        <span>{excelImport.isParsing ? 'Loading...' : 'Import'}</span>
-                    </Button>
+                            {/* Import Button with Excel Preview Modal (same as Flight Timeline) */}
+                            <input
+                                type="file"
+                                ref={excelImport.fileInputRef}
+                                onChange={excelImport.handleFileSelect}
+                                accept=".xlsx,.xls"
+                                className="hidden"
+                            />
+                            <Button
+                                className="flex-none"
+                                color="primary"
+                                variant="outline"
+                                onClick={excelImport.openFilePicker}
+                                disabled={excelImport.isParsing}
+                                size="md"
+                            >
+                                <FileUp className="w-4 h-4 mr-2" />
+                                <span>{excelImport.isParsing ? 'Loading...' : 'Import'}</span>
+                            </Button>
+                        </>
+                    </PermissionActionGuard>
                     {/* Download Template Button (same as Flight Timeline) */}
                     <Button
                         className="flex-none"

@@ -15,6 +15,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
 import {
   Pagination,
   PaginationContent,
@@ -252,19 +253,21 @@ export function SamsAuthTab() {
                     <td className={`px-3 py-2.5 text-center sticky right-0 shadow-[-1px_0_0_0_#f1f5f9] transition-colors ${
                       ri % 2 === 0 ? 'bg-white group-hover:bg-blue-50' : 'bg-slate-50 group-hover:bg-blue-50'
                     }`}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button className="text-muted-foreground hover:text-primary transition-colors p-1.5 rounded-md hover:bg-slate-200 mx-auto block">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEditClick(s)} className="text-xs font-semibold cursor-pointer">
-                            <Edit2 className="w-3.5 h-3.5 mr-2" />
-                            แก้ไขข้อมูล
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="text-muted-foreground hover:text-primary transition-colors p-1.5 rounded-md hover:bg-slate-200 mx-auto block">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEditClick(s)} className="text-xs font-semibold cursor-pointer">
+                              <Edit2 className="w-3.5 h-3.5 mr-2" />
+                              แก้ไขข้อมูล
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </PermissionActionGuard>
                     </td>
                   </tr>
                 )
@@ -422,21 +425,23 @@ export function SamsAuthTab() {
                 <Button variant="outline" onClick={() => setSelectedStaff(null)} className="font-bold">
                   Cancel
                 </Button>
-                <Button 
-                  onClick={() => {
-                    selectedStaff.authNo = editAuthNo
-                    selectedStaff.rating = Array.from(editRating).join('\n')
-                    selectedStaff.amelExp = editAmelExp
-                    selectedStaff.initDate = editInitDate
-                    selectedStaff.currDate = editCurrDate
-                    selectedStaff.samsExp = editSamsExp
-                    setVersion(v => v + 1)
-                    setSelectedStaff(null)
-                  }}
-                  className="font-bold bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  Save Changes
-                </Button>
+                <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
+                  <Button 
+                    onClick={() => {
+                      selectedStaff.authNo = editAuthNo
+                      selectedStaff.rating = Array.from(editRating).join('\n')
+                      selectedStaff.amelExp = editAmelExp
+                      selectedStaff.initDate = editInitDate
+                      selectedStaff.currDate = editCurrDate
+                      selectedStaff.samsExp = editSamsExp
+                      setVersion(v => v + 1)
+                      setSelectedStaff(null)
+                    }}
+                    className="font-bold bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    Save Changes
+                  </Button>
+                </PermissionActionGuard>
               </DialogFooter>
             </>
           )}

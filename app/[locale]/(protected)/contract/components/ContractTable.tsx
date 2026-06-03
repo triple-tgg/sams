@@ -18,6 +18,7 @@ import {
 import { MoreHorizontal, Eye, Pencil, Trash2, CheckCircle2, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Contract } from "./types";
+import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard";
 
 interface ContractTableProps {
     contracts: Contract[];
@@ -114,20 +115,24 @@ export const ContractTable = ({
                                                 <Eye className="h-4 w-4 mr-2" />
                                                 View
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                                className="cursor-pointer"
-                                                onClick={() => onEdit?.(contract)}
-                                            >
-                                                <Pencil className="h-4 w-4 mr-2" />
-                                                Edit
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                                className="cursor-pointer text-destructive focus:text-destructive"
-                                                onClick={() => onDelete?.(contract)}
-                                            >
-                                                <Trash2 className="h-4 w-4 mr-2" />
-                                                Delete
-                                            </DropdownMenuItem>
+                                            <PermissionActionGuard menuCode="CONTRACT" action="canEdit">
+                                                <DropdownMenuItem
+                                                    className="cursor-pointer"
+                                                    onClick={() => onEdit?.(contract)}
+                                                >
+                                                    <Pencil className="h-4 w-4 mr-2" />
+                                                    Edit
+                                                </DropdownMenuItem>
+                                            </PermissionActionGuard>
+                                            <PermissionActionGuard menuCode="CONTRACT" action="canDelete">
+                                                <DropdownMenuItem
+                                                    className="cursor-pointer text-destructive focus:text-destructive"
+                                                    onClick={() => onDelete?.(contract)}
+                                                >
+                                                    <Trash2 className="h-4 w-4 mr-2" />
+                                                    Delete
+                                                </DropdownMenuItem>
+                                            </PermissionActionGuard>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </div>

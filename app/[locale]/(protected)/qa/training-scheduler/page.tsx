@@ -15,6 +15,7 @@ import { SessionDetail } from './components/SessionDetail'
 import { SessionFormModal } from './components/SessionFormModal'
 import { useQuery } from '@tanstack/react-query'
 import { getSchedulerDashboardCalendar, getSchedulerCalendar } from '@/lib/api/qa/scheduler'
+import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
 
 const VIEW_OPTIONS = [
     { id: 'calendar', label: 'Calendar', icon: Calendar },
@@ -173,10 +174,12 @@ export default function TrainingSchedulerPage() {
                                     </button>
                                 ))}
                             </div>
-                            <Button onClick={openAdd} color="primary">
-                                <Plus className="h-4 w-4 mr-2" />
-                                New Session
-                            </Button>
+                            <PermissionActionGuard menuCode="QA_MONITORING" action="canCreate">
+                                <Button onClick={openAdd} color="primary">
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    New Session
+                                </Button>
+                            </PermissionActionGuard>
                         </div>
                         {/* Filter Bar */}
                         {view === 'list' && (

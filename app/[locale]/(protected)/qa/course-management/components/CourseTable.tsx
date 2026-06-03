@@ -44,7 +44,7 @@ export function CourseTable({
 
             {/* Course Rows */}
             <div className="max-h-[480px] overflow-y-auto">
-                {courses.map((course) => {
+                {courses.map((course, index) => {
                     const isSelected = selectedCourseId === course.id
                     return (
                         <div
@@ -54,7 +54,7 @@ export function CourseTable({
                                 isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : 'hover:bg-primary/[0.03]'
                             }`}
                         >
-                            <div className="col-span-1 text-sm text-muted-foreground">{course.id}</div>
+                            <div className="col-span-1 text-sm text-muted-foreground">{index + 1}</div>
                             <div className="col-span-1">
                                 <span className="text-xs font-medium text-muted-foreground">{course.code}</span>
                             </div>

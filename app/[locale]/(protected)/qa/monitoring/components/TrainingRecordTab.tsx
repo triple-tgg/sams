@@ -13,6 +13,7 @@ import { EmployeeDetailDrawer } from './EmployeeDetailDrawer'
 import { CourseEnrollmentModal } from './CourseEnrollmentModal'
 import { useQuery } from '@tanstack/react-query'
 import { getCourseList } from '@/lib/api/qa/course'
+import { getTrainingMonitoring, TrainingMonitoringStaff } from '@/lib/api/qa/dashboardSummary'
 
 const POS_FILTERS = ['All', 'CS', 'AM', 'MGR/QA'] as const
 const STATUS_FILTERS = ['All', 'expired', 'warning', 'valid'] as const
@@ -30,7 +31,7 @@ export function TrainingRecordTab() {
 
     const { data: courseListResp } = useQuery({
         queryKey: ['course-list-filter'],
-        queryFn: () => getCourseList({ categoryId: null, courseName: '', page: 1, perPage: 999 })
+        queryFn: () => getCourseList({ categoryId: null, courseName: '', courseDepartmentRequirementId: null, page: 1, perPage: 999 })
     })
     const apiCourses = courseListResp?.responseData || []
 
@@ -39,15 +40,44 @@ export function TrainingRecordTab() {
     const [posFilter, setPosFilter] = useState('All')
     const [statusFilter, setStatusFilter] = useState('All')
     const [monthFilter, setMonthFilter] = useState('All')
-    const AVAILABLE_TABS = useMemo(() => [
-        { key: 'mandatory', label: `Mandatory (${MANDATORY.length})`, data: MANDATORY },
-        { key: 'type', label: `Type Courses (${TYPE_COURSES.length})`, data: TYPE_COURSES },
-        { key: 'special', label: `Special Ops (0)`, data: [] as CourseRef[] },
-        { key: 'other', label: `Other Courses (0)`, data: [] as CourseRef[] },
-    ], [])
+
+    // Fetch training monitoring data from API
+    const { data: monitoringResp, isLoading: isLoadingMonitoring } = useQuery({
+        queryKey: ['training-monitoring', search, monthFilter, statusFilter],
+        queryFn: () => getTrainingMonitoring({
+            searchText: search,
+            month: monthFilter === 'All' ? 0 : parseInt(monthFilter) + 1, // API months are 1-based
+            status: statusFilter === 'All' ? '' : statusFilter,
+        }),
+    })
+    const monitoringData = monitoringResp?.responseData
+
+    // Build tabs from API courseCategories
+    const AVAILABLE_TABS = useMemo(() => {
+        if (monitoringData?.courseCategories?.length) {
+            return monitoringData.courseCategories.map(cat => ({
+                key: cat.categoryId.toString(),
+                label: `${cat.categoryName} (${cat.courses.length})`,
+                data: cat.courses.map(c => ({
+                    id: c.courseId.toString(),
+                    short: c.courseCode,
+                    label: c.courseName,
+                    interval: 24,
+                    code: c.courseCode,
+                } as CourseRef)),
+                staffList: cat.staffList,
+            }))
+        }
+        // Fallback to local mock tabs
+        return [
+            { key: 'mandatory', label: `Mandatory (${MANDATORY.length})`, data: MANDATORY, staffList: [] as TrainingMonitoringStaff[] },
+            { key: 'type', label: `Type Courses (${TYPE_COURSES.length})`, data: TYPE_COURSES, staffList: [] as TrainingMonitoringStaff[] },
+            { key: 'special', label: `Special Ops (0)`, data: [] as CourseRef[], staffList: [] as TrainingMonitoringStaff[] },
+            { key: 'other', label: `Other Courses (0)`, data: [] as CourseRef[], staffList: [] as TrainingMonitoringStaff[] },
+        ]
+    }, [monitoringData])
 
     const [tab, setTab] = useState<string>(() => {
-        // Auto-select tab based on course query param
         if (courseFilter && TYPE_COURSES.some(c => c.id === courseFilter)) return 'type'
         return 'mandatory'
     })
@@ -56,6 +86,13 @@ export function TrainingRecordTab() {
     const [enrollments, setEnrollments] = useState<Record<string, string>>({})
     const [sortField, setSortField] = useState<SortField>('no')
     const [sortDir, setSortDir] = useState<SortDir>('asc')
+
+    // Auto-select first tab when API data arrives
+    useMemo(() => {
+        if (monitoringData?.courseCategories?.length && !monitoringData.courseCategories.find(c => c.categoryId.toString() === tab)) {
+            setTab(monitoringData.courseCategories[0].categoryId.toString())
+        }
+    }, [monitoringData])
 
     const activeTabObj = AVAILABLE_TABS.find(t => t.key === tab) || AVAILABLE_TABS[0]
     let courses = activeTabObj.data
@@ -84,8 +121,16 @@ export function TrainingRecordTab() {
         }
     }
 
-    // Aggregate stats
+    // Use API stats if available
     const stats = useMemo(() => {
+        if (monitoringData?.summary) {
+            return {
+                total: monitoringData.summary.totalStaff,
+                expired: monitoringData.summary.totalExpired,
+                warning: monitoringData.summary.totalWarning,
+                valid: monitoringData.summary.totalValid,
+            }
+        }
         let expired = 0, warning = 0, valid = 0
         EMPLOYEES.forEach(emp => {
             ALL_COURSES.forEach((c: CourseRef) => {
@@ -96,10 +141,32 @@ export function TrainingRecordTab() {
             })
         })
         return { expired, warning, valid, total: EMPLOYEES.length }
-    }, [])
+    }, [monitoringData])
 
-    // Filtered employees
+    // Build employee list from API staffList or fallback to local filtering
     const filtered = useMemo(() => {
+        if (activeTabObj.staffList?.length) {
+            // Map API staff to Employee-like objects for StatusMatrix
+            return activeTabObj.staffList.map((staff, idx) => {
+                const coursesMap: Record<string, string> = {}
+                staff.courses.forEach(c => {
+                    coursesMap[c.courseId.toString()] = c.expiryDate || c.status || '-'
+                })
+                return {
+                    no: idx + 1,
+                    id: staff.employeeId,
+                    name: staff.staffName,
+                    pos: staff.positionName,
+                    posGroup: 'CS' as const, // Default group
+                    courses: coursesMap,
+                    _apiStaff: staff, // Keep reference to API data
+                } as Employee & { _apiStaff: typeof staff }
+            }).filter(emp => {
+                if (!search) return true
+                return emp.name.toLowerCase().includes(search.toLowerCase()) || emp.id.includes(search)
+            })
+        }
+        // Fallback to local mock data
         return EMPLOYEES.filter(emp => {
             const nameMatch = emp.name.toLowerCase().includes(search.toLowerCase()) || emp.id.includes(search)
             const posMatch = posFilter === 'All' ||
@@ -118,7 +185,7 @@ export function TrainingRecordTab() {
             })
             return nameMatch && posMatch && statusMatch && monthMatch
         })
-    }, [search, posFilter, statusFilter, monthFilter, courses])
+    }, [activeTabObj.staffList, search, posFilter, statusFilter, monthFilter, courses])
 
     // Sorted employees
     const sorted = useMemo(() => {
@@ -303,7 +370,7 @@ export function TrainingRecordTab() {
                         </div>
                     ))}
                     <span className="ml-auto text-[10px] text-muted-foreground">
-                        Showing {sorted.length} of {EMPLOYEES.length} staff · Click row to expand
+                        Showing {sorted.length} of {stats.total} staff · Click row to expand
                     </span>
                 </div>
             </div>

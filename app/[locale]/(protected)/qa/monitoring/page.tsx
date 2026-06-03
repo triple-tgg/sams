@@ -12,7 +12,7 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
     RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from 'recharts'
-import { getDashboardSummary } from '@/lib/api/qa/dashboardSummary'
+import { getDashboardSummary, getCourseGroupsBreakdown } from '@/lib/api/qa/dashboardSummary'
 import { getStatus } from './types'
 import { EMPLOYEES, ALL_COURSES, MANDATORY, TYPE_COURSES } from './data'
 import { CourseCard } from './components/CourseCard'
@@ -57,6 +57,11 @@ export default function MonitoringPage() {
         queryFn: () => getDashboardSummary({ year: now.getFullYear() }),
     })
     const summaryData = summaryResponse?.responseData
+
+    const { data: breakdownResponse } = useQuery({
+        queryKey: ['course-groups-breakdown', now.getFullYear()],
+        queryFn: () => getCourseGroupsBreakdown(now.getFullYear()),
+    })
 
     const stats = useMemo(() => {
         let expired = 0, warning = 0, valid = 0, missing = 0
@@ -131,6 +136,17 @@ export default function MonitoringPage() {
     }, [stats, summaryData, kpiStats.totalCourses])
 
     const stackedBarData = useMemo(() => {
+        if (breakdownResponse?.responseData) {
+            return breakdownResponse.responseData.map(item => ({
+                name: item.categoryName,
+                Valid: item.validCount,
+                Warning: item.warningCount,
+                Expired: item.expiredCount,
+                'Not Taken': item.notTakenCount,
+            }))
+        }
+
+        // Fallback to local computation
         const groups: Record<string, { valid: number, warning: number, expired: number, notTaken: number }> = {}
         const courses = summaryData ? summaryData.mandatoryCourseStatus : courseSummary.filter(c => MANDATORY.some(m => m.id === c.id)).map(c => ({ courseCode: c.short, validCount: c.valid, warningCount: c.warning, expiredCount: c.expired }))
 
@@ -158,7 +174,7 @@ export default function MonitoringPage() {
             Expired: data.expired,
             'Not Taken': data.notTaken
         }))
-    }, [summaryData, courseSummary, stats.total])
+    }, [breakdownResponse, summaryData, courseSummary, stats.total])
 
     // Per position-group compliance
     const radarData = useMemo(() => {

@@ -1,30 +1,85 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Check } from 'lucide-react'
 import { CATEGORY_DOT } from '../types'
-import { COURSES, MATRIX_ROLES, MATRIX_DATA, MATRIX_COURSES } from '../data'
+import { COURSES } from '../data'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { getCourseMatrix, upsertCourseMatrixRequirements } from '@/lib/api/qa/course'
+import { toast } from 'sonner'
+import { useReduxAuth } from '@/lib/api/hooks/useReduxAuth'
 
 export function TrainingNeedsMatrix() {
     const [hoveredRow, setHoveredRow] = useState<number | null>(null)
     const [hoveredCol, setHoveredCol] = useState<number | null>(null)
-    const [matrixData, setMatrixData] = useState<Record<number, number[]>>(MATRIX_DATA)
-    const [editingCell, setEditingCell] = useState<{ courseId: number, courseName: string, roleIndex: number, currentVal: number } | null>(null)
+    const [editingCell, setEditingCell] = useState<{ courseId: number, courseName: string, roleIndex: number, currentVal: number, roleId: number } | null>(null)
+    const queryClient = useQueryClient()
+    const { user } = useReduxAuth()
+
+    // Fetch API Data
+    const { data: matrixResp, isLoading } = useQuery({
+        queryKey: ['course-matrix'],
+        queryFn: () => getCourseMatrix({ departmentId: 0, categoryId: 0, page: 1, perPage: 100 })
+    })
+
+    const apiRoles = matrixResp?.responseData?.departmentSubs || []
+    const apiCourses = matrixResp?.responseData?.courses || []
+
+    // Convert API format to the local matrixData format { [courseId]: [0, 1, 0, ...] }
+    // In a real app, you might want to use useEffect to sync this with a local state,
+    // but here we can just compute it if we aren't sending updates back immediately.
+    // If we need local edits, we should keep it in state. Let's use state and sync it.
+    const [localMatrixData, setLocalMatrixData] = useState<Record<number, number[]>>({})
+
+    useEffect(() => {
+        if (apiCourses.length > 0 && apiRoles.length > 0) {
+            const initialData: Record<number, number[]> = {}
+            apiCourses.forEach(course => {
+                // Ensure the requirements align with the roles array
+                const roleReqs = apiRoles.map(role => {
+                    const req = course.requirements.find(r => r.departmentSubId === role.departmentSubId)
+                    return req?.isRequired ? 1 : 0
+                })
+                initialData[course.courseId] = roleReqs
+            })
+            setLocalMatrixData(initialData)
+        }
+    }, [apiCourses, apiRoles])
+
+    const mutation = useMutation({
+        mutationFn: upsertCourseMatrixRequirements,
+        onSuccess: () => {
+            toast.success("Training requirement updated successfully")
+            queryClient.invalidateQueries({ queryKey: ['course-matrix'] })
+            setEditingCell(null)
+        },
+        onError: (error) => {
+            toast.error(error.message || "Failed to update training requirement")
+        }
+    })
 
     const handleConfirmChange = () => {
         if (!editingCell) return
         
-        setMatrixData(prev => {
+        // Optimistic local update
+        setLocalMatrixData(prev => {
             const newData = { ...prev }
             const rowData = [...(newData[editingCell.courseId] || [])]
             rowData[editingCell.roleIndex] = editingCell.currentVal === 1 ? 0 : 1
             newData[editingCell.courseId] = rowData
             return newData
         })
-        setEditingCell(null)
+
+        // Send to API
+        mutation.mutate([{
+            courseId: editingCell.courseId,
+            courseDepartmentSubId: editingCell.roleId,
+            isRequired: editingCell.currentVal === 0, // Invert current value
+            userName: user?.username || "system"
+        }])
     }
 
     return (
@@ -60,7 +115,7 @@ export function TrainingNeedsMatrix() {
                             <th className="sticky left-0 z-20 bg-card border-r border-b border-border px-4 py-3 text-left text-muted-foreground w-64 min-w-[256px] font-medium">
                                 Training Course
                             </th>
-                            {MATRIX_ROLES.map((role, i) => (
+                            {apiRoles.map((role, i) => (
                                 <th
                                     key={i}
                                     className={`border-b border-border px-1 py-2 font-medium transition-colors ${
@@ -71,20 +126,35 @@ export function TrainingNeedsMatrix() {
                                     onMouseLeave={() => setHoveredCol(null)}
                                 >
                                     <div className="flex flex-col items-center gap-1">
-                                        <span className="text-foreground font-semibold">{role.short}</span>
+                                        <span className="text-foreground font-semibold">{role.departmentSubCode}</span>
                                     </div>
                                 </th>
                             ))}
                         </tr>
                     </thead>
                     <tbody>
-                        {MATRIX_COURSES.map((mc, rowIdx) => {
-                            const data = matrixData[mc.id] || []
-                            const courseInfo = COURSES.find(c => c.id === mc.id)
+                        {isLoading ? (
+                            <tr>
+                                <td colSpan={apiRoles.length + 1} className="text-center py-12 text-muted-foreground">
+                                    <div className="flex flex-col items-center justify-center">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
+                                        Loading matrix data...
+                                    </div>
+                                </td>
+                            </tr>
+                        ) : apiCourses.length === 0 ? (
+                            <tr>
+                                <td colSpan={apiRoles.length + 1} className="text-center py-12 text-muted-foreground">
+                                    No matrix data found.
+                                </td>
+                            </tr>
+                        ) : apiCourses.map((mc, rowIdx) => {
+                            const data = localMatrixData[mc.courseId] || []
+                            const courseInfo = COURSES.find(c => c.id === mc.courseId)
                             const catDot = courseInfo ? CATEGORY_DOT[courseInfo.category] || 'bg-muted-foreground' : 'bg-muted-foreground'
                             return (
                                 <tr
-                                    key={mc.id}
+                                    key={mc.courseId}
                                     className={`border-b border-border/50 transition-colors ${
                                         hoveredRow === rowIdx
                                             ? 'bg-primary/5'
@@ -107,7 +177,7 @@ export function TrainingNeedsMatrix() {
                                             <TooltipTrigger asChild>
                                                 <div className="flex items-start gap-2 cursor-pointer">
                                                     <span className={`mt-0.5 w-1.5 h-1.5 rounded-full shrink-0 ${catDot}`} />
-                                                    <span className="text-xs text-foreground leading-snug line-clamp-2">{mc.name}</span>
+                                                    <span className="text-xs text-foreground leading-snug line-clamp-2">{mc.courseName}</span>
                                                     {courseInfo?.recurrent && (
                                                         <span className="shrink-0 text-orange-400 text-xs">↺</span>
                                                     )}
@@ -116,7 +186,7 @@ export function TrainingNeedsMatrix() {
                                             <TooltipContent side="right" className="max-w-[300px] p-0 bg-white text-zinc-900 border border-zinc-200 shadow-xl z-[5000] overflow-hidden">
                                                 <div className={`${catDot || 'bg-muted-foreground'} px-3 py-2 text-white`}>
                                                     <p className="text-[10px] text-white/80 font-medium uppercase tracking-wider mb-0.5">Training Course</p>
-                                                    <p className="text-sm font-bold leading-snug">{mc.name}</p>
+                                                    <p className="text-sm font-bold leading-snug">{mc.courseName}</p>
                                                 </div>
                                                 <div className="space-y-3 p-3">
                                                     <div>
@@ -146,10 +216,11 @@ export function TrainingNeedsMatrix() {
                                             onMouseEnter={() => setHoveredCol(colIdx)}
                                             onMouseLeave={() => setHoveredCol(null)}
                                             onClick={() => setEditingCell({
-                                                courseId: mc.id,
-                                                courseName: mc.name,
+                                                courseId: mc.courseId,
+                                                courseName: mc.courseName,
                                                 roleIndex: colIdx,
-                                                currentVal: val
+                                                currentVal: val,
+                                                roleId: apiRoles[colIdx]?.departmentSubId
                                             })}
                                         >
                                             <Tooltip>
@@ -172,12 +243,12 @@ export function TrainingNeedsMatrix() {
                                                     <div className="space-y-3 p-1">
                                                         <div>
                                                             <p className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mb-0.5">Role / Department</p>
-                                                            <p className="text-[13px] font-bold leading-snug">{MATRIX_ROLES[colIdx].full}</p>
+                                                            <p className="text-[13px] font-bold leading-snug">{apiRoles[colIdx]?.departmentSubName}</p>
                                                         </div>
                                                         <div className="grid grid-cols-2 gap-3">
                                                             <div>
                                                                 <p className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mb-0.5">Abbreviation</p>
-                                                                <p className="text-xs font-medium">{MATRIX_ROLES[colIdx].short}</p>
+                                                                <p className="text-xs font-medium">{apiRoles[colIdx]?.departmentSubCode}</p>
                                                             </div>
                                                             <div>
                                                                 <p className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mb-0.5">Status Required</p>
@@ -223,7 +294,7 @@ export function TrainingNeedsMatrix() {
                                 </div>
                                 <div className="grid grid-cols-[100px_1fr] gap-2">
                                     <span className="text-muted-foreground font-medium">Role:</span>
-                                    <span className="text-foreground">{MATRIX_ROLES[editingCell.roleIndex].full} ({MATRIX_ROLES[editingCell.roleIndex].short})</span>
+                                    <span className="text-foreground">{apiRoles[editingCell.roleIndex]?.departmentSubName} ({apiRoles[editingCell.roleIndex]?.departmentSubCode})</span>
                                 </div>
                                 <div className="grid grid-cols-[100px_1fr] gap-2">
                                     <span className="text-muted-foreground font-medium">Status:</span>
@@ -244,11 +315,11 @@ export function TrainingNeedsMatrix() {
                     )}
 
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setEditingCell(null)}>
+                        <Button variant="outline" onClick={() => setEditingCell(null)} disabled={mutation.isPending}>
                             Cancel
                         </Button>
-                        <Button color="primary" onClick={handleConfirmChange}>
-                            Confirm Update
+                        <Button color="primary" onClick={handleConfirmChange} disabled={mutation.isPending}>
+                            {mutation.isPending ? "Updating..." : "Confirm Update"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
