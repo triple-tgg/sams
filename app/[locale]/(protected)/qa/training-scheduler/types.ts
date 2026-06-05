@@ -18,6 +18,7 @@ export interface Session {
     status: string
     type: string
     objective?: string
+    note?: string
 }
 
 export interface Instructor {
@@ -82,4 +83,5 @@ export const BLANK_FORM: SessionFormData = {
     dateStart: '', dateEnd: '', timeStart: '09:00', timeEnd: '17:00',
     instructor: '', venue: '', dept: 'All Departments',
     maxParticipants: 20, enrolled: 0, status: 'Scheduled', type: 'Initial',
+    note: ''
 }

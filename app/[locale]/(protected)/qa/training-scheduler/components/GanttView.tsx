@@ -94,16 +94,14 @@ export function GanttView({ sessions, calYear, calMonth, setCalYear, setCalMonth
                     {/* Details Grid */}
                     <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
                         <div>
-                            <p className="text-[8px] text-muted-foreground uppercase tracking-wider font-bold">Date</p>
-                            <p className="text-[10px] font-semibold text-foreground">
-                                {formatDate(s.dateStart)} — {formatDate(s.dateEnd)}
-                            </p>
+                            <p className="text-[8px] text-muted-foreground uppercase tracking-wider font-bold">Start Date</p>
+                            <p className="text-[10px] font-semibold text-foreground">{formatDate(s.dateStart)}</p>
+                            <p className="text-[9px] text-muted-foreground mt-0.5">{s.timeStart?.slice(0, 5) || '—'}</p>
                         </div>
                         <div>
-                            <p className="text-[8px] text-muted-foreground uppercase tracking-wider font-bold">Time</p>
-                            <p className="text-[10px] font-semibold text-foreground">
-                                {s.timeStart?.slice(0, 5) || '—'} – {s.timeEnd?.slice(0, 5) || '—'}
-                            </p>
+                            <p className="text-[8px] text-muted-foreground uppercase tracking-wider font-bold">End Date</p>
+                            <p className="text-[10px] font-semibold text-foreground">{formatDate(s.dateEnd)}</p>
+                            <p className="text-[9px] text-muted-foreground mt-0.5">{s.timeEnd?.slice(0, 5) || '—'}</p>
                         </div>
                         <div>
                             <p className="text-[8px] text-muted-foreground uppercase tracking-wider font-bold">Instructor</p>

@@ -185,6 +185,7 @@ export default function CourseManagementPage() {
                                                         onClick={() => {
                                                             setSelectedDept(dept.id)
                                                             setSelectedSubDept(null)
+                                                            setSelectedCourse(null)
                                                             setExpandedDept(isExpanded ? null : dept.id)
                                                         }}
                                                         className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-all text-sm cursor-pointer border-none bg-transparent ${isSelected ? 'bg-primary/10 text-primary' : 'text-foreground/70 hover:bg-muted'
@@ -219,6 +220,7 @@ export default function CourseManagementPage() {
                                                                         onClick={(e) => {
                                                                             e.stopPropagation()
                                                                             setSelectedSubDept(isSubSelected ? null : role.id)
+                                                                            setSelectedCourse(null)
                                                                         }}
                                                                         className={`flex items-center gap-2 py-1 px-2 rounded-md text-[11px] cursor-pointer transition-colors ${
                                                                             isSubSelected

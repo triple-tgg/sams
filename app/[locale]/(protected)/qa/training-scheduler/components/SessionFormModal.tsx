@@ -1,9 +1,19 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { SessionFormData, STATUS_CONFIG } from '../types'
-import { COURSES_REF, INSTRUCTORS, VENUES, DEPTS } from '../data'
+import { INSTRUCTORS, VENUES } from '../data'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
+import { useQuery } from '@tanstack/react-query'
+import { getCourseList } from '@/lib/api/qa/course'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import { Check, ChevronsUpDown } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import dynamic from 'next/dynamic'
+import 'react-quill-new/dist/quill.snow.css'
+
+const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false })
 
 interface SessionFormModalProps {
     form: SessionFormData
@@ -16,6 +26,7 @@ interface SessionFormModalProps {
 
 export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCourseSelect }: SessionFormModalProps) {
     const [isOpen, setIsOpen] = useState(false)
+    const [courseOpen, setCourseOpen] = useState(false)
 
     useEffect(() => {
         // Trigger smooth entry animation after conditional mounting
@@ -34,6 +45,27 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
         handleClose()
     }
 
+    const { data: courseListResp, isLoading: courseLoading } = useQuery({
+        queryKey: ['course-list-scheduler-form'],
+        queryFn: () => getCourseList({ categoryId: null, courseName: '', courseDepartmentRequirementId: null, page: 1, perPage: 999 })
+    })
+
+    // Group courses by category
+    const coursesByCategory = useMemo(() => {
+        if (!courseListResp?.responseData) return {}
+        return courseListResp.responseData.reduce<Record<string, typeof courseListResp.responseData>>((acc, c) => {
+            const cat = c.courseCategory?.name || 'Other'
+            if (!acc[cat]) acc[cat] = []
+            acc[cat].push(c)
+            return acc
+        }, {})
+    }, [courseListResp])
+
+    // Find selected course label
+    const allCourses = courseListResp?.responseData || []
+    const selectedCourse = allCourses.find(c => String(c.id) === String(form.courseId))
+    const selectedLabel = selectedCourse ? `${selectedCourse.courseCode} — ${selectedCourse.courseName}` : ''
+
     const f = (k: string, v: string | number) => setForm(p => ({ ...p, [k]: v }))
 
     return (
@@ -51,22 +83,52 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
 
                 {/* Form Body - scrollable */}
                 <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
-                    {/* Course select */}
+                    {/* Course combobox */}
                     <div>
                         <label className="text-xs font-medium text-muted-foreground block mb-1.5">
                             Training Course <span className="text-red-400">*</span>
                         </label>
-                        <select value={String(form.courseId)} onChange={e => onCourseSelect(e.target.value)}
-                            className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 cursor-pointer">
-                            <option value="">Select a course...</option>
-                            {['Core', 'Aircraft Familiarization', 'Aircraft Type', 'Specialized', 'Compliance'].map(cat => (
-                                <optgroup key={cat} label={cat}>
-                                    {COURSES_REF.filter(c => c.category === cat).map(c => (
-                                        <option key={c.id} value={c.id}>{c.code} — {c.name}</option>
-                                    ))}
-                                </optgroup>
-                            ))}
-                        </select>
+                        <Popover open={courseOpen} onOpenChange={setCourseOpen} modal={true}>
+                            <PopoverTrigger asChild>
+                                <button
+                                    type="button"
+                                    role="combobox"
+                                    aria-expanded={courseOpen}
+                                    className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 cursor-pointer flex items-center justify-between gap-2"
+                                >
+                                    <span className={cn('truncate', !selectedLabel && 'text-muted-foreground')}>
+                                        {courseLoading ? 'Loading courses...' : selectedLabel || 'Select a course...'}
+                                    </span>
+                                    <ChevronsUpDown className="w-4 h-4 text-muted-foreground shrink-0" />
+                                </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="p-0 w-[460px]" align="start">
+                                <Command>
+                                    <CommandInput placeholder="Search course..." />
+                                    <CommandList className="max-h-[320px] overflow-y-auto" data-vaul-no-drag>
+                                        <CommandEmpty>No course found.</CommandEmpty>
+                                        {Object.entries(coursesByCategory).map(([cat, courses]) => (
+                                            <CommandGroup key={cat} heading={cat}>
+                                                {courses.map(c => (
+                                                    <CommandItem
+                                                        key={c.id}
+                                                        value={`${c.courseCode} ${c.courseName}`}
+                                                        onSelect={() => {
+                                                            onCourseSelect(String(c.id))
+                                                            setCourseOpen(false)
+                                                        }}
+                                                    >
+                                                        <Check className={cn('mr-2 w-4 h-4 shrink-0', String(form.courseId) === String(c.id) ? 'opacity-100' : 'opacity-0')} />
+                                                        <span className="font-medium mr-1.5 text-xs text-muted-foreground">{c.courseCode}</span>
+                                                        {c.courseName}
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        ))}
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
                     </div>
 
                     {/* Dates + Time */}
@@ -124,6 +186,19 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
                                 className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10" />
                         </div>
                     </div>
+
+                    {/* Note */}
+                    <div className="flex flex-col">
+                        <label className="text-xs font-medium text-muted-foreground block mb-1.5">Note (Optional)</label>
+                        <div className="border border-border rounded-lg bg-card text-foreground [&_.ql-toolbar]:border-none [&_.ql-toolbar]:border-b [&_.ql-toolbar]:border-border [&_.ql-container]:border-none [&_.ql-editor]:min-h-[120px] [&_.ql-editor]:text-sm [&_.ql-editor.ql-blank::before]:text-muted-foreground [&_.ql-stroke]:stroke-foreground [&_.ql-fill]:fill-foreground">
+                            <ReactQuill
+                                theme="snow"
+                                placeholder="Add any additional details or remarks..."
+                                value={form.note || ''}
+                                onChange={val => f('note', val)}
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 {/* Footer */}
@@ -140,3 +215,4 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
         </Drawer>
     )
 }
+
