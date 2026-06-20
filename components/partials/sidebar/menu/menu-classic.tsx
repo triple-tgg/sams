@@ -110,7 +110,7 @@ export function MenuClassic({ }) {
                                 )}
 
                                 {menus.map(
-                                    ({ href, label, icon, active, id, submenus }, index) =>
+                                    ({ href, label, icon, active, id, submenus, badge }, index) =>
                                         submenus.length === 0 ? (
                                             <div className="w-full mb-2 last:mb-0" key={index}>
                                                 <TooltipProvider disableHoverableContent>
@@ -119,7 +119,7 @@ export function MenuClassic({ }) {
 
                                                             <div>
 
-                                                                <MenuItem label={label} icon={icon} href={href} active={active} id={id} collapsed={collapsed} />
+                                                                <MenuItem label={label} icon={icon} href={href} active={active} id={id} collapsed={collapsed} badge={badge} />
                                                             </div>
                                                         </TooltipTrigger>
                                                         {collapsed && (

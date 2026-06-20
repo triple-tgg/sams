@@ -26,7 +26,7 @@ export const getRoleList = async (params: { page: number; perPage: number }): Pr
         );
         return res.data as RolesResponse;
     } catch (error: any) {
-        throw new Error(error.response?.data?.message || "Failed to fetch roles");
+        throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to fetch roles");
     }
 };
 
@@ -36,7 +36,7 @@ export const getRoleById = async (id: number): Promise<RoleByIdResponse> => {
         const res = await axios.get(`${API_BASE}/master/Role-byid/${id}`);
         return res.data as RoleByIdResponse;
     } catch (error: any) {
-        throw new Error(error.response?.data?.message || "Failed to fetch role");
+        throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to fetch role");
     }
 };
 
@@ -48,7 +48,7 @@ export const upsertRole = async (data: RoleUpsertRequest): Promise<RoleUpsertRes
         });
         return res.data as RoleUpsertResponse;
     } catch (error: any) {
-        throw new Error(error.response?.data?.message || "Failed to save role");
+        throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to save role");
     }
 };
 
@@ -62,7 +62,7 @@ export const deleteRole = async (data: RoleDeleteRequest): Promise<RoleDeleteRes
         );
         return res.data as RoleDeleteResponse;
     } catch (error: any) {
-        throw new Error(error.response?.data?.message || "Failed to delete role");
+        throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to delete role");
     }
 };
 
@@ -72,7 +72,7 @@ export const getRolePermissions = async (roleId: number): Promise<MenuPermission
         const res = await axios.get(`${API_BASE}/permission/menus/${roleId}`);
         return res.data as MenuPermissionsResponse;
     } catch (error: any) {
-        throw new Error(error.response?.data?.message || "Failed to fetch permissions");
+        throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to fetch permissions");
     }
 };
 
@@ -86,6 +86,6 @@ export const upsertRolePermissions = async (
         });
         return res.data as RolePermissionUpsertResponse;
     } catch (error: any) {
-        throw new Error(error.response?.data?.message || "Failed to save permissions");
+        throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to save permissions");
     }
 };

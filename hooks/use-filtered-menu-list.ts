@@ -10,12 +10,16 @@ import { getMenuList, type Group } from "@/lib/menus";
  * Flatten nested MenuPermissionItem[] into a flat array.
  * Parents with children[] are included alongside their flattened children.
  */
-function flattenPermissions(items: MenuPermissionItem[]): MenuPermissionItem[] {
+function flattenPermissions(items: any[]): MenuPermissionItem[] {
     const result: MenuPermissionItem[] = [];
     for (const item of items) {
         result.push(item);
+        // บางที API อาจส่งกลับมาเป็น 'children' หรือ 'submenus'
         if (item.children && item.children.length > 0) {
             result.push(...flattenPermissions(item.children));
+        }
+        if (item.submenus && item.submenus.length > 0) {
+            result.push(...flattenPermissions(item.submenus));
         }
     }
     return result;
@@ -39,7 +43,13 @@ export function useFilteredMenuList(pathname: string, t: any): Group[] {
         const flat = flattenPermissions(permMenus);
         const canViewMap = new Map(flat.map((m) => [m.menuCode, m.canView]));
 
-        /** Check if a permCode is viewable. Missing permCode = always show */
+        /**
+         * Check if a permCode is viewable.
+         * - No permCode at all      → always show
+         * - permCode in map, canView === true  → show
+         * - permCode in map, canView === false → hide
+         * - permCode NOT in API map  → hide (ไม่มีสิทธิ์)
+         */
         const isViewable = (code?: string) => {
             if (!code) return true;
             return canViewMap.get(code) === true;

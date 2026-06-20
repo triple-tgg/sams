@@ -5,6 +5,7 @@ export type SubChildren = {
   label: string;
   active: boolean;
   children?: SubChildren[];
+  badge?: string;
 };
 export type Submenu = {
   href: string;
@@ -14,6 +15,8 @@ export type Submenu = {
   permCode?: string;           // API menuCode for permission check
   submenus?: Submenu[];
   children?: SubChildren[];
+  badge?: string;
+  hasDivider?: boolean;        // render a divider line above this item
 };
 
 export type Menu = {
@@ -24,6 +27,7 @@ export type Menu = {
   submenus: Submenu[];
   id: string;
   permCode?: string;           // API menuCode for permission check
+  badge?: string;
 };
 
 export type Group = {
@@ -76,6 +80,65 @@ export function getMenuList(pathname: string, t: any): Group[] {
           submenus: [],
         },
       ],
+    },
+
+    {
+      groupLabel: "Production Planner",
+      id: "production-planner",
+      menus: [
+        {
+          id: "production-planner",
+          permCode: "PRODUCTION_PLANNER",
+          href: "/production-planner/dashboard",
+          label: "Production Planner",
+          active: pathname.includes("/production-planner"),
+          icon: "heroicons-outline:chart-pie",
+          submenus: [
+            {
+              permCode: "PRODUCTION_DASHBOARD",
+              href: "/production-planner/dashboard",
+              label: "Dashboard",
+              active: pathname.includes("/production-planner/dashboard"),
+              icon: "heroicons-outline:squares-2x2",
+              badge: "LIVE",
+            },
+
+            {
+              permCode: "PRODUCTION_PLAN",
+              href: "/production-planner/production-plan",
+              label: "Production Plan",
+              active: pathname.includes("/production-planner/production-plan"),
+              icon: "heroicons-outline:paper-airplane",
+              badge: "NEW",
+            },
+            {
+              permCode: "REVENUE_PLAN",
+              href: "/production-planner/revenue-plan",
+              label: "Revenue Plan",
+              active: pathname.includes("/production-planner/revenue-plan"),
+              icon: "heroicons-outline:currency-dollar",
+              badge: "NEW",
+            },
+            {
+              permCode: "MONTHLY_FREQUENCY",
+              href: "/production-planner/monthly-frequency",
+              label: "Monthly Frequency",
+              active: pathname.includes("/production-planner/monthly-frequency"),
+              icon: "heroicons-outline:table-cells",
+              badge: "NEW",
+            },
+            {
+              permCode: "IMPORT_FLIGHT_DATA",
+              hasDivider: true,
+              href: "/production-planner/import-flight-data",
+              label: "Import Flight Data",
+              active: pathname.includes("/production-planner/import-flight-data"),
+              icon: "heroicons-outline:arrow-up-tray",
+              badge: "PP-01",
+            },
+          ]
+        }
+      ]
     },
 
     {

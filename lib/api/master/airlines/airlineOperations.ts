@@ -22,7 +22,7 @@ export const upsertAirline = async (data: AirlineUpsertRequest): Promise<Airline
         return res.data as AirlineUpsertResponse;
     } catch (error: any) {
         console.error('Error upserting airline:', error);
-        throw new Error(error.response?.data?.message || 'Failed to save airline');
+        throw new Error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to save airline');
     }
 };
 
@@ -37,7 +37,7 @@ export const getAirlineById = async (id: number): Promise<AirlineByIdResponse> =
         return res.data as AirlineByIdResponse;
     } catch (error: any) {
         console.error('Error fetching airline by ID:', error);
-        throw new Error(error.response?.data?.message || 'Failed to fetch airline');
+        throw new Error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to fetch airline');
     }
 };
 
@@ -52,6 +52,6 @@ export const deleteAirline = async (data: AirlineDeleteRequest): Promise<Airline
         return res.data as AirlineDeleteResponse;
     } catch (error: any) {
         console.error('Error deleting airline:', error);
-        throw new Error(error.response?.data?.message || 'Failed to delete airline');
+        throw new Error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to delete airline');
     }
 };

@@ -24,7 +24,7 @@ export const getEmailPreview = async (
     } catch (error: any) {
         console.error("Error fetching email preview:", error);
         throw new Error(
-            error.response?.data?.message || "Failed to fetch email preview"
+            error.response?.data?.error || error.response?.data?.message || "Failed to fetch email preview"
         );
     }
 };
@@ -33,12 +33,13 @@ export const getEmailPreview = async (
  * Send email by lineMaintenanceId
  */
 export const sendEmail = async (
-    lineMaintenanceId: number
+    lineMaintenanceId: number,
+    payload?: { subject?: string }
 ): Promise<EmailSendResponse> => {
     try {
         const res = await axios.post(
             `${API_BASE}/email/send/${lineMaintenanceId}`,
-            {},
+            payload || {},
             { headers: { "Content-Type": "application/json" } }
         );
         const data = res.data as EmailSendResponse;
@@ -77,7 +78,7 @@ export const getEmailLog = async (
     } catch (error: any) {
         console.error("Error fetching email log:", error);
         throw new Error(
-            error.response?.data?.message || "Failed to fetch email log"
+            error.response?.data?.error || error.response?.data?.message || "Failed to fetch email log"
         );
     }
 };

@@ -20,7 +20,7 @@ export const useCancelFlightMutation = () => {
     },
     onError: (error: any) => {
       // Show error message
-      const errorMessage = error?.response?.data?.message || "Failed to cancel flight";
+      const errorMessage = error?.response?.data?.error || error?.response?.data?.message || "Failed to cancel flight";
       toast.error(errorMessage);
 
       console.error("Cancel flight error:", error);

@@ -20,7 +20,7 @@ export const useUserList = (
     enabled: boolean = true
 ): UseQueryResult<UserListResponse, Error> => {
     return useQuery({
-        queryKey: ['user-list', params.page, params.perPage],
+        queryKey: ['user-list', params],
         queryFn: () => getUserList(params),
         enabled,
         staleTime: 5 * 60 * 1000,

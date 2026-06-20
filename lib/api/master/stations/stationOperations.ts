@@ -24,7 +24,7 @@ export const getStationList = async (params: StationListRequest): Promise<Statio
         return res.data as StationListResponse;
     } catch (error: any) {
         console.error('Error fetching station list:', error);
-        throw new Error(error.response?.data?.message || 'Failed to fetch station list');
+        throw new Error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to fetch station list');
     }
 };
 
@@ -39,7 +39,7 @@ export const getStationById = async (id: number): Promise<StationByIdResponse> =
         return res.data as StationByIdResponse;
     } catch (error: any) {
         console.error('Error fetching station by ID:', error);
-        throw new Error(error.response?.data?.message || 'Failed to fetch station');
+        throw new Error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to fetch station');
     }
 };
 
@@ -54,7 +54,7 @@ export const upsertStation = async (data: StationUpsertRequest): Promise<Station
         return res.data as StationUpsertResponse;
     } catch (error: any) {
         console.error('Error upserting station:', error);
-        throw new Error(error.response?.data?.message || 'Failed to save station');
+        throw new Error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to save station');
     }
 };
 
@@ -69,6 +69,6 @@ export const deleteStation = async (data: StationDeleteRequest): Promise<Station
         return res.data as StationDeleteResponse;
     } catch (error: any) {
         console.error('Error deleting station:', error);
-        throw new Error(error.response?.data?.message || 'Failed to delete station');
+        throw new Error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to delete station');
     }
 };

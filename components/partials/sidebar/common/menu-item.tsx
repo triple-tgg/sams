@@ -16,6 +16,7 @@ interface MenuItemProps {
   icon: string;
   active: boolean;
   collapsed: boolean;
+  badge?: string;
 }
 import { CSS } from "@dnd-kit/utilities";
 import { useConfig } from "@/hooks/use-config";
@@ -29,6 +30,7 @@ const MenuItem = ({
   active,
   id,
   collapsed,
+  badge,
 }: MenuItemProps) => {
   const [config] = useConfig();
   const [hoverConfig] = useMenuHoverConfig();
@@ -149,7 +151,19 @@ const MenuItem = ({
           })}
         />
         {(!collapsed || hovered) && (
-          <p className={cn("max-w-[200px] truncate")}>{label}</p>
+          <div className="flex items-center justify-between flex-1 w-full overflow-hidden pr-2">
+            <p className={cn("max-w-[200px] truncate")}>{label}</p>
+            {badge && (
+                <span className={cn(
+                    "text-[10px] font-bold px-1.5 py-0.5 rounded-sm shrink-0",
+                    badge === "LIVE" ? "bg-emerald-100 text-emerald-700" :
+                    badge === "NEW" ? "bg-blue-100 text-blue-700" :
+                    "bg-slate-100 text-slate-700"
+                )}>
+                    {badge}
+                </span>
+            )}
+          </div>
         )}
       </Link>
     </Button>

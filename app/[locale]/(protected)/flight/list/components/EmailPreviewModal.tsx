@@ -11,6 +11,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 import {
     Mail,
     Send,
@@ -24,6 +25,9 @@ import {
     ChevronUp,
     User,
     AtSign,
+    Pencil,
+    Check,
+    X,
 } from "lucide-react";
 import { useEmailPreview, useEmailLog, useSendEmail } from "@/lib/api/hooks/useEmailOperations";
 import { useLineMaintenancesQueryThfByFlightId } from "@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId";
@@ -53,6 +57,13 @@ function HtmlEmailRenderer({ html }: { html: string }) {
                 doc.write(html);
                 doc.close();
 
+                // Force all links to open in a new tab
+                const links = doc.querySelectorAll('a');
+                links.forEach(link => {
+                    link.setAttribute('target', '_blank');
+                    link.setAttribute('rel', 'noopener noreferrer');
+                });
+
                 // Auto-resize iframe height to fit content
                 const resizeObserver = new ResizeObserver(() => {
                     if (iframeRef.current && doc.body) {
@@ -69,7 +80,7 @@ function HtmlEmailRenderer({ html }: { html: string }) {
         <iframe
             ref={iframeRef}
             className="w-full min-h-[300px] border-0 bg-white"
-            sandbox="allow-same-origin"
+            sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
             title="Email Preview"
         />
     );
@@ -250,12 +261,64 @@ export default function EmailPreviewModal({
 
     const sendMutation = useSendEmail();
 
-    const htmlContent = previewRes?.responseData?.htmlContent ?? null;
+    const initialHtmlContent = previewRes?.responseData?.htmlContent ?? null;
+    const apiEmailTo = previewRes?.responseData?.emailTo;
+    const apiEmailCc = previewRes?.responseData?.emailCc;
+    const apiEmailFrom = previewRes?.responseData?.emailFrom;
+
+    const displayEmailTo = apiEmailTo || emailTo;
+    const displayEmailCc = apiEmailCc || emailCc;
+    
     const logs = logRes?.responseData ?? [];
+
+    const [localHtmlContent, setLocalHtmlContent] = React.useState<string | null>(null);
+    const [subject, setSubject] = React.useState<string>("");
+    const [isEditingSubject, setIsEditingSubject] = React.useState(false);
+    const [editSubjectValue, setEditSubjectValue] = React.useState("");
+    const [originalSubjectInHtml, setOriginalSubjectInHtml] = React.useState<string | null>(null);
+
+    useEffect(() => {
+        if (initialHtmlContent) {
+            setLocalHtmlContent(initialHtmlContent);
+            const match = initialHtmlContent.match(/DEBRIEF OF\s+[^<]+/i);
+            if (match) {
+                const foundSubject = match[0].trim();
+                setSubject(foundSubject);
+                setOriginalSubjectInHtml(foundSubject);
+            } else {
+                setSubject(`Flight ${flightNo || ''} Debrief`.trim());
+                setOriginalSubjectInHtml(null);
+            }
+        } else {
+            setLocalHtmlContent(null);
+            setSubject("");
+            setOriginalSubjectInHtml(null);
+        }
+    }, [initialHtmlContent, flightNo]);
+
+    const handleSaveSubject = () => {
+        if (!localHtmlContent) return;
+        let newHtml = localHtmlContent;
+        
+        if (originalSubjectInHtml) {
+            newHtml = newHtml.replace(originalSubjectInHtml, editSubjectValue);
+            setOriginalSubjectInHtml(editSubjectValue); 
+        } else {
+            newHtml = `<div style="font-size: 16px; font-weight: bold; margin-bottom: 12px; color: #1e293b;">${editSubjectValue}</div>` + newHtml;
+            setOriginalSubjectInHtml(editSubjectValue);
+        }
+        
+        setSubject(editSubjectValue);
+        setLocalHtmlContent(newHtml);
+        setIsEditingSubject(false);
+    };
 
     const handleSendEmail = () => {
         if (!lineMaintenanceId) return;
-        sendMutation.mutate(lineMaintenanceId, {
+        sendMutation.mutate({ 
+            lineMaintenanceId, 
+            payload: { subject }
+        }, {
             onSuccess: () => {
                 toast.success("Email sent successfully");
             },
@@ -331,16 +394,26 @@ export default function EmailPreviewModal({
                                 <p className="text-sm">No line maintenance data found</p>
                                 <p className="text-xs mt-1">Create a THF first to preview email</p>
                             </div>
-                        ) : htmlContent ? (
+                        ) : localHtmlContent ? (
                             <div className="bg-slate-100 dark:bg-slate-800">
                                 {/* Email To / Cc header */}
-                                {(emailTo || emailCc) && (
+                                {(displayEmailTo || displayEmailCc || apiEmailFrom) && (
                                     <div className="bg-white dark:bg-slate-900 border-b px-5 py-3 space-y-2">
-                                        {emailTo && (
+                                        {apiEmailFrom && (
+                                            <div className="flex items-start gap-2">
+                                                <span className="text-xs font-semibold text-muted-foreground w-8 pt-0.5 shrink-0">From:</span>
+                                                <div className="flex flex-wrap gap-1">
+                                                    <Badge color="secondary" className="text-[11px] font-normal px-2 py-0.5">
+                                                        {apiEmailFrom.trim()}
+                                                    </Badge>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {displayEmailTo && (
                                             <div className="flex items-start gap-2">
                                                 <span className="text-xs font-semibold text-muted-foreground w-8 pt-0.5 shrink-0">To:</span>
                                                 <div className="flex flex-wrap gap-1">
-                                                    {emailTo.split(/[;,]+/).filter(Boolean).map((email, i) => (
+                                                    {displayEmailTo.split(/[;,]+/).filter(Boolean).map((email, i) => (
                                                         <Badge key={i} color="default" className="text-[11px] font-normal px-2 py-0.5">
                                                             {email.trim()}
                                                         </Badge>
@@ -348,11 +421,11 @@ export default function EmailPreviewModal({
                                                 </div>
                                             </div>
                                         )}
-                                        {emailCc && (
+                                        {displayEmailCc && (
                                             <div className="flex items-start gap-2">
                                                 <span className="text-xs font-semibold text-muted-foreground w-8 pt-0.5 shrink-0">Cc:</span>
                                                 <div className="flex flex-wrap gap-1">
-                                                    {emailCc.split(/[;,]+/).filter(Boolean).map((email, i) => (
+                                                    {displayEmailCc.split(/[;,]+/).filter(Boolean).map((email, i) => (
                                                         <Badge key={i} color="secondary" className="text-[11px] font-normal px-2 py-0.5">
                                                             {email.trim()}
                                                         </Badge>
@@ -360,9 +433,54 @@ export default function EmailPreviewModal({
                                                 </div>
                                             </div>
                                         )}
+
+                                        {/* Subject Section */}
+                                        <div className="flex items-start gap-2 pt-2 mt-1 border-t border-slate-100 dark:border-slate-800">
+                                            <span className="text-xs font-semibold text-muted-foreground w-8 pt-1.5 shrink-0">Subj:</span>
+                                            <div className="flex-1 flex items-center gap-2">
+                                                {isEditingSubject ? (
+                                                    <div className="flex w-full items-center gap-2">
+                                                        <Input 
+                                                            value={editSubjectValue} 
+                                                            onChange={(e) => setEditSubjectValue(e.target.value)}
+                                                            className="h-8 text-xs font-medium"
+                                                            autoFocus
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') handleSaveSubject();
+                                                                if (e.key === 'Escape') setIsEditingSubject(false);
+                                                            }}
+                                                        />
+                                                        <Button size="icon" variant="ghost" className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 shrink-0" onClick={handleSaveSubject}>
+                                                            <Check className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button size="icon" variant="ghost" className="h-7 w-7 text-slate-400 hover:text-slate-600 hover:bg-slate-100 shrink-0" onClick={() => setIsEditingSubject(false)}>
+                                                            <X className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-2 group w-full">
+                                                        <span className="text-xs font-medium text-slate-800 dark:text-slate-200">
+                                                            {subject || <span className="text-muted-foreground italic">No subject</span>}
+                                                        </span>
+                                                        <Button 
+                                                            size="icon" 
+                                                            variant="ghost" 
+                                                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" 
+                                                            onClick={() => {
+                                                                setEditSubjectValue(subject);
+                                                                setIsEditingSubject(true);
+                                                            }}
+                                                        >
+                                                            <Pencil className="h-3 w-3 text-muted-foreground" />
+                                                        </Button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
                                     </div>
                                 )}
-                                <HtmlEmailRenderer html={htmlContent} />
+                                <HtmlEmailRenderer html={localHtmlContent || ""} />
                             </div>
                         ) : (
                             <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground px-6">
@@ -439,7 +557,7 @@ export default function EmailPreviewModal({
                     </Button>
                     <Button
                         color="primary"
-                        disabled={sendMutation.isPending || !htmlContent || lineMaintenanceId === 0}
+                        disabled={sendMutation.isPending || !localHtmlContent || lineMaintenanceId === 0}
                         onClick={handleSendEmail}
                     >
                         {sendMutation.isPending ? (

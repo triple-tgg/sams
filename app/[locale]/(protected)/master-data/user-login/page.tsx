@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     Table,
@@ -11,6 +11,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -25,7 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTranslations } from "next-intl";
 import { useUserList, useUserById, useUpsertUser, useDeleteUser } from "@/lib/api/hooks/useUserOperations";
-import { ChevronLeft, ChevronRight, RefreshCw, Plus, MoreHorizontal, Eye, Pencil, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, RefreshCw, Plus, MoreHorizontal, Eye, Pencil, Trash2, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import type { UserItem } from "@/lib/api/master/users/users.interface";
 
@@ -39,6 +40,18 @@ const UserLoginPage = () => {
     const t = useTranslations("Menu");
     const [page, setPage] = useState(1);
     const perPage = 10;
+
+    // Filter states
+    const [filterUsername, setFilterUsername] = useState("");
+    const [filterEmail, setFilterEmail] = useState("");
+    const [filterFullName, setFilterFullName] = useState("");
+
+    // Applied filters (sent to API on search)
+    const [appliedFilters, setAppliedFilters] = useState<{
+        username?: string;
+        email?: string;
+        fullName?: string;
+    }>({});
 
     // Dialog states
     const [dialogMode, setDialogMode] = useState<DialogMode>('closed');
@@ -55,9 +68,39 @@ const UserLoginPage = () => {
 
     // API hooks
     const { data, isLoading, error, refetch, isFetching } = useUserList(
-        { page, perPage },
+        {
+            page,
+            perPage,
+            ...(appliedFilters.username && { username: appliedFilters.username }),
+            ...(appliedFilters.email && { email: appliedFilters.email }),
+            ...(appliedFilters.fullName && { fullName: appliedFilters.fullName }),
+        },
         true
     );
+
+    // Filter handlers
+    const handleSearch = useCallback(() => {
+        setPage(1);
+        setAppliedFilters({
+            username: filterUsername.trim() || undefined,
+            email: filterEmail.trim() || undefined,
+            fullName: filterFullName.trim() || undefined,
+        });
+    }, [filterUsername, filterEmail, filterFullName]);
+
+    const handleClearFilters = useCallback(() => {
+        setFilterUsername("");
+        setFilterEmail("");
+        setFilterFullName("");
+        setAppliedFilters({});
+        setPage(1);
+    }, []);
+
+    const handleFilterKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === "Enter") handleSearch();
+    };
+
+    const hasActiveFilters = !!(appliedFilters.username || appliedFilters.email || appliedFilters.fullName);
 
     const { data: userDetailData, isLoading: isLoadingDetail } = useUserById(
         selectedUser?.id ?? 0,
@@ -227,6 +270,52 @@ const UserLoginPage = () => {
                         </div>
                     ) : (
                         <>
+                            {/* Filter Bar */}
+                            <div className="flex flex-wrap items-end gap-3 mb-4">
+                                <div className="flex-1 min-w-[140px] max-w-[200px]">
+                                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Username</label>
+                                    <Input
+                                        placeholder="Search username..."
+                                        value={filterUsername}
+                                        onChange={(e) => setFilterUsername(e.target.value)}
+                                        onKeyDown={handleFilterKeyDown}
+                                        className="h-9"
+                                    />
+                                </div>
+                                <div className="flex-1 min-w-[140px] max-w-[220px]">
+                                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Email</label>
+                                    <Input
+                                        placeholder="Search email..."
+                                        value={filterEmail}
+                                        onChange={(e) => setFilterEmail(e.target.value)}
+                                        onKeyDown={handleFilterKeyDown}
+                                        className="h-9"
+                                    />
+                                </div>
+                                <div className="flex-1 min-w-[140px] max-w-[200px]">
+                                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Full Name</label>
+                                    <Input
+                                        placeholder="Search full name..."
+                                        value={filterFullName}
+                                        onChange={(e) => setFilterFullName(e.target.value)}
+                                        onKeyDown={handleFilterKeyDown}
+                                        className="h-9"
+                                    />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Button size="sm" onClick={handleSearch} disabled={isFetching} className="h-9">
+                                        <Search className="h-4 w-4 mr-1.5" />
+                                        Search
+                                    </Button>
+                                    {hasActiveFilters && (
+                                        <Button size="sm" variant="outline" onClick={handleClearFilters} className="h-9">
+                                            <X className="h-4 w-4 mr-1.5" />
+                                            Clear
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+
                             <Table>
                                 <TableHeader>
                                     <TableRow>

@@ -24,6 +24,11 @@ export interface ResAirlineItem {
 export interface AirlineListRequest {
   page: number;
   perPage: number;
+  code?: string;
+  name?: string;
+  description?: string;
+  emailTo?: string;
+  emailCc?: string;
 }
 
 export interface AirlineListResponse {

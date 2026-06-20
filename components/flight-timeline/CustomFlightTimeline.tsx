@@ -4,6 +4,7 @@ import { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { FlightPlanbyItem } from '@/lib/api/flight/getFlightListPlanby';
 import { FlightItem } from '@/lib/api/flight/filghtlist.interface';
 import dayjs from 'dayjs';
+import '@/lib/dayjs'; // ensures utc + timezone plugins are registered
 import { splitUtcDateTimeToLocal, formatUtcToLocalDisplay } from '@/lib/utils/flightDatetime';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -47,9 +48,10 @@ export function CustomFlightTimeline({
     const [tooltipInfo, setTooltipInfo] = useState<{
         flight: FlightPlanbyItem;
         detail?: FlightItem;
-        x: number;
-        y: number;
+        x: number;   // cursor x relative to scroll container
+        y: number;   // cursor y relative to scroll container
     } | null>(null);
+    const tooltipRef = useRef<HTMLDivElement>(null);
 
     // Track container width for responsive 1hr scale
     useEffect(() => {
@@ -110,11 +112,12 @@ export function CustomFlightTimeline({
         );
     }, [flights]);
 
-    // Calculate pixel position from ISO time string
+    // Calculate pixel position from UTC datetime string (API sends UTC)
     const getPos = useCallback(
         (timeStr: string) => {
-            const t = dayjs(timeStr);
-            const start = dayjs(selectedDate).startOf('day');
+            // Parse as UTC → convert to local so bar aligns with local hour labels on the header
+            const t = dayjs.utc(timeStr).local();
+            const start = dayjs(selectedDate).startOf('day'); // local midnight of selected date
             const mins = t.diff(start, 'minute');
             return (mins / 60) * HOUR_WIDTH;
         },
@@ -344,19 +347,32 @@ export function CustomFlightTimeline({
                             {/* Flight bars */}
                             {rows.map(([channelId, channelFlights], rowIdx) =>
                                 channelFlights.map((flight) => {
-                                    const rawLeft = getPos(flight.since);
-                                    const rawRight = getPos(flight.till);
-                                    
+                                    // Planby API returns arrivalStaDate / departureStdDate as correct UTC ISO strings.
+                                    // Use these for bar positioning (since/till from planby are 7h off due to backend bug).
+                                    const detail = findDetail(flight);
+
+                                    const sinceStr = flight.arrivalStaDate ?? flight.since;
+
+                                    const hasValidDep = flight.departureStdDate &&
+                                        !flight.departureStdDate.endsWith('T00:00:00.000Z');
+                                    const tillStr = hasValidDep
+                                        ? flight.departureStdDate!
+                                        : flight.till;
+
+                                    const rawLeft  = getPos(sinceStr);
+                                    const rawRight = getPos(tillStr);
+
+                                    // Detect next-day: local till exceeds midnight of selected date
+                                    const localTill = dayjs.utc(tillStr).local();
+                                    const dayEnd    = dayjs(selectedDate).startOf('day').add(1, 'day');
+                                    const isNextDay     = localTill.isAfter(dayEnd) || localTill.isSame(dayEnd) || rawRight > TOTAL_WIDTH;
                                     const isPreviousDay = rawLeft < 0;
-                                    const isNextDay = rawRight > TOTAL_WIDTH;
 
                                     if (rawRight <= 0 || rawLeft >= TOTAL_WIDTH) return null;
 
-                                    const left = Math.max(0, rawLeft);
+                                    const left  = Math.max(0, rawLeft);
                                     const right = Math.min(TOTAL_WIDTH, rawRight);
                                     const width = Math.max(right - left, 36);
-
-                                    const detail = findDetail(flight);
 
                                     const acType = detail?.acTypeObj?.code || '';
                                     const airlineName = detail?.airlineObj?.name || flight?.airlineObj?.name || '';
@@ -468,14 +484,34 @@ export function CustomFlightTimeline({
                     </div>
 
                     {/* ───── TOOLTIP ───── */}
-                    {tooltipInfo && (
-                        <div
-                            className="absolute z-50 pointer-events-none"
-                            style={{
-                                left: tooltipInfo.x + 12,
-                                top: tooltipInfo.y - 10,
-                            }}
-                        >
+                    {tooltipInfo && (() => {
+                        // Auto-position: flip left/up when near right/bottom edge
+                        const TOOLTIP_W = tooltipRef.current?.offsetWidth  ?? 240;
+                        const TOOLTIP_H = tooltipRef.current?.offsetHeight ?? 140;
+                        const GAP = 14;
+                        const containerW = scrollRef.current?.clientWidth  ?? containerWidth;
+                        const containerH = scrollRef.current?.clientHeight ?? 400;
+                        const scrollX    = scrollRef.current?.scrollLeft   ?? 0;
+                        const visibleX   = tooltipInfo.x - scrollX; // x relative to visible viewport
+
+                        // Flip horizontally if tooltip would overflow right edge
+                        const flipX = visibleX + GAP + TOOLTIP_W > containerW;
+                        // Flip vertically if tooltip would overflow bottom
+                        const flipY = tooltipInfo.y + GAP + TOOLTIP_H > containerH + (scrollRef.current?.scrollTop ?? 0);
+
+                        const styleLeft = flipX
+                            ? tooltipInfo.x - TOOLTIP_W - GAP
+                            : tooltipInfo.x + GAP;
+                        const styleTop  = flipY
+                            ? tooltipInfo.y - TOOLTIP_H - GAP
+                            : tooltipInfo.y - GAP;
+
+                        return (
+                            <div
+                                ref={tooltipRef}
+                                className="absolute z-50 pointer-events-none"
+                                style={{ left: styleLeft, top: styleTop }}
+                            >
                             <div className="bg-slate-800 dark:bg-slate-700 text-white rounded-lg shadow-2xl px-3 py-2 text-[11px] max-w-[260px] border border-slate-600/50">
                                 <div className="font-bold mb-1">
                                     {tooltipInfo.flight.arrivalFlightNo}
@@ -515,8 +551,9 @@ export function CustomFlightTimeline({
 
                                 </div>
                             </div>
-                        </div>
-                    )}
+                            </div>
+                        );
+                    })()}
                 </div>
             </div>
         </div>

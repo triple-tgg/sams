@@ -24,7 +24,7 @@ export const getStaffList = async (params: StaffListRequest): Promise<StaffListR
         return res.data as StaffListResponse;
     } catch (error: any) {
         console.error('Error fetching staff list:', error);
-        throw new Error(error.response?.data?.message || 'Failed to fetch staff list');
+        throw new Error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to fetch staff list');
     }
 };
 
@@ -39,7 +39,7 @@ export const getStaffById = async (id: number): Promise<StaffByIdResponse> => {
         return res.data as StaffByIdResponse;
     } catch (error: any) {
         console.error('Error fetching staff by ID:', error);
-        throw new Error(error.response?.data?.message || 'Failed to fetch staff');
+        throw new Error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to fetch staff');
     }
 };
 
@@ -54,7 +54,7 @@ export const upsertStaff = async (data: StaffUpsertRequest): Promise<StaffUpsert
         return res.data as StaffUpsertResponse;
     } catch (error: any) {
         console.error('Error upserting staff:', error);
-        throw new Error(error.response?.data?.message || 'Failed to save staff');
+        throw new Error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to save staff');
     }
 };
 
@@ -69,6 +69,6 @@ export const deleteStaff = async (data: StaffDeleteRequest): Promise<StaffDelete
         return res.data as StaffDeleteResponse;
     } catch (error: any) {
         console.error('Error deleting staff:', error);
-        throw new Error(error.response?.data?.message || 'Failed to delete staff');
+        throw new Error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to delete staff');
     }
 };

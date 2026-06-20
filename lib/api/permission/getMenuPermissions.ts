@@ -13,7 +13,7 @@ export const getMenuPermissions = async (roleId: number): Promise<MenuPermission
         return res.data;
     } catch (error: any) {
         throw new Error(
-            error.response?.data?.message || "Failed to fetch menu permissions"
+            error.response?.data?.error || error.response?.data?.message || "Failed to fetch menu permissions"
         );
     }
 };

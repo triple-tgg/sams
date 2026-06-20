@@ -20,7 +20,7 @@ export const batchUpsertPermissions = async (
         return res.data;
     } catch (error: any) {
         throw new Error(
-            error.response?.data?.message || "Failed to save permissions"
+            error.response?.data?.error || error.response?.data?.message || "Failed to save permissions"
         );
     }
 };

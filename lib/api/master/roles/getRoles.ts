@@ -16,7 +16,7 @@ export const getRoles = async (): Promise<RolesResponse> => {
         return res.data as RolesResponse;
     } catch (error: any) {
         console.error('Error fetching roles:', error);
-        throw new Error(error.response?.data?.message || 'Failed to fetch roles');
+        throw new Error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to fetch roles');
     }
 };
 

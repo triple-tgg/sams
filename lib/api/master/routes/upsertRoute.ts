@@ -1,20 +1,16 @@
-import axios from "axios";
+import axios from "@/lib/axios.config";
 import type { RouteUpsertRequest, RouteUpsertResponse } from "./routes.interface";
 
 const upsertRoute = async (data: RouteUpsertRequest): Promise<RouteUpsertResponse> => {
     try {
-        const apiUrl = process.env.NEXT_PUBLIC_ENVIRONTMENT !== "production"
-            ? `${process.env.NEXT_PUBLIC_DEVELOPMENT_API}/master/Routes-upsert`
-            : `${process.env.NEXT_PUBLIC_PRODUCTION_API}/master/Routes-upsert`;
-
-        const res = await axios.post(apiUrl, data, {
+        const res = await axios.post('/master/Routes-upsert', data, {
             headers: { 'Content-Type': 'application/json' },
         });
 
         return res.data as RouteUpsertResponse;
     } catch (error: any) {
         console.error('Error upserting route:', error);
-        throw new Error(error.response?.data?.message || 'Failed to upsert route');
+        throw new Error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to upsert route');
     }
 };
 

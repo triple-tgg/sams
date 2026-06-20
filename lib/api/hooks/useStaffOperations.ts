@@ -20,7 +20,7 @@ export const useStaffList = (
     enabled: boolean = true
 ): UseQueryResult<StaffListResponse, Error> => {
     return useQuery({
-        queryKey: ['staff-list', params.page, params.perPage],
+        queryKey: ['staff-list', params],
         queryFn: () => getStaffList(params),
         enabled,
         staleTime: 5 * 60 * 1000,

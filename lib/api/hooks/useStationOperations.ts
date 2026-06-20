@@ -20,7 +20,7 @@ export const useStationList = (
     enabled: boolean = true
 ): UseQueryResult<StationListResponse, Error> => {
     return useQuery({
-        queryKey: ['station-list', params.page, params.perPage],
+        queryKey: ['station-list', params],
         queryFn: () => getStationList(params),
         enabled,
         staleTime: 5 * 60 * 1000,

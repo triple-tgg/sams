@@ -14,7 +14,7 @@ export const useAirlinesList = (
     enabled: boolean = true
 ): UseQueryResult<AirlineListResponse, Error> => {
     return useQuery({
-        queryKey: ['airlines-list', params.page, params.perPage],
+        queryKey: ['airlines-list', params],
         queryFn: () => getAirlinesList(params),
         enabled,
         staleTime: 5 * 60 * 1000, // 5 minutes

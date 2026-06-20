@@ -9,10 +9,14 @@ import { useStaffsTypesOptions } from '@/lib/api/hooks/useStaffsTypes'
 import { useAircraftTypeById } from '@/lib/api/hooks/useAircraftTypeById'
 import { mapDataThfToServicesStep } from './utils'
 import { ServicesFormInputs } from './types'
+import { usePersonnelsByFlightInfoId } from '@/lib/api/hooks/usePersonnelsByFlightInfoId'
+import { FlightInfoPersonnelData } from '@/lib/api/lineMaintenances/flight/getPersonnelsByFlightInfoId'
+import { utcDatetimeToFormDate, utcDatetimeToFormTime } from '@/lib/utils/flightDatetime'
 
 interface ServicesStepProps {
   flightInfosId: number | null
   thfNumber: string
+  isInitialCreationMode?: boolean
   [key: string]: any
 }
 
@@ -56,11 +60,34 @@ const ServicesStep = ({ flightInfosId, thfNumber, ...props }: ServicesStepProps)
     isLoading: isLoadingAircraftTypeFlags,
   } = useAircraftTypeById(acTypeId)
 
-  // 5. Transform API data to Form Initial Data
+  // 5. Fetch default Personnels for New THF
+  // Use the passed isInitialCreationMode if available, fallback to checking lineMaintenanceData
+  const isNewThf = props.isInitialCreationMode !== undefined ? props.isInitialCreationMode : !lineMaintenanceData?.id
+  const { data: defaultPersonnelsData, isLoading: isLoadingDefaultPersonnels } = usePersonnelsByFlightInfoId(isNewThf ? flightInfosId : null)
+
+  // 6. Transform API data to Form Initial Data
   const initialData: ServicesFormInputs | null = useMemo(() => {
     if (!queryData) return null
-    return mapDataThfToServicesStep(queryData)
-  }, [queryData])
+    const mappedData = mapDataThfToServicesStep(queryData)
+
+    // Override personnels if this is a New THF and we have fetched default personnels
+    if (isNewThf && defaultPersonnelsData?.responseData && mappedData) {
+      mappedData.addPersonnels = defaultPersonnelsData.responseData.length > 0;
+      mappedData.personnel = defaultPersonnelsData.responseData.map((person: FlightInfoPersonnelData) => ({
+        staffId: person.staff?.id || 0,
+        staffCode: person.staff?.code || "",
+        name: person.staff?.name || "",
+        type: person.staff?.staffTypeId ? person.staff.staffTypeId.toString() : "",
+        formDate: person.formDate ? utcDatetimeToFormDate(person.formDate) : "",
+        toDate: person.toDate ? utcDatetimeToFormDate(person.toDate) : "",
+        formTime: person.formDate ? utcDatetimeToFormTime(person.formDate) : "",
+        toTime: person.toDate ? utcDatetimeToFormTime(person.toDate) : "",
+        remark: person.note || "",
+      }));
+    }
+
+    return mappedData
+  }, [queryData, isNewThf, defaultPersonnelsData])
 
   // Prepare props for the card form
   const cardProps = {

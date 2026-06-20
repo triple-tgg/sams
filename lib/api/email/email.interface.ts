@@ -1,5 +1,8 @@
 export interface EmailPreviewData {
     htmlContent: string;
+    emailTo?: string | null;
+    emailCc?: string | null;
+    emailFrom?: string | null;
 }
 
 export interface EmailPreviewResponse {

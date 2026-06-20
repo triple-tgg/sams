@@ -14,6 +14,7 @@ const config = {
   },
   banner: {
     key: "1.0-release",
+    dismissible: false,
     text: (
       <a href="/flight/list" target="_blank">
         🎉 SAMs

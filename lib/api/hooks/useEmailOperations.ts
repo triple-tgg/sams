@@ -54,10 +54,10 @@ export const useEmailLog = (
 export const useSendEmail = () => {
     const queryClient = useQueryClient();
 
-    return useMutation<EmailSendResponse, Error, number>({
-        mutationFn: (lineMaintenanceId: number) => sendEmail(lineMaintenanceId),
+    return useMutation<EmailSendResponse, Error, { lineMaintenanceId: number; payload?: { subject?: string } }>({
+        mutationFn: ({ lineMaintenanceId, payload }) => sendEmail(lineMaintenanceId, payload),
         mutationKey: ["email-send"],
-        onSuccess: (_data, lineMaintenanceId) => {
+        onSuccess: (_data, { lineMaintenanceId }) => {
             // Refetch log and preview after successful send
             queryClient.invalidateQueries({
                 queryKey: ["email-log", lineMaintenanceId],

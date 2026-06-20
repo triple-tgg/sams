@@ -8,6 +8,7 @@ import PartsAndToolsStep from './PartsAndToolsStep'
 import AttachFileStep from './AttachFile'
 import { useSearchParams } from 'next/navigation'
 import { useLineMaintenancesQueryThfByFlightId } from '@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId'
+import { useState, useEffect } from 'react'
 import { LoadingStates } from './FlightStep/LoadingStates'
 import { useAirlineOptions } from '@/lib/api/hooks/useAirlines'
 import { useStationsOptions } from '@/lib/api/hooks/useStations'
@@ -68,6 +69,16 @@ const StepForm = () => {
     usingFallback: statusUsingFallback
   } = useStatusOptions()
 
+  const [isInitialCreationMode, setIsInitialCreationMode] = useState<boolean | null>(null)
+  
+  useEffect(() => {
+    if (!loadingFlight && flightData && isInitialCreationMode === null) {
+      const isPlan = flightData.state === 'plan'
+      const hasNoMaintenance = !lineMaintenanceData?.id
+      setIsInitialCreationMode(isPlan || hasNoMaintenance)
+    }
+  }, [loadingFlight, flightData, lineMaintenanceData, isInitialCreationMode])
+
   if (loadingFlight || loadingStatus || isLoadingAircraft || loadingStations || loadingAirlines) {
     return (
       <LoadingStates
@@ -95,7 +106,7 @@ const StepForm = () => {
           initialData={data}
           thfNumber={lineMaintenanceData?.thfNumber || ''}
           lineMaintenanceId={lineMaintenanceData?.id || null}
-
+          isInitialCreationMode={isInitialCreationMode || false}
         />
         <EquipmentStep
           flightInfosId={flightInfosId}

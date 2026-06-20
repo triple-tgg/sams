@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { getAircraftTypes } from "../master/aircraft-types/getaircraftTypes";
-import { AircraftTypesResponse, AircraftTypeOption } from "../master/aircraft-types/aircraftTypes.interface";
+import { AircraftTypesResponse, AircraftTypeOption, AircraftType } from "../master/aircraft-types/aircraftTypes.interface";
 
 export const useAircraftTypes = () => {
   const query = useQuery<AircraftTypesResponse, Error>({
@@ -15,15 +15,22 @@ export const useAircraftTypes = () => {
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
-  // Memoized options for dropdowns/select components
+  // Memoized options for dropdowns/select components (deduplicated by code)
   const options = useMemo(() => {
     if (!query.data?.responseData) return [];
 
-    return query.data.responseData.map((aircraftType): AircraftTypeOption => ({
-      value: aircraftType.code,
-      label: aircraftType.code,
-      id: aircraftType.id,
-    }));
+    const seen = new Map<string, boolean>();
+    return query.data.responseData
+      .filter((aircraftType: AircraftType) => {
+        if (seen.has(aircraftType.code)) return false;
+        seen.set(aircraftType.code, true);
+        return true;
+      })
+      .map((aircraftType: AircraftType): AircraftTypeOption => ({
+        value: aircraftType.code,
+        label: aircraftType.code,
+        id: aircraftType.id,
+      }));
   }, [query.data]);
 
   // Memoized map for quick lookups
@@ -31,7 +38,7 @@ export const useAircraftTypes = () => {
     if (!query.data?.responseData) return new Map();
 
     const map = new Map();
-    query.data.responseData.forEach(aircraftType => {
+    query.data.responseData.forEach((aircraftType: AircraftType) => {
       map.set(aircraftType.id, aircraftType);
       map.set(aircraftType.code, aircraftType);
     });
@@ -42,7 +49,7 @@ export const useAircraftTypes = () => {
   const getAircraftTypeById = (id: number) => aircraftTypeMap.get(id);
   const getAircraftTypeByCode = (code: string) => aircraftTypeMap.get(code);
 
-  const findOption = (value: string) => options.find(option => option.value === value);
+  const findOption = (value: string) => options.find((option: AircraftTypeOption) => option.value === value);
 
   return {
     ...query,

@@ -1,20 +1,16 @@
-import axios from "axios";
+import axios from "@/lib/axios.config";
 import type { ResContractType } from "./contractTypes.interface";
 
 const getContractTypes = async (): Promise<ResContractType> => {
     try {
-        const apiUrl = process.env.NEXT_PUBLIC_ENVIRONTMENT !== "production"
-            ? `${process.env.NEXT_PUBLIC_DEVELOPMENT_API}/master/ContractTypes`
-            : `${process.env.NEXT_PUBLIC_PRODUCTION_API}/master/ContractTypes`;
-
-        const res = await axios.get(apiUrl, {
+        const res = await axios.get('/master/ContractTypes', {
             headers: { 'Content-Type': 'application/json' },
         });
 
         return res.data as ResContractType;
     } catch (error: any) {
         console.error('Error fetching contract types:', error);
-        throw new Error(error.response?.data?.message || 'Failed to fetch contract types');
+        throw new Error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to fetch contract types');
     }
 };
 

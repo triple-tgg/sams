@@ -25,7 +25,7 @@ export const getSchedulerDashboardCalendar = async (data: SchedulerCalendarReque
     return res.data as SchedulerCalendarResponse;
   } catch (error: any) {
     console.error("Error fetching scheduler calendar dashboard:", error);
-    throw new Error(error.response?.data?.message || "Failed to fetch scheduler calendar dashboard");
+    throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to fetch scheduler calendar dashboard");
   }
 };
 
@@ -63,7 +63,7 @@ export const getSchedulerCalendar = async (data: SchedulerCalendarRequest): Prom
     return res.data as SchedulerSessionsResponse;
   } catch (error: any) {
     console.error("Error fetching scheduler calendar:", error);
-    throw new Error(error.response?.data?.message || "Failed to fetch scheduler calendar");
+    throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to fetch scheduler calendar");
   }
 };
 
@@ -126,7 +126,7 @@ export const getSchedulerById = async (id: number): Promise<SchedulerSessionDeta
     return res.data as SchedulerSessionDetailResponse;
   } catch (error: any) {
     console.error(`Error fetching scheduler session ${id}:`, error);
-    throw new Error(error.response?.data?.message || "Failed to fetch scheduler session");
+    throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to fetch scheduler session");
   }
 };
 
@@ -156,7 +156,7 @@ export const upsertScheduler = async (reqData: SchedulerUpsertRequest): Promise<
     return res.data;
   } catch (error: any) {
     console.error("Error upserting scheduler session:", error);
-    throw new Error(error.response?.data?.message || "Failed to upsert scheduler session");
+    throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to upsert scheduler session");
   }
 };
 
@@ -166,6 +166,6 @@ export const deleteScheduler = async (reqData: { id: number, userName: string })
     return res.data;
   } catch (error: any) {
     console.error("Error deleting scheduler session:", error);
-    throw new Error(error.response?.data?.message || "Failed to delete scheduler session");
+    throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to delete scheduler session");
   }
 };

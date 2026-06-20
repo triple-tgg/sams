@@ -24,7 +24,7 @@ export const getUserList = async (params: UserListRequest): Promise<UserListResp
         return res.data as UserListResponse;
     } catch (error: any) {
         console.error('Error fetching user list:', error);
-        throw new Error(error.response?.data?.message || 'Failed to fetch user list');
+        throw new Error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to fetch user list');
     }
 };
 
@@ -39,7 +39,7 @@ export const getUserById = async (id: number): Promise<UserByIdResponse> => {
         return res.data as UserByIdResponse;
     } catch (error: any) {
         console.error('Error fetching user by ID:', error);
-        throw new Error(error.response?.data?.message || 'Failed to fetch user');
+        throw new Error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to fetch user');
     }
 };
 
@@ -54,7 +54,7 @@ export const upsertUser = async (data: UserUpsertRequest): Promise<UserUpsertRes
         return res.data as UserUpsertResponse;
     } catch (error: any) {
         console.error('Error upserting user:', error);
-        throw new Error(error.response?.data?.message || 'Failed to save user');
+        throw new Error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to save user');
     }
 };
 
@@ -69,6 +69,6 @@ export const deleteUser = async (data: UserDeleteRequest): Promise<UserDeleteRes
         return res.data as UserDeleteResponse;
     } catch (error: any) {
         console.error('Error deleting user:', error);
-        throw new Error(error.response?.data?.message || 'Failed to delete user');
+        throw new Error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to delete user');
     }
 };

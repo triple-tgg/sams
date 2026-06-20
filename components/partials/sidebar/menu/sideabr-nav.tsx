@@ -73,9 +73,14 @@ const SidebarNav = ({ menuList }: { menuList: Group[] }) => {
               <div className=" h-full  space-y-1.5 flex flex-col  items-start  px-4 pb-8 ">
                 {data?.menus.map(({ submenus }, index) =>
                   submenus?.map(
-                    ({ href, label, active, icon, children: subChildren }, i) => (
+                    ({ href, label, active, icon, children: subChildren, hasDivider }, i) => (
                       <React.Fragment key={`double-menu-index-${i}`}>
-                        {subChildren?.length === 0 ? (
+                        {hasDivider && (
+                          <div className="w-full px-2 py-1.5">
+                            <hr className="border-t border-gray-800/50 border-dashed" />
+                          </div>
+                        )}
+                        {!subChildren || subChildren.length === 0 ? (
                           <Button
                             asChild
                             color={active ? "default" : "secondary"}

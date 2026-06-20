@@ -1,20 +1,16 @@
-import axios from "axios";
+import axios from "@/lib/axios.config";
 import type { RouteSearchResponse } from "./routes.interface";
 
 const searchRoutesByName = async (name: string): Promise<RouteSearchResponse> => {
     try {
-        const apiUrl = process.env.NEXT_PUBLIC_ENVIRONTMENT !== "production"
-            ? `${process.env.NEXT_PUBLIC_DEVELOPMENT_API}/master/Routes-bynames/${encodeURIComponent(name)}`
-            : `${process.env.NEXT_PUBLIC_PRODUCTION_API}/master/Routes-bynames/${encodeURIComponent(name)}`;
-
-        const res = await axios.get(apiUrl, {
+        const res = await axios.get(`/master/Routes-bynames/${encodeURIComponent(name)}`, {
             headers: { 'Content-Type': 'application/json' },
         });
 
         return res.data as RouteSearchResponse;
     } catch (error: any) {
         console.error('Error searching routes by name:', error);
-        throw new Error(error.response?.data?.message || 'Failed to search routes');
+        throw new Error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to search routes');
     }
 };
 

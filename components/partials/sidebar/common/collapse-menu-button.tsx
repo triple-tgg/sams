@@ -222,7 +222,7 @@ export function CollapseMenuButton({
                 </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
-                {submenus.map(({ href, label, active, children: subChildren }, index) => (
+                {submenus.map(({ href, label, icon: subIcon, active, badge, children: subChildren }, index) => (
 
                     !subChildren || subChildren.length === 0 ? (
                         <Button
@@ -236,27 +236,41 @@ export function CollapseMenuButton({
                             })}
                             asChild
                         >
-                            <Link href={href}>
-
-                                <span
-                                    className={cn(
-                                        "h-1.5 w-1.5 me-3 rounded-full  transition-all duration-150 ring-1 ring-secondary-foreground ",
-                                        {
-                                            "ring-4 bg-default ring-default/30": active,
-
-                                        }
+                            <Link href={href} className="flex-1 flex items-center justify-between pr-2">
+                                <div className="flex items-center">
+                                    {subIcon ? (
+                                        <Icon icon={subIcon} className={cn("h-4 w-4 me-2", active ? "text-default" : "text-muted-foreground")} />
+                                    ) : (
+                                        <span
+                                            className={cn(
+                                                "h-1.5 w-1.5 me-3 rounded-full  transition-all duration-150 ring-1 ring-secondary-foreground ",
+                                                {
+                                                    "ring-4 bg-default ring-default/30": active,
+                                                }
+                                            )}
+                                        ></span>
                                     )}
-                                ></span>
-                                <p
-                                    className={cn(
-                                        "max-w-[170px] truncate",
-                                        !collapsed || hovered
-                                            ? "translate-x-0 opacity-100"
-                                            : "-translate-x-96 opacity-0"
-                                    )}
-                                >
-                                    {label}
-                                </p>
+                                    <p
+                                        className={cn(
+                                            "max-w-[170px] truncate",
+                                            !collapsed || hovered
+                                                ? "translate-x-0 opacity-100"
+                                                : "-translate-x-96 opacity-0"
+                                        )}
+                                    >
+                                        {label}
+                                    </p>
+                                </div>
+                                {badge && (!collapsed || hovered) && (
+                                    <span className={cn(
+                                        "text-[10px] font-bold px-1.5 py-0.5 rounded-sm",
+                                        badge === "LIVE" ? "bg-emerald-100 text-emerald-700" :
+                                        badge === "NEW" ? "bg-blue-100 text-blue-700" :
+                                        "bg-slate-100 text-slate-700"
+                                    )}>
+                                        {badge}
+                                    </span>
+                                )}
                             </Link>
                         </Button>
                     ) : (
@@ -306,16 +320,29 @@ export function CollapseMenuButton({
                 <DropdownMenuGroup>
 
 
-                    {submenus.map(({ href, label, icon, active, children }, index) => (
+                    {submenus.map(({ href, label, icon, active, badge, children }, index) => (
                         !children || children.length === 0 ? (
                             <DropdownMenuItem key={index} asChild className={cn('focus:bg-secondary', {
                                 'bg-secondary text-secondary-foreground ': active
                             })}>
-                                <Link className="cursor-pointer flex-flex gap-3" href={href}>
-                                    {icon && (
-                                        <Icon icon={icon} className=' h-4 w-4' />
+                                <Link className="cursor-pointer flex items-center justify-between w-full pr-2" href={href}>
+                                    <div className="flex items-center gap-3">
+                                        {icon && (
+                                            <Icon icon={icon} className=' h-4 w-4' />
+                                        )}
+                                        <p className="max-w-[180px] truncate">{label} </p>
+                                    </div>
+                                    {/* badge in dropdown */}
+                                    {badge && (
+                                        <span className={cn(
+                                            "text-[9px] font-bold px-1 py-0.5 rounded-sm ml-2",
+                                            badge === "LIVE" ? "bg-emerald-100 text-emerald-700" :
+                                            badge === "NEW" ? "bg-blue-100 text-blue-700" :
+                                            "bg-slate-100 text-slate-700"
+                                        )}>
+                                            {badge}
+                                        </span>
                                     )}
-                                    <p className="max-w-[180px] truncate">{label} </p>
                                 </Link>
                             </DropdownMenuItem>
                         ) : (

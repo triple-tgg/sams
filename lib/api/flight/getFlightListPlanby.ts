@@ -8,8 +8,8 @@ export type FlightPlanbyItem = {
     channelUuid: string;
     id: string;
     title: string;
-    since: string;
-    till: string;
+    since: string;       // UTC ISO — may be 7h behind actual STA due to backend offset bug
+    till: string;        // UTC ISO — may be 7h behind actual STD due to backend offset bug
     sinceTime?: string;
     tillTime?: string;
     status: string;
@@ -18,17 +18,25 @@ export type FlightPlanbyItem = {
     departureDate: string;
     arrivalStatime: string;
     departureStdTime: string;
-    arrivalFlightNo: string,
-    departureFlightNo: string,
+    arrivalFlightNo: string;
+    departureFlightNo: string;
+    /** Correct UTC ISO for STA — use this for bar positioning instead of `since` */
+    arrivalStaDate?: string;
+    /** Correct UTC ISO for STD — use this for bar positioning instead of `till` */
+    departureStdDate?: string;
+    aircraftTypeCode?: string;
+    csList?: { displayName?: string; name?: string }[] | null;
+    mechList?: { displayName?: string; name?: string }[] | null;
     color: {
         foreground: string;
         background: string;
-    },
+    };
     airlineObj?: {
         code: string;
         name: string;
     };
 };
+
 
 export type GetFlightListPlanbyParams = {
     flightNo?: string;

@@ -24,6 +24,9 @@ export interface ResStationItem {
 export interface StationListRequest {
   page: number;
   perPage: number;
+  code?: string;
+  name?: string;
+  description?: string;
 }
 
 export interface StationListResponse {

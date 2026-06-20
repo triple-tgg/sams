@@ -15,7 +15,7 @@ const getAirlines = async (): Promise<ResAirlineItem> => {
     return res.data as ResAirlineItem;
   } catch (error: any) {
     console.error('Error fetching airlines:', error);
-    throw new Error(error.response?.data?.message || 'Failed to fetch airlines');
+    throw new Error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to fetch airlines');
   }
 };
 

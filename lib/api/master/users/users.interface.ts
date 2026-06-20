@@ -29,6 +29,9 @@ export interface UserItem {
 export interface UserListRequest {
     page: number;
     perPage: number;
+    username?: string;
+    email?: string;
+    fullName?: string;
 }
 
 export interface UserListResponse {

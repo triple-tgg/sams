@@ -5,7 +5,6 @@ import { useDispatch } from 'react-redux'
 import { useRouter, usePathname } from 'next/navigation'
 import { handleLogin } from '@/components/partials/auth/store'
 import { setPermissionsLoading, setPermissions, clearPermissions } from '@/components/partials/auth/permissionSlice'
-import { getMenuPermissions } from '@/lib/api/permission/getMenuPermissions'
 import { getFirstViewableRoute } from '@/lib/api/permission/getFirstViewableRoute'
 
 interface UseLoginOptions {
@@ -16,6 +15,7 @@ interface UseLoginOptions {
 
 /**
  * Custom hook for user login - Redux only
+ * Uses menuPermissions returned directly from login API response
  * @param options - Configuration options for the mutation
  * @returns React Query mutation object
  */
@@ -44,7 +44,8 @@ export const useLogin = (options: UseLoginOptions = {}) => {
       // Store user data in localStorage
       if (data.responseData) {
         localStorage.setItem('user', JSON.stringify(data.responseData))
-        localStorage.setItem('access_token', 'authenticated-user-token')
+        localStorage.setItem('access_token', data.responseData.accessToken)
+        localStorage.setItem('refresh_token', data.responseData.refreshToken)
 
         // Map API response to Redux auth format
         const userData = {
@@ -55,7 +56,7 @@ export const useLogin = (options: UseLoginOptions = {}) => {
           role: data.responseData.roleObj?.name ?? '',       // role name
           roleId: data.responseData.roleObj?.id,             // role id
           roleCode: data.responseData.roleObj?.code ?? '',   // role code
-          token: 'authenticated-user-token'
+          token: data.responseData.accessToken
         }
 
         // Update Redux state
@@ -64,30 +65,17 @@ export const useLogin = (options: UseLoginOptions = {}) => {
           users: userData
         }))
 
-        // Fetch menu permissions BEFORE navigating
-        const roleId = data.responseData.roleObj?.id
-        if (roleId) {
-          dispatch(setPermissionsLoading())
-          try {
-            const permRes = await getMenuPermissions(roleId)
-            console.log('[useLogin] permissions fetched:', permRes.responseData?.length, 'items')
-            const permissions = permRes.responseData ?? []
-            dispatch(setPermissions(permissions))
+        // Use menuPermissions from login response directly (no separate API call)
+        dispatch(setPermissionsLoading())
+        const permissions = data.responseData.menuPermissions ?? []
+        console.log('[useLogin] permissions from login response:', permissions.length, 'items')
+        dispatch(setPermissions(permissions))
 
-            // Navigate to the first menu the user can view
-            const firstRoute = getFirstViewableRoute(permissions)
-            console.log('[useLogin] firstRoute resolved:', firstRoute)
-            console.log('[useLogin] navigating to:', `/${locale}${firstRoute}`)
-            router.push(`/${locale}${firstRoute}`)
-          } catch (err) {
-            console.error('[useLogin] permission fetch failed:', err)
-            dispatch(setPermissions([]))
-            router.push(`/${locale}/flight/list`)
-          }
-        } else {
-          dispatch(setPermissions([]))
-          router.push(`/${locale}/flight/list`)
-        }
+        // Navigate to the first menu the user can view
+        const firstRoute = getFirstViewableRoute(permissions)
+        console.log('[useLogin] firstRoute resolved:', firstRoute)
+        console.log('[useLogin] navigating to:', `/${locale}${firstRoute}`)
+        router.push(`/${locale}${firstRoute}`)
       }
 
       // Call custom success handler

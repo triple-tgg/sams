@@ -65,7 +65,7 @@ export const getCourseList = async (data: CourseListRequest): Promise<CourseList
     return res.data as CourseListResponseData;
   } catch (error: any) {
     console.error("Error fetching course list:", error);
-    throw new Error(error.response?.data?.message || "Failed to fetch course list");
+    throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to fetch course list");
   }
 };
 
@@ -96,7 +96,7 @@ export const upsertCourse = async (data: UpsertCourseRequest) => {
     return res.data;
   } catch (error: any) {
     console.error("Error upserting course:", error);
-    throw new Error(error.response?.data?.message || "Failed to upsert course");
+    throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to upsert course");
   }
 };
 
@@ -112,7 +112,7 @@ export const getCourseCategories = async (): Promise<CourseCategoryResponseData>
     return res.data as CourseCategoryResponseData;
   } catch (error: any) {
     console.error("Error fetching course categories:", error);
-    throw new Error(error.response?.data?.message || "Failed to fetch course categories");
+    throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to fetch course categories");
   }
 };
 
@@ -158,7 +158,7 @@ export const getCourseDepartments = async (): Promise<CourseDepartmentResponseDa
     return res.data as CourseDepartmentResponseData;
   } catch (error: any) {
     console.error("Error fetching course departments:", error);
-    throw new Error(error.response?.data?.message || "Failed to fetch course departments");
+    throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to fetch course departments");
   }
 };
 
@@ -208,7 +208,7 @@ export const getCourseMatrix = async (data: CourseMatrixRequest): Promise<Course
     return res.data as CourseMatrixResponseData;
   } catch (error: any) {
     console.error("Error fetching course matrix:", error);
-    throw new Error(error.response?.data?.message || "Failed to fetch course matrix");
+    throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to fetch course matrix");
   }
 };
 
@@ -225,7 +225,7 @@ export const upsertCourseMatrixRequirements = async (data: UpsertCourseMatrixReq
     return res.data;
   } catch (error: any) {
     console.error("Error upserting course matrix requirements:", error);
-    throw new Error(error.response?.data?.message || "Failed to upsert requirements");
+    throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to upsert requirements");
   }
 };
 
@@ -248,7 +248,7 @@ export const getCourseSummary = async (): Promise<CourseSummaryResponseData> => 
     return res.data as CourseSummaryResponseData;
   } catch (error: any) {
     console.error("Error fetching course summary:", error);
-    throw new Error(error.response?.data?.message || "Failed to fetch course summary");
+    throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to fetch course summary");
   }
 };
 
@@ -277,7 +277,7 @@ export const getCourseDepartmentSubList = async (): Promise<CourseDepartmentSubL
     return res.data as CourseDepartmentSubListResponseData;
   } catch (error: any) {
     console.error("Error fetching course department sub list:", error);
-    throw new Error(error.response?.data?.message || "Failed to fetch department sub list");
+    throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to fetch department sub list");
   }
 };
 
@@ -323,7 +323,7 @@ export const getCourseById = async (id: number): Promise<CourseDetailResponseDat
     return res.data as CourseDetailResponseData;
   } catch (error: any) {
     console.error(`Error fetching course by id ${id}:`, error);
-    throw new Error(error.response?.data?.message || "Failed to fetch course details");
+    throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to fetch course details");
   }
 };
 
@@ -346,6 +346,6 @@ export const deleteCourse = async (data: DeleteCourseRequest): Promise<DeleteCou
     return res.data as DeleteCourseResponse;
   } catch (error: any) {
     console.error("Error deleting course:", error);
-    throw new Error(error.response?.data?.message || "Failed to delete course");
+    throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to delete course");
   }
 };

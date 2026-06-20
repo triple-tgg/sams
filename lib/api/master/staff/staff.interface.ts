@@ -31,6 +31,11 @@ export interface StaffItem {
 export interface StaffListRequest {
     page: number;
     perPage: number;
+    code?: string;
+    name?: string;
+    title?: string;
+    jobTitle?: string;
+    email?: string;
 }
 
 export interface StaffListResponse {

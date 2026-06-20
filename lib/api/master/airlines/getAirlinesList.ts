@@ -14,7 +14,7 @@ export const getAirlinesList = async (params: AirlineListRequest): Promise<Airli
         return res.data as AirlineListResponse;
     } catch (error: any) {
         console.error('Error fetching airlines list:', error);
-        throw new Error(error.response?.data?.message || 'Failed to fetch airlines list');
+        throw new Error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to fetch airlines list');
     }
 };
 

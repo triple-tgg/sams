@@ -1,17 +1,35 @@
 import axios from 'axios'
+import store from '@/store'
+import { handleLogout } from '@/components/partials/auth/store'
+import { clearPermissions } from '@/components/partials/auth/permissionSlice'
 
 // สร้าง axios instance
 const instance = axios.create({
   baseURL: `${(process.env.NEXT_PUBLIC_ENVIRONTMENT !== 'production' ? process.env.NEXT_PUBLIC_DEVELOPMENT_API : process.env.NEXT_PUBLIC_PRODUCTION_API)}`,// + process.env.NEXT_PUBLIC_API_VERSION,
-  timeout: (10 * 1000),
+  timeout: (30 * 1000),
   headers: {
     "Content-Type": "Application/json"
   }
 })
 
+// Flag to prevent multiple refresh requests at the same time
+let isRefreshing = false
+let failedQueue: { resolve: (token: string) => void; reject: (error: any) => void }[] = []
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (error) {
+      reject(error)
+    } else {
+      resolve(token!)
+    }
+  })
+  failedQueue = []
+}
+
 // กำหนด Global Request เมื่อมีการ Request โดยใช้ axios
 instance.interceptors.request.use(req => {
-  if (req.url !== '/auth/re-signin') {
+  if (req.url !== '/user/refresh-token' && req.url !== '/user/login') {
     const access_token = (localStorage.getItem('access_token') ?? '')
     const token = access_token
     req.headers.Authorization = `Bearer ${token}`
@@ -24,32 +42,73 @@ instance.interceptors.response.use(res => res, async error => {
   const originalRequest = error.config
 
   // Detect เอาเฉพาะ HTTP Status 401 เท่านั้น และตอนที่ได้รับ 401 Request นั้นต้องไม่ใช่ Endpoint ที่ใช้ขอ Token ใหม่
-  if (error.response.status === 401 && originalRequest.url !== '/auth/re-signin') {
-    try {
-      const refresh_token = localStorage.getItem('refresh_token') ?? ''
-      const { data: { data } } = await instance.post('/auth/re-signin', null, {
-        headers: {
-          Authorization: `Bearer ${refresh_token}`
-        }
-      })
-
-      // เมื่อ Try ผ่าน ก็ให้กลับมาเซ็ต access_token และ refresh_token ตามปกติเลย
-      // อันนี้ของผมใช้ Loop for of เพราะ api ส่ง data กลับมาเป็น [{ access_token: string, refresh_token: string }]
-      for (const { access_token: new_access_token, refresh_token: new_refresh_token } of data) {
-        localStorage.setItem('access_token', new_access_token)
-        localStorage.setItem('refresh_token', new_refresh_token)
-      }
-
-      // คืนค่ากลับ
-      return instance(originalRequest);
+  if (error.response && error.response.status === 401 && originalRequest.url !== '/user/refresh-token' && !originalRequest._retry) {
+    // ถ้ากำลัง refresh อยู่ ให้ request อื่นๆ รอ queue
+    if (isRefreshing) {
+      return new Promise((resolve, reject) => {
+        failedQueue.push({ resolve, reject })
+      }).then((token) => {
+        originalRequest.headers.Authorization = `Bearer ${token}`
+        return instance(originalRequest)
+      }).catch(err => Promise.reject(err))
     }
 
-    // กรณีที่ re-signin หรือ api refrest token ของเรามันไม่สามารถ refresh token ให้ใหม่ได้เนื่องจาก refresh token ก็หมดอายุไปแล้ว
-    // เราก็มา catch แล้วเซ็ตให้ลบ token เดิมออกให้หมด แล้วไล่ user ไปล็อกอินใหม่ซะ
-    catch {
+    originalRequest._retry = true
+    isRefreshing = true
+
+    try {
+      const refresh_token = localStorage.getItem('refresh_token') ?? ''
+      const { data } = await instance.post('/user/refresh-token', {
+        refreshToken: refresh_token
+      })
+
+      if (data.message === 'success' && data.responseData) {
+        const newAccessToken = data.responseData.accessToken
+        const newRefreshToken = data.responseData.refreshToken
+
+        // เก็บ token ใหม่
+        localStorage.setItem('access_token', newAccessToken)
+        localStorage.setItem('refresh_token', newRefreshToken)
+        localStorage.setItem('user', JSON.stringify(data.responseData))
+
+        // อัปเดต permissions ใน Redux store (ถ้ามี)
+        if (data.responseData.menuPermissions && typeof window !== 'undefined') {
+          const event = new CustomEvent('token-refreshed', {
+            detail: {
+              permissions: data.responseData.menuPermissions,
+              user: data.responseData
+            }
+          })
+          window.dispatchEvent(event)
+        }
+
+        // ปล่อย queue ที่รออยู่ให้ไปต่อ
+        processQueue(null, newAccessToken)
+
+        // retry request เดิมด้วย token ใหม่
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
+        return instance(originalRequest)
+      } else {
+        throw new Error('Refresh token failed')
+      }
+    }
+
+    // กรณีที่ refresh token หมดอายุ → ลบ token → set isAuth = false → ไล่ไป login ใหม่
+    catch (refreshError) {
+      processQueue(refreshError, null)
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
-      location.href = '/signin'
+      localStorage.removeItem('user')
+
+      // Reset Redux auth state
+      store.dispatch(handleLogout())
+      store.dispatch(clearPermissions())
+
+      const locale = window.location.pathname.match(/^\/(en|ar)/)?.[1] ?? 'en'
+      window.location.href = `/${locale}/auth/login`
+      return Promise.reject(refreshError)
+    } finally {
+      isRefreshing = false
     }
   }
 

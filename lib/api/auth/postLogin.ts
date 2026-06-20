@@ -28,6 +28,10 @@ export interface LoginResponse {
     email: string
     fullName: string
     roleObj: LoginRoleObj
+    menuPermissions: import('@/lib/api/permission/menuPermissions.interface').MenuPermissionItem[]
+    accessToken: string
+    refreshToken: string
+    expiresIn: number
   }
   error: string
 }
@@ -45,14 +49,14 @@ export const postLogin = async (loginData: LoginRequest): Promise<LoginResponse>
     })
 
     if (response.data.error) {
-      throw new Error(response.data.message || response.data.error || 'Login failed')
+      throw new Error(response.data.error || response.data.message || 'Login failed')
     }
 
     return response.data
   } catch (error: any) {
     // Handle API errors
     if (error.response?.data) {
-      throw new Error(error.response.data.message || error.response.data.error || 'Login failed')
+      throw new Error(error.response.data.error || error.response.data.message || 'Login failed')
     }
     // If we threw a manual error above, re-throw it
     if (error instanceof Error && error.message !== 'Network error occurred during login') {

@@ -35,7 +35,9 @@ const CreateThfModal: React.FC<CreateThfModalProps> = ({
     const { flightDataState, options } = useCreateThfModalController({ flightInfosId })
 
     // Determine if this is an Edit (existing THF) vs New (no THF yet)
-    const isEdit = flightDataState.rawFlightData?.state !== 'plan'
+    // We use isInitialCreationMode to prevent the modal from switching to 'Edit' mode
+    // midway through the process if step 1 is saved and lineMaintenanceData is created.
+    const isEdit = flightDataState.isInitialCreationMode === false
     const title = isEdit ? 'Edit THF' : 'New THF'
     const status = flightDataState.rawFlightData?.state || undefined
     const canNavigate = isEdit
@@ -79,6 +81,7 @@ const CreateThfModal: React.FC<CreateThfModalProps> = ({
                         initialData={flightDataState.fullData}
                         thfNumber={flightDataState.lineMaintenanceData?.thfNumber || ''}
                         lineMaintenanceId={flightDataState.lineMaintenanceData?.id || null}
+                        isInitialCreationMode={flightDataState.isInitialCreationMode || false}
                     />
 
                     {/* Step 3: Equipment */}

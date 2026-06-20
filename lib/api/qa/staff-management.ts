@@ -105,7 +105,7 @@ export const getQAStaffList = async (
     } catch (error: any) {
         console.error("Error fetching QA staff list:", error);
         throw new Error(
-            error.response?.data?.message || "Failed to fetch staff list"
+            error.response?.data?.error || error.response?.data?.message || "Failed to fetch staff list"
         );
     }
 };
@@ -199,7 +199,7 @@ export const upsertStaff = async (
     } catch (error: any) {
         console.error("Error upserting staff:", error);
         throw new Error(
-            error.response?.data?.message || "Failed to save staff"
+            error.response?.data?.error || error.response?.data?.message || "Failed to save staff"
         );
     }
 };
@@ -238,7 +238,7 @@ export const uploadStaffFile = async (
     } catch (error: any) {
         console.error("Error uploading file:", error);
         throw new Error(
-            error.response?.data?.message || "Failed to upload file"
+            error.response?.data?.error || error.response?.data?.message || "Failed to upload file"
         );
     }
 };
@@ -368,7 +368,7 @@ export const getStaffById = async (
     } catch (error: any) {
         console.error("Error fetching staff by ID:", error);
         throw new Error(
-            error.response?.data?.message || "Failed to fetch staff details"
+            error.response?.data?.error || error.response?.data?.message || "Failed to fetch staff details"
         );
     }
 };

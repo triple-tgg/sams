@@ -26,12 +26,28 @@ export default function PermissionGuard({ children }: { children: React.ReactNod
     // (happens after browser refresh — Redux is reset but localStorage keeps the user)
     useEffect(() => {
         if (isAuth && !isLoaded && !isLoading) {
+            // Try to load permissions from localStorage first (saved during login)
+            const savedUser = localStorage.getItem('user');
+            if (savedUser) {
+                try {
+                    const userData = JSON.parse(savedUser);
+                    if (userData.menuPermissions && userData.menuPermissions.length > 0) {
+                        console.log('[PermissionGuard] loaded permissions from localStorage:', userData.menuPermissions.length, 'items');
+                        dispatch(setPermissions(userData.menuPermissions));
+                        return;
+                    }
+                } catch (e) {
+                    console.warn('[PermissionGuard] Failed to parse saved user data');
+                }
+            }
+
+            // Fallback: fetch from API if not in localStorage
             const roleId = (users as any)?.roleId;
             if (roleId) {
                 dispatch(setPermissionsLoading());
                 getMenuPermissions(Number(roleId))
                     .then((res) => {
-                        console.log('[PermissionGuard] fetched permissions:', res.responseData?.length, 'items');
+                        console.log('[PermissionGuard] fetched permissions from API:', res.responseData?.length, 'items');
                         dispatch(setPermissions(res.responseData ?? []));
                     })
                     .catch((err) => {
@@ -40,7 +56,6 @@ export default function PermissionGuard({ children }: { children: React.ReactNod
                     });
             } else {
                 console.warn('[PermissionGuard] No roleId found — setting empty permissions');
-                // No roleId available — mark as loaded so we don't block forever
                 dispatch(setPermissions([]));
             }
         }

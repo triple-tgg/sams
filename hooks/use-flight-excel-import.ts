@@ -903,7 +903,7 @@ export const useFlightExcelImport = () => {
             closeModal();
         } catch (error: any) {
             console.error('Upload error:', error);
-            const errorMessage = error.response?.data?.message || error.message || 'Upload failed';
+            const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'Upload failed';
             toast.error(errorMessage);
         } finally {
             setIsUploading(false);

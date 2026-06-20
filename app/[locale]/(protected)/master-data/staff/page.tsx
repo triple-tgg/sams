@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     Table,
@@ -11,6 +11,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -25,7 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTranslations } from "next-intl";
 import { useStaffList, useStaffById, useUpsertStaff, useDeleteStaff } from "@/lib/api/hooks/useStaffOperations";
-import { ChevronLeft, ChevronRight, RefreshCw, Plus, MoreHorizontal, Eye, Pencil, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, RefreshCw, Plus, MoreHorizontal, Eye, Pencil, Trash2, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import type { StaffItem } from "@/lib/api/master/staff/staff.interface";
 
@@ -39,6 +40,20 @@ const StaffPage = () => {
     const t = useTranslations("Menu");
     const [page, setPage] = useState(1);
     const perPage = 10;
+
+    // Filter states
+    const [filterCode, setFilterCode] = useState("");
+    const [filterName, setFilterName] = useState("");
+    const [filterTitle, setFilterTitle] = useState("");
+    const [filterEmail, setFilterEmail] = useState("");
+
+    // Applied filters (sent to API on search)
+    const [appliedFilters, setAppliedFilters] = useState<{
+        code?: string;
+        name?: string;
+        title?: string;
+        email?: string;
+    }>({});
 
     // Dialog states
     const [dialogMode, setDialogMode] = useState<DialogMode>('closed');
@@ -55,9 +70,42 @@ const StaffPage = () => {
 
     // API hooks
     const { data, isLoading, error, refetch, isFetching } = useStaffList(
-        { page, perPage },
+        {
+            page,
+            perPage,
+            ...(appliedFilters.code && { code: appliedFilters.code }),
+            ...(appliedFilters.name && { name: appliedFilters.name }),
+            ...(appliedFilters.title && { title: appliedFilters.title }),
+            ...(appliedFilters.email && { email: appliedFilters.email }),
+        },
         true
     );
+
+    // Filter handlers
+    const handleSearch = useCallback(() => {
+        setPage(1);
+        setAppliedFilters({
+            code: filterCode.trim() || undefined,
+            name: filterName.trim() || undefined,
+            title: filterTitle.trim() || undefined,
+            email: filterEmail.trim() || undefined,
+        });
+    }, [filterCode, filterName, filterTitle, filterEmail]);
+
+    const handleClearFilters = useCallback(() => {
+        setFilterCode("");
+        setFilterName("");
+        setFilterTitle("");
+        setFilterEmail("");
+        setAppliedFilters({});
+        setPage(1);
+    }, []);
+
+    const handleFilterKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === "Enter") handleSearch();
+    };
+
+    const hasActiveFilters = !!(appliedFilters.code || appliedFilters.name || appliedFilters.title || appliedFilters.email);
 
     const { data: staffDetailData, isLoading: isLoadingDetail } = useStaffById(
         selectedStaff?.id ?? 0,
@@ -229,6 +277,62 @@ const StaffPage = () => {
                         </div>
                     ) : (
                         <>
+                            {/* Filter Bar */}
+                            <div className="flex flex-wrap items-end gap-3 mb-4">
+                                <div className="flex-1 min-w-[140px] max-w-[200px]">
+                                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Code</label>
+                                    <Input
+                                        placeholder="Search code..."
+                                        value={filterCode}
+                                        onChange={(e) => setFilterCode(e.target.value)}
+                                        onKeyDown={handleFilterKeyDown}
+                                        className="h-9"
+                                    />
+                                </div>
+                                <div className="flex-1 min-w-[140px] max-w-[200px]">
+                                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Name</label>
+                                    <Input
+                                        placeholder="Search name..."
+                                        value={filterName}
+                                        onChange={(e) => setFilterName(e.target.value)}
+                                        onKeyDown={handleFilterKeyDown}
+                                        className="h-9"
+                                    />
+                                </div>
+                                <div className="flex-1 min-w-[140px] max-w-[200px]">
+                                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Title</label>
+                                    <Input
+                                        placeholder="Search title..."
+                                        value={filterTitle}
+                                        onChange={(e) => setFilterTitle(e.target.value)}
+                                        onKeyDown={handleFilterKeyDown}
+                                        className="h-9"
+                                    />
+                                </div>
+                                <div className="flex-1 min-w-[140px] max-w-[220px]">
+                                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Email</label>
+                                    <Input
+                                        placeholder="Search email..."
+                                        value={filterEmail}
+                                        onChange={(e) => setFilterEmail(e.target.value)}
+                                        onKeyDown={handleFilterKeyDown}
+                                        className="h-9"
+                                    />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Button size="sm" onClick={handleSearch} disabled={isFetching} className="h-9">
+                                        <Search className="h-4 w-4 mr-1.5" />
+                                        Search
+                                    </Button>
+                                    {hasActiveFilters && (
+                                        <Button size="sm" variant="outline" onClick={handleClearFilters} className="h-9">
+                                            <X className="h-4 w-4 mr-1.5" />
+                                            Clear
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+
                             <Table>
                                 <TableHeader>
                                     <TableRow>

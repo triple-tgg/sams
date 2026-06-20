@@ -35,7 +35,7 @@ export const getDashboardSummary = async (data: DashboardSummaryRequest): Promis
     return res.data as DashboardSummaryResponse;
   } catch (error: any) {
     console.error("Error fetching dashboard summary:", error);
-    throw new Error(error.response?.data?.message || "Failed to fetch dashboard summary");
+    throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to fetch dashboard summary");
   }
 };
 
@@ -81,7 +81,7 @@ export const getDashboardCalendar = async (data: DashboardCalendarRequest): Prom
     return res.data as DashboardCalendarResponse;
   } catch (error: any) {
     console.error("Error fetching dashboard calendar:", error);
-    throw new Error(error.response?.data?.message || "Failed to fetch dashboard calendar");
+    throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to fetch dashboard calendar");
   }
 };
 
@@ -106,7 +106,7 @@ export const getCourseGroupsBreakdown = async (year: number): Promise<CourseGrou
     return res.data as CourseGroupsBreakdownResponse;
   } catch (error: any) {
     console.error("Error fetching course groups breakdown:", error);
-    throw new Error(error.response?.data?.message || "Failed to fetch course groups breakdown");
+    throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to fetch course groups breakdown");
   }
 };
 
@@ -166,6 +166,6 @@ export const getTrainingMonitoring = async (data: TrainingMonitoringRequest): Pr
     return res.data as TrainingMonitoringResponse;
   } catch (error: any) {
     console.error("Error fetching training monitoring:", error);
-    throw new Error(error.response?.data?.message || "Failed to fetch training monitoring");
+    throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to fetch training monitoring");
   }
 };
