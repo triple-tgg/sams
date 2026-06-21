@@ -306,10 +306,10 @@ export const useFlightExcelImport = () => {
 
         // Process CHECK column - match status code to ID
         const checkValue = row['CHECK'] || row['Check'] || row['check'] || '';
-        const checkMatch = checkStatusOptions.find(opt =>
+        const checkMatch = checkStatusOptions.find((opt: { value: string; label: string; id: number }) =>
             opt.value.toUpperCase() === String(checkValue).trim().toUpperCase()
         );
-        const maintenanceStatusId = checkMatch?.id || 0;
+        const maintenanceStatusId = checkMatch?.id || undefined;
 
         // Ensure all fields exist with defaults
         // Combine intermediate _date + _time fields into new combined datetime fields
@@ -504,10 +504,10 @@ export const useFlightExcelImport = () => {
 
                 // Get CHECK status ID
                 const checkValue = row['CHECK'] || '';
-                const checkMatch = checkStatusOptions.find(opt =>
+                const checkMatch = checkStatusOptions.find((opt: { value: string; label: string; id: number }) =>
                     opt.value.toUpperCase() === String(checkValue).trim().toUpperCase()
                 );
-                const maintenanceStatusId = checkMatch?.id || 0;
+                const maintenanceStatusId = checkMatch?.id || undefined;
 
                 // Format datetime with sheet date context
                 const formatFullDateTime = (dateValue: any, timeValue: any): string => {
@@ -804,10 +804,10 @@ export const useFlightExcelImport = () => {
 
                 // Get CHECK status ID
                 const checkValue = row['CHECK'] || '';
-                const checkMatch = checkStatusOptions.find(opt =>
+                const checkMatch = checkStatusOptions.find((opt: { value: string; label: string; id: number }) =>
                     opt.value.toUpperCase() === String(checkValue).trim().toUpperCase()
                 );
-                const maintenanceStatusId = checkMatch?.id || 0;
+                const maintenanceStatusId = checkMatch?.id || undefined;
 
                 // Format dates - combine separate Date + Time columns
                 const formatFullDateTime = (dateValue: any, timeValue: any): string => {

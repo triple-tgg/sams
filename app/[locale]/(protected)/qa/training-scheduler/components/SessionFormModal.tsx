@@ -5,7 +5,7 @@ import { SessionFormData, STATUS_CONFIG } from '../types'
 import { INSTRUCTORS, VENUES } from '../data'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { useQuery } from '@tanstack/react-query'
-import { getCourseList } from '@/lib/api/qa/course'
+import { getCourseList, type CourseData } from '@/lib/api/qa/course'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Check, ChevronsUpDown } from 'lucide-react'
@@ -51,9 +51,10 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
     })
 
     // Group courses by category
-    const coursesByCategory = useMemo(() => {
-        if (!courseListResp?.responseData) return {}
-        return courseListResp.responseData.reduce<Record<string, typeof courseListResp.responseData>>((acc, c) => {
+    const coursesByCategory = useMemo((): Record<string, CourseData[]> => {
+        const data = courseListResp?.responseData as CourseData[] | undefined
+        if (!data) return {}
+        return data.reduce<Record<string, CourseData[]>>((acc, c) => {
             const cat = c.courseCategory?.name || 'Other'
             if (!acc[cat]) acc[cat] = []
             acc[cat].push(c)
@@ -62,7 +63,7 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
     }, [courseListResp])
 
     // Find selected course label
-    const allCourses = courseListResp?.responseData || []
+    const allCourses = (courseListResp?.responseData as CourseData[] | undefined) || []
     const selectedCourse = allCourses.find(c => String(c.id) === String(form.courseId))
     const selectedLabel = selectedCourse ? `${selectedCourse.courseCode} — ${selectedCourse.courseName}` : ''
 
@@ -107,7 +108,7 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
                                     <CommandInput placeholder="Search course..." />
                                     <CommandList className="max-h-[320px] overflow-y-auto" data-vaul-no-drag>
                                         <CommandEmpty>No course found.</CommandEmpty>
-                                        {Object.entries(coursesByCategory).map(([cat, courses]) => (
+                                        {(Object.entries(coursesByCategory) as [string, CourseData[]][]).map(([cat, courses]) => (
                                             <CommandGroup key={cat} heading={cat}>
                                                 {courses.map(c => (
                                                     <CommandItem
@@ -147,12 +148,12 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
                         </div>
                         <div>
                             <label className="text-xs font-medium text-muted-foreground block mb-1.5">Start Time</label>
-                            <input type="time" value={form.timeStart} onChange={e => f('timeStart', e.target.value)}
+                            <input type="time" lang="en-GB" value={form.timeStart} onChange={e => f('timeStart', e.target.value)}
                                 className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10" />
                         </div>
                         <div>
                             <label className="text-xs font-medium text-muted-foreground block mb-1.5">End Time</label>
-                            <input type="time" value={form.timeEnd} onChange={e => f('timeEnd', e.target.value)}
+                            <input type="time" lang="en-GB" value={form.timeEnd} onChange={e => f('timeEnd', e.target.value)}
                                 className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10" />
                         </div>
                     </div>

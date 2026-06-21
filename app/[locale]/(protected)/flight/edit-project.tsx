@@ -42,7 +42,6 @@ import { useMemo, useEffect } from "react";
 import useUpdateFlight from "@/lib/api/hooks/useUpdateFlight";
 import { useLineMaintenancesQueryThfByFlightId } from "@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId";
 import { PersonnelSection } from "./thf/create/components/CPresonel";
-import ConfirmEditFlight from "./thf/create/components/ConfirmEditFlight";
 import { useMaintenanceStatus } from "@/lib/api/hooks/useMaintenanceStatus";
 import { utcDatetimeToFormDate, utcDatetimeToFormTime, combineFormToUtcDatetime } from "@/lib/utils/flightDatetime";
 
@@ -214,11 +213,10 @@ interface EditFlightProps {
 export default function EditFlight({ open, setOpen, flightInfosId, onClose }: EditFlightProps) {
   const params = useParams<{ locale: string }>();
   const direction = getLangDir(params?.locale ?? "");
-  const [isConfirm, setIsConfirm] = React.useState(false)
+
 
   const handleOnClose = () => {
     setOpen(false)
-    setIsConfirm(false)
   }
   // const { data: flightData } = useFlightQueryById(flightId);
   const { data: flightInfoData, refetch } = useLineMaintenancesQueryThfByFlightId({ flightInfosId });
@@ -359,7 +357,6 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
       onOpenChange={(o) => {
         if (!isPending) {
           setOpen(o)
-          setIsConfirm(false)
         };
       }}
     >
@@ -373,8 +370,7 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
           if (isPending) e.preventDefault();
         }}
       >
-        {isConfirm ?
-          <React.Fragment>
+        <React.Fragment>
             <DialogHeader>
               <DialogTitle>Edit Flight Information</DialogTitle>
             </DialogHeader>
@@ -394,7 +390,7 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
                         <Select
                           value={field.value?.value}
                           onValueChange={(value) => {
-                            const option = customerOptions.find(opt => opt.value === value);
+                            const option = customerOptions.find((opt: Option) => opt.value === value);
                             field.onChange(option || null);
                           }}
                           disabled={loadingAirlines || customerOptions.length === 0}
@@ -408,8 +404,8 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
                             } />
                           </SelectTrigger>
                           <SelectContent>
-                            {customerOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
+                            {customerOptions.map((option: Option, idx: number) => (
+                              <SelectItem key={`${option.value}-${idx}`} value={option.value}>
                                 {option.label}
                               </SelectItem>
                             ))}
@@ -434,7 +430,7 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
                         <Select
                           value={field.value?.value}
                           onValueChange={(value) => {
-                            const option = stationOptions.find(opt => opt.value === value);
+                            const option = stationOptions.find((opt: Option) => opt.value === value);
                             field.onChange(option || null);
                           }}
                           disabled={loadingStations || stationOptions.length === 0}
@@ -448,8 +444,8 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
                             } />
                           </SelectTrigger>
                           <SelectContent>
-                            {stationOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
+                            {stationOptions.map((option: Option, idx: number) => (
+                              <SelectItem key={`${option.value}-${idx}`} value={option.value}>
                                 {option.label}
                               </SelectItem>
                             ))}
@@ -600,7 +596,7 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
                           <Select
                             value={field.value?.value}
                             onValueChange={(value) => {
-                              const option = statusOptions.find(opt => opt.value === value);
+                              const option = statusOptions.find((opt: Option) => opt.value === value);
                               field.onChange(option || null);
                             }}
                             disabled={loadingStatus || statusOptions.length === 0}
@@ -614,8 +610,8 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
                               } />
                             </SelectTrigger>
                             <SelectContent>
-                              {statusOptions.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
+                              {statusOptions.map((option: Option, idx: number) => (
+                                <SelectItem key={`${option.value}-${idx}`} value={option.value}>
                                   {option.label}
                                 </SelectItem>
                               ))}
@@ -653,7 +649,7 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
                       <Select
                         value={field.value?.id != null ? String(field.value.id) : ""}
                         onValueChange={(val) => {
-                          const option = maintenanceStatusOptions.find(opt => String(opt.id) === val);
+                          const option = maintenanceStatusOptions.find((opt: Option & { id: number }) => String(opt.id) === val);
                           field.onChange(option ? { value: option.value, label: option.label, id: option.id } : null);
                         }}
                         disabled={loadingMaintenanceStatus || maintenanceStatusOptions.length === 0}
@@ -666,8 +662,8 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
                           } />
                         </SelectTrigger>
                         <SelectContent>
-                          {maintenanceStatusOptions.map((option) => (
-                            <SelectItem key={option.id} value={String(option.id)}>
+                          {maintenanceStatusOptions.map((option: Option & { id: number }, idx: number) => (
+                            <SelectItem key={`${option.id}-${idx}`} value={String(option.id)}>
                               {option.label}
                             </SelectItem>
                           ))}
@@ -706,12 +702,6 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
               </Button>
             </div>
           </React.Fragment>
-          : <ConfirmEditFlight
-            onClose={handleOnClose}
-            onConfirm={() => setIsConfirm(true)}
-            setUserConfirm={(ids) => setValue("userName", ids)}
-          />
-        }
       </DialogContent>
     </Dialog>
   );

@@ -93,13 +93,13 @@ export const fluidOptions: FluidOption[] = [
 ]
 
 export const transformAircraftCheckTypesToOptions = (checkTypes: AircraftCheckType[]): DropdownOption[] => {
-  return checkTypes
+  return [...checkTypes]
+    .sort((a, b) => a.id - b.id) // Sort by index (id)
     .filter(type => !type.isdelete) // Filter out deleted items
     .map(type => ({
       value: type.code,
       label: type.name || type.code // Use name if available, fallback to code
     }))
-    .sort((a, b) => a.label.localeCompare(b.label)); // Sort alphabetically
 }
 
 /**

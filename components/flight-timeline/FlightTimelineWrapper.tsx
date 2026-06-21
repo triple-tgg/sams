@@ -230,7 +230,7 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                             <Check className="h-4 w-4 text-primary" />
                         )}
                     </div>
-                    {stationOptions.map((station) => (
+                    {stationOptions.map((station: { value: string; label: string }) => (
                         <div
                             key={station.value}
                             className="flex items-center space-x-2 p-2 hover:bg-muted rounded cursor-pointer"
@@ -501,12 +501,6 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                 )}
             </div>
 
-            {/* No flights message */}
-            {!isLoading && flights.length === 0 && (
-                <div className="flex h-32 items-center justify-center rounded-lg bg-slate-800/50 text-slate-400">
-                    <p>No flights found for {selectedDate.toLocaleDateString()}</p>
-                </div>
-            )}
 
             {/* Excel Import Modal with Preview and Validation */}
             <ExcelImportModal

@@ -50,7 +50,7 @@ export interface FlightImportData {
     note: string;
     csStaffIds: number[];  // CS staff IDs
     mechStaffIds: number[]; // MECH staff IDs
-    maintenanceStatusId: number;  // CHECK column - MaintenanceStatus ID
+    maintenanceStatusId?: number;  // CHECK column - MaintenanceStatus ID (optional)
     // Internal: intermediate fields for Excel mapping (date + time separate before combine)
     _arrivalDate?: string;
     _arrivalStaTime?: string;
@@ -130,7 +130,7 @@ export interface FlightValidateRequestItem {
     bayNo: string;
     csIdList: number[];
     mechIdList: number[];
-    maintenanceStatusId: number;
+    maintenanceStatusId?: number;
     note: string;
     userName?: string;
 }

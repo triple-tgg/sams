@@ -69,6 +69,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           className
         )}
         ref={ref}
+        {...(type === "time" ? { lang: "en-GB" } : {})}
         {...props}
       />
     </div>

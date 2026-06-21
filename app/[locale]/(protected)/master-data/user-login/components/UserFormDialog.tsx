@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, Eye, FilePlus2, SquarePen, Eraser, Download, ShieldCheck, User } from "lucide-react";
+import { Loader2, Eye, EyeOff, FilePlus2, SquarePen, Eraser, Download, ShieldCheck, User, Check, Circle, AlertCircle } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import type { UserItem } from "@/lib/api/master/users/users.interface";
 import { useRolesOptions } from "@/lib/api/hooks/useRoles";
@@ -87,6 +87,55 @@ const DEFAULT_MENUS: Omit<MenuPermission, "canView" | "canCreate" | "canEdit" | 
     { menuId: "master-user", menuName: "User Login", menuKey: "master-user" },
     { menuId: "master-role", menuName: "Role & Permission", menuKey: "master-role" },
 ];
+
+// ─── Password complexity validation ────────────────────────────────────────────
+interface PasswordValidation {
+    minLength: boolean;
+    hasUppercase: boolean;
+    hasLowercase: boolean;
+    hasNumber: boolean;
+    hasSpecial: boolean;
+}
+
+const validatePassword = (password: string): PasswordValidation => ({
+    minLength: password.length >= 8,
+    hasUppercase: /[A-Z]/.test(password),
+    hasLowercase: /[a-z]/.test(password),
+    hasNumber: /[0-9]/.test(password),
+    hasSpecial: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password),
+});
+
+const isPasswordValid = (validation: PasswordValidation): boolean =>
+    Object.values(validation).every(Boolean);
+
+const PASSWORD_RULES: { key: keyof PasswordValidation; label: string }[] = [
+    { key: "minLength", label: "At least 8 characters" },
+    { key: "hasUppercase", label: "At least one uppercase letter (A-Z)" },
+    { key: "hasLowercase", label: "At least one lowercase letter (a-z)" },
+    { key: "hasNumber", label: "At least one number (0-9)" },
+    { key: "hasSpecial", label: "At least one special character (!@#$%^&*)" },
+];
+
+const PasswordRequirements = ({ validation, show }: { validation: PasswordValidation; show: boolean }) => {
+    if (!show) return null;
+    return (
+        <div className="mt-2 space-y-1 pl-0.5">
+            {PASSWORD_RULES.map(({ key, label }) => {
+                const met = validation[key];
+                return (
+                    <div key={key} className={`flex items-center gap-1.5 text-xs transition-colors duration-200 ${met ? "text-green-600" : "text-muted-foreground"}`}>
+                        {met ? (
+                            <Check className="h-3 w-3 shrink-0" />
+                        ) : (
+                            <Circle className="h-3 w-3 shrink-0" />
+                        )}
+                        <span>{label}</span>
+                    </div>
+                );
+            })}
+        </div>
+    );
+};
 
 const buildDefaultPermissions = (): FlatPerm[] =>
     DEFAULT_MENUS.map((m) => ({
@@ -279,10 +328,20 @@ const UserFormDialog = ({ mode, user, isPending = false, onClose, onSubmit }: Pr
     const [username, setUsername] = useState("");
     const [email, setEmail] = useState("");
     const [passwordData, setPasswordData] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [fullName, setFullName] = useState("");
     const [role, setRole] = useState("");
     const [isActive, setIsActive] = useState(true);
     const [permissions, setPermissions] = useState<FlatPerm[]>(buildDefaultPermissions);
+
+    // Password complexity state
+    const passwordValidation = validatePassword(passwordData);
+    const passwordsMatch = passwordData === confirmPassword && confirmPassword.length > 0;
+    const hasPasswordInput = passwordData.length > 0;
+    const passwordComplexityOk = isPasswordValid(passwordValidation);
+    const passwordFieldsValid = hasPasswordInput ? (passwordComplexityOk && passwordsMatch) : true;
 
     const { options: roleOptions, isLoading: loadingRoles } = useRolesOptions();
     const selectedRoleId = role ? parseInt(role, 10) : 0;
@@ -328,7 +387,13 @@ const UserFormDialog = ({ mode, user, isPending = false, onClose, onSubmit }: Pr
     }, [rolePermData, selectedRoleId]);
 
     const isFormValid = () => {
-        if (isAddMode) return username.trim() && email.trim() && passwordData.trim() && role;
+        if (isAddMode) {
+            return username.trim() && email.trim() && passwordData.trim() && role && passwordComplexityOk && passwordsMatch;
+        }
+        // Edit mode: if password is provided, it must be valid + confirmed
+        if (passwordData.trim()) {
+            return username.trim() && email.trim() && role && passwordComplexityOk && passwordsMatch;
+        }
         return username.trim() && email.trim() && role;
     };
 
@@ -393,25 +458,86 @@ const UserFormDialog = ({ mode, user, isPending = false, onClose, onSubmit }: Pr
                             </div>
 
                             {!isViewMode && (
-                                <div className="space-y-1">
-                                    <Label htmlFor="user-password">
-                                        Password{" "}
-                                        {isAddMode ? (
-                                            <span className="text-destructive">*</span>
-                                        ) : (
-                                            <span className="text-muted-foreground text-xs">(leave blank to keep current)</span>
-                                        )}
-                                    </Label>
-                                    <Input
-                                        id="user-password"
-                                        type="password"
-                                        placeholder={isAddMode ? "Enter password" : "New password (optional)"}
-                                        value={passwordData}
-                                        onChange={(e) => setPasswordData(e.target.value)}
-                                        disabled={isPending}
-                                        required={isAddMode}
-                                    />
-                                </div>
+                                <>
+                                    {/* Password field with visibility toggle */}
+                                    <div className="space-y-1">
+                                        <Label htmlFor="user-password">
+                                            Password{" "}
+                                            {isAddMode ? (
+                                                <span className="text-destructive">*</span>
+                                            ) : (
+                                                <span className="text-muted-foreground text-xs">(leave blank to keep current)</span>
+                                            )}
+                                        </Label>
+                                        <div className="relative">
+                                            <Input
+                                                id="user-password"
+                                                type={showPassword ? "text" : "password"}
+                                                placeholder={isAddMode ? "Enter password" : "New password (optional)"}
+                                                value={passwordData}
+                                                onChange={(e) => {
+                                                    setPasswordData(e.target.value);
+                                                }}
+                                                disabled={isPending}
+                                                required={isAddMode}
+                                                className={`pr-10 ${hasPasswordInput && !passwordComplexityOk ? "border-amber-400 focus-visible:ring-amber-400" : hasPasswordInput && passwordComplexityOk ? "border-green-500 focus-visible:ring-green-500" : ""}`}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                                tabIndex={-1}
+                                            >
+                                                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                            </button>
+                                        </div>
+                                        {/* Password complexity requirements */}
+                                        <PasswordRequirements validation={passwordValidation} show={hasPasswordInput} />
+                                    </div>
+
+                                    {/* Confirm Password field */}
+                                    {hasPasswordInput && (
+                                        <div className="space-y-1">
+                                            <Label htmlFor="user-confirm-password">
+                                                Confirm Password <span className="text-destructive">*</span>
+                                            </Label>
+                                            <div className="relative">
+                                                <Input
+                                                    id="user-confirm-password"
+                                                    type={showConfirmPassword ? "text" : "password"}
+                                                    placeholder="Re-enter password"
+                                                    value={confirmPassword}
+                                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                                    disabled={isPending}
+                                                    className={`pr-10 ${
+                                                        confirmPassword.length > 0
+                                                            ? passwordsMatch
+                                                                ? "border-green-500 bg-green-50/50 focus-visible:ring-green-500"
+                                                                : "border-red-500 bg-red-50/50 focus-visible:ring-red-500"
+                                                            : ""
+                                                    }`}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                                    tabIndex={-1}
+                                                >
+                                                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                                </button>
+                                            </div>
+                                            {confirmPassword.length > 0 && (
+                                                <p className={`text-xs flex items-center gap-1 ${passwordsMatch ? "text-green-600" : "text-red-500"}`}>
+                                                    {passwordsMatch ? (
+                                                        <><Check className="h-3 w-3" /> Passwords match</>
+                                                    ) : (
+                                                        <><AlertCircle className="h-3 w-3" /> Passwords do not match</>
+                                                    )}
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+                                </>
                             )}
 
                             <div className="space-y-1">
@@ -439,7 +565,7 @@ const UserFormDialog = ({ mode, user, isPending = false, onClose, onSubmit }: Pr
                                         <SelectValue placeholder={loadingRoles ? "Loading..." : "Select role"} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {roleOptions.map((opt) => (
+                                        {roleOptions.map((opt: { id: number; value: string; label: string }) => (
                                             <SelectItem key={opt.id} value={opt.value}>
                                                 {opt.label}
                                             </SelectItem>

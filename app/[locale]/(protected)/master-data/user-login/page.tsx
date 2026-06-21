@@ -448,7 +448,7 @@ const UserLoginPage = () => {
             </Card>
 
             <Dialog open={dialogMode === 'add'} onOpenChange={(open) => !open && closeDialog()}>
-                <DialogContent size="md" className="max-w-4xl">
+                <DialogContent size="md" className="max-w-4xl" onInteractOutside={(e) => e.preventDefault()}>
                     <UserFormDialog
                         mode="add"
                         onClose={closeDialog}
@@ -470,7 +470,7 @@ const UserLoginPage = () => {
 
             {/* Edit Dialog */}
             <Dialog open={dialogMode === 'edit'} onOpenChange={(open) => !open && closeDialog()}>
-                <DialogContent size="md" className="max-w-4xl">
+                <DialogContent size="md" className="max-w-4xl" onInteractOutside={(e) => e.preventDefault()}>
                     <UserFormDialog
                         mode="edit"
                         user={detailUser}
