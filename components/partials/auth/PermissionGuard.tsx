@@ -28,31 +28,47 @@ export default function PermissionGuard({ children }: { children: React.ReactNod
         if (isAuth && !isLoaded && !isLoading) {
             // Try to load permissions from localStorage first (saved during login)
             const savedUser = localStorage.getItem('user');
+            let hasCachedPerms = false;
             if (savedUser) {
                 try {
                     const userData = JSON.parse(savedUser);
                     if (userData.menuPermissions && userData.menuPermissions.length > 0) {
                         console.log('[PermissionGuard] loaded permissions from localStorage:', userData.menuPermissions.length, 'items');
                         dispatch(setPermissions(userData.menuPermissions));
-                        return;
+                        hasCachedPerms = true;
                     }
                 } catch (e) {
                     console.warn('[PermissionGuard] Failed to parse saved user data');
                 }
             }
 
-            // Fallback: fetch from API if not in localStorage
+            // Fallback: fetch from API if not in localStorage, OR always update to latest
             const roleId = (users as any)?.roleId;
             if (roleId) {
-                dispatch(setPermissionsLoading());
+                if (!hasCachedPerms) {
+                    dispatch(setPermissionsLoading());
+                }
                 getMenuPermissions(Number(roleId))
                     .then((res) => {
-                        console.log('[PermissionGuard] fetched permissions from API:', res.responseData?.length, 'items');
-                        dispatch(setPermissions(res.responseData ?? []));
+                        const newPerms = res.responseData ?? [];
+                        console.log('[PermissionGuard] fetched permissions from API:', newPerms.length, 'items');
+                        dispatch(setPermissions(newPerms));
+                        
+                        // Update localStorage to cache the freshest permissions
+                        if (savedUser) {
+                            try {
+                                const userData = JSON.parse(savedUser);
+                                userData.menuPermissions = newPerms;
+                                localStorage.setItem('user', JSON.stringify(userData));
+                            } catch (e) {}
+                        }
                     })
                     .catch((err) => {
                         console.error('[PermissionGuard] fetch failed:', err);
-                        dispatch(setPermissions([]));
+                        // If it fails but we have cached ones, let's keep the cached ones.
+                        if (!hasCachedPerms) {
+                            dispatch(setPermissions([]));
+                        }
                     });
             } else {
                 console.warn('[PermissionGuard] No roleId found — setting empty permissions');

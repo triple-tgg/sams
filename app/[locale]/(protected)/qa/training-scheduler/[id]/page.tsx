@@ -2,10 +2,12 @@
 
 import React, { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Clock, MapPin, Search, UserPlus, Trash2, Calendar as CalendarIcon, AlertCircle, Users, GraduationCap, Mail, Printer, Lock, MoreVertical, CheckCircle } from 'lucide-react'
+import { ArrowLeft, Clock, MapPin, Search, UserPlus, Trash2, Calendar as CalendarIcon, AlertCircle, Users, GraduationCap, Mail, Printer, Lock, MoreVertical, CheckCircle, FileEdit, Unlock, PlayCircle, Edit3, XCircle, Award, File } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { PrintAttendanceModal } from '../components/PrintAttendanceModal'
+import { EvidenceUploadModal } from '../components/EvidenceUploadModal'
+import { CertificateModal } from '../components/CertificateModal'
 import { INITIAL_SESSIONS } from '../data'
 import { STATUS_CONFIG, CAT_COLOR, formatDate } from '../types'
 
@@ -51,6 +53,48 @@ export default function ScheduleDetailPage() {
     const [enrolledSearch, setEnrolledSearch] = useState('')
     const [sessionStatus, setSessionStatus] = useState<'Draft' | 'Open Registration' | 'Registration Closed' | 'In Progress' | 'Grading' | 'Completed' | 'Cancelled'>('Open Registration')
     const [showPrintModal, setShowPrintModal] = useState(false)
+    const [showEvidenceModal, setShowEvidenceModal] = useState(false)
+    const [evidences, setEvidences] = useState<File[]>([])
+    const [showCertModal, setShowCertModal] = useState(false)
+    const [certStaffList, setCertStaffList] = useState<typeof MOCK_ENROLLED_STAFF>([])
+
+    const handleStatusChange = (status: any) => {
+        if (status === 'Completed' && evidences.length === 0) {
+            setShowEvidenceModal(true)
+            return
+        }
+        setSessionStatus(status)
+    }
+
+    const handleUploadEvidence = (files: File[]) => {
+        setEvidences(files)
+        setShowEvidenceModal(false)
+        setSessionStatus('Completed')
+    }
+
+    const openCertificateModal = (staff?: any) => {
+        if (staff) {
+            setCertStaffList([staff])
+        } else {
+            // Issue to all passed staff
+            setCertStaffList(enrolledStaff.filter(s => s.result === 'Pass'))
+        }
+        setShowCertModal(true)
+    }
+
+    const ALLOWED_NEXT_STATUS: Record<string, string[]> = {
+        'Draft': ['Draft', 'Open Registration', 'Cancelled'],
+        'Open Registration': ['Open Registration', 'Registration Closed', 'Cancelled'],
+        'Registration Closed': ['Registration Closed', 'Open Registration', 'In Progress', 'Cancelled'],
+        'In Progress': ['In Progress', 'Grading', 'Cancelled'],
+        'Grading': ['Grading', 'Completed'],
+        'Completed': ['Completed'],
+        'Cancelled': ['Cancelled']
+    }
+
+    const isStatusDisabled = (targetStatus: string) => {
+        return !ALLOWED_NEXT_STATUS[sessionStatus]?.includes(targetStatus);
+    }
 
     const cfg = STATUS_CONFIG[session.status] || STATUS_CONFIG.Scheduled
     const enrolledCount = enrolledStaff.length
@@ -126,6 +170,15 @@ export default function ScheduleDetailPage() {
                                 <Printer className="w-3.5 h-3.5" />
                                 Print Form
                             </button>
+                            {sessionStatus === 'Completed' && (
+                                <button
+                                    onClick={() => openCertificateModal()}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-primary border border-primary hover:bg-primary/5 transition-colors cursor-pointer bg-white"
+                                >
+                                    <Award className="w-3.5 h-3.5" />
+                                    Issue Certificates
+                                </button>
+                            )}
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <button className="flex items-center justify-center w-8 h-8 rounded-lg text-foreground hover:bg-muted border border-border transition-colors cursor-pointer bg-white">
@@ -133,13 +186,27 @@ export default function ScheduleDetailPage() {
                                     </button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-48">
-                                    <DropdownMenuItem onClick={() => setSessionStatus('Draft')} className="cursor-pointer text-xs font-medium text-slate-600 focus:bg-slate-50">Draft</DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => setSessionStatus('Open Registration')} className="cursor-pointer text-xs font-medium text-emerald-600 focus:bg-emerald-50">Open Registration</DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => setSessionStatus('Registration Closed')} className="cursor-pointer text-xs font-medium text-amber-600 focus:bg-amber-50">Close Registration</DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => setSessionStatus('In Progress')} className="cursor-pointer text-xs font-medium text-blue-600 focus:bg-blue-50">In Progress</DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => setSessionStatus('Grading')} className="cursor-pointer text-xs font-medium text-purple-600 focus:bg-purple-50">Grading</DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => setSessionStatus('Completed')} className="cursor-pointer text-xs font-medium text-slate-800 focus:bg-slate-100">Completed</DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => setSessionStatus('Cancelled')} className="cursor-pointer text-xs font-medium text-red-600 focus:bg-red-50">Cancelled</DropdownMenuItem>
+                                    <DropdownMenuItem disabled={isStatusDisabled('Draft')} onClick={() => handleStatusChange('Draft')} className={`cursor-pointer text-xs font-medium flex items-center gap-2 ${isStatusDisabled('Draft') ? 'text-slate-400 opacity-50' : 'text-slate-600 focus:bg-slate-50'}`}>
+                                        <FileEdit className="w-3.5 h-3.5" /> Draft
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem disabled={isStatusDisabled('Open Registration')} onClick={() => handleStatusChange('Open Registration')} className={`cursor-pointer text-xs font-medium flex items-center gap-2 ${isStatusDisabled('Open Registration') ? 'text-slate-400 opacity-50' : 'text-emerald-600 focus:bg-emerald-50'}`}>
+                                        <Unlock className="w-3.5 h-3.5" /> Open Registration
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem disabled={isStatusDisabled('Registration Closed')} onClick={() => handleStatusChange('Registration Closed')} className={`cursor-pointer text-xs font-medium flex items-center gap-2 ${isStatusDisabled('Registration Closed') ? 'text-slate-400 opacity-50' : 'text-amber-600 focus:bg-amber-50'}`}>
+                                        <Lock className="w-3.5 h-3.5" /> Close Registration
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem disabled={isStatusDisabled('In Progress')} onClick={() => handleStatusChange('In Progress')} className={`cursor-pointer text-xs font-medium flex items-center gap-2 ${isStatusDisabled('In Progress') ? 'text-slate-400 opacity-50' : 'text-blue-600 focus:bg-blue-50'}`}>
+                                        <PlayCircle className="w-3.5 h-3.5" /> In Progress
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem disabled={isStatusDisabled('Grading')} onClick={() => handleStatusChange('Grading')} className={`cursor-pointer text-xs font-medium flex items-center gap-2 ${isStatusDisabled('Grading') ? 'text-slate-400 opacity-50' : 'text-purple-600 focus:bg-purple-50'}`}>
+                                        <Edit3 className="w-3.5 h-3.5" /> Grading
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem disabled={isStatusDisabled('Completed')} onClick={() => handleStatusChange('Completed')} className={`cursor-pointer text-xs font-medium flex items-center gap-2 ${isStatusDisabled('Completed') ? 'text-slate-400 opacity-50' : 'text-slate-800 focus:bg-slate-100'}`}>
+                                        <CheckCircle className="w-3.5 h-3.5" /> Completed
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem disabled={isStatusDisabled('Cancelled')} onClick={() => handleStatusChange('Cancelled')} className={`cursor-pointer text-xs font-medium flex items-center gap-2 ${isStatusDisabled('Cancelled') ? 'text-slate-400 opacity-50' : 'text-red-600 focus:bg-red-50'}`}>
+                                        <XCircle className="w-3.5 h-3.5" /> Cancelled
+                                    </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
@@ -256,6 +323,28 @@ export default function ScheduleDetailPage() {
                                         <div className="flex gap-2 leading-relaxed"><span className="text-slate-400">•</span><p>Ref: SAMS-FM-CM-014 Rev.03 (05 AUG 2025)</p></div>
                                     </div>
                                 </div>
+
+                                {/* Uploaded Evidence */}
+                                {evidences.length > 0 && (
+                                    <div className="pt-2">
+                                        <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Attached Evidence</h4>
+                                        <div className="space-y-2">
+                                            {evidences.map((file, idx) => (
+                                                <div key={idx} className="flex items-center justify-between p-2.5 bg-white border border-slate-200 rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.03)] group hover:shadow-md transition-shadow cursor-pointer">
+                                                    <div className="flex items-center gap-2.5 overflow-hidden">
+                                                        <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                                                            <File className="w-4 h-4 text-primary" />
+                                                        </div>
+                                                        <div className="flex flex-col min-w-0">
+                                                            <span className="text-[11px] font-bold text-slate-700 truncate">{file.name}</span>
+                                                            <span className="text-[9px] text-slate-400">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Add Staff Panel */}
@@ -440,6 +529,15 @@ export default function ScheduleDetailPage() {
                                                 )}
                                             </div>
                                             <div className="flex items-center justify-center gap-1">
+                                                {sessionStatus === 'Completed' && staff.result === 'Pass' && (
+                                                    <button
+                                                        onClick={() => openCertificateModal(staff)}
+                                                        className="p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors cursor-pointer border-none bg-transparent"
+                                                        title="Issue Certificate"
+                                                    >
+                                                        <Award className="w-4 h-4" />
+                                                    </button>
+                                                )}
                                                 <button
                                                     className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer border-none bg-transparent"
                                                     title="Send Email"
@@ -469,6 +567,17 @@ export default function ScheduleDetailPage() {
                 onClose={() => setShowPrintModal(false)}
                 session={session as any}
                 enrolledStaff={enrolledStaff}
+            />
+            <EvidenceUploadModal
+                isOpen={showEvidenceModal}
+                onClose={() => setShowEvidenceModal(false)}
+                onUploadSuccess={handleUploadEvidence}
+            />
+            <CertificateModal
+                isOpen={showCertModal}
+                onClose={() => setShowCertModal(false)}
+                session={session as any}
+                staffList={certStaffList}
             />
         </div>
     )

@@ -37,7 +37,7 @@ export function useFilteredMenuList(pathname: string, t: any): Group[] {
     const rawMenuList = getMenuList(pathname, t);
 
     return React.useMemo(() => {
-        if (!isPermLoaded || permMenus.length === 0) return rawMenuList;
+        if (!isPermLoaded) return [];
 
         // Flatten nested children into a single map: menuCode → canView
         const flat = flattenPermissions(permMenus);
