@@ -23,8 +23,8 @@ const HeaderLogo = () => {
                     className="w-[60px] h-auto object-contain  [&>path:nth-child(3)]:text-background [&>path:nth-child(2)]:text-background"
                 // className="w-full h-auto object-contain  [&>path:nth-child(3)]:text-background [&>path:nth-child(2)]:text-background"
                 />
-                <h1 className="text-xl font-semibold text-default-900 lg:block hidden ">
-                    SAM Airline Maintainance
+                <h1 className="px-2 text-xl font-semibold text-default-900 lg:block hidden ">
+                    SAMS Engineering Maintenance System
                 </h1>
             </Link>
         ) :
@@ -38,8 +38,8 @@ const HeaderLogo = () => {
                         height={48}
                         className="w-[60px] h-auto object-contain  [&>path:nth-child(3)]:text-background [&>path:nth-child(2)]:text-background"
                     />
-                    <h1 className="text-xl font-semibold text-default-900 lg:block hidden ">
-                        SAM Airline Maintainance
+                    <h1 className="px-4 text-xl font-semibold text-default-900 lg:block hidden ">
+                        SAMS Engineering Maintenance System
                     </h1>
                 </Link>
             )

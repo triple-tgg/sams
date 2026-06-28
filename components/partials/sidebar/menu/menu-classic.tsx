@@ -86,7 +86,7 @@ export function MenuClassic({ }) {
 
                 )} */}
 
-                <nav className="mt-8 h-full w-full">
+                <nav className="mt-0 h-full w-full">
                     <ul className=" h-full flex flex-col min-h-[calc(100vh-48px-36px-16px-32px)] lg:min-h-[calc(100vh-32px-40px-32px)] items-start space-y-1 px-4">
                         {menuList?.map(({ groupLabel, menus }, index) => (
                             <li className={cn("w-full", groupLabel ? "" : "")} key={index}>

@@ -36,19 +36,22 @@ export function SheetMenu() {
                 <SheetHeader>
                     <Link href="/flight/list" className="flex gap-2 items-center     ">
                         {/* <DashCodeLogo className="  text-default-900 h-8 w-8 [&>path:nth-child(3)]:text-background [&>path:nth-child(2)]:text-background" /> */}
-                        <Image
-                            src="/images/logo/logo.png"
-                            alt="dashcode"
-                            width={90}
-                            height={48}
-                            className="w-[60px] h-auto object-contain  [&>path:nth-child(3)]:text-background [&>path:nth-child(2)]:text-background"
-                        />
+
+                        <div className='flex justify-center w-full'>
+                            <Image
+                                src="/images/logo/logo.png"
+                                alt="dashcode"
+                                width={90}
+                                height={48}
+                                className="w-[130px] h-auto object-contain  [&>path:nth-child(3)]:text-background [&>path:nth-child(2)]:text-background"
+                            />
+                        </div>
                     </Link>
-                    <div className='px-2'>
-                        <h1 className="text-lg font-semibold text-default-900 ">
-                            SAM Airline Maintainance
+                    {/* <div className='px-2'>
+                        <h1 className="px-2 text-lg font-semibold text-default-900 ">
+                            SAMS Engineering Maintenance System
                         </h1>
-                    </div>
+                    </div> */}
                 </SheetHeader>
                 <MenuClassic />
             </SheetContent>

@@ -40,7 +40,7 @@ const IconNav = ({ menuList }: IconNavProps) => {
             alt="SAMS"
             width={48}
             height={48}
-            className="w-[40px] h-auto object-contain"
+            className="w-[51px] h-auto object-contain"
           />
         </Link>
       </div>

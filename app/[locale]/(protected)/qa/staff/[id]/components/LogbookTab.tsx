@@ -5,6 +5,7 @@ import { ClipboardList, Clock, AlertCircle, Wrench, AlertTriangle, CheckCircle2,
 import { StaffData, LogbookEntry } from '../types'
 import { formatDate } from '../utils'
 import { LogbookRecordModal } from './LogbookRecordModal'
+import { useLogbookSummary, useLogbookRecords } from '@/lib/api/hooks/useQAStaffManagement'
 
 // ── Task Type Badge Color Map ──
 function getTaskTypeStyle(taskType: string) {
@@ -67,9 +68,20 @@ function DefectStatusBadge({ status }: { status: DefectItem['status'] }) {
 
 // ── Logbook Records Tab ──
 export function LogbookTab({ staff }: { staff: StaffData }) {
-    const totalHours = staff.logbook.reduce((sum, l) => sum + l.hours, 0)
+    // ── Fetch summary from API ──
+    const { data: summaryData } = useLogbookSummary(staff.id)
+    const apiSummary = summaryData?.responseData
+
+    // ── Fetch records from API ──
+    const { data: recordsData } = useLogbookRecords(staff.id)
+    const apiRecords = recordsData?.responseData
+
+    // Use API data if available, fallback to mock
+    const totalEntries = apiSummary?.totalEntries ?? staff.logbook.length
+    const totalHours = apiSummary?.totalHours ?? staff.logbook.reduce((sum, l) => sum + l.hours, 0)
+    const pendingCount = apiSummary?.pendingSignOff ?? staff.logbook.filter(l => !l.signedOff).length
+
     const pendingEntries = staff.logbook.filter(l => !l.signedOff)
-    const pendingCount = pendingEntries.length
     const [expandedPending, setExpandedPending] = useState<Record<number, boolean>>({ 0: true })
     const [recordModal, setRecordModal] = useState<{ defect: { ata: string; description: string }; logEntry: LogbookEntry } | null>(null)
 
@@ -88,11 +100,11 @@ export function LogbookTab({ staff }: { staff: StaffData }) {
                 <div className="grid grid-cols-3 gap-y-5 gap-x-8 max-md:grid-cols-1">
                     <div className="flex flex-col gap-1">
                         <span className="text-xs font-medium text-slate-400 tracking-wide">Total Entries</span>
-                        <span className="text-sm font-medium text-slate-800">{staff.logbook.length}</span>
+                        <span className="text-sm font-medium text-slate-800">{totalEntries}</span>
                     </div>
                     <div className="flex flex-col gap-1">
                         <span className="text-xs font-medium text-slate-400 tracking-wide">Total Hours</span>
-                        <span className="text-sm font-medium text-slate-800">{totalHours.toFixed(1)} hrs</span>
+                        <span className="text-sm font-medium text-slate-800">{totalHours.toFixed(2)} hrs</span>
                     </div>
                     <div className="flex flex-col gap-1">
                         <span className="text-xs font-medium text-slate-400 tracking-wide">Pending Sign-off</span>
@@ -216,10 +228,10 @@ export function LogbookTab({ staff }: { staff: StaffData }) {
                         </div>
                         Maintenance Logbook
                     </div>
-                    <span className="text-[13px] text-slate-500">{staff.logbook.length} entries</span>
+                    <span className="text-[13px] text-slate-500">{apiRecords ? apiRecords.length : staff.logbook.length} entries</span>
                 </div>
 
-                {staff.logbook.length > 0 ? (
+                {(apiRecords ? apiRecords.length > 0 : staff.logbook.length > 0) ? (
                     <table className="w-full border-collapse">
                         <thead>
                             <tr>
@@ -233,41 +245,80 @@ export function LogbookTab({ staff }: { staff: StaffData }) {
                             </tr>
                         </thead>
                         <tbody>
-                            {staff.logbook.map((log, i) => (
-                                <tr key={i} className="hover:bg-slate-50 transition-colors">
-                                    <td className="text-xs py-3 px-3.5 border-b border-slate-100 text-slate-700 whitespace-nowrap">
-                                        {formatDate(log.date)}
-                                    </td>
-                                    <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700 font-medium whitespace-nowrap">
-                                        {log.aircraft}
-                                    </td>
-                                    <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700">
-                                        <span className="inline-flex items-center text-[11px] font-semibold px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-600">
-                                            {log.regNo}
-                                        </span>
-                                    </td>
-                                    <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700">
-                                        <span className={`inline-flex items-center text-[11px] font-semibold px-2.5 py-0.5 rounded-md ${getTaskTypeStyle(log.taskType)}`}>
-                                            {log.taskType}
-                                        </span>
-                                    </td>
-                                    <td className="text-xs py-3 px-3.5 border-b border-slate-100 text-slate-700">
-                                        {log.thfNo}
-                                    </td>
-                                    <td className="text-xs py-3 px-3.5 border-b border-slate-100 text-slate-600 max-w-[280px]">
-                                        {log.description}
-                                    </td>
-                                    <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-center font-semibold">
-                                        {log.hours.toFixed(1)}
-                                    </td>
-                                    <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-center">
-                                        <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-md ${log.signedOff ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
-                                            }`}>
-                                            {log.signedOff ? '✓ Signed' : 'Pending'}
-                                        </span>
-                                    </td>
-                                </tr>
-                            ))}
+                            {apiRecords ? (
+                                apiRecords.map((rec) => {
+                                    const isSigned = rec.signOffStatus === 'Signed Off'
+                                    return (
+                                        <tr key={rec.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="text-xs py-3 px-3.5 border-b border-slate-100 text-slate-700 whitespace-nowrap">
+                                                {formatDate(rec.date)}
+                                            </td>
+                                            <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700 font-medium whitespace-nowrap">
+                                                {rec.aircraft}
+                                            </td>
+                                            <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700">
+                                                <span className="inline-flex items-center text-[11px] font-semibold px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-600">
+                                                    {rec.regNo}
+                                                </span>
+                                            </td>
+                                            <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700">
+                                                <span className={`inline-flex items-center text-[11px] font-semibold px-2.5 py-0.5 rounded-md ${getTaskTypeStyle(rec.taskType)}`}>
+                                                    {rec.taskType}
+                                                </span>
+                                            </td>
+                                            <td className="text-xs py-3 px-3.5 border-b border-slate-100 text-slate-700">
+                                                {rec.thfNo}
+                                            </td>
+                                            <td className="text-xs py-3 px-3.5 border-b border-slate-100 text-slate-600 max-w-[280px]">
+                                                {rec.description}
+                                            </td>
+                                            <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-center font-semibold">
+                                                {rec.hours.toFixed(1)}
+                                            </td>
+                                            <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-center">
+                                                <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-md ${isSigned ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                                                    {isSigned ? '✓ Signed' : 'Pending'}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    )
+                                })
+                            ) : (
+                                staff.logbook.map((log, i) => (
+                                    <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                        <td className="text-xs py-3 px-3.5 border-b border-slate-100 text-slate-700 whitespace-nowrap">
+                                            {formatDate(log.date)}
+                                        </td>
+                                        <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700 font-medium whitespace-nowrap">
+                                            {log.aircraft}
+                                        </td>
+                                        <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700">
+                                            <span className="inline-flex items-center text-[11px] font-semibold px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-600">
+                                                {log.regNo}
+                                            </span>
+                                        </td>
+                                        <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700">
+                                            <span className={`inline-flex items-center text-[11px] font-semibold px-2.5 py-0.5 rounded-md ${getTaskTypeStyle(log.taskType)}`}>
+                                                {log.taskType}
+                                            </span>
+                                        </td>
+                                        <td className="text-xs py-3 px-3.5 border-b border-slate-100 text-slate-700">
+                                            {log.thfNo}
+                                        </td>
+                                        <td className="text-xs py-3 px-3.5 border-b border-slate-100 text-slate-600 max-w-[280px]">
+                                            {log.description}
+                                        </td>
+                                        <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-center font-semibold">
+                                            {log.hours.toFixed(1)}
+                                        </td>
+                                        <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-center">
+                                            <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-md ${log.signedOff ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                                                {log.signedOff ? '✓ Signed' : 'Pending'}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 ) : (

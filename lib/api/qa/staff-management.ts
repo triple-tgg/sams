@@ -372,3 +372,216 @@ export const getStaffById = async (
         );
     }
 };
+
+// ── Training Dashboard ──
+
+export interface TrainingDashboardCurrentTraining {
+    id: number;
+    courseName: string;
+    dateFrom: string;
+    dateTo: string;
+    validUntil: string;
+    providedBy: string;
+    status: string;
+}
+
+export interface TrainingDashboardPreviousTraining {
+    id: number;
+    courseName: string;
+    academyName: string;
+    dateFrom: string;
+    dateTo: string;
+}
+
+export interface TrainingDashboardNeedsMatrixCourse {
+    courseId: number;
+    name: string;
+    status: string;
+    completed: boolean;
+}
+
+export interface TrainingDashboardNeedsMatrix {
+    totalRequired: number;
+    validCount: number;
+    completionPercentage: number;
+    courses: TrainingDashboardNeedsMatrixCourse[];
+}
+
+export interface TrainingDashboardStats {
+    totalCourses: number;
+    expired: number;
+    permanent: number;
+    expiringSoon: number;
+}
+
+export interface TrainingDashboardResponseData {
+    summary: TrainingDashboardStats;
+    records: TrainingDashboardCurrentTraining[];
+    histories: TrainingDashboardPreviousTraining[];
+    needsMatrix: TrainingDashboardNeedsMatrix;
+}
+
+export interface TrainingDashboardResponse {
+    message: string;
+    responseData: TrainingDashboardResponseData;
+    error: string;
+}
+
+/**
+ * Get staff training dashboard
+ * GET /staffs/{staffId}/trainings/dashboard
+ */
+export const getStaffTrainingDashboard = async (
+    staffId: number
+): Promise<TrainingDashboardResponse> => {
+    try {
+        const res = await axiosConfig.get(`/staffs/${staffId}/trainings/dashboard`);
+        return res.data as TrainingDashboardResponse;
+    } catch (error: any) {
+        console.error("Error fetching staff training dashboard:", error);
+        throw new Error(
+            error.response?.data?.error || error.response?.data?.message || "Failed to fetch training dashboard"
+        );
+    }
+};
+
+// ── Training History CRUD ──
+
+export interface UpsertTrainingHistoryRequest {
+    courseName: string;
+    academyName: string;
+    dateFrom: string;
+    dateTo: string;
+}
+
+export interface TrainingHistoryMutationResponse {
+    message: string;
+    responseData: any;
+    error: string;
+}
+
+/**
+ * Create a new training history
+ * POST /staffs/{staffId}/trainings/histories
+ */
+export const createTrainingHistory = async (
+    staffId: number,
+    data: UpsertTrainingHistoryRequest
+): Promise<TrainingHistoryMutationResponse> => {
+    try {
+        const res = await axiosConfig.post(`/staffs/${staffId}/trainings/histories`, data);
+        return res.data as TrainingHistoryMutationResponse;
+    } catch (error: any) {
+        console.error("Error creating training history:", error);
+        throw new Error(
+            error.response?.data?.error || error.response?.data?.message || "Failed to create training history"
+        );
+    }
+};
+
+/**
+ * Update an existing training history
+ * PUT /staffs/{staffId}/trainings/histories/{historyId}
+ */
+export const updateTrainingHistory = async (
+    staffId: number,
+    historyId: number,
+    data: UpsertTrainingHistoryRequest
+): Promise<TrainingHistoryMutationResponse> => {
+    try {
+        const res = await axiosConfig.put(`/staffs/${staffId}/trainings/histories/${historyId}`, data);
+        return res.data as TrainingHistoryMutationResponse;
+    } catch (error: any) {
+        console.error("Error updating training history:", error);
+        throw new Error(
+            error.response?.data?.error || error.response?.data?.message || "Failed to update training history"
+        );
+    }
+};
+
+/**
+ * Delete a training history
+ * DEL /staffs/{staffId}/trainings/histories/{historyId}
+ */
+export const deleteTrainingHistory = async (
+    staffId: number,
+    historyId: number
+): Promise<TrainingHistoryMutationResponse> => {
+    try {
+        const res = await axiosConfig.delete(`/staffs/${staffId}/trainings/histories/${historyId}`);
+        return res.data as TrainingHistoryMutationResponse;
+    } catch (error: any) {
+        console.error("Error deleting training history:", error);
+        throw new Error(
+            error.response?.data?.error || error.response?.data?.message || "Failed to delete training history"
+        );
+    }
+};
+
+// ── Logbook APIs ──
+
+export interface LogbookSummaryData {
+    totalEntries: number;
+    totalHours: number;
+    pendingSignOff: number;
+}
+
+export interface LogbookSummaryResponse {
+    message: string;
+    responseData: LogbookSummaryData;
+    error: string;
+}
+
+/**
+ * Get logbook summary
+ * GET /staffs/{staffId}/logbooks/summary
+ */
+export const getLogbookSummary = async (
+    staffId: number
+): Promise<LogbookSummaryResponse> => {
+    try {
+        const res = await axiosConfig.get(`/staffs/${staffId}/logbooks/summary`);
+        return res.data as LogbookSummaryResponse;
+    } catch (error: any) {
+        console.error("Error fetching logbook summary:", error);
+        throw new Error(
+            error.response?.data?.error || error.response?.data?.message || "Failed to fetch logbook summary"
+        );
+    }
+};
+
+export interface LogbookRecordData {
+    id: number;
+    date: string;
+    aircraft: string;
+    regNo: string;
+    taskType: string;
+    thfNo: string;
+    description: string;
+    hours: number;
+    signOffStatus: string;
+}
+
+export interface LogbookRecordsResponse {
+    message: string;
+    responseData: LogbookRecordData[];
+    error: string;
+}
+
+/**
+ * Get logbook records
+ * GET /staffs/{staffId}/logbooks/records
+ */
+export const getLogbookRecords = async (
+    staffId: number
+): Promise<LogbookRecordsResponse> => {
+    try {
+        const res = await axiosConfig.get(`/staffs/${staffId}/logbooks/records`);
+        return res.data as LogbookRecordsResponse;
+    } catch (error: any) {
+        console.error("Error fetching logbook records:", error);
+        throw new Error(
+            error.response?.data?.error || error.response?.data?.message || "Failed to fetch logbook records"
+        );
+    }
+};
