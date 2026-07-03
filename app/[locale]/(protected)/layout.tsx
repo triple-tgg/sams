@@ -4,6 +4,7 @@ import DashCodeSidebar from "@/components/partials/sidebar";
 import DashCodeFooter from "@/components/partials/footer";
 import DashCodeHeader from "@/components/partials/header";
 import PermissionGuard from "@/components/partials/auth/PermissionGuard";
+import RoutePermissionGuard from "@/components/partials/auth/RoutePermissionGuard";
 
 const layout = async ({ children }: { children: React.ReactNode }) => {
   return (
@@ -12,7 +13,9 @@ const layout = async ({ children }: { children: React.ReactNode }) => {
         {/* <ThemeCustomize /> */}
         <DashCodeHeader />
         <DashCodeSidebar />
-        <LayoutContentProvider>{children}</LayoutContentProvider>
+        <LayoutContentProvider>
+          <RoutePermissionGuard>{children}</RoutePermissionGuard>
+        </LayoutContentProvider>
         <DashCodeFooter />
       </PermissionGuard>
     </LayoutProvider>

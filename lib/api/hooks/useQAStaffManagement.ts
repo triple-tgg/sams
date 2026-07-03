@@ -24,6 +24,11 @@ import {
     LogbookSummaryResponse,
     getLogbookRecords,
     LogbookRecordsResponse,
+    getLogbookPending,
+    LogbookPendingResponse,
+    upsertLogbookRecord,
+    UpsertLogbookRecordRequest,
+    UpsertLogbookRecordResponse,
 } from "@/lib/api/qa/staff-management";
 
 /**
@@ -224,5 +229,49 @@ export const useLogbookRecords = (
         gcTime: 5 * 60 * 1000,
         retry: 2,
         refetchOnWindowFocus: false,
+    });
+};
+
+/**
+ * Hook for fetching logbook pending records
+ * Uses GET /staffs/{staffId}/logbooks/pending
+ */
+export const useLogbookPending = (
+    staffId: number,
+    enabled: boolean = true
+): UseQueryResult<LogbookPendingResponse, Error> => {
+    return useQuery({
+        queryKey: ["qa-staff-logbook-pending", staffId],
+        queryFn: () => getLogbookPending(staffId),
+        enabled: enabled && staffId > 0,
+        staleTime: 2 * 60 * 1000,
+        gcTime: 5 * 60 * 1000,
+        retry: 2,
+        refetchOnWindowFocus: false,
+    });
+};
+
+/**
+ * Hook for upserting logbook record
+ * Uses POST /staffs/{staffId}/logbooks/record/upsert
+ */
+export const useUpsertLogbookRecord = (staffId: number): UseMutationResult<
+    UpsertLogbookRecordResponse,
+    Error,
+    UpsertLogbookRecordRequest
+> => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (data: UpsertLogbookRecordRequest) => upsertLogbookRecord(staffId, data),
+        onSuccess: (res) => {
+            queryClient.invalidateQueries({ queryKey: ["qa-staff-logbook-pending", staffId] });
+            queryClient.invalidateQueries({ queryKey: ["qa-staff-logbook-records", staffId] });
+            queryClient.invalidateQueries({ queryKey: ["qa-staff-logbook-summary", staffId] });
+            toast.success("Record saved successfully");
+        },
+        onError: (error) => {
+            toast.error(error.message || "Failed to save record");
+        },
     });
 };

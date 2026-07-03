@@ -4,6 +4,7 @@ export type SubChildren = {
   href: string;
   label: string;
   active: boolean;
+  permCode?: string;           // API menuCode for permission check
   children?: SubChildren[];
   badge?: string;
 };
@@ -92,7 +93,7 @@ export function getMenuList(pathname: string, t: any): Group[] {
           href: "/production-planner/dashboard",
           label: "Production Planner",
           active: pathname.includes("/production-planner"),
-          icon: "heroicons-outline:chart-pie",
+          icon: "heroicons-outline:presentation-chart-line",
           submenus: [
             {
               permCode: "PRODUCTION_DASHBOARD",
@@ -211,44 +212,66 @@ export function getMenuList(pathname: string, t: any): Group[] {
           icon: "heroicons-outline:cog-6-tooth",
           submenus: [
             {
-              permCode: "MASTER_DATA_CUSTOMER_AIRLINE",
+              href: "/master-data/hr/employee-income",
+              label: t("Staff"),
+              active: pathname.includes("/master-data/staff") || pathname.includes("/master-data/hr/employee-income"),
+              icon: "heroicons-outline:user-group",
+              children: [
+                {
+                  permCode: "MASTER_DATA_STAFF",
+                  href: "/master-data/staff",
+                  label: t("Staff List"),
+                  active: pathname.includes("/master-data/staff"),
+                },
+                {
+                  permCode: "MASTER_DATA_HR",
+                  href: "/master-data/hr/employee-income",
+                  label: t("Staff Income"),
+                  active: pathname.includes("/master-data/hr/employee-income"),
+                },
+              ]
+            },
+            {
               href: "/master-data/customer-airline",
-              label: t("customer-airline"),
+              label: t("Customer Airline"),
               active: pathname.includes("/master-data/customer-airline"),
-              icon: "heroicons-outline:cog-6-tooth",
-              children: [],
+              icon: "heroicons-outline:identification",
+              children: [
+                {
+                  permCode: "MASTER_DATA_CUSTOMER_AIRLINE",
+                  href: "/master-data/customer-airline",
+                  label: t("customer-airline"),
+                  active: pathname.includes("/master-data/customer-airline"),
+                  children: [],
+                },
+              ]
             },
             {
-              permCode: "MASTER_DATA_STAFF",
-              href: "/master-data/staff",
-              label: t("staff"),
-              active: pathname.includes("/master-data/staff"),
-              icon: "heroicons-outline:cog-6-tooth",
-              children: [],
-            },
-            {
-              permCode: "MASTER_DATA_STATION",
-              href: "/master-data/station",
-              label: t("station"),
-              active: pathname.includes("/master-data/station"),
-              icon: "heroicons-outline:cog-6-tooth",
-              children: [],
-            },
-            {
-              permCode: "MASTER_DATA_USER_LOGIN",
-              href: "/master-data/user-login",
-              label: t("user-login"),
-              active: pathname.includes("/master-data/user-login"),
-              icon: "heroicons-outline:cog-6-tooth",
-              children: [],
-            },
-            {
-              permCode: "MASTER_DATA_ROLE",
               href: "/master-data/role",
-              label: t("role"),
-              active: pathname.includes("/master-data/role") || pathname.includes("/master-data/set-permission"),
-              icon: "heroicons-outline:shield-check",
-              children: [],
+              label: t("System Function"),
+              active: pathname.includes("/master-data/role") || pathname.includes("/master-data/station") || pathname.includes("/master-data/user-login") || pathname.includes("/master-data/set-permission"),
+              icon: "heroicons-outline:cog-6-tooth",
+              children: [
+                {
+                  permCode: "MASTER_DATA_STATION",
+                  href: "/master-data/station",
+                  label: t("station"),
+                  active: pathname.includes("/master-data/station"),
+                  children: [],
+                },
+                {
+                  permCode: "MASTER_DATA_USER_LOGIN",
+                  href: "/master-data/user-login",
+                  label: t("user-login"),
+                  active: pathname.includes("/master-data/user-login"),
+                },
+                {
+                  permCode: "MASTER_DATA_ROLE",
+                  href: "/master-data/role",
+                  label: t("role"),
+                  active: pathname.includes("/master-data/role") || pathname.includes("/master-data/set-permission"),
+                },
+              ]
             },
           ],
         },

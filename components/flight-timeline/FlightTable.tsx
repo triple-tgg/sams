@@ -31,6 +31,7 @@ import { getlineMaintenancesThfByFlightId } from '@/lib/api/lineMaintenances/fli
 import { updateFlight } from '@/lib/api/flight/updateFlight';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { PermissionActionGuard } from '@/components/partials/auth/PermissionActionGuard';
 
 // Type guard to check if item is a StaffItem object (not just a number ID)
 const isStaffItem = (item: number | StaffItem): item is StaffItem => {
@@ -735,6 +736,7 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                                                 </Tooltip>
                                             )}
                                             <div className="flex items-center justify-center">
+                                                <PermissionActionGuard menuCode="FLIGHT_TIMELINE" action="canEdit">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild >
                                                         <Button
@@ -759,6 +761,7 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
+                                                </PermissionActionGuard>
                                             </div>
                                         </div>
                                         {/* <Tooltip content={"Edit Flight"}>
@@ -802,7 +805,7 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                                     <SelectValue placeholder="Select Status..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {maintenanceStatusOptions.map((option) => (
+                                    {maintenanceStatusOptions.map((option: { id: number; value: string; label: string }) => (
                                         <SelectItem key={option.id} value={String(option.id)}>
                                             {option.label}
                                         </SelectItem>

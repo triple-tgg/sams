@@ -585,3 +585,116 @@ export const getLogbookRecords = async (
         );
     }
 };
+
+export interface LogbookPendingDefectItem {
+    defectId: string;
+    ataCode: string;
+    description: string;
+    status: string;
+}
+
+export interface LogbookPendingRecordData {
+    logbookId: number;
+    date: string;
+    aircraft: string;
+    regNo: string;
+    taskType: string;
+    thfNo: string;
+    defectProgress: string;
+    lineMaintenanceId?: number;
+    defectItems: LogbookPendingDefectItem[];
+}
+
+export interface LogbookPendingResponse {
+    message: string;
+    responseData: LogbookPendingRecordData[];
+    error: string;
+}
+
+/**
+ * Get logbook pending sign-off records
+ * GET /staffs/{staffId}/logbooks/pending
+ */
+export const getLogbookPending = async (
+    staffId: number
+): Promise<LogbookPendingResponse> => {
+    try {
+        const res = await axiosConfig.get(`/staffs/${staffId}/logbooks/pending`);
+        return res.data as LogbookPendingResponse;
+    } catch (error: any) {
+        console.error("Error fetching logbook pending records:", error);
+        throw new Error(
+            error.response?.data?.error || error.response?.data?.message || "Failed to fetch logbook pending records"
+        );
+    }
+};
+
+export interface UpsertLogbookAttachment {
+    id: number;
+    fileName: string;
+    filePath: string;
+    fileType: string;
+}
+
+export interface UpsertLogbookRecordRequest {
+    id: number;
+    lineMaintenanceId: number;
+    additionalDefectId: string;
+    licenseCategoryId: number;
+    dateToPerformTask: string;
+    stationId: number;
+    aircraftTypeId: number;
+    aircraftRegistration: string;
+    privilegeId: number;
+    ataChapterId: number;
+    flagTransitCheck: boolean;
+    flagDailyCheck: boolean;
+    flagAcheck: boolean;
+    flagEngineChange: boolean;
+    flagApuchange: boolean;
+    flagEngineBorescope: boolean;
+    flagCrs: boolean;
+    flagInspinspection: boolean;
+    flagTstroubleshooting: boolean;
+    flagRemovalInstallation: boolean;
+    flagDefectRectification: boolean;
+    flagTraining: boolean;
+    flagSghservicing: boolean;
+    flagFotfunctionalOperational: boolean;
+    flagReprepair: boolean;
+    flagSupervising: boolean;
+    flagBorescopeInspection: boolean;
+    flagOther: boolean;
+    typeOfActivity: string;
+    maintenanceReference: string;
+    performedDurationHrs: number;
+    authorizedStampNo: string;
+    description: string;
+    statusId: number;
+    attachments: UpsertLogbookAttachment[] | null;
+}
+
+export interface UpsertLogbookRecordResponse {
+    message: string;
+    responseData: string;
+    error: string;
+}
+
+/**
+ * Upsert logbook record
+ * POST /staffs/{staffId}/logbooks/record/upsert
+ */
+export const upsertLogbookRecord = async (
+    staffId: number,
+    data: UpsertLogbookRecordRequest
+): Promise<UpsertLogbookRecordResponse> => {
+    try {
+        const res = await axiosConfig.post(`/staffs/${staffId}/logbooks/record/upsert`, data);
+        return res.data as UpsertLogbookRecordResponse;
+    } catch (error: any) {
+        console.error("Error upserting logbook record:", error);
+        throw new Error(
+            error.response?.data?.error || error.response?.data?.message || "Failed to upsert logbook record"
+        );
+    }
+};

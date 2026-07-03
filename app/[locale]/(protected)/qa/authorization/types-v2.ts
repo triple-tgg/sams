@@ -37,6 +37,7 @@ export interface Staff {
   color: string             // avatar color hex
   license: string           // e.g. "B1", "B2", "B1/B2"
   note?: string             // optional remark
+  profileImage?: string      // profile photo URL
   cust: Partial<Record<AirlineKey, CustomerAuthValue>>
   auth: Partial<Record<AuthorityKey, CustomerAuthValue>>
 }
@@ -82,8 +83,8 @@ export const SAMS_STATUS_META: Record<SamsAuthStatus, { bg: string; dot: string;
 export const CUST_STATUS_META: Record<CustomerAuthValue, { bg: string; dot: string; text: string; label: string; labelTh: string; icon: string }> = {
   valid:        { bg: '#dcfce7', dot: '#16a34a', text: '#15803d', label: 'Valid',        labelTh: 'อนุมัติ',    icon: '✓' },
   not_approve:  { bg: '#fee2e2', dot: '#dc2626', text: '#991b1b', label: 'Not Approved', labelTh: 'ไม่อนุมัติ', icon: '✕' },
-  not_complete: { bg: '#fef3c7', dot: '#d97706', text: '#92400e', label: 'Not Complete', labelTh: 'ไม่ครบ',     icon: '…' },
-  suspended:    { bg: '#fce7f3', dot: '#be185d', text: '#9d174d', label: 'Suspended',    labelTh: 'ระงับ',      icon: 'S' },
+  not_complete: { bg: '#fef3c7', dot: '#d97706', text: '#92400e', label: 'Expiring',      labelTh: 'ใกล้หมดอายุ', icon: '…' },
+  suspended:    { bg: '#fee2e2', dot: '#dc2626', text: '#991b1b', label: 'Expired',       labelTh: 'หมดอายุ',     icon: 'S' },
   pending:      { bg: '#f1f5f9', dot: '#64748b', text: '#475569', label: 'Pending',      labelTh: 'รอดำเนินการ', icon: '—' },
 }
 

@@ -4,6 +4,7 @@ import { useState, useRef } from 'react'
 import { X, Upload, FileText, Trash2, User, Briefcase, ClipboardCheck, Paperclip, Wrench } from 'lucide-react'
 import { StaffData, LogbookEntry } from '../types'
 import { dateTimeUtils } from '@/lib/dayjs'
+import { useUpsertLogbookRecord } from '@/lib/api/hooks/useQAStaffManagement'
 
 // ── Option Constants ──
 const LICENSE_CATEGORIES = [
@@ -175,8 +176,8 @@ const readOnlyCls =
 // ── Modal Props ──
 interface LogbookRecordModalProps {
     staff: StaffData
-    defect: { ata: string; description: string } | null
-    logEntry: LogbookEntry | null
+    defect: { defectId?: string; ata: string; description: string } | null
+    logEntry: any | null
     onClose: () => void
 }
 
@@ -230,6 +231,55 @@ export function LogbookRecordModal({ staff, defect, logEntry, onClose }: Logbook
 
     if (!defect || !logEntry) return null
 
+    const upsertRecord = useUpsertLogbookRecord(staff.id)
+
+    const handleSubmit = () => {
+        upsertRecord.mutate({
+            id: 0,
+            lineMaintenanceId: logEntry?.lineMaintenanceId || 0,
+            additionalDefectId: defect?.defectId || '',
+            licenseCategoryId: LICENSE_CATEGORIES.indexOf(form.licenseCategory) + 1,
+            dateToPerformTask: form.dateToPerform,
+            stationId: LOCATIONS.indexOf(form.location) + 1,
+            aircraftTypeId: AIRCRAFT_TYPES.indexOf(form.aircraftType) + 1,
+            aircraftRegistration: form.aircraftRegistration,
+            privilegeId: PRIVILEGES.indexOf(form.privilegeUsed) + 1,
+            ataChapterId: ATA_CHAPTERS.indexOf(form.ataChapter) + 1,
+            flagTransitCheck: form.maintenanceRatings.includes('Transit Check'),
+            flagDailyCheck: form.maintenanceRatings.includes('Daily Check'),
+            flagAcheck: form.maintenanceRatings.includes('Schedule Maintenance up to A-Check'),
+            flagEngineChange: form.maintenanceRatings.includes('Engine Change'),
+            flagApuchange: form.maintenanceRatings.includes('APU Change'),
+            flagEngineBorescope: form.maintenanceRatings.includes('Engine Borescope'),
+            flagCrs: form.taskTypes.includes('CRS – Certificate of Release to Service'),
+            flagInspinspection: form.taskTypes.includes('INSP – Inspection'),
+            flagTstroubleshooting: form.taskTypes.includes('TS – Troubleshooting'),
+            flagRemovalInstallation: form.taskTypes.includes('R/I – Removal/Installation'),
+            flagDefectRectification: form.taskTypes.includes('Defect Rectification'),
+            flagTraining: form.taskTypes.includes('Training'),
+            flagSghservicing: form.taskTypes.includes('SGH – Servicing'),
+            flagFotfunctionalOperational: form.taskTypes.includes('FOT – Functional/Operational Test'),
+            flagReprepair: form.taskTypes.includes('REP – Repair'),
+            flagSupervising: form.taskTypes.includes('Supervising'),
+            flagBorescopeInspection: form.taskTypes.includes('Borescope Inspection'),
+            flagOther: form.taskTypes.includes('Other'),
+            typeOfActivity: form.activityType,
+            maintenanceReference: form.maintenanceRef,
+            performedDurationHrs: parseFloat(form.performedDuration) || 0,
+            authorizedStampNo: form.authorizedStampNo,
+            description: defect?.description || '',
+            statusId: 1, // Record
+            attachments: files.map((f, i) => ({
+                id: 0,
+                fileName: f.name,
+                filePath: '', 
+                fileType: f.type
+            }))
+        }, {
+            onSuccess: () => onClose()
+        })
+    }
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
             {/* Backdrop */}
@@ -238,44 +288,36 @@ export function LogbookRecordModal({ staff, defect, logEntry, onClose }: Logbook
             {/* Modal */}
             <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-4 overflow-hidden max-h-[90vh] flex flex-col">
                 {/* ── Header ── */}
-                <div className="flex items-center justify-between px-7 py-5 border-b border-slate-100 shrink-0">
-                    <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-blue-600 text-white">
-                            <ClipboardCheck className="h-4.5 w-4.5" />
-                        </div>
-                        <div>
-                            <span className="text-base font-bold text-slate-800 block">Maintenance Experiences Logbook Record</span>
-                            <div className="flex items-center gap-2 mt-0.5">
-                                <span className="text-[11px] font-semibold text-slate-400">{logEntry.thfNo}</span>
-                                <span className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-600">{defect.ata}</span>
-                            </div>
-                        </div>
+                <div className="flex items-center justify-between px-7 py-5 border-b border-slate-100 bg-white shrink-0">
+                    <div className="flex flex-col gap-1">
+                        <h2 className="text-xl font-bold text-slate-800">Maintenance Experiences Logbook Record</h2>
+                        <p className="text-sm text-slate-500 font-medium">Record practical maintenance experience for QA verification</p>
                     </div>
                     <button
                         onClick={onClose}
-                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer transition-all duration-200 border-none bg-transparent"
+                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors cursor-pointer border-none bg-transparent"
                     >
-                        <X className="h-4 w-4" />
+                        <X className="h-5 w-5" />
                     </button>
                 </div>
 
                 {/* ── Scrollable Body ── */}
-                <div className="overflow-y-auto flex-1 px-7 py-6 space-y-8">
+                <div className="flex-1 overflow-y-auto p-7 space-y-8 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
 
                     {/* ─── Section 1: General Information ─── */}
                     <div>
                         <SectionHeader icon={<User className="h-4 w-4 text-blue-500" />} title="General Information" number={1} />
                         <div className="grid grid-cols-2 gap-x-5 gap-y-4">
-                            <Field label="Name – Surname" required>
+                            <Field label="Name of Applicant">
                                 <input type="text" value={form.name} readOnly className={readOnlyCls} />
                             </Field>
-                            <Field label="Employee ID" required>
+                            <Field label="Employee ID">
                                 <input type="text" value={form.employeeId} readOnly className={readOnlyCls} />
                             </Field>
                             <div className="col-span-2">
-                                <Field label="License Category" required>
+                                <Field label="License Category">
                                     <select value={form.licenseCategory} onChange={e => update('licenseCategory', e.target.value)} className={selectCls}>
-                                        <option value="">Select License Category</option>
+                                        <option value="">Select Category</option>
                                         {LICENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                                     </select>
                                 </Field>
@@ -283,16 +325,16 @@ export function LogbookRecordModal({ staff, defect, logEntry, onClose }: Logbook
                         </div>
                     </div>
 
-                    {/* ─── Section 2: Experiences Record ─── */}
+                    {/* ─── Section 2: Experience Details ─── */}
                     <div>
-                        <SectionHeader icon={<Briefcase className="h-4 w-4 text-blue-500" />} title="Experiences Record" number={2} />
+                        <SectionHeader icon={<Briefcase className="h-4 w-4 text-blue-500" />} title="Experience Details" number={2} />
                         <div className="grid grid-cols-2 gap-x-5 gap-y-4">
-                            <Field label="Date to Perform Task" required>
+                            <Field label="Date to perform task" required>
                                 <input type="date" value={form.dateToPerform} onChange={e => update('dateToPerform', e.target.value)} className={inputCls} />
                             </Field>
-                            <Field label="Location" required>
+                            <Field label="Location (Station)" required>
                                 <select value={form.location} onChange={e => update('location', e.target.value)} className={selectCls}>
-                                    <option value="">Select Location</option>
+                                    <option value="">Select Station</option>
                                     {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
                                 </select>
                             </Field>
@@ -420,11 +462,9 @@ export function LogbookRecordModal({ staff, defect, logEntry, onClose }: Logbook
                         Cancel
                     </button>
                     <button
-                        onClick={() => {
-                            // TODO: submit form
-                            onClose()
-                        }}
-                        className="px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 border-none rounded-lg cursor-pointer transition-all duration-200 hover:bg-blue-700"
+                        onClick={handleSubmit}
+                        disabled={upsertRecord.isPending}
+                        className="px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 border-none rounded-lg cursor-pointer transition-all duration-200 hover:bg-blue-700 disabled:opacity-50"
                     >
                         Save Record
                     </button>

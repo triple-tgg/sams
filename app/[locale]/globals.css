@@ -90,6 +90,86 @@
   --animate-accordion-up: accordion-up 0.2s ease-out;
   --animate-zoom: zoom 1s ease-in-out infinite;
   --animate-tada: tada 1.5s ease-in-out infinite;
+
+  /* ── Revenue Comparison Dashboard tokens — remapped to project palette ── */
+  --color-rcd-bg: hsl(var(--background));
+  --color-rcd-surface: hsl(var(--card));
+  --color-rcd-surface-alt: hsl(var(--muted));
+  --color-rcd-border: hsl(var(--border));
+  --color-rcd-border-strong: hsl(var(--border));
+  --color-rcd-hairline: hsl(var(--border));
+  --color-rcd-hairline-soft: hsl(var(--muted));
+  --color-rcd-text: hsl(var(--foreground));
+  --color-rcd-text-2: hsl(var(--muted-foreground));
+  --color-rcd-text-3: hsl(var(--muted-foreground));
+  --color-rcd-p1: hsl(var(--primary));
+  --color-rcd-p2: #1d9e75;
+  --color-rcd-good: hsl(var(--success));
+  --color-rcd-bad: hsl(var(--destructive));
+  --color-rcd-cat-a: hsl(var(--primary));
+  --color-rcd-cat-b: #1a7a47;
+  --color-rcd-cat-c: #a05c00;
+  --color-rcd-cat-d: #b0377a;
+  --color-rcd-cat-e: #6b4fc4;
+  --color-rcd-amber: hsl(var(--warning));
+  --color-rcd-badge-green-bg: #eaf3de;
+  --color-rcd-badge-green-fg: #3b6d11;
+  --color-rcd-badge-red-bg: #faece7;
+  --color-rcd-badge-red-fg: #993c1d;
+  --color-rcd-badge-neutral-bg: hsl(var(--muted));
+  --color-rcd-badge-neutral-fg: hsl(var(--muted-foreground));
+  --color-rcd-badge-blue-bg: hsl(var(--primary-100));
+  --color-rcd-badge-blue-fg: hsl(var(--primary-900));
+  --color-rcd-badge-amber-bg: #fdefd4;
+  --color-rcd-badge-amber-fg: #a05c00;
+  --radius-rcd: var(--radius);
+  --radius-rcd-lg: var(--radius);
+}
+
+/* ── RCD plain CSS custom properties (used via var(--rcd-*) in components) ── */
+:root {
+  --rcd-bg: var(--color-rcd-bg);
+  --rcd-surface: var(--color-rcd-surface);
+  --rcd-surface-alt: var(--color-rcd-surface-alt);
+  --rcd-border: var(--color-rcd-border);
+  --rcd-border-strong: var(--color-rcd-border-strong);
+  --rcd-hairline: var(--color-rcd-hairline);
+  --rcd-hairline-soft: var(--color-rcd-hairline-soft);
+  --rcd-text: var(--color-rcd-text);
+  --rcd-text-2: var(--color-rcd-text-2);
+  --rcd-text-3: var(--color-rcd-text-3);
+  --rcd-p1: var(--color-rcd-p1);
+  --rcd-p2: var(--color-rcd-p2);
+  --rcd-good: var(--color-rcd-good);
+  --rcd-bad: var(--color-rcd-bad);
+  --rcd-cat-a: var(--color-rcd-cat-a);
+  --rcd-cat-b: var(--color-rcd-cat-b);
+  --rcd-cat-c: var(--color-rcd-cat-c);
+  --rcd-cat-d: var(--color-rcd-cat-d);
+  --rcd-cat-e: var(--color-rcd-cat-e);
+  --rcd-amber: var(--color-rcd-amber);
+  --rcd-badge-green-bg: var(--color-rcd-badge-green-bg);
+  --rcd-badge-green-fg: var(--color-rcd-badge-green-fg);
+  --rcd-badge-red-bg: var(--color-rcd-badge-red-bg);
+  --rcd-badge-red-fg: var(--color-rcd-badge-red-fg);
+  --rcd-badge-neutral-bg: var(--color-rcd-badge-neutral-bg);
+  --rcd-badge-neutral-fg: var(--color-rcd-badge-neutral-fg);
+  --rcd-badge-blue-bg: var(--color-rcd-badge-blue-bg);
+  --rcd-badge-blue-fg: var(--color-rcd-badge-blue-fg);
+  --rcd-badge-amber-bg: var(--color-rcd-badge-amber-bg);
+  --rcd-badge-amber-fg: var(--color-rcd-badge-amber-fg);
+  --rcd-radius: var(--radius-rcd);
+  --rcd-radius-lg: var(--radius-rcd-lg);
+}
+
+/* RCD root — uses project font, not IBM Plex Sans */
+.rcd-root {
+  background: var(--rcd-bg);
+  color: var(--rcd-text);
+}
+
+.rcd-root input[type='date'] {
+  font-family: inherit;
 }
 
 @layer base {

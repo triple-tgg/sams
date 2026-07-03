@@ -26,6 +26,7 @@ import {
 import Tooltip from "../ui/c-tooltip";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Check, ChevronDown } from "lucide-react";
+import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard";
 
 
 
@@ -274,6 +275,7 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                 <div className="flex flex-wrap items-center gap-4">
 
                     <div className="flex items-center gap-2">
+                        <PermissionActionGuard menuCode="FLIGHT_TIMELINE" action="canCreate">
                         <Button
                             className="flex-none"
                             color="primary"
@@ -302,7 +304,9 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                             <FileUp className="w-4 h-4 mr-2" />
                             <span>{excelImport.isParsing ? 'Loading...' : 'Import'}</span>
                         </Button>
+                        </PermissionActionGuard>
 
+                        <PermissionActionGuard menuCode="FLIGHT_TIMELINE" action="canExport">
                         <Button
                             className="flex-none"
                             color="secondary"
@@ -313,6 +317,7 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                             <Download className="w-4 h-4 mr-2" />
                             <span>Template</span>
                         </Button>
+                        </PermissionActionGuard>
                     </div>
                 </div>
             </div>

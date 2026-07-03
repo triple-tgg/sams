@@ -248,7 +248,7 @@ const StaffPage = () => {
         <div>
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>{t("staff")}</CardTitle>
+                    <CardTitle>{t("Staff List")}</CardTitle>
                     <div className="flex items-center gap-2">
                         <Button
                             variant="outline"

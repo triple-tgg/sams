@@ -345,10 +345,12 @@ const ListTable = ({
                         <Download className="w-4 h-4 mr-2" />
                         <span>Template</span>
                     </Button>
+                    <PermissionActionGuard menuCode="FLIGHT_TIMELINE" action="canView">
                     <Button color="default" onClick={() => window.open(`/${locale}/views-flight-timeline`, '_blank')} size="md">
                         <AlignStartVertical className="w-4 h-4 mr-2" />
                         <span>Timeline</span>
                     </Button>
+                    </PermissionActionGuard>
                 </div>
             </CardHeader>
 

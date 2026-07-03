@@ -5,7 +5,7 @@ import { ClipboardList, Clock, AlertCircle, Wrench, AlertTriangle, CheckCircle2,
 import { StaffData, LogbookEntry } from '../types'
 import { formatDate } from '../utils'
 import { LogbookRecordModal } from './LogbookRecordModal'
-import { useLogbookSummary, useLogbookRecords } from '@/lib/api/hooks/useQAStaffManagement'
+import { useLogbookSummary, useLogbookRecords, useLogbookPending, useUpsertLogbookRecord } from '@/lib/api/hooks/useQAStaffManagement'
 
 // ── Task Type Badge Color Map ──
 function getTaskTypeStyle(taskType: string) {
@@ -76,14 +76,36 @@ export function LogbookTab({ staff }: { staff: StaffData }) {
     const { data: recordsData } = useLogbookRecords(staff.id)
     const apiRecords = recordsData?.responseData
 
+    // ── Fetch pending sign-off from API ──
+    const { data: pendingData } = useLogbookPending(staff.id)
+    const apiPendingRecords = pendingData?.responseData || []
+    
+    // ── Upsert mutation ──
+    const upsertRecord = useUpsertLogbookRecord(staff.id)
+
     // Use API data if available, fallback to mock
     const totalEntries = apiSummary?.totalEntries ?? staff.logbook.length
     const totalHours = apiSummary?.totalHours ?? staff.logbook.reduce((sum, l) => sum + l.hours, 0)
     const pendingCount = apiSummary?.pendingSignOff ?? staff.logbook.filter(l => !l.signedOff).length
 
-    const pendingEntries = staff.logbook.filter(l => !l.signedOff)
+    const pendingEntries = pendingData ? apiPendingRecords : staff.logbook.filter(l => !l.signedOff).map(l => ({
+        logbookId: 0,
+        date: l.date,
+        aircraft: l.aircraft,
+        regNo: l.regNo,
+        taskType: l.taskType,
+        thfNo: l.thfNo,
+        defectProgress: "0/1",
+        lineMaintenanceId: 0,
+        defectItems: getMockDefects(l.thfNo).map(d => ({
+            defectId: d.defectNo,
+            ataCode: d.ata,
+            description: d.description,
+            status: d.status
+        }))
+    }))
     const [expandedPending, setExpandedPending] = useState<Record<number, boolean>>({ 0: true })
-    const [recordModal, setRecordModal] = useState<{ defect: { ata: string; description: string }; logEntry: LogbookEntry } | null>(null)
+    const [recordModal, setRecordModal] = useState<{ defect: { defectId?: string; ata: string; description: string }; logEntry: any } | null>(null)
 
     return (
         <div>
@@ -131,10 +153,14 @@ export function LogbookTab({ staff }: { staff: StaffData }) {
                     </div>
                     <div className="space-y-3">
                         {pendingEntries.map((log, i) => {
-                            const defects = getMockDefects(log.thfNo)
+                            const defects = log.defectItems || []
                             const totalDefects = defects.length
-                            const signedDefects = defects.filter(d => d.status === 'Closed').length
+                            const signedDefects = defects.filter(d => {
+                                const s = d.status?.toLowerCase() || ''
+                                return s === 'completed' || s === 'closed' || s === 'record'
+                            }).length
                             const progressPct = totalDefects > 0 ? Math.round((signedDefects / totalDefects) * 100) : 0
+                            const hasRecordedItem = signedDefects > 0
 
                             const isExpanded = expandedPending[i] ?? false
 
@@ -191,25 +217,80 @@ export function LogbookTab({ staff }: { staff: StaffData }) {
                                             <span className="text-xs font-semibold text-slate-400 ml-auto">{defects.length} item{defects.length !== 1 ? 's' : ''}</span>
                                         </div>
                                         <div className="space-y-1.5">
-                                            {defects.map((d, di) => (
-                                                <div key={di} className="flex items-center gap-2.5 py-1.5 px-2.5 bg-white/70 rounded-lg border border-slate-100">
-                                                    {/* <span className="text-xs font-bold text-slate-700 shrink-0">{d.defectNo}</span> */}
-                                                    <span className="inline-flex items-center text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 shrink-0">{d.ata}</span>
-                                                    <span className="text-xs text-slate-600 truncate flex-1">{d.description}</span>
-                                                    {/* <DefectStatusBadge status={d.status} /> */}
-                                                    <button
-                                                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-slate-500 bg-white rounded-md hover:bg-slate-50 transition-colors cursor-pointer border border-slate-200 shrink-0"
-                                                    >
-                                                        Skip
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); setRecordModal({ defect: { ata: d.ata, description: d.description }, logEntry: log }) }}
-                                                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-white bg-red-500 rounded-md hover:bg-red-600 transition-colors cursor-pointer border-none shrink-0"
-                                                    >
-                                                        Record
-                                                    </button>
-                                                </div>
-                                            ))}
+                                            {defects.map((d, di) => {
+                                                const isPending = !d.status || d.status.toLowerCase() === 'pending' || d.status.toLowerCase() === 'open'
+                                                
+                                                return (
+                                                    <div key={di} className="flex items-center gap-2.5 py-1.5 px-2.5 bg-white/70 rounded-lg border border-slate-100">
+                                                        <span className="inline-flex items-center text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 shrink-0">{d.ataCode}</span>
+                                                        <span className="text-xs text-slate-600 truncate flex-1">{d.description}</span>
+                                                        
+                                                        {!isPending ? (
+                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 rounded-md border border-emerald-100 shrink-0">
+                                                                <CheckCircle2 className="h-3 w-3" />
+                                                                Recorded
+                                                            </span>
+                                                        ) : (
+                                                            <>
+                                                                {hasRecordedItem && (
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation()
+                                                                            upsertRecord.mutate({
+                                                                                id: 0,
+                                                                                lineMaintenanceId: log.lineMaintenanceId || 0,
+                                                                                additionalDefectId: d.defectId,
+                                                                                licenseCategoryId: 0,
+                                                                                dateToPerformTask: new Date().toISOString().split('T')[0],
+                                                                                stationId: 0,
+                                                                                aircraftTypeId: 0,
+                                                                                aircraftRegistration: log.regNo || '',
+                                                                                privilegeId: 0,
+                                                                                ataChapterId: 0,
+                                                                                flagTransitCheck: false,
+                                                                                flagDailyCheck: false,
+                                                                                flagAcheck: false,
+                                                                                flagEngineChange: false,
+                                                                                flagApuchange: false,
+                                                                                flagEngineBorescope: false,
+                                                                                flagCrs: false,
+                                                                                flagInspinspection: false,
+                                                                                flagTstroubleshooting: false,
+                                                                                flagRemovalInstallation: false,
+                                                                                flagDefectRectification: false,
+                                                                                flagTraining: false,
+                                                                                flagSghservicing: false,
+                                                                                flagFotfunctionalOperational: false,
+                                                                                flagReprepair: false,
+                                                                                flagSupervising: false,
+                                                                                flagBorescopeInspection: false,
+                                                                                flagOther: false,
+                                                                                typeOfActivity: '',
+                                                                                maintenanceReference: '',
+                                                                                performedDurationHrs: 0,
+                                                                                authorizedStampNo: '',
+                                                                                description: '',
+                                                                                statusId: 2, // Skip
+                                                                                attachments: null
+                                                                            })
+                                                                        }}
+                                                                        disabled={upsertRecord.isPending}
+                                                                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-slate-500 bg-white rounded-md hover:bg-slate-50 transition-colors cursor-pointer border border-slate-200 shrink-0 disabled:opacity-50"
+                                                                    >
+                                                                        Skip
+                                                                    </button>
+                                                                )}
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); setRecordModal({ defect: { defectId: d.defectId, ata: d.ataCode, description: d.description }, logEntry: log as any }) }}
+                                                                    className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-white bg-red-500 rounded-md hover:bg-red-600 transition-colors cursor-pointer border-none shrink-0"
+                                                                >
+                                                                    Record
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                )
+                                            })}
                                         </div>
                                     </div>
                                 </div>

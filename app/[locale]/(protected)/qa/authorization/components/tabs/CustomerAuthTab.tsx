@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState, useRef, useCallback, useEffect } from 'react'
-import { ChevronDown, ChevronLeft, ChevronRight, Search, Filter, X } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, Search, Filter, X, User } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -44,6 +44,26 @@ const AIRCRAFT_OPTIONS = [
   'B787-8/9/10',
   'ERJ-190'
 ]
+
+// ─── Date Formatting Helper ─────────────────────────────────────────────────
+
+function formatShortDate(iso: string): string {
+  if (!iso) return '—'
+  const parts = iso.split('-')
+  if (parts.length !== 3) return iso
+  const [y, m, d] = parts
+  return `${d}/${m}/${y.slice(2)}`
+}
+
+function getDaysRemaining(expDateIso: string): number | null {
+  if (!expDateIso) return null
+  const exp = new Date(expDateIso)
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+  exp.setHours(0, 0, 0, 0)
+  const diff = exp.getTime() - now.getTime()
+  return Math.ceil(diff / (1000 * 60 * 60 * 24))
+}
 
 // ─── Hover Tooltip for Matrix Cell ──────────────────────────────────────────
 
@@ -112,15 +132,15 @@ function CellTooltip({ info }: { info: TooltipInfo }) {
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">Date of Initial Issue</span>
-          <span className="font-semibold text-foreground">{staff.initDate}</span>
+          <span className="font-semibold text-foreground">{formatShortDate(staff.initDate)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">Date of Current Issue</span>
-          <span className="font-semibold text-foreground">{staff.currDate}</span>
+          <span className="font-semibold text-foreground">{formatShortDate(staff.currDate)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">Date of Expire</span>
-          <span className="font-semibold text-foreground">{staff.samsExp}</span>
+          <span className="font-semibold text-foreground">{formatShortDate(staff.samsExp)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">Aircraft</span>
@@ -209,7 +229,7 @@ export function CustomerAuthTab() {
 function MatrixView() {
   const custStatusOrder: CustomerAuthValue[] = ['valid', 'not_approve', 'not_complete', 'suspended', 'pending']
   const [version, setVersion] = useState(0)
-  const [selectedCell, setSelectedCell] = useState<{staff: Staff, airlineCode: AirlineKey, status: CustomerAuthValue} | null>(null)
+  const [selectedCell, setSelectedCell] = useState<{ staff: Staff, airlineCode: AirlineKey, status: CustomerAuthValue } | null>(null)
   const [editInitDate, setEditInitDate] = useState('')
   const [editCurrDate, setEditCurrDate] = useState('')
   const [editSamsExp, setEditSamsExp] = useState('')
@@ -221,7 +241,7 @@ function MatrixView() {
   const [airlineFilter, setAirlineFilter] = useState<Set<AirlineKey>>(new Set(AIRLINE_KEYS))
   const [showAirlineDropdown, setShowAirlineDropdown] = useState(false)
   const airlineDropdownRef = useRef<HTMLDivElement>(null)
-  
+
   const [showAircraftDropdown, setShowAircraftDropdown] = useState(false)
   const aircraftDropdownRef = useRef<HTMLDivElement>(null)
 
@@ -270,7 +290,7 @@ function MatrixView() {
   // Visible airline columns
   const visibleAirlines = useMemo(() =>
     AIRLINE_KEYS.filter(code => airlineFilter.has(code))
-  , [airlineFilter])
+    , [airlineFilter])
 
   // Filtered staff
   const filteredStaff = useMemo(() => {
@@ -302,8 +322,8 @@ function MatrixView() {
     { value: 'all', label: 'All' },
     { value: 'valid', label: 'Valid', dot: CUST_STATUS_META.valid.dot },
     { value: 'not_approve', label: 'Not Approved', dot: CUST_STATUS_META.not_approve.dot },
-    { value: 'not_complete', label: 'Not Complete', dot: CUST_STATUS_META.not_complete.dot },
-    { value: 'suspended', label: 'Suspended', dot: CUST_STATUS_META.suspended.dot },
+    { value: 'not_complete', label: 'Expiring', dot: CUST_STATUS_META.not_complete.dot },
+    { value: 'suspended', label: 'Expired', dot: CUST_STATUS_META.suspended.dot },
     { value: 'pending', label: 'Pending', dot: CUST_STATUS_META.pending.dot },
   ]
 
@@ -347,11 +367,10 @@ function MatrixView() {
         <div className="relative" ref={airlineDropdownRef}>
           <button
             onClick={() => setShowAirlineDropdown(v => !v)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all ${
-              airlineFilter.size !== AIRLINE_KEYS.length
-                ? 'bg-primary/10 text-primary border-primary/30'
-                : 'bg-white text-muted-foreground border-border hover:border-primary/40 hover:text-foreground'
-            }`}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all ${airlineFilter.size !== AIRLINE_KEYS.length
+              ? 'bg-primary/10 text-primary border-primary/30'
+              : 'bg-white text-muted-foreground border-border hover:border-primary/40 hover:text-foreground'
+              }`}
           >
             <Filter className="w-3 h-3" />
             Airlines
@@ -376,18 +395,16 @@ function MatrixView() {
                   <button
                     key={code}
                     onClick={() => toggleAirline(code)}
-                    className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-all text-[11px] ${
-                      airlineFilter.has(code)
-                        ? 'bg-primary/10 text-foreground font-semibold'
-                        : 'text-muted-foreground hover:bg-muted/50'
-                    }`}
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-all text-[11px] ${airlineFilter.has(code)
+                      ? 'bg-primary/10 text-foreground font-semibold'
+                      : 'text-muted-foreground hover:bg-muted/50'
+                      }`}
                   >
                     <div
-                      className={`w-3 h-3 rounded border-2 flex items-center justify-center transition-all ${
-                        airlineFilter.has(code)
-                          ? 'border-primary bg-primary'
-                          : 'border-slate-300 bg-white'
-                      }`}
+                      className={`w-3 h-3 rounded border-2 flex items-center justify-center transition-all ${airlineFilter.has(code)
+                        ? 'border-primary bg-primary'
+                        : 'border-slate-300 bg-white'
+                        }`}
                     >
                       {airlineFilter.has(code) && (
                         <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -434,7 +451,7 @@ function MatrixView() {
                   <th
                     key={code}
                     className="px-1 py-2 text-center font-bold border-l border-border"
-                    style={{ minWidth: 50 }}
+                    style={{ minWidth: 90 }}
                     title={AIRLINES[code].name}
                   >
                     <div className="text-[10px] leading-snug font-bold" style={{ color: AIRLINES[code].color }}>{code}</div>
@@ -456,12 +473,17 @@ function MatrixView() {
                     {/* Sticky Staff Column */}
                     <td className={`px-3 py-1.5 sticky left-0 z-10 border-r border-border ${ri % 2 === 0 ? 'bg-card' : 'bg-muted/20'}`}>
                       <div className="flex items-center gap-2">
-                        <div
-                          className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0"
-                          style={{ background: s.color }}
-                        >
-                          {s.name.split(' ').pop()?.[0] || ''}
-                        </div>
+                        {s.profileImage ? (
+                          <img
+                            src={s.profileImage}
+                            alt={s.name}
+                            className="w-6 h-6 rounded-full object-cover shrink-0"
+                          />
+                        ) : (
+                          <div className="w-6 h-6 rounded-full flex items-center justify-center bg-slate-200 shrink-0">
+                            <User className="w-3.5 h-3.5 text-slate-400" />
+                          </div>
+                        )}
                         <div>
                           <p className="text-xs font-semibold text-foreground leading-tight truncate" style={{ maxWidth: 160 }}>{s.name}</p>
                           <p className="text-[10px] font-bold text-slate-400">{s.id}</p>
@@ -493,22 +515,44 @@ function MatrixView() {
                           {/* Background layer with opacity */}
                           <div className="absolute inset-0 transition-opacity duration-150 opacity-40 group-hover/cell:opacity-70" style={{ background: meta.bg }} />
                           <div className="relative z-1 flex flex-col items-center gap-0.5">
-                            <div
-                              className="w-2.5 h-2.5 rounded-full"
-                              style={{
-                                background: meta.dot,
-                                boxShadow: val === 'not_approve' ? `0 0 0 3px ${meta.dot}33` :
-                                  val === 'not_complete' ? `0 0 0 2px ${meta.dot}33` :
+                            {val === 'valid' ? (
+                              <>
+                                <div className="text-[8px] font-semibold leading-tight text-center whitespace-nowrap" style={{ color: meta.text }}>
+                                  <div className="flex items-center gap-0.5 justify-center">
+                                    <span className="text-muted-foreground/70">Curr:</span>
+                                    <span>{formatShortDate(s.currDate)}</span>
+                                  </div>
+                                  <div className="flex items-center gap-0.5 justify-center mt-px">
+                                    <span className="text-muted-foreground/70">Exp:</span>
+                                    <span>{formatShortDate(s.samsExp)}</span>
+                                  </div>
+                                </div>
+                              </>
+                            ) : val !== 'not_complete' ? (
+                              <div
+                                className="w-2.5 h-2.5 rounded-full"
+                                style={{
+                                  background: meta.dot,
+                                  boxShadow: val === 'not_approve' ? `0 0 0 3px ${meta.dot}33` :
                                     val === 'suspended' ? `0 0 0 2px ${meta.dot}33` : 'none'
-                              }}
-                            />
+                                }}
+                              />
+                            ) : null}
                           </div>
                           {val === 'suspended' && (
-                            <div className="relative z-1 text-[9px] font-bold mt-0.5 leading-none" style={{ color: meta.text }}>SUS</div>
+                            <div className="relative z-1 text-[9px] font-bold mt-0.5 leading-none" style={{ color: meta.text }}>EXP</div>
                           )}
-                          {val === 'not_complete' && (
-                            <div className="relative z-1 text-[9px] font-bold mt-0.5 leading-none" style={{ color: meta.text }}>INC</div>
-                          )}
+                          {val === 'not_complete' && (() => {
+                            const days = getDaysRemaining(s.samsExp)
+                            return (
+                              <div className="relative z-1 text-[9px] font-bold mt-0.5 leading-none text-center" style={{ color: meta.text }}>
+                                {days !== null && (
+                                  <div className="text-[10px]">{days}d</div>
+                                )}
+                                <div className="text-[8px] font-semibold mt-0.5 opacity-80">EXG</div>
+                              </div>
+                            )
+                          })()}
                           {val === 'not_approve' && (
                             <div className="relative z-1 text-[9px] font-bold mt-0.5 leading-none" style={{ color: meta.text }}>REJ</div>
                           )}
@@ -531,7 +575,7 @@ function MatrixView() {
         <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Legend:</span>
         {custStatusOrder.map(key => {
           const meta = CUST_STATUS_META[key]
-          const abbr = key === 'not_approve' ? 'REJ' : key === 'not_complete' ? 'INC' : key === 'suspended' ? 'SUS' : key === 'pending' ? 'PND' : null
+          const abbr = key === 'not_approve' ? 'REJ' : key === 'not_complete' ? 'EXG' : key === 'suspended' ? 'EXP' : key === 'pending' ? 'PND' : null
           return (
             <div key={key} className="flex items-center gap-2 text-xs">
               <div
@@ -553,7 +597,7 @@ function MatrixView() {
 
       {/* Edit Modal */}
       <Dialog open={!!selectedCell} onOpenChange={(open) => !open && setSelectedCell(null)}>
-        <DialogContent className="max-w-md p-0 overflow-hidden border-border/60 shadow-2xl">
+        <DialogContent size="md" className="max-w-md p-0 overflow-hidden border-border/60 shadow-2xl">
           {selectedCell && (
             <>
               <div className="px-5 pt-5 pb-4 border-b border-border/60 bg-slate-50/50">
@@ -563,9 +607,9 @@ function MatrixView() {
                   </DialogTitle>
                   <span
                     className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-bold shadow-sm"
-                    style={{ 
-                      background: CUST_STATUS_META[selectedCell.status].bg, 
-                      color: CUST_STATUS_META[selectedCell.status].text 
+                    style={{
+                      background: CUST_STATUS_META[selectedCell.status].bg,
+                      color: CUST_STATUS_META[selectedCell.status].text
                     }}
                   >
                     <span className="w-1.5 h-1.5 rounded-full" style={{ background: CUST_STATUS_META[selectedCell.status].dot }} />
@@ -590,9 +634,9 @@ function MatrixView() {
 
                 {/* Edit Form */}
                 <div className="pt-2">
-                  <div className="grid grid-cols-2 gap-5">
+                  <div className="grid grid-cols-12 gap-5">
                     {/* Left Column: Dates */}
-                    <div className="space-y-4">
+                    <div className="space-y-4 col-span-4">
                       <div>
                         <label className="text-xs font-bold text-slate-700 mb-1.5 block">Date of Initial Issue</label>
                         <input type="date" value={editInitDate} onChange={e => setEditInitDate(e.target.value)} className="w-full bg-white font-semibold text-sm border border-border/60 rounded-md px-3 py-1.5 focus:outline-none focus:border-blue-500" />
@@ -608,7 +652,7 @@ function MatrixView() {
                     </div>
 
                     {/* Right Column: Aircraft checkboxes */}
-                    <div className="flex flex-col h-[208px]">
+                    <div className="col-span-8 flex flex-col h-[208px]">
                       <label className="text-xs font-bold text-slate-700 mb-1.5 block">Aircraft</label>
                       <div className="flex-1 bg-white border border-border/60 rounded-md p-1.5 overflow-y-auto">
                         <div className="space-y-0.5 pr-1">
@@ -627,13 +671,11 @@ function MatrixView() {
                                     return next
                                   })
                                 }}
-                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-left transition-all text-sm ${
-                                  isSelected ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-700 hover:bg-slate-100'
-                                }`}
+                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-left transition-all text-sm ${isSelected ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-700 hover:bg-slate-100'
+                                  }`}
                               >
-                                <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all ${
-                                  isSelected ? 'bg-blue-600 border-blue-600' : 'bg-white border-slate-300'
-                                }`}>
+                                <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all ${isSelected ? 'bg-blue-600 border-blue-600' : 'bg-white border-slate-300'
+                                  }`}>
                                   {isSelected && (
                                     <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -652,24 +694,46 @@ function MatrixView() {
               </div>
 
               <DialogFooter className="px-5 py-4 border-t border-border/60 bg-slate-50">
-                <Button variant="outline" onClick={() => setSelectedCell(null)} className="font-bold">
-                  Cancel
-                </Button>
-                <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
-                  <Button 
-                    onClick={() => {
-                      selectedCell.staff.initDate = editInitDate
-                      selectedCell.staff.currDate = editCurrDate
-                      selectedCell.staff.samsExp = editSamsExp
-                      selectedCell.staff.rating = Array.from(editRating).join('\n')
-                      setVersion(v => v + 1)
-                      setSelectedCell(null)
-                    }}
-                    className="font-bold bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    Save Changes
-                  </Button>
-                </PermissionActionGuard>
+                <div className="flex items-center justify-between w-full">
+                  {/* Left: Not Approved action — only for Pending & Expired */}
+                  {(selectedCell.status === 'pending' || selectedCell.status === 'suspended') ? (
+                    <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
+                      <Button
+                        // variant="outline"
+                        color="destructive"
+                        onClick={() => {
+                          selectedCell.staff.cust[selectedCell.airlineCode] = 'not_approve'
+                          setVersion(v => v + 1)
+                          setSelectedCell(null)
+                        }}
+                      >
+                        Not Approved
+                      </Button>
+                    </PermissionActionGuard>
+                  ) : <div />}
+
+                  {/* Right: Cancel + Save */}
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" onClick={() => setSelectedCell(null)} className="font-bold">
+                      Cancel
+                    </Button>
+                    <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
+                      <Button
+                        onClick={() => {
+                          selectedCell.staff.initDate = editInitDate
+                          selectedCell.staff.currDate = editCurrDate
+                          selectedCell.staff.samsExp = editSamsExp
+                          selectedCell.staff.rating = Array.from(editRating).join('\n')
+                          setVersion(v => v + 1)
+                          setSelectedCell(null)
+                        }}
+                        className="font-bold bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        Save
+                      </Button>
+                    </PermissionActionGuard>
+                  </div>
+                </div>
               </DialogFooter>
             </>
           )}
