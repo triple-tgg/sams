@@ -112,6 +112,8 @@ export interface SchedulerSessionDetail {
     updatedby: string | null;
   };
   requiredFor?: string[];
+  format?: 'Online' | 'Onsite';
+  link?: string;
 }
 
 export interface SchedulerSessionDetailResponse {

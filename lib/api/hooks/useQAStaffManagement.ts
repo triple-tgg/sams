@@ -23,6 +23,7 @@ import {
     getLogbookSummary,
     LogbookSummaryResponse,
     getLogbookRecords,
+    LogbookRecordsRequest,
     LogbookRecordsResponse,
     getLogbookPending,
     LogbookPendingResponse,
@@ -215,15 +216,22 @@ export const useLogbookSummary = (
 
 /**
  * Hook for fetching logbook records
- * Uses GET /staffs/{staffId}/logbooks/records
+ * Uses POST /staffs/{staffId}/logbooks/maintenance
  */
 export const useLogbookRecords = (
     staffId: number,
+    params: LogbookRecordsRequest = {
+        formDate: "",
+        aircraftTypeId: null,
+        thfNo: "",
+        page: 1,
+        perPage: 10
+    },
     enabled: boolean = true
 ): UseQueryResult<LogbookRecordsResponse, Error> => {
     return useQuery({
-        queryKey: ["qa-staff-logbook-records", staffId],
-        queryFn: () => getLogbookRecords(staffId),
+        queryKey: ["qa-staff-logbook-records", staffId, params.formDate, params.aircraftTypeId, params.thfNo, params.page, params.perPage],
+        queryFn: () => getLogbookRecords(staffId, params),
         enabled: enabled && staffId > 0,
         staleTime: 2 * 60 * 1000,
         gcTime: 5 * 60 * 1000,

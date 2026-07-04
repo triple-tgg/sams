@@ -57,8 +57,12 @@ instance.interceptors.response.use(res => res, async error => {
     isRefreshing = true
 
     try {
-      const refresh_token = localStorage.getItem('refresh_token') ?? ''
-      const { data } = await instance.post('/user/refresh-token', {
+      const refresh_token = localStorage.getItem('refresh_token')
+      if (!refresh_token) {
+        throw new Error('No refresh token available')
+      }
+      
+      const { data } = await axios.post(`${instance.defaults.baseURL}/user/refresh-token`, {
         refreshToken: refresh_token
       })
 
@@ -93,16 +97,22 @@ instance.interceptors.response.use(res => res, async error => {
       }
     }
 
-    // กรณีที่ refresh token หมดอายุ → ลบ token → set isAuth = false → ไล่ไป login ใหม่
+    // กรณีที่ refresh token หมดอายุ หรือล้มเหลว → ลบ token → set isAuth = false → ไล่ไป login ใหม่
     catch (refreshError) {
       processQueue(refreshError, null)
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
       localStorage.removeItem('user')
 
-      // Reset Redux auth state
-      store.dispatch(handleLogout())
-      store.dispatch(clearPermissions())
+      try {
+        // Reset Redux auth state (wrapped in try-catch to prevent circular dependency errors from blocking redirect)
+        if (store && store.dispatch) {
+          store.dispatch(handleLogout())
+          store.dispatch(clearPermissions())
+        }
+      } catch (e) {
+        console.warn('Could not dispatch logout to Redux store:', e)
+      }
 
       const locale = window.location.pathname.match(/^\/(en|ar)/)?.[1] ?? 'en'
       window.location.href = `/${locale}/auth/login`

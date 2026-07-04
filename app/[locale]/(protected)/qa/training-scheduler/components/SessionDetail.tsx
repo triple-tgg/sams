@@ -1,6 +1,6 @@
 'use client'
 
-import { Calendar, Clock, MapPin, User, Tag, Building2, Pencil, Trash2, X } from 'lucide-react'
+import { Calendar, Clock, MapPin, User, Tag, Building2, Pencil, Trash2, X, Video, Link as LinkIcon } from 'lucide-react'
 import { Session, STATUS_CONFIG, CAT_COLOR, formatDate, sessionDays } from '../types'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
@@ -30,7 +30,10 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
     const maxParticipants = detail?.maxParticipants ?? s.maxParticipants
     const instructor = detail?.instructor ?? s.instructor
     const venue = detail?.venue ?? s.venue
+    const format = detail?.format ?? s.format ?? 'Onsite'
+    const link = detail?.link ?? s.link ?? ''
     const note = detail?.note ?? null
+    const isOnline = format === 'Online'
 
     const cfg = STATUS_CONFIG[s.status] || STATUS_CONFIG.Scheduled
     const cc = CAT_COLOR[s.category] || { bar: '#94a3b8', light: '#f8fafc', text: '#475569' }
@@ -50,17 +53,17 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
     const timeEnd = detail?.endDate ? toLocalTime(detail.endDate) : s.timeEnd
 
     const INFO_ROWS = [
-        { icon: Calendar, label: 'Start', val: formatDate(dateStart) },
-        { icon: Clock, label: 'Time', val: timeStart },
-        { icon: Calendar, label: 'End', val: formatDate(dateEnd) },
-        { icon: Clock, label: 'Time', val: timeEnd },
-        { icon: MapPin, label: 'Venue', val: venue },
-        { icon: User, label: 'Instructor', val: instructor },
-        { icon: Tag, label: 'Training Type', val: detail?.courseObj?.courseType },
-        { icon: Tag, label: 'Category', val: detail?.categoryObj?.name },
+        { key: 'start', icon: Calendar, label: 'Start', val: formatDate(dateStart) },
+        { key: 'start-time', icon: Clock, label: 'Time', val: timeStart },
+        { key: 'end', icon: Calendar, label: 'End', val: formatDate(dateEnd) },
+        { key: 'end-time', icon: Clock, label: 'Time', val: timeEnd },
+        { key: 'category', icon: Tag, label: 'Category', val: detail?.categoryObj?.name },
+        { key: 'instructor', icon: User, label: 'Instructor', val: instructor },
+        { key: 'training-type', icon: Tag, label: 'Training Type', val: detail?.courseObj?.courseType },
+        { key: 'format', icon: isOnline ? Video : MapPin, label: 'Format', val: isOnline ? 'Online' : 'Onsite', isBadge: true },
     ]
 
-    const targetDepts = detail?.requiredFor?.length ? detail.requiredFor : []
+    const targetDepts: string[] = detail?.requiredFor?.length ? detail.requiredFor : []
 
     return (
         <Dialog open onOpenChange={(open) => { if (!open) onClose() }} >
@@ -125,17 +128,40 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
                         <div className="space-y-4">
                             {/* Info rows — 2 column grid */}
                             <div className="grid grid-cols-2 gap-x-4 gap-y-3.5">
-                                {INFO_ROWS.map(({ icon: Icon, label, val }) => (
-                                    <div key={label} className="flex items-start gap-2.5">
+                                {INFO_ROWS.map(({ key, icon: Icon, label, val, isBadge }) => (
+                                    <div key={key} className="flex items-start gap-2.5">
                                         <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center shrink-0 mt-0.5">
                                             <Icon className="w-3.5 h-3.5 text-muted-foreground" />
                                         </div>
                                         <div className="min-w-0">
                                             <p className="text-xs text-muted-foreground">{label}</p>
-                                            <p className="text-sm text-foreground font-medium truncate">{val}</p>
+                                            {isBadge ? (
+                                                <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-md mt-0.5 ${isOnline ? 'bg-violet-50 text-violet-600' : 'bg-sky-50 text-sky-600'}`}>
+                                                    {String(val)}
+                                                </span>
+                                            ) : (
+                                                <p className="text-sm text-foreground font-medium truncate">{val}</p>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
+                                {/* Location / Meeting Link — continues in the same grid */}
+                                <div className="flex items-start gap-2.5">
+                                    <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center shrink-0 mt-0.5">
+                                        {isOnline ? <LinkIcon className="w-3.5 h-3.5 text-muted-foreground" /> : <MapPin className="w-3.5 h-3.5 text-muted-foreground" />}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-xs text-muted-foreground">{isOnline ? 'Meeting Link' : 'Location'}</p>
+                                        {isOnline && link ? (
+                                            <a href={link} target="_blank" rel="noopener noreferrer"
+                                                className="text-sm text-primary font-medium truncate block hover:underline">
+                                                {link.replace(/^https?:\/\//, '').substring(0, 35)}{link.length > 42 ? '...' : ''}
+                                            </a>
+                                        ) : (
+                                            <p className="text-sm text-foreground font-medium truncate">{venue || <span className="text-muted-foreground italic">—</span>}</p>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
 
                             {/* Target Dept. */}

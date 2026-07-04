@@ -562,21 +562,33 @@ export interface LogbookRecordData {
     signOffStatus: string;
 }
 
+export interface LogbookRecordsRequest {
+    formDate: string;
+    aircraftTypeId: number | null;
+    thfNo: string;
+    page: number;
+    perPage: number;
+}
+
 export interface LogbookRecordsResponse {
     message: string;
     responseData: LogbookRecordData[];
+    total?: number;
+    page?: number;
+    perPage?: number;
     error: string;
 }
 
 /**
  * Get logbook records
- * GET /staffs/{staffId}/logbooks/records
+ * POST /staffs/{staffId}/logbooks/maintenance
  */
 export const getLogbookRecords = async (
-    staffId: number
+    staffId: number,
+    params: LogbookRecordsRequest
 ): Promise<LogbookRecordsResponse> => {
     try {
-        const res = await axiosConfig.get(`/staffs/${staffId}/logbooks/records`);
+        const res = await axiosConfig.post(`/staffs/${staffId}/logbooks/maintenance`, params);
         return res.data as LogbookRecordsResponse;
     } catch (error: any) {
         console.error("Error fetching logbook records:", error);

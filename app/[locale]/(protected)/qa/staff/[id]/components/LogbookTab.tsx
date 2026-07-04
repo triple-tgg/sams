@@ -1,11 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { ClipboardList, Clock, AlertCircle, Wrench, AlertTriangle, CheckCircle2, ChevronDown } from 'lucide-react'
+import { ClipboardList, Clock, AlertCircle, Wrench, AlertTriangle, CheckCircle2, ChevronDown, Search, Calendar } from 'lucide-react'
 import { StaffData, LogbookEntry } from '../types'
 import { formatDate } from '../utils'
 import { LogbookRecordModal } from './LogbookRecordModal'
 import { useLogbookSummary, useLogbookRecords, useLogbookPending, useUpsertLogbookRecord } from '@/lib/api/hooks/useQAStaffManagement'
+import { useAircraftTypes } from '@/lib/api/hooks/useAircraftTypes'
 
 // ── Task Type Badge Color Map ──
 function getTaskTypeStyle(taskType: string) {
@@ -19,62 +20,34 @@ function getTaskTypeStyle(taskType: string) {
     }
 }
 
-// ── Mock THF Defect Data ──
-interface DefectItem {
-    defectNo: string
-    ata: string
-    description: string
-    action: string
-    status: 'Open' | 'Deferred' | 'Closed'
-    raisedBy: string
-    raisedDate: string
-}
 
-function getMockDefects(thfNo: string): DefectItem[] {
-    const defectMap: Record<string, DefectItem[]> = {
-        'THF-2026-0135': [
-            { defectNo: 'DEF-2026-0421', ata: 'ATA 21', description: 'PACK 1 fault indication intermittent during flight', action: 'Replaced flow control valve P/N 1234-5678. Ops check satisfactory.', status: 'Closed', raisedBy: 'Capt. Somsak', raisedDate: '2026-03-08' },
-            { defectNo: 'DEF-2026-0422', ata: 'ATA 21', description: 'PACK 1 temperature fluctuation noted after valve replacement', action: 'Monitoring required — awaiting next flight feedback', status: 'Open', raisedBy: 'Somchai C.', raisedDate: '2026-03-08' },
-            { defectNo: 'DEF-2026-0423', ata: 'ATA 36', description: 'Bleed air duct shows minor chafing near station 400', action: 'Deferred per MEL 36-11-01. Repair scheduled for next A-Check.', status: 'Deferred', raisedBy: 'Somchai C.', raisedDate: '2026-03-08' },
-        ],
-    }
-    // Return mapped defects or generate demo data
-    return defectMap[thfNo] ?? [
-        { defectNo: `DEF-${thfNo.replace('THF-', '')}`, ata: 'ATA 32', description: 'Nose wheel steering sluggish during taxi', action: 'Pending inspection', status: 'Open', raisedBy: 'Crew Report', raisedDate: '2026-03-15' },
-    ]
-}
-
-// ── Defect Status Badge ──
-function DefectStatusBadge({ status }: { status: DefectItem['status'] }) {
-    const styles = {
-        Open: 'bg-red-50 text-red-600',
-        Deferred: 'bg-amber-50 text-amber-600',
-        Closed: 'bg-green-50 text-green-600',
-    }[status]
-
-    const icons = {
-        Open: <AlertTriangle className="h-3 w-3" />,
-        Deferred: <Clock className="h-3 w-3" />,
-        Closed: <CheckCircle2 className="h-3 w-3" />,
-    }[status]
-
-    return (
-        <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-md ${styles}`}>
-            {icons} {status}
-        </span>
-    )
-}
 
 
 // ── Logbook Records Tab ──
 export function LogbookTab({ staff }: { staff: StaffData }) {
+    const [page, setPage] = useState(1);
+    const perPage = 10;
+    const [filterDate, setFilterDate] = useState("");
+    const [filterThfNo, setFilterThfNo] = useState("");
+    const [filterAircraftTypeId, setFilterAircraftTypeId] = useState<number | null>(null);
+
+    const { options: aircraftTypeOptions } = useAircraftTypes();
+
     // ── Fetch summary from API ──
     const { data: summaryData } = useLogbookSummary(staff.id)
     const apiSummary = summaryData?.responseData
 
     // ── Fetch records from API ──
-    const { data: recordsData } = useLogbookRecords(staff.id)
+    const { data: recordsData } = useLogbookRecords(staff.id, {
+        formDate: filterDate,
+        aircraftTypeId: filterAircraftTypeId,
+        thfNo: filterThfNo,
+        page,
+        perPage
+    })
     const apiRecords = recordsData?.responseData
+    const totalRecords = recordsData?.total || 0;
+    const totalPages = Math.ceil(totalRecords / perPage);
 
     // ── Fetch pending sign-off from API ──
     const { data: pendingData } = useLogbookPending(staff.id)
@@ -83,27 +56,11 @@ export function LogbookTab({ staff }: { staff: StaffData }) {
     // ── Upsert mutation ──
     const upsertRecord = useUpsertLogbookRecord(staff.id)
 
-    // Use API data if available, fallback to mock
-    const totalEntries = apiSummary?.totalEntries ?? staff.logbook.length
-    const totalHours = apiSummary?.totalHours ?? staff.logbook.reduce((sum, l) => sum + l.hours, 0)
-    const pendingCount = apiSummary?.pendingSignOff ?? staff.logbook.filter(l => !l.signedOff).length
+    const totalEntries = apiSummary?.totalEntries ?? 0
+    const totalHours = apiSummary?.totalHours ?? 0
+    const pendingCount = apiSummary?.pendingSignOff ?? 0
 
-    const pendingEntries = pendingData ? apiPendingRecords : staff.logbook.filter(l => !l.signedOff).map(l => ({
-        logbookId: 0,
-        date: l.date,
-        aircraft: l.aircraft,
-        regNo: l.regNo,
-        taskType: l.taskType,
-        thfNo: l.thfNo,
-        defectProgress: "0/1",
-        lineMaintenanceId: 0,
-        defectItems: getMockDefects(l.thfNo).map(d => ({
-            defectId: d.defectNo,
-            ataCode: d.ata,
-            description: d.description,
-            status: d.status
-        }))
-    }))
+    const pendingEntries = apiPendingRecords
     const [expandedPending, setExpandedPending] = useState<Record<number, boolean>>({ 0: true })
     const [recordModal, setRecordModal] = useState<{ defect: { defectId?: string; ata: string; description: string }; logEntry: any } | null>(null)
 
@@ -309,10 +266,54 @@ export function LogbookTab({ staff }: { staff: StaffData }) {
                         </div>
                         Maintenance Logbook
                     </div>
-                    <span className="text-[13px] text-slate-500">{apiRecords ? apiRecords.length : staff.logbook.length} entries</span>
+                    <span className="text-[13px] text-slate-500">{totalRecords || (apiRecords ? apiRecords.length : 0)} entries</span>
                 </div>
 
-                {(apiRecords ? apiRecords.length > 0 : staff.logbook.length > 0) ? (
+                {/* Filters */}
+                <div className="flex flex-wrap items-center gap-3 mb-5">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <input 
+                            type="text" 
+                            placeholder="Search THF No." 
+                            className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm w-44 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-slate-700 placeholder:text-slate-400"
+                            value={filterThfNo}
+                            onChange={(e) => { setFilterThfNo(e.target.value); setPage(1); }}
+                        />
+                    </div>
+                    <input 
+                        type="date" 
+                        className="px-3 py-2 border border-slate-200 rounded-lg text-sm w-40 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-slate-600"
+                        value={filterDate}
+                        onChange={(e) => { setFilterDate(e.target.value); setPage(1); }}
+                    />
+                    <select 
+                        className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white min-w-[160px] focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-slate-600"
+                        value={filterAircraftTypeId || ""}
+                        onChange={(e) => { setFilterAircraftTypeId(e.target.value ? Number(e.target.value) : null); setPage(1); }}
+                    >
+                        <option value="">All Aircraft Types</option>
+                        {aircraftTypeOptions?.map((opt: any) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                    </select>
+                    
+                    {(filterThfNo || filterDate || filterAircraftTypeId) && (
+                        <button 
+                            onClick={() => {
+                                setFilterThfNo("");
+                                setFilterDate("");
+                                setFilterAircraftTypeId(null);
+                                setPage(1);
+                            }}
+                            className="text-xs text-slate-500 hover:text-slate-800 transition-colors px-2 py-1 font-medium"
+                        >
+                            Clear filters
+                        </button>
+                    )}
+                </div>
+
+                {apiRecords && apiRecords.length > 0 ? (
                     <table className="w-full border-collapse">
                         <thead>
                             <tr>
@@ -326,84 +327,72 @@ export function LogbookTab({ staff }: { staff: StaffData }) {
                             </tr>
                         </thead>
                         <tbody>
-                            {apiRecords ? (
-                                apiRecords.map((rec) => {
-                                    const isSigned = rec.signOffStatus === 'Signed Off'
-                                    return (
-                                        <tr key={rec.id} className="hover:bg-slate-50 transition-colors">
-                                            <td className="text-xs py-3 px-3.5 border-b border-slate-100 text-slate-700 whitespace-nowrap">
-                                                {formatDate(rec.date)}
-                                            </td>
-                                            <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700 font-medium whitespace-nowrap">
-                                                {rec.aircraft}
-                                            </td>
-                                            <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700">
-                                                <span className="inline-flex items-center text-[11px] font-semibold px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-600">
-                                                    {rec.regNo}
-                                                </span>
-                                            </td>
-                                            <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700">
-                                                <span className={`inline-flex items-center text-[11px] font-semibold px-2.5 py-0.5 rounded-md ${getTaskTypeStyle(rec.taskType)}`}>
-                                                    {rec.taskType}
-                                                </span>
-                                            </td>
-                                            <td className="text-xs py-3 px-3.5 border-b border-slate-100 text-slate-700">
-                                                {rec.thfNo}
-                                            </td>
-                                            <td className="text-xs py-3 px-3.5 border-b border-slate-100 text-slate-600 max-w-[280px]">
-                                                {rec.description}
-                                            </td>
-                                            <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-center font-semibold">
-                                                {rec.hours.toFixed(1)}
-                                            </td>
-                                            <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-center">
-                                                <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-md ${isSigned ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
-                                                    {isSigned ? '✓ Signed' : 'Pending'}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    )
-                                })
-                            ) : (
-                                staff.logbook.map((log, i) => (
-                                    <tr key={i} className="hover:bg-slate-50 transition-colors">
+                            {apiRecords?.map((rec) => {
+                                const isSigned = rec.signOffStatus === 'Signed-Off' || rec.signOffStatus === 'Signed Off'
+                                return (
+                                    <tr key={rec.id} className="hover:bg-slate-50 transition-colors">
                                         <td className="text-xs py-3 px-3.5 border-b border-slate-100 text-slate-700 whitespace-nowrap">
-                                            {formatDate(log.date)}
+                                            {formatDate(rec.date)}
                                         </td>
                                         <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700 font-medium whitespace-nowrap">
-                                            {log.aircraft}
+                                            {rec.aircraft}
                                         </td>
                                         <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700">
                                             <span className="inline-flex items-center text-[11px] font-semibold px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-600">
-                                                {log.regNo}
+                                                {rec.regNo}
                                             </span>
                                         </td>
                                         <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700">
-                                            <span className={`inline-flex items-center text-[11px] font-semibold px-2.5 py-0.5 rounded-md ${getTaskTypeStyle(log.taskType)}`}>
-                                                {log.taskType}
+                                            <span className={`inline-flex items-center text-[11px] font-semibold px-2.5 py-0.5 rounded-md ${getTaskTypeStyle(rec.taskType)}`}>
+                                                {rec.taskType}
                                             </span>
                                         </td>
                                         <td className="text-xs py-3 px-3.5 border-b border-slate-100 text-slate-700">
-                                            {log.thfNo}
+                                            {rec.thfNo}
                                         </td>
                                         <td className="text-xs py-3 px-3.5 border-b border-slate-100 text-slate-600 max-w-[280px]">
-                                            {log.description}
+                                            {rec.description}
                                         </td>
                                         <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-center font-semibold">
-                                            {log.hours.toFixed(1)}
+                                            {rec.hours.toFixed(1)}
                                         </td>
                                         <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-center">
-                                            <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-md ${log.signedOff ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
-                                                {log.signedOff ? '✓ Signed' : 'Pending'}
+                                            <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-md ${isSigned ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'}`}>
+                                                {isSigned ? '✓ Signed-Off' : 'Pending'}
                                             </span>
                                         </td>
                                     </tr>
-                                ))
-                            )}
+                                )
+                            })}
                         </tbody>
                     </table>
                 ) : (
                     <p className="text-slate-400 text-sm">No logbook records.</p>
+                )}
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
+                        <div className="text-sm text-slate-500">
+                            Showing {((page - 1) * perPage) + 1} to {Math.min(page * perPage, totalRecords)} of {totalRecords} entries
+                        </div>
+                        <div className="flex gap-1">
+                            <button
+                                disabled={page === 1}
+                                onClick={() => setPage(p => p - 1)}
+                                className="px-3 py-1 text-sm border border-slate-200 rounded-md disabled:opacity-50 hover:bg-slate-50 transition-colors"
+                            >
+                                Prev
+                            </button>
+                            <button
+                                disabled={page === totalPages}
+                                onClick={() => setPage(p => p + 1)}
+                                className="px-3 py-1 text-sm border border-slate-200 rounded-md disabled:opacity-50 hover:bg-slate-50 transition-colors"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
                 )}
             </div>
 

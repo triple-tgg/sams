@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Clock, MapPin, Search, UserPlus, Trash2, Calendar as CalendarIcon, AlertCircle, Users, GraduationCap, Mail, Printer, Lock, MoreVertical, CheckCircle, FileEdit, Unlock, PlayCircle, Edit3, XCircle, Award, File } from 'lucide-react'
+import { ArrowLeft, Clock, MapPin, Search, UserPlus, Trash2, Calendar as CalendarIcon, AlertCircle, Users, GraduationCap, Mail, Printer, Lock, MoreVertical, CheckCircle, FileEdit, Unlock, PlayCircle, Edit3, XCircle, Award, File, Video } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { PrintAttendanceModal } from '../components/PrintAttendanceModal'
@@ -146,23 +146,25 @@ export default function ScheduleDetailPage() {
                             <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
                                 {session.courseCode}
                             </span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                                sessionStatus === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${sessionStatus === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
                                 sessionStatus === 'Cancelled' ? 'bg-red-100 text-red-700' :
-                                sessionStatus === 'Grading' ? 'bg-purple-100 text-purple-700' :
-                                sessionStatus === 'In Progress' ? 'bg-blue-100 text-blue-700' :
-                                sessionStatus === 'Registration Closed' ? 'bg-amber-100 text-amber-700' :
-                                sessionStatus === 'Open Registration' ? 'bg-emerald-100 text-emerald-700' :
-                                'bg-slate-100 text-slate-700'
-                            }`}>
+                                    sessionStatus === 'Grading' ? 'bg-purple-100 text-purple-700' :
+                                        sessionStatus === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                                            sessionStatus === 'Registration Closed' ? 'bg-amber-100 text-amber-700' :
+                                                sessionStatus === 'Open Registration' ? 'bg-emerald-100 text-emerald-700' :
+                                                    'bg-slate-100 text-slate-700'
+                                }`}>
                                 {sessionStatus}
                             </span>
                         </div>
                         <div className="flex items-center gap-2 ml-auto">
+                            {(['Registration Closed', 'In Progress', 'Grading', 'Completed'] as readonly string[]).includes(sessionStatus) && (
                             <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer bg-primary hover:bg-primary/80 text-white">
                                 <Mail className="w-3.5 h-3.5" />
                                 Send Email
                             </button>
+                            )}
+                            {(['Registration Closed', 'In Progress', 'Grading', 'Completed'] as readonly string[]).includes(sessionStatus) && (
                             <button
                                 onClick={() => setShowPrintModal(true)}
                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-foreground hover:bg-muted border border-border transition-colors cursor-pointer bg-white"
@@ -170,6 +172,7 @@ export default function ScheduleDetailPage() {
                                 <Printer className="w-3.5 h-3.5" />
                                 Print Form
                             </button>
+                            )}
                             {sessionStatus === 'Completed' && (
                                 <button
                                     onClick={() => openCertificateModal()}
@@ -228,15 +231,14 @@ export default function ScheduleDetailPage() {
                                             <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
                                                 {session.courseCode}
                                             </span>
-                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                                                sessionStatus === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
+                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${sessionStatus === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
                                                 sessionStatus === 'Cancelled' ? 'bg-red-100 text-red-700' :
-                                                sessionStatus === 'Grading' ? 'bg-purple-100 text-purple-700' :
-                                                sessionStatus === 'In Progress' ? 'bg-blue-100 text-blue-700' :
-                                                sessionStatus === 'Registration Closed' ? 'bg-amber-100 text-amber-700' :
-                                                sessionStatus === 'Open Registration' ? 'bg-emerald-100 text-emerald-700' :
-                                                'bg-slate-100 text-slate-700'
-                                            }`}>
+                                                    sessionStatus === 'Grading' ? 'bg-purple-100 text-purple-700' :
+                                                        sessionStatus === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                                                            sessionStatus === 'Registration Closed' ? 'bg-amber-100 text-amber-700' :
+                                                                sessionStatus === 'Open Registration' ? 'bg-emerald-100 text-emerald-700' :
+                                                                    'bg-slate-100 text-slate-700'
+                                                }`}>
                                                 {sessionStatus}
                                             </span>
                                         </div>
@@ -245,7 +247,7 @@ export default function ScheduleDetailPage() {
                                 </div>
 
                                 {/* Info Grid */}
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 gap-3">
                                     <div className="flex items-center gap-2 text-xs">
                                         <CalendarIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                                         <div>
@@ -271,11 +273,39 @@ export default function ScheduleDetailPage() {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2 text-xs">
-                                        <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                                        {session.format === 'Online' ? (
+                                            <Video className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                                        ) : (
+                                            <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                                        )}
                                         <div>
-                                            <span className="text-muted-foreground/60 text-[9px] font-semibold uppercase block">Venue</span>
-                                            <span className="text-foreground font-medium">{session.venue}</span>
+                                            <span className="text-muted-foreground/60 text-[9px] font-semibold uppercase block">Format</span>
+                                            <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-md mt-0.5 ${session.format === 'Online' ? 'bg-violet-50 text-violet-600' : 'bg-sky-50 text-sky-600'}`}>
+                                                {session.format === 'Online' ? 'Online' : 'Onsite'}
+                                            </span>
                                         </div>
+                                    </div>
+                                </div>
+
+                                {/* Location / Meeting Link */}
+                                <div className="flex items-start gap-2 text-xs mt-1">
+                                    {session.format === 'Online' ? (
+                                        <Video className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                                    ) : (
+                                        <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                                    )}
+                                    <div>
+                                        <span className="text-muted-foreground/60 text-[9px] font-semibold uppercase block">
+                                            {session.format === 'Online' ? 'Meeting Link' : 'Location'}
+                                        </span>
+                                        {session.format === 'Online' && session.link ? (
+                                            <a href={session.link} target="_blank" rel="noopener noreferrer"
+                                                className="text-primary font-medium hover:underline">
+                                                {session.link.replace(/^https?:\/\//, '').substring(0, 35)}{session.link.length > 42 ? '...' : ''}
+                                            </a>
+                                        ) : (
+                                            <span className="text-foreground font-medium">{session.venue}</span>
+                                        )}
                                     </div>
                                 </div>
 

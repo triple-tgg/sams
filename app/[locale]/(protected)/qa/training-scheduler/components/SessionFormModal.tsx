@@ -158,7 +158,7 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
                         </div>
                     </div>
 
-                    {/* Instructor + Venue */}
+                    {/* Instructor + Format */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="text-xs font-medium text-muted-foreground block mb-1.5">Instructor</label>
@@ -166,10 +166,30 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
                                 className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10" />
                         </div>
                         <div>
-                            <label className="text-xs font-medium text-muted-foreground block mb-1.5">Venue</label>
-                            <input type="text" value={form.venue} onChange={e => f('venue', e.target.value)} placeholder="e.g. BKK Base Room 1"
-                                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10" />
+                            <label className="text-xs font-medium text-muted-foreground block mb-1.5">Course Format</label>
+                            <select value={form.format || 'Onsite'} onChange={e => f('format', e.target.value)}
+                                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 cursor-pointer">
+                                <option value="Onsite">Onsite</option>
+                                <option value="Online">Online</option>
+                            </select>
                         </div>
+                    </div>
+
+                    {/* Venue or Link */}
+                    <div>
+                        {form.format === 'Online' ? (
+                            <div>
+                                <label className="text-xs font-medium text-muted-foreground block mb-1.5">Meeting Link</label>
+                                <input type="text" value={form.link || ''} onChange={e => f('link', e.target.value)} placeholder="e.g. https://zoom.us/..."
+                                    className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10" />
+                            </div>
+                        ) : (
+                            <div>
+                                <label className="text-xs font-medium text-muted-foreground block mb-1.5">Location (Venue)</label>
+                                <input type="text" value={form.venue} onChange={e => f('venue', e.target.value)} placeholder="e.g. BKK Base Room 1"
+                                    className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10" />
+                            </div>
+                        )}
                     </div>
 
                     {/* Status + Max participants */}
