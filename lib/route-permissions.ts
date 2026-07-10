@@ -41,8 +41,12 @@ export const ROUTE_PERMISSION_MAP: RoutePermission[] = [
     { path: "/production-planner/import-flight-data",   menuCodes: ["IMPORT_FLIGHT_DATA"] },
     { path: "/production-planner",                      menuCodes: ["PRODUCTION_PLANNER"] },
 
+    // ── HR ───────────────────────────────────────────────────
+    { path: "/hr/employee-income",                      menuCodes: ["HR_STAFF_INCOME"] },
+    { path: "/hr/staff",                                menuCodes: ["HR_STAFF"] },
+    { path: "/hr",                                      menuCodes: ["HR"] },
+
     // ── QA ──────────────────────────────────────────────────
-    { path: "/qa/staff",                                menuCodes: ["QA_STAFF"] },
     { path: "/qa/monitoring",                           menuCodes: ["QA_MONITORING"] },
     { path: "/qa/course-management",                    menuCodes: ["QA_MONITORING"] },
     { path: "/qa/training-scheduler",                   menuCodes: ["QA_MONITORING"] },
@@ -52,7 +56,12 @@ export const ROUTE_PERMISSION_MAP: RoutePermission[] = [
 
     // ── Master Data ─────────────────────────────────────────
     { path: "/master-data/staff",                       menuCodes: ["MASTER_DATA_STAFF"] },
-    { path: "/master-data/hr/employee-income",          menuCodes: ["MASTER_DATA_HR"] },
+    { path: "/master-data/department",                  menuCodes: ["MASTER_DATA_DEPARTMENT"] },
+    { path: "/master-data/manager-mapping",             menuCodes: ["MASTER_DATA_MANAGER_MAPPING"] },
+    { path: "/master-data/position",                    menuCodes: ["MASTER_DATA_POSITION"] },
+    { path: "/master-data/aircraft-type-license",       menuCodes: ["MASTER_DATA_AIRCRAFT_TYPE_LICENSE"] },
+    { path: "/master-data/aircraft-type",               menuCodes: ["MASTER_DATA_AIRCRAFT_TYPE"] },
+    { path: "/master-data/aircraft-group",              menuCodes: ["MASTER_DATA_AIRCRAFT_GROUP"] },
     { path: "/master-data/customer-airline",            menuCodes: ["MASTER_DATA_CUSTOMER_AIRLINE"] },
     { path: "/master-data/station",                     menuCodes: ["MASTER_DATA_STATION"] },
     { path: "/master-data/user-login",                  menuCodes: ["MASTER_DATA_USER_LOGIN"] },

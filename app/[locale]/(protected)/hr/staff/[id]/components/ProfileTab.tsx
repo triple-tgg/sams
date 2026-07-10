@@ -582,7 +582,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                     <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 mb-4">
                         <div className="flex items-center justify-between mb-5 pb-3.5 border-b border-slate-100">
                             <div className="flex items-center gap-2.5 text-base font-bold text-slate-800">
-                                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-pink-50 text-pink-600">
+                                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-blue-50 text-blue-600">
                                     <FileText className="h-4 w-4" />
                                 </div>
                                 Documents
@@ -733,7 +733,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                                 <p className="text-xs text-slate-400 mb-4">No documents have been uploaded yet.</p>
                                 <button
                                     onClick={() => setEditDocMode(true)}
-                                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-pink-500 rounded-lg cursor-pointer hover:bg-pink-600 transition-colors border-none"
+                                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-blue-500 rounded-lg cursor-pointer hover:bg-blue-600 transition-colors border-none"
                                 >
                                     <Upload className="h-3.5 w-3.5" />
                                     Upload Documents

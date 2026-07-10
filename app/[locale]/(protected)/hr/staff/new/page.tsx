@@ -503,9 +503,9 @@ export default function NewStaffPage() {
                 const staffId = response.responseData?.[0]?.staffId
                 toast.success('Staff registered successfully!')
                 if (staffId) {
-                    router.push(`/en/qa/staff/${staffId}`)
+                    router.push(`/en/hr/staff/${staffId}`)
                 } else {
-                    router.push('/en/qa/staff')
+                    router.push('/en/hr/staff')
                 }
             },
             onError: (error) => {

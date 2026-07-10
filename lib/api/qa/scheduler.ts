@@ -114,6 +114,10 @@ export interface SchedulerSessionDetail {
   requiredFor?: string[];
   format?: 'Online' | 'Onsite';
   link?: string;
+  trainingAttendanceTypeObj?: {
+    id: number;
+    name: string;
+  };
 }
 
 export interface SchedulerSessionDetailResponse {
@@ -144,6 +148,7 @@ export interface SchedulerUpsertRequest {
   maxParticipants: number;
   note: string;
   userName: string;
+  trainingAttendanceTypeId: number;
 }
 
 export interface SchedulerUpsertResponse {
@@ -152,7 +157,7 @@ export interface SchedulerUpsertResponse {
   error: string;
 }
 
-export const upsertScheduler = async (reqData: SchedulerUpsertRequest): Promise<{ message: string, responseData: { scheduleId: number }[], error: string }> => {
+export const upsertScheduler = async (reqData: SchedulerUpsertRequest): Promise<SchedulerUpsertResponse> => {
   try {
     const res = await axiosConfig.post('/training/scheduler/upsert', reqData);
     return res.data;

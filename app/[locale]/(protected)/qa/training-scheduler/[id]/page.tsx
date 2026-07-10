@@ -1,62 +1,123 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Clock, MapPin, Search, UserPlus, Trash2, Calendar as CalendarIcon, AlertCircle, Users, GraduationCap, Mail, Printer, Lock, MoreVertical, CheckCircle, FileEdit, Unlock, PlayCircle, Edit3, XCircle, Award, File, Video } from 'lucide-react'
+import { ArrowLeft, Clock, MapPin, Search, UserPlus, Trash2, Calendar as CalendarIcon, AlertCircle, Users, GraduationCap, Mail, Printer, Lock, MoreVertical, CheckCircle, FileEdit, Unlock, PlayCircle, Edit3, XCircle, Award, File, Video, Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { PrintAttendanceModal } from '../components/PrintAttendanceModal'
 import { EvidenceUploadModal } from '../components/EvidenceUploadModal'
 import { CertificateModal } from '../components/CertificateModal'
-import { INITIAL_SESSIONS } from '../data'
+import { EmailPreviewDialog } from '../components/EmailPreviewDialog'
 import { STATUS_CONFIG, CAT_COLOR, formatDate } from '../types'
+import type { Session } from '../types'
+import { useSchedulerById } from '@/lib/api/qa/scheduler.hooks'
+import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+import { useStaffForEnrollment, useEnrolledStaffList, useEnrollStaff, useUnenrollStaff, useSendEmailList } from '@/lib/api/qa/enrollment.hooks'
+import { useInvalidateEmailLogs, usePreviewEmailDepartment } from '@/lib/api/qa/email-log.hooks'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import type { StaffForEnrollmentItem } from '@/lib/api/qa/enrollment'
+import { toast } from 'sonner'
 
-// Mock Data for Enrolled Staff Table
-const MOCK_ENROLLED_STAFF = [
-    { id: '1', name: 'Mr. Sanmanas Ruangsri', code: '0012', license: 'B1', dept: 'Maintenance', date: '2026-03-20', status: 'enrolled', result: 'Pending' },
-    { id: '2', name: 'Mr. Pissanu Arunbutr', code: '0013', license: 'B1/B2', dept: 'Maintenance', date: '2026-03-20', status: 'enrolled', result: 'Pending' },
-    { id: '3', name: 'Mr. Phaisal Sangasang', code: '0020', license: 'B1', dept: 'Maintenance', date: '2026-03-21', status: 'enrolled', result: 'Pending' },
-    { id: '4', name: 'Mr. Papoj Imudom', code: '0028', license: 'B1', dept: 'Maintenance', date: '2026-03-21', status: 'enrolled', result: 'Pending' },
-    { id: '5', name: 'Mr. Prakarn Sribudh', code: '0041', license: 'B1', dept: 'Technical Services', date: '2026-03-22', status: 'enrolled', result: 'Pending' },
-    { id: '6', name: 'Mr. Trairattana Klinkaewboonvong', code: '0047', license: 'B1/B2', dept: 'Maintenance', date: '2026-03-22', status: 'enrolled', result: 'Pending' },
-    { id: '7', name: 'Mr. Thawansak Bharmmano', code: '0049', license: 'B1', dept: 'Maintenance', date: '2026-03-23', status: 'enrolled', result: 'Pending' },
-    { id: '8', name: 'Mr. Pongsak Wongrak', code: '0052', license: 'B2', dept: 'Compliance Monitoring', date: '2026-03-23', status: 'enrolled', result: 'Pending' },
-]
-
-const MOCK_AVAILABLE_STAFF = [
-    { id: '101', name: 'Mr. Chalong Siri', code: '0022', license: 'B1/B2', dept: 'Maintenance', expireStatus: 'Expired', date: '-', status: 'available' },
-    { id: '102', name: 'Eng. Somchai Kitti', code: '0025', license: 'B2', dept: 'Technical Services', expireStatus: 'Expiring_Soon', date: '-', status: 'available' },
-    { id: '103', name: 'Ms. Kanjana Wattana', code: '0030', license: 'B1', dept: 'Compliance Monitoring', expireStatus: 'Valid', date: '-', status: 'available' },
-    { id: '104', name: 'Mr. Anan Sritape', code: '0085', license: 'B1/B2', dept: 'Maintenance', expireStatus: 'Valid', date: '-', status: 'available' },
-]
+// Staff item shape used by this page
+interface StaffItem {
+    id: string
+    enrollmentId?: number
+    name: string
+    code: string
+    license: string
+    dept: string
+    date: string
+    status: string
+    result: string
+    expireStatus?: string
+}
 
 export default function ScheduleDetailPage() {
     const params = useParams()
     const router = useRouter()
     const sessionId = Number(params?.id)
 
-    // Fallback to a mock full session if not found in INITIAL_SESSIONS
-    const session = INITIAL_SESSIONS.find(s => s.id === sessionId) || {
-        id: sessionId,
-        courseId: 24, courseName: 'Electrical Wiring Interconnection System',
-        courseCode: 'SP-EWIS', category: 'Specialized',
-        dateStart: '2026-04-14', dateEnd: '2026-04-16',
-        timeStart: '08:00', timeEnd: '17:00',
-        instructor: 'Eng. Priya N.', venue: 'Hangar 1 – Classroom',
-        dept: 'Maintenance', maxParticipants: 15, enrolled: 15,
-        status: 'Full', type: 'Recurrent',
-    }
+    // ── API: Fetch session data (React Query) ─────────────────────
+    const { data: session = null, isLoading, error: sessionError } = useSchedulerById(sessionId)
+    const fetchError = sessionError?.message ?? null
 
-    const [enrolledStaff, setEnrolledStaff] = useState(MOCK_ENROLLED_STAFF)
-    const [availableStaff, setAvailableStaff] = useState(MOCK_AVAILABLE_STAFF)
-    const [staffSearch, setStaffSearch] = useState('')
+    // ── Staff states ──────────────────────────────────────────────
+    const [enrolledStaff, setEnrolledStaff] = useState<StaffItem[]>([])
     const [enrolledSearch, setEnrolledSearch] = useState('')
+    const [enrolledPage, setEnrolledPage] = useState(1)
+    const [enrolledTotal, setEnrolledTotal] = useState(0)
+    const enrolledPerPage = 20
+
+    // ── React Query: Available staff for enrollment ──────────────
+    const { data: availableStaffRaw = [], isLoading: isLoadingStaff } = useStaffForEnrollment(sessionId)
+    const availableStaff: StaffItem[] = availableStaffRaw.map((s: StaffForEnrollmentItem) => ({
+        id: String(s.staffId),
+        name: `${s.title ?? ''} ${s.name ?? ''}`.trim(),
+        code: s.code ?? '',
+        license: '',
+        dept: s.departmentName ?? '',
+        expireStatus: s.status || 'Valid',
+        date: '-',
+        status: 'available',
+        result: 'Pending',
+    }))
+
+    // ── React Query: Enrolled staff list ──────────────────────────
+    const { data: enrolledData, isLoading: isLoadingEnrolled } = useEnrolledStaffList({
+        scheduleId: sessionId,
+        searchKeyword: enrolledSearch,
+        page: enrolledPage,
+        perPage: enrolledPerPage
+    })
+
+    useEffect(() => {
+        if (enrolledData) {
+            const mapped = enrolledData.list.map((s: any) => ({
+                id: String(s.staffId),
+                enrollmentId: s.enrollmentId,
+                name: s.employeeName ?? '',
+                code: s.employeeId ?? '',
+                license: s.license || '-',
+                dept: s.department || '-',
+                date: s.enrolledDate ? s.enrolledDate.split('T')[0] : '-',
+                status: s.status ?? 'Enrolled',
+                result: s.result ?? 'Pending',
+                expireStatus: '',
+            }))
+            setEnrolledStaff(mapped)
+            setEnrolledTotal(enrolledData.total)
+        }
+    }, [enrolledData])
+
+    const [staffSearch, setStaffSearch] = useState('')
+    const [selectedEnrolledIds, setSelectedEnrolledIds] = useState<Set<string>>(new Set())
     const [sessionStatus, setSessionStatus] = useState<'Draft' | 'Open Registration' | 'Registration Closed' | 'In Progress' | 'Grading' | 'Completed' | 'Cancelled'>('Open Registration')
     const [showPrintModal, setShowPrintModal] = useState(false)
     const [showEvidenceModal, setShowEvidenceModal] = useState(false)
     const [evidences, setEvidences] = useState<File[]>([])
     const [showCertModal, setShowCertModal] = useState(false)
-    const [certStaffList, setCertStaffList] = useState<typeof MOCK_ENROLLED_STAFF>([])
+    const [certStaffList, setCertStaffList] = useState<StaffItem[]>([])
+    const [emailPreviewStaff, setEmailPreviewStaff] = useState<StaffItem | null>(null)
+    const invalidateEmailLogs = useInvalidateEmailLogs()
+    const [showManagerReport, setShowManagerReport] = useState(false)
+    const [managerReportHtml, setManagerReportHtml] = useState('')
+    const previewDeptMutation = usePreviewEmailDepartment()
+
+    const handleManagerReport = async () => {
+        try {
+            const html = await previewDeptMutation.mutateAsync(sessionId)
+            if (html) {
+                setManagerReportHtml(html)
+                setShowManagerReport(true)
+            } else {
+                toast.error('No report data returned from the server.')
+            }
+        } catch {
+            toast.error('Failed to load Managers Report. Please try again.')
+        }
+    }
 
     const handleStatusChange = (status: any) => {
         if (status === 'Completed' && evidences.length === 0) {
@@ -96,10 +157,10 @@ export default function ScheduleDetailPage() {
         return !ALLOWED_NEXT_STATUS[sessionStatus]?.includes(targetStatus);
     }
 
-    const cfg = STATUS_CONFIG[session.status] || STATUS_CONFIG.Scheduled
-    const enrolledCount = enrolledStaff.length
-    const pct = session.maxParticipants > 0 ? (enrolledCount / session.maxParticipants) * 100 : 0
-    const slotsLeft = session.maxParticipants - enrolledCount
+    const cfg = STATUS_CONFIG[session?.status ?? 'Scheduled'] || STATUS_CONFIG.Scheduled
+    const enrolledCount = enrolledTotal > 0 ? enrolledTotal : (session?.enrolled ?? 0)
+    const pct = (session?.maxParticipants ?? 0) > 0 ? (enrolledCount / (session?.maxParticipants ?? 1)) * 100 : 0
+    const slotsLeft = (session?.maxParticipants ?? 0) - enrolledCount
     const isFull = slotsLeft <= 0
 
     const getInitials = (name: string) => {
@@ -107,26 +168,154 @@ export default function ScheduleDetailPage() {
         return words[0] ? words[0][0] : '?'
     }
 
-    const handleEnroll = (staff: typeof MOCK_AVAILABLE_STAFF[0]) => {
-        if (isFull || sessionStatus !== 'Open Registration') return;
-        const now = new Date();
-        const yyyy = now.getFullYear();
-        const mm = String(now.getMonth() + 1).padStart(2, '0');
-        const dd = String(now.getDate()).padStart(2, '0');
-        const enrolledDate = `${yyyy}-${mm}-${dd}`;
+    // ── Mutations (React Query hooks) ────────────────────────────
+    const enrollMutation = useEnrollStaff(sessionId)
+    const unenrollMutation = useUnenrollStaff(sessionId)
+    const sendEmailMutation = useSendEmailList(sessionId)
 
-        setEnrolledStaff(prev => [...prev, { ...staff, date: enrolledDate, status: 'enrolled', result: 'Pending' }]);
-        setAvailableStaff(prev => prev.filter(s => s.id !== staff.id));
+    const [enrollingId, setEnrollingId] = useState<string | null>(null)
+
+    const handleEnroll = async (staff: StaffItem) => {
+        if (isFull || sessionStatus !== 'Open Registration' || enrollingId) return;
+        setEnrollingId(staff.id)
+
+        try {
+            await enrollMutation.mutateAsync({
+                trainingScheduleId: sessionId,
+                staffId: Number(staff.id),
+                note: '',
+                trainingEnrollmentActionStatusId: 1,
+                trainingEnrollmentStatusId: 1,
+            })
+        } catch (err: any) {
+            console.error('Enroll failed:', err)
+            toast.error(err?.message || 'Failed to enroll staff')
+        } finally {
+            setEnrollingId(null)
+        }
     }
+
+    const [removingId, setRemovingId] = useState<string | null>(null)
+    const [confirmRemoveStaff, setConfirmRemoveStaff] = useState<StaffItem | null>(null)
 
     const handleRemove = (staff: any) => {
         if (sessionStatus === 'Completed' || sessionStatus === 'Grading') return;
-        setEnrolledStaff(prev => prev.filter(s => s.id !== staff.id));
-        setAvailableStaff(prev => [{ id: staff.id, name: staff.name, code: staff.code, license: staff.license, dept: staff.dept, expireStatus: staff.expireStatus || 'Valid', date: '-', status: 'available' }, ...prev]);
+        setConfirmRemoveStaff(staff)
+    }
+
+    const confirmUnenroll = async () => {
+        const staff = confirmRemoveStaff
+        if (!staff) return
+        setConfirmRemoveStaff(null)
+
+        const enrollmentId = staff.enrollmentId
+        if (!enrollmentId) {
+            toast.error('Enrollment ID not found')
+            return
+        }
+
+        setRemovingId(staff.id)
+        try {
+            await unenrollMutation.mutateAsync({ enrollmentId })
+            setSelectedEnrolledIds(prev => {
+                const next = new Set(prev)
+                next.delete(staff.id)
+                return next
+            })
+        } catch (err: any) {
+            console.error('Unenroll failed:', err)
+            toast.error(err?.message || 'Failed to remove staff')
+        } finally {
+            setRemovingId(null)
+        }
     }
 
     const handleUpdateResult = (staffId: string, field: 'score' | 'result', value: string) => {
         setEnrolledStaff(prev => prev.map(s => s.id === staffId ? { ...s, [field]: value } : s));
+    }
+
+    const handleSendAll = async () => {
+        if (selectedEnrolledIds.size === 0) return
+        const staffIdList = Array.from(selectedEnrolledIds).map(Number)
+
+        try {
+            const data = await sendEmailMutation.mutateAsync({
+                scheduleId: sessionId,
+                staffIdList,
+                subject: `Confirmed Session - ${session?.courseName ?? 'Training Notification'}`,
+                emailFrom: null,
+                emailCc: null,
+            })
+            const sent = data?.totalSent ?? 0
+            const failed = data?.totalFailed ?? 0
+            if (failed > 0) {
+                toast.warning(`Email sent: ${sent} success, ${failed} failed.`, {
+                    description: data?.details?.filter((d) => !d.isSuccess).map((d) => d.errorMessage).join('\n') ?? ''
+                })
+            } else {
+                toast.success(`Email sent successfully to ${sent} staff.`)
+            }
+            setSelectedEnrolledIds(new Set())
+        } catch (err: any) {
+            console.error('Send email failed:', err)
+            toast.error(err?.message || 'Failed to send emails')
+        }
+    }
+
+    const handleSendSingleEmail = async (staffId: number) => {
+        try {
+            const data = await sendEmailMutation.mutateAsync({
+                scheduleId: sessionId,
+                staffIdList: [staffId],
+                subject: `Confirmed Session - ${session?.courseName ?? 'Training Notification'}`,
+                emailFrom: null,
+                emailCc: null,
+            })
+            const sent = data?.totalSent ?? 0
+            const failed = data?.totalFailed ?? 0
+            // Invalidate email log cache so the Log tab refreshes
+            invalidateEmailLogs(sessionId, staffId)
+            if (failed > 0) {
+                toast.warning(`Email sent: ${sent} success, ${failed} failed.`)
+            } else {
+                toast.success(`Email sent successfully.`)
+            }
+        } catch (err: any) {
+            console.error('Send single email failed:', err)
+            toast.error(err?.message || 'Failed to send email')
+        }
+    }
+
+    // ── Loading / Error states ──────────────────────────────────
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                    <span className="text-sm text-muted-foreground">Loading session data...</span>
+                </div>
+            </div>
+        )
+    }
+
+    if (fetchError || !session) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <Card className="max-w-md w-full">
+                    <CardContent className="flex flex-col items-center gap-3 py-8">
+                        <AlertCircle className="w-10 h-10 text-red-500" />
+                        <p className="text-sm font-semibold text-foreground">Failed to load session</p>
+                        <p className="text-xs text-muted-foreground text-center">{fetchError || 'Session not found'}</p>
+                        <button
+                            onClick={() => router.back()}
+                            className="mt-2 px-4 py-2 rounded-lg text-xs font-semibold text-primary border border-primary hover:bg-primary/5 transition-colors cursor-pointer"
+                        >
+                            Go Back
+                        </button>
+                    </CardContent>
+                </Card>
+            </div>
+        )
     }
 
     return (
@@ -158,21 +347,6 @@ export default function ScheduleDetailPage() {
                             </span>
                         </div>
                         <div className="flex items-center gap-2 ml-auto">
-                            {(['Registration Closed', 'In Progress', 'Grading', 'Completed'] as readonly string[]).includes(sessionStatus) && (
-                            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer bg-primary hover:bg-primary/80 text-white">
-                                <Mail className="w-3.5 h-3.5" />
-                                Send Email
-                            </button>
-                            )}
-                            {(['Registration Closed', 'In Progress', 'Grading', 'Completed'] as readonly string[]).includes(sessionStatus) && (
-                            <button
-                                onClick={() => setShowPrintModal(true)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-foreground hover:bg-muted border border-border transition-colors cursor-pointer bg-white"
-                            >
-                                <Printer className="w-3.5 h-3.5" />
-                                Print Form
-                            </button>
-                            )}
                             {sessionStatus === 'Completed' && (
                                 <button
                                     onClick={() => openCertificateModal()}
@@ -182,36 +356,22 @@ export default function ScheduleDetailPage() {
                                     Issue Certificates
                                 </button>
                             )}
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <button className="flex items-center justify-center w-8 h-8 rounded-lg text-foreground hover:bg-muted border border-border transition-colors cursor-pointer bg-white">
-                                        <MoreVertical className="w-4 h-4" />
-                                    </button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-48">
-                                    <DropdownMenuItem disabled={isStatusDisabled('Draft')} onClick={() => handleStatusChange('Draft')} className={`cursor-pointer text-xs font-medium flex items-center gap-2 ${isStatusDisabled('Draft') ? 'text-slate-400 opacity-50' : 'text-slate-600 focus:bg-slate-50'}`}>
-                                        <FileEdit className="w-3.5 h-3.5" /> Draft
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem disabled={isStatusDisabled('Open Registration')} onClick={() => handleStatusChange('Open Registration')} className={`cursor-pointer text-xs font-medium flex items-center gap-2 ${isStatusDisabled('Open Registration') ? 'text-slate-400 opacity-50' : 'text-emerald-600 focus:bg-emerald-50'}`}>
-                                        <Unlock className="w-3.5 h-3.5" /> Open Registration
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem disabled={isStatusDisabled('Registration Closed')} onClick={() => handleStatusChange('Registration Closed')} className={`cursor-pointer text-xs font-medium flex items-center gap-2 ${isStatusDisabled('Registration Closed') ? 'text-slate-400 opacity-50' : 'text-amber-600 focus:bg-amber-50'}`}>
-                                        <Lock className="w-3.5 h-3.5" /> Close Registration
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem disabled={isStatusDisabled('In Progress')} onClick={() => handleStatusChange('In Progress')} className={`cursor-pointer text-xs font-medium flex items-center gap-2 ${isStatusDisabled('In Progress') ? 'text-slate-400 opacity-50' : 'text-blue-600 focus:bg-blue-50'}`}>
-                                        <PlayCircle className="w-3.5 h-3.5" /> In Progress
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem disabled={isStatusDisabled('Grading')} onClick={() => handleStatusChange('Grading')} className={`cursor-pointer text-xs font-medium flex items-center gap-2 ${isStatusDisabled('Grading') ? 'text-slate-400 opacity-50' : 'text-purple-600 focus:bg-purple-50'}`}>
-                                        <Edit3 className="w-3.5 h-3.5" /> Grading
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem disabled={isStatusDisabled('Completed')} onClick={() => handleStatusChange('Completed')} className={`cursor-pointer text-xs font-medium flex items-center gap-2 ${isStatusDisabled('Completed') ? 'text-slate-400 opacity-50' : 'text-slate-800 focus:bg-slate-100'}`}>
-                                        <CheckCircle className="w-3.5 h-3.5" /> Completed
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem disabled={isStatusDisabled('Cancelled')} onClick={() => handleStatusChange('Cancelled')} className={`cursor-pointer text-xs font-medium flex items-center gap-2 ${isStatusDisabled('Cancelled') ? 'text-slate-400 opacity-50' : 'text-red-600 focus:bg-red-50'}`}>
-                                        <XCircle className="w-3.5 h-3.5" /> Cancelled
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+                            <div className="relative">
+                                <select
+                                    value={sessionStatus}
+                                    onChange={(e) => handleStatusChange(e.target.value)}
+                                    className="appearance-none pl-3 pr-8 py-1.5 rounded-lg text-xs font-semibold border border-border bg-white text-foreground transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                >
+                                    <option value="Draft" disabled={isStatusDisabled('Draft')}>Draft</option>
+                                    <option value="Open Registration" disabled={isStatusDisabled('Open Registration')}>Open Registration</option>
+                                    <option value="Registration Closed" disabled={isStatusDisabled('Registration Closed')}>Registration Closed</option>
+                                    <option value="In Progress" disabled={isStatusDisabled('In Progress')}>In Progress</option>
+                                    <option value="Grading" disabled={isStatusDisabled('Grading')}>Grading</option>
+                                    <option value="Completed" disabled={isStatusDisabled('Completed')}>Completed</option>
+                                    <option value="Cancelled" disabled={isStatusDisabled('Cancelled')}>Cancelled</option>
+                                </select>
+                                <ChevronRight className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rotate-90 pointer-events-none text-current opacity-50" />
+                            </div>
                         </div>
                     </div>
                     <CardTitle className="mt-2">{session.courseName}</CardTitle>
@@ -273,15 +433,15 @@ export default function ScheduleDetailPage() {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2 text-xs">
-                                        {session.format === 'Online' ? (
+                                        {session.trainingAttendanceTypeId === 2 ? (
                                             <Video className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                                         ) : (
                                             <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                                         )}
                                         <div>
-                                            <span className="text-muted-foreground/60 text-[9px] font-semibold uppercase block">Format</span>
-                                            <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-md mt-0.5 ${session.format === 'Online' ? 'bg-violet-50 text-violet-600' : 'bg-sky-50 text-sky-600'}`}>
-                                                {session.format === 'Online' ? 'Online' : 'Onsite'}
+                                            <span className="text-muted-foreground/60 text-[9px] font-semibold uppercase block">Attendance Type</span>
+                                            <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-md mt-0.5 ${session.trainingAttendanceTypeId === 2 ? 'bg-violet-50 text-violet-600' : 'bg-sky-50 text-sky-600'}`}>
+                                                {session.trainingAttendanceTypeId === 2 ? 'Online' : 'Onsite'}
                                             </span>
                                         </div>
                                     </div>
@@ -289,16 +449,16 @@ export default function ScheduleDetailPage() {
 
                                 {/* Location / Meeting Link */}
                                 <div className="flex items-start gap-2 text-xs mt-1">
-                                    {session.format === 'Online' ? (
+                                    {session.trainingAttendanceTypeId === 2 ? (
                                         <Video className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
                                     ) : (
                                         <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
                                     )}
                                     <div>
                                         <span className="text-muted-foreground/60 text-[9px] font-semibold uppercase block">
-                                            {session.format === 'Online' ? 'Meeting Link' : 'Location'}
+                                            {session.trainingAttendanceTypeId === 2 ? 'Meeting Link' : 'Location'}
                                         </span>
-                                        {session.format === 'Online' && session.link ? (
+                                        {session.trainingAttendanceTypeId === 2 && session.link ? (
                                             <a href={session.link} target="_blank" rel="noopener noreferrer"
                                                 className="text-primary font-medium hover:underline">
                                                 {session.link.replace(/^https?:\/\//, '').substring(0, 35)}{session.link.length > 42 ? '...' : ''}
@@ -347,10 +507,12 @@ export default function ScheduleDetailPage() {
                                 {/* Regulatory Notes */}
                                 <div className="pt-2">
                                     <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Regulatory Notes</h4>
-                                    <div className="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 space-y-2 border border-slate-100">
-                                        <div className="flex gap-2 leading-relaxed"><span className="text-slate-400">•</span><p>Training shall be completed within <b className="text-foreground">6 months</b> of joining</p></div>
-                                        <div className="flex gap-2 leading-relaxed"><span className="text-slate-400">•</span><p>Governed by CAAT MOE Issue 10 Rev.00</p></div>
-                                        <div className="flex gap-2 leading-relaxed"><span className="text-slate-400">•</span><p>Ref: SAMS-FM-CM-014 Rev.03 (05 AUG 2025)</p></div>
+                                    <div className="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 leading-relaxed border border-slate-100">
+                                        {session.note ? (
+                                            <p className="whitespace-pre-line">{session.note}</p>
+                                        ) : (
+                                            <p className="text-muted-foreground italic">No additional notes</p>
+                                        )}
                                     </div>
                                 </div>
 
@@ -418,8 +580,8 @@ export default function ScheduleDetailPage() {
                                                     s.dept.toLowerCase().includes(staffSearch.toLowerCase())
                                                 )
                                                 .sort((a, b) => {
-                                                    const order = { 'Expired': 0, 'Expiring_Soon': 1, 'Valid': 2 };
-                                                    return (order[(a.expireStatus as keyof typeof order) || 'Valid'] || 2) - (order[(b.expireStatus as keyof typeof order) || 'Valid'] || 2);
+                                                    const order: Record<string, number> = { 'Expired': 0, 'Expiring Soon': 1, 'Require': 2 };
+                                                    return (order[a.expireStatus ?? ''] ?? 3) - (order[b.expireStatus ?? ''] ?? 3);
                                                 })
                                                 .map(staff => (
                                                     <div key={staff.id} className="flex items-center gap-3 px-3 py-2.5 border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors group">
@@ -430,22 +592,28 @@ export default function ScheduleDetailPage() {
                                                             <div className="flex items-center gap-2">
                                                                 <p className="text-xs font-semibold text-foreground truncate">{staff.name}</p>
                                                                 {staff.expireStatus === 'Expired' && <span className="text-[9px] font-bold text-red-700 bg-red-100 px-1.5 py-0.5 rounded-sm">Expired</span>}
-                                                                {staff.expireStatus === 'Expiring_Soon' && <span className="text-[9px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-sm">Expiring Soon</span>}
+                                                                {staff.expireStatus === 'Expiring Soon' && <span className="text-[9px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-sm">Expiring Soon</span>}
+                                                                {staff.expireStatus === 'Require' && <span className="text-[9px] font-bold text-slate-600 bg-slate-200 px-1.5 py-0.5 rounded-sm">Require</span>}
                                                             </div>
                                                             <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
                                                                 <span className="font-bold">{staff.code}</span>
-                                                                <span>·</span>
-                                                                <span>{staff.license}</span>
-                                                                <span>·</span>
-                                                                <span className="truncate">{staff.dept}</span>
+                                                                {/* <span>·</span>
+                                                                <span>{staff.license}</span> */}
+                                                                {/* <span>·</span> */}
+                                                                {/* <span className="truncate">{staff.dept}</span> */}
                                                             </div>
                                                         </div>
                                                         <button
                                                             onClick={() => handleEnroll(staff)}
-                                                            className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all bg-primary/10 text-primary hover:bg-primary hover:text-white cursor-pointer"
+                                                            disabled={enrollingId === staff.id}
+                                                            className={`shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${enrollingId === staff.id ? 'bg-muted text-muted-foreground cursor-wait' : 'bg-primary/10 text-primary hover:bg-primary hover:text-white'}`}
                                                         >
-                                                            <UserPlus className="w-3 h-3" />
-                                                            Enroll
+                                                            {enrollingId === staff.id ? (
+                                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                                            ) : (
+                                                                <UserPlus className="w-3 h-3" />
+                                                            )}
+                                                            {enrollingId === staff.id ? 'Enrolling...' : 'Enroll'}
                                                         </button>
                                                     </div>
                                                 ))}
@@ -480,24 +648,93 @@ export default function ScheduleDetailPage() {
                                         type="text"
                                         value={enrolledSearch}
                                         onChange={e => setEnrolledSearch(e.target.value)}
+                                        onKeyDown={e => {
+                                            if (e.key === 'Enter') {
+                                                setEnrolledPage(1)
+                                            }
+                                        }}
                                         placeholder="Search enrolled..."
                                         className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-white text-xs placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
                                     />
                                 </div>
+
+                                {/* Send email notification */}
+                                {selectedEnrolledIds.size > 0 && (
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button size="sm" onClick={handleSendAll} disabled={sendEmailMutation.isPending}>
+                                                    {sendEmailMutation.isPending ? <Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> : <Mail className="w-3 h-3 mr-1.5" />}
+                                                    Send All ({selectedEnrolledIds.size})
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Send Registration Reminder</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                )}
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button size="sm" color="primary" onClick={handleManagerReport} disabled={previewDeptMutation.isPending} className="cursor-pointer">
+                                                {previewDeptMutation.isPending ? (
+                                                    <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+                                                ) : (
+                                                    <Mail className="w-3 h-3 mr-1.5" />
+                                                )}
+                                                Managers Report
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Send Report to Managers</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button size="icon" color="secondary" onClick={() => setShowPrintModal(true)} className='cursor-pointer transition-all duration-200 hover:scale-120'>
+                                                <Printer className="w-4 h-4" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Print Attendance Form</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                             </div>
 
-                            <div className="grid grid-cols-[1fr_80px_100px_90px_80px_90px_70px] gap-3 px-4 py-2.5 bg-muted/30 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border">
+                            <div className="grid grid-cols-[32px_1fr_80px_100px_80px_90px_70px] gap-3 px-4 py-2.5 bg-muted/30 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border">
+                                <span className="flex items-center justify-center">
+                                    <input
+                                        type="checkbox"
+                                        checked={enrolledStaff.length > 0 && selectedEnrolledIds.size === enrolledStaff.length}
+                                        onChange={(e) => {
+                                            if (e.target.checked) {
+                                                setSelectedEnrolledIds(new Set(enrolledStaff.map(s => s.id)))
+                                            } else {
+                                                setSelectedEnrolledIds(new Set())
+                                            }
+                                        }}
+                                        className="w-3.5 h-3.5 rounded border-border cursor-pointer accent-primary"
+                                    />
+                                </span>
                                 <span>Employee Name</span>
                                 <span>License</span>
                                 <span>Department</span>
-                                <span>Date</span>
                                 <span>Status</span>
                                 <span>Result</span>
                                 <span className="text-center">Action</span>
                             </div>
 
                             <div className="max-h-[500px] overflow-y-auto">
-                                {enrolledStaff.length === 0 ? (
+                                {isLoadingEnrolled ? (
+                                    <div className="p-12 text-center">
+                                        <Loader2 className="w-6 h-6 text-primary animate-spin mx-auto mb-2" />
+                                        <p className="text-xs text-muted-foreground">Loading enrolled staff...</p>
+                                    </div>
+                                ) : enrolledStaff.length === 0 ? (
                                     <div className="p-12 text-center">
                                         <Users className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
                                         <p className="text-xs text-muted-foreground">
@@ -505,24 +742,36 @@ export default function ScheduleDetailPage() {
                                         </p>
                                     </div>
                                 ) : (
-                                    enrolledStaff.filter(e => e.name.toLowerCase().includes(enrolledSearch.toLowerCase())).map((staff, idx) => (
+                                    enrolledStaff.map((staff, idx) => (
                                         <div
-                                            key={staff.id}
-                                            className={`grid grid-cols-[1fr_80px_100px_90px_80px_90px_70px] gap-3 px-4 py-3 items-center border-b border-border/50 hover:bg-muted/20 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-muted/10'
+                                            key={staff.id + '-' + idx}
+                                            className={`grid grid-cols-[32px_1fr_80px_100px_80px_90px_70px] gap-3 px-4 py-3 items-center border-b border-border/50 hover:bg-muted/20 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-muted/10'
                                                 }`}
                                         >
-                                            <div className="flex items-center gap-2.5 min-w-0">
-                                                <div className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-200 text-slate-600 text-[10px] font-bold shrink-0">
-                                                    {getInitials(staff.name)}
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <p className="text-xs font-semibold text-foreground truncate">{staff.name}</p>
-                                                    <p className="text-[10px] text-slate-400 font-bold">{staff.code}</p>
-                                                </div>
+                                            <div className="flex items-center justify-center">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedEnrolledIds.has(staff.id)}
+                                                    onChange={(e) => {
+                                                        setSelectedEnrolledIds(prev => {
+                                                            const next = new Set(prev)
+                                                            if (e.target.checked) {
+                                                                next.add(staff.id)
+                                                            } else {
+                                                                next.delete(staff.id)
+                                                            }
+                                                            return next
+                                                        })
+                                                    }}
+                                                    className="w-3.5 h-3.5 rounded border-border cursor-pointer accent-primary"
+                                                />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-xs font-semibold text-foreground truncate">{staff.name}</p>
+                                                <p className="text-[10px] text-slate-400 font-bold">{staff.code}</p>
                                             </div>
                                             <span className="text-xs font-semibold text-foreground">{staff.license}</span>
                                             <span className="text-[11px] text-muted-foreground font-medium truncate">{staff.dept}</span>
-                                            <span className="text-[11px] font-medium text-foreground">{staff.date}</span>
                                             <div className="flex">
                                                 <span
                                                     className="inline-flex items-center gap-1 w-fit px-1.5 py-0.5 rounded text-[9px] font-bold capitalize"
@@ -549,7 +798,7 @@ export default function ScheduleDetailPage() {
                                                         </button>
                                                     </div>
                                                 ) : sessionStatus === 'Completed' ? (
-                                                    <span className={`px-2 py-1 text-[10px] font-bold rounded-md ${staff.result === 'Pass' ? 'bg-emerald-100 text-emerald-700' : staff.result === 'Fail' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-500'}`}>
+                                                    <span className={`px-2 py-1 text-[10px] font-bold rounded-md ${staff.result === 'Pass' || staff.result === 'Passed' ? 'bg-emerald-100 text-emerald-700' : staff.result === 'Fail' || staff.result === 'Failed' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-500'}`}>
                                                         {staff.result}
                                                     </span>
                                                 ) : (
@@ -559,7 +808,7 @@ export default function ScheduleDetailPage() {
                                                 )}
                                             </div>
                                             <div className="flex items-center justify-center gap-1">
-                                                {sessionStatus === 'Completed' && staff.result === 'Pass' && (
+                                                {sessionStatus === 'Completed' && (staff.result === 'Pass' || staff.result === 'Passed') && (
                                                     <button
                                                         onClick={() => openCertificateModal(staff)}
                                                         className="p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors cursor-pointer border-none bg-transparent"
@@ -571,22 +820,53 @@ export default function ScheduleDetailPage() {
                                                 <button
                                                     className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer border-none bg-transparent"
                                                     title="Send Email"
+                                                    onClick={() => {
+                                                        setEmailPreviewStaff(staff)
+                                                    }}
                                                 >
                                                     <Mail className="w-4 h-4" />
                                                 </button>
                                                 <button
                                                     onClick={() => handleRemove(staff)}
-                                                    disabled={sessionStatus === 'Completed' || sessionStatus === 'Grading'}
-                                                    className={`p-1.5 rounded-lg transition-colors border-none bg-transparent ${sessionStatus === 'Completed' || sessionStatus === 'Grading' ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-red-600 hover:bg-red-50 cursor-pointer'}`}
+                                                    disabled={sessionStatus === 'Completed' || sessionStatus === 'Grading' || removingId === staff.id}
+                                                    className={`p-1.5 rounded-lg transition-colors border-none bg-transparent ${sessionStatus === 'Completed' || sessionStatus === 'Grading' || removingId === staff.id ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-red-600 hover:bg-red-50 cursor-pointer'}`}
                                                     title="Remove Staff"
                                                 >
-                                                    <Trash2 className="w-4 h-4" />
+                                                    {removingId === staff.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                                                 </button>
                                             </div>
                                         </div>
                                     ))
                                 )}
                             </div>
+
+                            {/* Pagination */}
+                            {enrolledTotal > enrolledPerPage && (
+                                <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-slate-50/50">
+                                    <span className="text-[11px] text-muted-foreground">
+                                        Showing {((enrolledPage - 1) * enrolledPerPage) + 1}–{Math.min(enrolledPage * enrolledPerPage, enrolledTotal)} of {enrolledTotal}
+                                    </span>
+                                    <div className="flex items-center gap-1">
+                                        <button
+                                            onClick={() => setEnrolledPage(p => Math.max(1, p - 1))}
+                                            disabled={enrolledPage <= 1}
+                                            className={`p-1.5 rounded-lg text-xs font-semibold transition-colors border-none ${enrolledPage <= 1 ? 'text-slate-300 cursor-not-allowed bg-transparent' : 'text-foreground hover:bg-muted cursor-pointer bg-transparent'}`}
+                                        >
+                                            <ChevronLeft className="w-4 h-4" />
+                                        </button>
+                                        <span className="text-[11px] font-bold text-foreground px-2">
+                                            {enrolledPage} / {Math.ceil(enrolledTotal / enrolledPerPage)}
+                                        </span>
+                                        <button
+                                            onClick={() => setEnrolledPage(p => Math.min(Math.ceil(enrolledTotal / enrolledPerPage), p + 1))}
+                                            disabled={enrolledPage >= Math.ceil(enrolledTotal / enrolledPerPage)}
+                                            className={`p-1.5 rounded-lg text-xs font-semibold transition-colors border-none ${enrolledPage >= Math.ceil(enrolledTotal / enrolledPerPage) ? 'text-slate-300 cursor-not-allowed bg-transparent' : 'text-foreground hover:bg-muted cursor-pointer bg-transparent'}`}
+                                        >
+                                            <ChevronRight className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </CardContent>
@@ -609,6 +889,56 @@ export default function ScheduleDetailPage() {
                 session={session as any}
                 staffList={certStaffList}
             />
+
+            {/* Unenroll Confirmation Modal */}
+            <AlertDialog open={!!confirmRemoveStaff} onOpenChange={(open) => { if (!open) setConfirmRemoveStaff(null) }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Remove Staff</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to remove <span className="font-semibold text-foreground">{confirmRemoveStaff?.name}</span> from this training session? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmUnenroll} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Remove
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Email Preview Dialog */}
+            {emailPreviewStaff && (
+                <EmailPreviewDialog
+                    isOpen={!!emailPreviewStaff}
+                    onClose={() => setEmailPreviewStaff(null)}
+                    staff={emailPreviewStaff}
+                    scheduleId={sessionId}
+                    onSend={handleSendSingleEmail}
+                    isSending={sendEmailMutation.isPending}
+                />
+            )}
+
+            {/* Managers Report Preview Dialog */}
+            <Dialog open={showManagerReport} onOpenChange={(open) => { if (!open) setShowManagerReport(false) }}>
+                <DialogContent size="lg" className="p-0 gap-0 overflow-hidden min-h-[90vh] flex flex-col">
+                    <DialogHeader className="px-6 pt-5 pb-4 border-b border-border">
+                        <DialogTitle className="flex items-center gap-2 text-base">
+                            <Mail className="w-4 h-4 text-primary" />
+                            Managers Report Preview
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="flex-1 min-h-0 p-6 flex flex-col">
+                        <iframe
+                            srcDoc={managerReportHtml}
+                            className="flex-1 w-full border border-border rounded-xl bg-white"
+                            sandbox="allow-same-origin"
+                            title="Managers Report Preview"
+                        />
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

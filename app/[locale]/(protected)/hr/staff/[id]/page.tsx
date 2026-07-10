@@ -258,7 +258,7 @@ export default function StaffProfilePage() {
                         <p className="text-sm font-semibold text-slate-700">Failed to load staff profile</p>
                         <p className="text-xs text-slate-400 max-w-xs">{error?.message || 'An unexpected error occurred'}</p>
                         <button
-                            onClick={() => router.push('/en/qa/staff')}
+                            onClick={() => router.push('/en/hr/staff')}
                             className="mt-2 px-4 py-2 text-sm font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
                         >
                             Back to Staff List
@@ -277,7 +277,7 @@ export default function StaffProfilePage() {
                     <div className="col-span-12 flex items-center gap-3 ">
                         <button
                             className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] border border-slate-200 bg-white text-slate-600 cursor-pointer transition-all duration-200 shrink-0 hover:border-slate-400 hover:text-slate-800 hover:shadow-sm"
-                            onClick={() => router.push('/en/qa/staff')}
+                            onClick={() => router.push('/en/hr/staff')}
                         >
                             <ArrowLeft className="h-4 w-4" />
                         </button>

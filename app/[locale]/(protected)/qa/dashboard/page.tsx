@@ -119,10 +119,10 @@ export default function QADashboardPage() {
                     <p className="hrd-subtitle">SAMS · อัปเดตล่าสุด: {dateStr}, {timeStr} ICT</p>
                 </div>
                 <div className="hrd-header-actions">
-                    <button className="hrd-btn hrd-btn-outline" onClick={() => router.push('/en/qa/staff')}>
+                    <button className="hrd-btn hrd-btn-outline" onClick={() => router.push('/en/hr/staff')}>
                         <Users className="h-4 w-4 inline-block mr-1.5 -mt-0.5" /> Staff List
                     </button>
-                    <button className="hrd-btn hrd-btn-primary" onClick={() => router.push('/en/qa/staff/new')}>
+                    <button className="hrd-btn hrd-btn-primary" onClick={() => router.push('/en/hr/staff/new')}>
                         + New Staff
                     </button>
                 </div>

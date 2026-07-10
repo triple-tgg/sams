@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { SessionFormData, STATUS_CONFIG } from '../types'
+import type { AttendanceType } from '@/lib/api/master/attendanceTypes'
 import { INSTRUCTORS, VENUES } from '../data'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { useQuery } from '@tanstack/react-query'
@@ -11,6 +12,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Check, ChevronsUpDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import dynamic from 'next/dynamic'
+import type { TrainingDataStatus } from '@/lib/api/master/trainingDataStatuses'
 import 'react-quill-new/dist/quill.snow.css'
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false })
@@ -22,9 +24,11 @@ interface SessionFormModalProps {
     onSave: () => void
     onClose: () => void
     onCourseSelect: (courseId: string) => void
+    statusOptions?: TrainingDataStatus[]
+    attendanceTypes?: AttendanceType[]
 }
 
-export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCourseSelect }: SessionFormModalProps) {
+export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCourseSelect, statusOptions = [], attendanceTypes = [] }: SessionFormModalProps) {
     const [isOpen, setIsOpen] = useState(false)
     const [courseOpen, setCourseOpen] = useState(false)
 
@@ -158,7 +162,7 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
                         </div>
                     </div>
 
-                    {/* Instructor + Format */}
+                    {/* Instructor + Attendance Type */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="text-xs font-medium text-muted-foreground block mb-1.5">Instructor</label>
@@ -166,18 +170,21 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
                                 className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10" />
                         </div>
                         <div>
-                            <label className="text-xs font-medium text-muted-foreground block mb-1.5">Course Format</label>
-                            <select value={form.format || 'Onsite'} onChange={e => f('format', e.target.value)}
+                            <label className="text-xs font-medium text-muted-foreground block mb-1.5">Attendance Type</label>
+                            <select value={form.trainingAttendanceTypeId || 1} onChange={e => f('trainingAttendanceTypeId', Number(e.target.value))}
                                 className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 cursor-pointer">
-                                <option value="Onsite">Onsite</option>
-                                <option value="Online">Online</option>
+                                {attendanceTypes.length > 0 ? (
+                                    attendanceTypes.map((at: AttendanceType) => (
+                                        <option key={at.id} value={at.id}>{at.name}</option>
+                                    ))
+                                ) : null}
                             </select>
                         </div>
                     </div>
 
                     {/* Venue or Link */}
                     <div>
-                        {form.format === 'Online' ? (
+                        {attendanceTypes.find((at: AttendanceType) => at.id === form.trainingAttendanceTypeId)?.code === 'Online' ? (
                             <div>
                                 <label className="text-xs font-medium text-muted-foreground block mb-1.5">Meeting Link</label>
                                 <input type="text" value={form.link || ''} onChange={e => f('link', e.target.value)} placeholder="e.g. https://zoom.us/..."
@@ -198,7 +205,10 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
                             <label className="text-xs font-medium text-muted-foreground block mb-1.5">Status</label>
                             <select value={form.status} onChange={e => f('status', e.target.value)}
                                 className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 cursor-pointer">
-                                {Object.keys(STATUS_CONFIG).map(s => <option key={s}>{s}</option>)}
+                                {statusOptions.length > 0
+                                    ? statusOptions.map(s => <option key={s.id} value={s.name}>{s.name}</option>)
+                                    : Object.keys(STATUS_CONFIG).map(s => <option key={s}>{s}</option>)
+                                }
                             </select>
                         </div>
                         <div>

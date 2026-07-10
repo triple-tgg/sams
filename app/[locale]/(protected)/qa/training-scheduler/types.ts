@@ -19,7 +19,7 @@ export interface Session {
     type: string
     objective?: string
     note?: string
-    format?: 'Online' | 'Onsite'
+    trainingAttendanceTypeId?: number
     link?: string
 }
 
@@ -34,11 +34,16 @@ export type SessionFormData = Omit<Session, 'id' | 'courseId'> & { courseId: num
 // ─── Status Config ──────────────────────────────────────────────────────────
 
 export const STATUS_CONFIG: Record<string, { bg: string; text: string; border: string; dot: string; label: string }> = {
-    Scheduled:  { bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200',    dot: 'bg-blue-500',    label: 'Scheduled' },
-    Completed:  { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500', label: 'Completed' },
-    Full:       { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',   dot: 'bg-amber-500',   label: 'Full' },
-    Cancelled:  { bg: 'bg-red-50',     text: 'text-red-700',     border: 'border-red-200',     dot: 'bg-red-400',     label: 'Cancelled' },
-    InProgress: { bg: 'bg-purple-50',  text: 'text-purple-700',  border: 'border-purple-200',  dot: 'bg-purple-500',  label: 'In Progress' },
+    'Draft':               { bg: 'bg-gray-50',    text: 'text-gray-700',    border: 'border-gray-200',    dot: 'bg-gray-500',    label: 'Draft' },
+    'Scheduled':           { bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200',    dot: 'bg-blue-500',    label: 'Scheduled' },
+    'Open Registration':   { bg: 'bg-sky-50',     text: 'text-sky-700',     border: 'border-sky-200',     dot: 'bg-sky-500',     label: 'Open Registration' },
+    'Registration Closed': { bg: 'bg-orange-50',  text: 'text-orange-700',  border: 'border-orange-200',  dot: 'bg-orange-500',  label: 'Registration Closed' },
+    'In Progress':         { bg: 'bg-purple-50',  text: 'text-purple-700',  border: 'border-purple-200',  dot: 'bg-purple-500',  label: 'In Progress' },
+    InProgress:            { bg: 'bg-purple-50',  text: 'text-purple-700',  border: 'border-purple-200',  dot: 'bg-purple-500',  label: 'In Progress' },
+    'Grading':             { bg: 'bg-indigo-50',  text: 'text-indigo-700',  border: 'border-indigo-200',  dot: 'bg-indigo-500',  label: 'Grading' },
+    'Completed':           { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500', label: 'Completed' },
+    'Full':                { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',   dot: 'bg-amber-500',   label: 'Full' },
+    'Cancelled':           { bg: 'bg-red-50',     text: 'text-red-700',     border: 'border-red-200',     dot: 'bg-red-400',     label: 'Cancelled' },
 }
 
 export const CAT_COLOR: Record<string, { bar: string; light: string; text: string }> = {
@@ -85,5 +90,5 @@ export const BLANK_FORM: SessionFormData = {
     dateStart: '', dateEnd: '', timeStart: '09:00', timeEnd: '17:00',
     instructor: '', venue: '', dept: 'All Departments',
     maxParticipants: 20, enrolled: 0, status: 'Scheduled', type: 'Initial',
-    note: '', format: 'Onsite', link: ''
+    note: '', trainingAttendanceTypeId: 1, link: ''
 }

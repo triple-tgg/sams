@@ -18,11 +18,15 @@ import { GanttView } from './components/GanttView'
 import { SessionDetail } from './components/SessionDetail'
 import { SessionFormModal } from './components/SessionFormModal'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getSchedulerDashboardCalendar, getSchedulerCalendar, upsertScheduler, deleteScheduler } from '@/lib/api/qa/scheduler'
-import { getCourseCategories, getCourseDepartments, getCourseList } from '@/lib/api/qa/course'
+import { getSchedulerDashboardCalendar, getSchedulerCalendar, upsertScheduler, deleteScheduler, SchedulerSessionData } from '@/lib/api/qa/scheduler'
+import { getCourseCategories, getCourseDepartments, getCourseList, CourseDepartmentItem, CourseData, CourseCategory } from '@/lib/api/qa/course'
+import { useTrainingDataStatuses } from '@/lib/api/master/trainingDataStatuses.hooks'
+import { useAttendanceTypes } from '@/lib/api/master/attendanceTypes.hooks'
+import { TrainingDataStatus } from '@/lib/api/master/trainingDataStatuses'
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
 import { useSelector } from 'react-redux'
 import { RootState } from '@/store/rootReducer'
+import { toast } from 'sonner'
 
 const VIEW_OPTIONS = [
     { id: 'calendar', label: 'Calendar', icon: Calendar },
@@ -68,7 +72,7 @@ export default function TrainingSchedulerPage() {
 
     function mapSessions(data: typeof calendarResp): Session[] {
         if (!data?.responseData) return []
-        return data.responseData.map(s => {
+        return data.responseData.map((s: SchedulerSessionData) => {
             // Force UTC parse (API may return ISO without timezone suffix)
             const parseUTC = (iso: string) => new Date(iso.endsWith('Z') || iso.includes('+') ? iso : iso + 'Z')
             const startLocal = parseUTC(s.startDate)
@@ -112,7 +116,15 @@ export default function TrainingSchedulerPage() {
         queryKey: ['course-list-all'],
         queryFn: () => getCourseList({ categoryId: null, courseName: '', courseDepartmentRequirementId: null, page: 1, perPage: 9999 })
     })
-    const listCourses = useMemo(() => courseListResp?.responseData || [], [courseListResp])
+    const listCourses = useMemo(() => (courseListResp?.responseData || []) as CourseData[], [courseListResp])
+
+    // Fetch Training Data Statuses
+    const { data: trainingDataStatusesResp } = useTrainingDataStatuses()
+    const statusOptions = (trainingDataStatusesResp?.responseData || []) as TrainingDataStatus[]
+
+    // Fetch Attendance Types
+    const { data: attendanceTypesResp } = useAttendanceTypes()
+    const attendanceTypes = attendanceTypesResp?.responseData || []
 
     // Filtered
     const filtered = useMemo(() => activeSessions.filter(s => {
@@ -129,14 +141,14 @@ export default function TrainingSchedulerPage() {
         queryKey: ['course-categories-scheduler'],
         queryFn: getCourseCategories
     })
-    const apiCategories = useMemo(() => categoriesResp?.responseData || [], [categoriesResp])
+    const apiCategories = useMemo<CourseCategory[]>(() => categoriesResp?.responseData || [], [categoriesResp])
 
     // Course Departments from API
     const { data: deptsResp } = useQuery({
         queryKey: ['course-departments-scheduler'],
         queryFn: getCourseDepartments
     })
-    const apiDepts = useMemo(() => deptsResp?.responseData || [], [deptsResp])
+    const apiDepts = useMemo<CourseDepartmentItem[]>(() => deptsResp?.responseData || [], [deptsResp])
 
     // API Dashboard Stats
     const { data: dashboardResponse } = useQuery({
@@ -161,9 +173,8 @@ export default function TrainingSchedulerPage() {
         if (!form.dateStart || !form.courseId) return
 
         try {
-            const statusMap: Record<string, number> = {
-                'Scheduled': 1, 'Completed': 2, 'Full': 3, 'Cancelled': 4, 'In Progress': 5, 'InProgress': 5
-            }
+            const statusObj = statusOptions.find(s => s.name === form.status || s.code === form.status)
+            const resolvedStatusId = statusObj ? statusObj.id : 1
 
             // Convert local datetime → UTC ISO string
             const toUTC = (dateStr: string, timeStr: string) => {
@@ -179,10 +190,11 @@ export default function TrainingSchedulerPage() {
                 instructor: form.instructor,
                 venue: form.venue,
                 targetDepartmentId: 0,
-                trainingDataStatusesId: statusMap[form.status] || 1,
+                trainingDataStatusesId: resolvedStatusId,
                 maxParticipants: form.maxParticipants,
                 note: form.note || '',
-                userName: users?.username || 'system'
+                userName: users?.username || 'system',
+                trainingAttendanceTypeId: form.trainingAttendanceTypeId || 1
             }
 
             const res = await upsertScheduler(reqData)
@@ -202,7 +214,7 @@ export default function TrainingSchedulerPage() {
             // }
         } catch (error) {
             console.error("Failed to save session:", error)
-            alert("Failed to save training session")
+            toast.error("Failed to save training session")
         }
     }
     const handleDelete = async (id: number) => {
@@ -214,7 +226,7 @@ export default function TrainingSchedulerPage() {
             setSelectedSession(null);
         } catch (error) {
             console.error("Failed to delete session:", error);
-            alert("Failed to delete training session");
+            toast.error("Failed to delete training session");
         }
     }
     function handleCourseSelect(cid: string) {
@@ -443,6 +455,8 @@ export default function TrainingSchedulerPage() {
                     onSave={handleSave}
                     onClose={() => setShowForm(false)}
                     onCourseSelect={handleCourseSelect}
+                    statusOptions={statusOptions}
+                    attendanceTypes={attendanceTypes}
                 />
             )}
         </>

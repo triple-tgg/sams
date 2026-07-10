@@ -5,13 +5,8 @@ import { X, Upload, FileText, Trash2, User, Briefcase, ClipboardCheck, Paperclip
 import { StaffData, LogbookEntry } from '../types'
 import { dateTimeUtils } from '@/lib/dayjs'
 import { useUpsertLogbookRecord } from '@/lib/api/hooks/useQAStaffManagement'
-
-// ── Option Constants ──
-const LICENSE_CATEGORIES = [
-    'A1 Aircraft Certifying Staff',
-    'Aircraft Mechanic',
-    'Aircraft Inspector',
-]
+import { useLicenseCategories } from '@/lib/api/hooks/useLicenseCategories'
+import { usePrivileges } from '@/lib/api/hooks/usePrivileges'
 
 const LOCATIONS = ['BKK', 'DMK', 'HKT', 'CNX', 'HDY', 'KBV', 'CEI']
 
@@ -24,8 +19,6 @@ const AIRCRAFT_TYPES = [
     'Airbus A330-300 (Trent 700)',
     'ATR 72-600 (PW127M)',
 ]
-
-const PRIVILEGES = ['B1', 'B2', 'B1B2']
 
 const ATA_CHAPTERS = [
     'ATA 21 – Air Conditioning',
@@ -79,13 +72,13 @@ interface LogbookRecordForm {
     // General
     name: string
     employeeId: string
-    licenseCategory: string
+    licenseCategory: number
     // Experiences
     dateToPerform: string
     location: string
     aircraftType: string
     aircraftRegistration: string
-    privilegeUsed: string
+    privilegeUsed: number
     ataChapter: string
     // Task Details
     maintenanceRatings: string[]
@@ -188,12 +181,12 @@ export function LogbookRecordModal({ staff, defect, logEntry, onClose }: Logbook
     const [form, setForm] = useState<LogbookRecordForm>({
         name: staff.nameEn || staff.name,
         employeeId: staff.empId,
-        licenseCategory: staff.license?.category || '',
+        licenseCategory: 0,
         dateToPerform: logEntry?.date || dateTimeUtils.todayLocal(),
         location: '',
         aircraftType: '',
         aircraftRegistration: logEntry?.regNo || '',
-        privilegeUsed: '',
+        privilegeUsed: 0,
         ataChapter: defect?.ata || '',
         maintenanceRatings: [],
         taskTypes: [],
@@ -205,7 +198,7 @@ export function LogbookRecordModal({ staff, defect, logEntry, onClose }: Logbook
 
     const [files, setFiles] = useState<FileAttachment[]>([])
 
-    const update = (field: keyof LogbookRecordForm, value: string | string[]) => {
+    const update = (field: keyof LogbookRecordForm, value: string | string[] | number) => {
         setForm(prev => ({ ...prev, [field]: value }))
     }
 
@@ -232,18 +225,20 @@ export function LogbookRecordModal({ staff, defect, logEntry, onClose }: Logbook
     if (!defect || !logEntry) return null
 
     const upsertRecord = useUpsertLogbookRecord(staff.id)
+    const { options: licenseCategoryOptions } = useLicenseCategories()
+    const { options: privilegeOptions } = usePrivileges()
 
     const handleSubmit = () => {
         upsertRecord.mutate({
             id: 0,
             lineMaintenanceId: logEntry?.lineMaintenanceId || 0,
             additionalDefectId: defect?.defectId || '',
-            licenseCategoryId: LICENSE_CATEGORIES.indexOf(form.licenseCategory) + 1,
+            licenseCategoryId: form.licenseCategory,
             dateToPerformTask: form.dateToPerform,
             stationId: LOCATIONS.indexOf(form.location) + 1,
             aircraftTypeId: AIRCRAFT_TYPES.indexOf(form.aircraftType) + 1,
             aircraftRegistration: form.aircraftRegistration,
-            privilegeId: PRIVILEGES.indexOf(form.privilegeUsed) + 1,
+            privilegeId: form.privilegeUsed,
             ataChapterId: ATA_CHAPTERS.indexOf(form.ataChapter) + 1,
             flagTransitCheck: form.maintenanceRatings.includes('Transit Check'),
             flagDailyCheck: form.maintenanceRatings.includes('Daily Check'),
@@ -316,9 +311,9 @@ export function LogbookRecordModal({ staff, defect, logEntry, onClose }: Logbook
                             </Field>
                             <div className="col-span-2">
                                 <Field label="License Category">
-                                    <select value={form.licenseCategory} onChange={e => update('licenseCategory', e.target.value)} className={selectCls}>
-                                        <option value="">Select Category</option>
-                                        {LICENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                    <select value={form.licenseCategory} onChange={e => update('licenseCategory', Number(e.target.value))} className={selectCls}>
+                                        <option value={0}>Select Category</option>
+                                        {licenseCategoryOptions.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                                     </select>
                                 </Field>
                             </div>
@@ -348,9 +343,9 @@ export function LogbookRecordModal({ staff, defect, logEntry, onClose }: Logbook
                                 <input type="text" value={form.aircraftRegistration} onChange={e => update('aircraftRegistration', e.target.value)} placeholder="e.g. HS-DBW" className={inputCls} />
                             </Field>
                             <Field label="Privilege Used" required>
-                                <select value={form.privilegeUsed} onChange={e => update('privilegeUsed', e.target.value)} className={selectCls}>
-                                    <option value="">Select Privilege</option>
-                                    {PRIVILEGES.map(p => <option key={p} value={p}>{p}</option>)}
+                                <select value={form.privilegeUsed} onChange={e => update('privilegeUsed', Number(e.target.value))} className={selectCls}>
+                                    <option value={0}>Select Privilege</option>
+                                    {privilegeOptions.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                                 </select>
                             </Field>
                             <Field label="ATA Chapter" required>

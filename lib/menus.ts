@@ -155,14 +155,6 @@ export function getMenuList(pathname: string, t: any): Group[] {
           icon: "heroicons-outline:clipboard-document-check",
           submenus: [
             {
-              permCode: "QA_STAFF",
-              href: "/qa/staff",
-              label: t("qaStaffList"),
-              active: pathname.includes("/qa/staff"),
-              icon: "heroicons-outline:users",
-              children: [],
-            },
-            {
               permCode: "QA_MONITORING",
               href: "/qa/monitoring",
               label: t("training"),
@@ -200,6 +192,39 @@ export function getMenuList(pathname: string, t: any): Group[] {
     },
 
     {
+      groupLabel: t("HumanResources"),
+      id: "hr",
+      menus: [
+        {
+          id: "hr",
+          permCode: "HR",
+          href: "/hr/staff",
+          label: t("HR"),
+          active: pathname.includes("/hr"),
+          icon: "heroicons-outline:user-group",
+          submenus: [
+            {
+              permCode: "HR_STAFF",
+              href: "/hr/staff",
+              label: t("hrStaffList"),
+              active: pathname.includes("/hr/staff"),
+              icon: "heroicons-outline:users",
+              children: [],
+            },
+            {
+              permCode: "HR_STAFF_INCOME",
+              href: "/hr/employee-income",
+              label: t("hrStaffIncome"),
+              active: pathname.includes("/hr/employee-income"),
+              icon: "heroicons-outline:banknotes",
+              children: [],
+            },
+          ],
+        },
+      ],
+    },
+
+    {
       groupLabel: t("masterData"),
       id: "master-data",
       menus: [
@@ -212,10 +237,10 @@ export function getMenuList(pathname: string, t: any): Group[] {
           icon: "heroicons-outline:cog-6-tooth",
           submenus: [
             {
-              href: "/master-data/hr/employee-income",
-              label: t("Staff"),
-              active: pathname.includes("/master-data/staff") || pathname.includes("/master-data/hr/employee-income"),
-              icon: "heroicons-outline:user-group",
+              href: "/master-data/staff",
+              label: t("mdOrganization"),
+              active: pathname.includes("/master-data/staff") || pathname.includes("/master-data/department") || pathname.includes("/master-data/manager-mapping") || pathname.includes("/master-data/position"),
+              icon: "heroicons-outline:building-office-2",
               children: [
                 {
                   permCode: "MASTER_DATA_STAFF",
@@ -224,10 +249,49 @@ export function getMenuList(pathname: string, t: any): Group[] {
                   active: pathname.includes("/master-data/staff"),
                 },
                 {
-                  permCode: "MASTER_DATA_HR",
-                  href: "/master-data/hr/employee-income",
-                  label: t("Staff Income"),
-                  active: pathname.includes("/master-data/hr/employee-income"),
+                  permCode: "MASTER_DATA_DEPARTMENT",
+                  href: "/master-data/department",
+                  label: t("mdDepartment"),
+                  active: pathname.includes("/master-data/department") && !pathname.includes("/master-data/sub-department"),
+                },
+
+                {
+                  permCode: "MASTER_DATA_MANAGER_MAPPING",
+                  href: "/master-data/manager-mapping",
+                  label: t("mdManagerMapping"),
+                  active: pathname.includes("/master-data/manager-mapping"),
+                },
+                {
+                  permCode: "MASTER_DATA_POSITION",
+                  href: "/master-data/position",
+                  label: t("mdPosition"),
+                  active: pathname.includes("/master-data/position"),
+                },
+              ]
+            },
+            {
+              href: "/master-data/aircraft-type",
+              label: t("mdAircraftManagement"),
+              active: pathname.includes("/master-data/aircraft-type") || pathname.includes("/master-data/aircraft-type-license") || pathname.includes("/master-data/aircraft-group"),
+              icon: "heroicons-outline:paper-airplane",
+              children: [
+                {
+                  permCode: "MASTER_DATA_AIRCRAFT_TYPE",
+                  href: "/master-data/aircraft-type",
+                  label: t("mdAircraftType"),
+                  active: pathname.includes("/master-data/aircraft-type") && !pathname.includes("/master-data/aircraft-type-license"),
+                },
+                {
+                  permCode: "MASTER_DATA_AIRCRAFT_TYPE_LICENSE",
+                  href: "/master-data/aircraft-type-license",
+                  label: t("mdAircraftTypeLicense"),
+                  active: pathname.includes("/master-data/aircraft-type-license"),
+                },
+                {
+                  permCode: "MASTER_DATA_AIRCRAFT_GROUP",
+                  href: "/master-data/aircraft-group",
+                  label: t("mdAircraftGroup"),
+                  active: pathname.includes("/master-data/aircraft-group"),
                 },
               ]
             },

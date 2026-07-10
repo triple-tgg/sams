@@ -83,7 +83,7 @@ export const ContractViewA4 = ({ formData, isLoading }: ContractViewA4Props) => 
                     <div className="space-y-2">
                         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Handler Company</h3>
                         <div className="bg-muted/30 rounded-lg p-4">
-                            <p className="font-semibold">{formData.handlerCompanyName || "SAM Airline Maintenance"}</p>
+                            <p className="font-semibold">{formData.handlerCompanyName || "SAMS Engineering Maintenance"}</p>
                             <p className="text-sm text-muted-foreground mt-1">
                                 {formData.handlerCompanyAddress || "Bangkok, Thailand"}
                             </p>
@@ -422,7 +422,7 @@ export const ContractViewA4 = ({ formData, isLoading }: ContractViewA4Props) => 
                 {/* Footer */}
                 <div className="absolute bottom-8 left-8 right-8 pt-4 border-t text-xs text-muted-foreground">
                     <div className="flex justify-between">
-                        <span>SAM Airline Maintenance - Service Contract</span>
+                        <span>SAMS Engineering Maintenance - Service Contract</span>
                         <span>Page 1 of 1</span>
                     </div>
                 </div>

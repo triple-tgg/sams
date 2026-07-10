@@ -3,77 +3,45 @@
 import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { useState, useEffect, Suspense } from 'react'
-import { CheckCircle2, XCircle, AlertTriangle, Clock, CalendarDays, MapPin, Loader2, ShieldAlert, ArrowLeft } from 'lucide-react'
-
-// ─── Types ──────────────────────────────────────────────────────────────────
-
-type ConfirmResult =
-    | { status: 'success'; session: SessionInfo }
-    | { status: 'already_confirmed'; session: SessionInfo }
-    | { status: 'invalid_token' }
-    | { status: 'expired_token' }
-    | { status: 'session_cancelled' }
-    | { status: 'session_full' }
-
-interface SessionInfo {
-    courseName: string
-    courseCode: string
-    dateStart: string
-    dateEnd: string
-    timeStart: string
-    timeEnd: string
-    venue: string
-    instructor: string
-}
-
-// ─── Mock API ───────────────────────────────────────────────────────────────
-
-async function mockConfirmAttendance(token: string | null, sessionId: string | null, staffId: string | null): Promise<ConfirmResult> {
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 1500))
-
-    // Mock validation
-    if (!token || !sessionId || !staffId) {
-        return { status: 'invalid_token' }
-    }
-
-    const mockSession: SessionInfo = {
-        courseName: 'Electrical Wiring Interconnection System (EWIS)',
-        courseCode: 'SP-EWIS',
-        dateStart: '2026-04-14',
-        dateEnd: '2026-04-16',
-        timeStart: '08:00',
-        timeEnd: '17:00',
-        venue: 'Hangar 1 – Classroom A',
-        instructor: 'Eng. Priya N.',
-    }
-
-    // Simulate different outcomes based on token value
-    if (token === 'expired') return { status: 'expired_token' }
-    if (token === 'cancelled') return { status: 'session_cancelled' }
-    if (token === 'full') return { status: 'session_full' }
-    if (token === 'duplicate') return { status: 'already_confirmed', session: mockSession }
-
-    // Default: success
-    return { status: 'success', session: mockSession }
-}
+import { CheckCircle2, XCircle, AlertTriangle, Clock, CalendarDays, MapPin, Loader2, ShieldAlert, User, Mail } from 'lucide-react'
+import { confirmAttendance, sendEmailConfirmedList, getAttendanceTypesPublic, type ConfirmAttendanceItem, type SendEmailResult } from '@/lib/api/qa/enrollment'
 
 // ─── Date Formatter ─────────────────────────────────────────────────────────
 
 function formatDisplayDate(dateStr: string): string {
-    const [y, m, d] = dateStr.split('-').map(Number)
-    const date = new Date(y, m - 1, d)
-    return date.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
+    try {
+        const d = new Date(dateStr)
+        return d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
+    } catch {
+        return dateStr
+    }
 }
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+type EmailStatus =
+    | { state: 'sending' }
+    | { state: 'sent'; message: string; result?: SendEmailResult }
+    | { state: 'failed' }
 
 // ─── Status Cards ───────────────────────────────────────────────────────────
 
-function SuccessCard({ session }: { session: SessionInfo }) {
+function SuccessCard({ data, emailStatus, attendanceTypeName }: { data: ConfirmAttendanceItem; emailStatus?: EmailStatus; attendanceTypeName?: string }) {
+    const schedule = data.trainingSchedule
+    const course = schedule.courseObj
+
     return (
         <div className="text-center">
             {/* Icon */}
-            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-200">
-                <CheckCircle2 className="h-10 w-10 text-white" strokeWidth={2.5} />
+            <div className={`mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full shadow-lg ${emailStatus?.state === 'sending'
+                ? 'bg-gradient-to-br from-blue-400 to-blue-600 shadow-blue-200'
+                : 'bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-emerald-200'
+                }`}>
+                {emailStatus?.state === 'sending' ? (
+                    <Loader2 className="h-10 w-10 text-white animate-spin" strokeWidth={2.5} />
+                ) : (
+                    <CheckCircle2 className="h-10 w-10 text-white" strokeWidth={2.5} />
+                )}
             </div>
 
             {/* Heading */}
@@ -83,53 +51,101 @@ function SuccessCard({ session }: { session: SessionInfo }) {
             </p>
 
             {/* Session Details Card */}
-            <div className="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-5 text-left space-y-3">
-                <div className="flex items-start gap-3">
-                    <div className="shrink-0 mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                        <CalendarDays className="h-4 w-4" />
-                    </div>
-                    <div>
-                        <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Course</p>
-                        <p className="text-sm font-semibold text-slate-800">{session.courseName}</p>
-                        <span className="inline-block mt-1 text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
-                            {session.courseCode}
-                        </span>
-                    </div>
-                </div>
-                <div className="border-t border-slate-200" />
-                <div className="flex items-center gap-3">
-                    <div className="shrink-0 flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                        <Clock className="h-4 w-4" />
-                    </div>
-                    <div>
-                        <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Date & Time</p>
-                        <p className="text-sm font-semibold text-slate-800">
-                            {formatDisplayDate(session.dateStart)}
-                            {session.dateEnd !== session.dateStart && ` — ${formatDisplayDate(session.dateEnd)}`}
-                        </p>
-                        <p className="text-xs text-slate-500">{session.timeStart} – {session.timeEnd}</p>
-                    </div>
-                </div>
-                <div className="border-t border-slate-200" />
-                <div className="flex items-center gap-3">
-                    <div className="shrink-0 flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
-                        <MapPin className="h-4 w-4" />
-                    </div>
-                    <div>
-                        <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Venue</p>
-                        <p className="text-sm font-semibold text-slate-800">{session.venue}</p>
-                    </div>
-                </div>
+            <div className="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-5 text-left">
+                <table className="w-full text-sm">
+                    <tbody className="[&_td]:py-1.5">
+                        <tr>
+                            <td className="text-slate-400 font-medium w-28 align-top pr-3">Course:</td>
+                            <td className="text-slate-800 font-semibold">{course.courseName}</td>
+                        </tr>
+                        <tr>
+                            <td className="text-slate-400 font-medium align-top pr-3">Course Code:</td>
+                            <td className="text-slate-800 font-medium">{course.courseCode}</td>
+                        </tr>
+                        <tr>
+                            <td className="text-slate-400 font-medium align-top pr-3">Date:</td>
+                            <td className="text-slate-800 font-medium">
+                                {formatDisplayDate(schedule.startDate)}
+                                {schedule.endDate !== schedule.startDate && ` — ${formatDisplayDate(schedule.endDate)}`}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td className="text-slate-400 font-medium align-top pr-3">Time:</td>
+                            <td className="text-slate-800 font-medium">
+                                {new Date(schedule.startDate).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                                {' – '}
+                                {new Date(schedule.endDate).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td className="text-slate-400 font-medium align-top pr-3">Instructor:</td>
+                            <td className="text-slate-800 font-medium">{schedule.instructor || '-'}</td>
+                        </tr>
+                        <tr>
+                            <td className="text-slate-400 font-medium align-top pr-3">Attendance Type:</td>
+                            <td className="text-slate-800 font-medium">{attendanceTypeName || '-'}</td>
+                        </tr>
+                        <tr>
+                            <td className="text-slate-400 font-medium align-top pr-3">Location:</td>
+                            <td className="text-slate-800 font-medium">
+                                {schedule.venue || schedule.trainingAttendanceTypeObj?.name || '-'}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
 
-            <p className="mt-6 text-xs text-slate-400">
-                A confirmation email has been sent to you. You can safely close this page.
+            {/* Email Notification Status */}
+            {emailStatus && (
+                <div className="mt-5">
+                    {emailStatus.state === 'sending' && (
+                        <div className="flex items-center justify-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
+                            <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
+                            <span className="text-sm text-blue-700">Sending confirmation email...</span>
+                        </div>
+                    )}
+                    {emailStatus.state === 'sent' && emailStatus.message === 'success' && (
+                        <div className="flex items-center justify-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3">
+                            <Mail className="h-4 w-4 text-emerald-500" />
+                            <span className="text-sm text-emerald-700">Confirmation email sent successfully</span>
+                        </div>
+                    )}
+                    {emailStatus.state === 'sent' && emailStatus.message !== 'success' && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 space-y-1">
+                            <div className="flex items-center justify-center gap-2">
+                                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                                <span className="text-sm text-amber-700">Unable to send confirmation email</span>
+                            </div>
+                            {emailStatus.result?.details
+                                ?.filter((d) => !d.isSuccess)
+                                .map((d, i) => (
+                                    <p key={i} className="text-xs text-amber-600 text-center">
+                                        {d.email && <span>{d.email}: </span>}
+                                        {d.errorMessage}
+                                    </p>
+                                ))}
+                        </div>
+                    )}
+                    {emailStatus.state === 'failed' && (
+                        <div className="flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+                            <AlertTriangle className="h-4 w-4 text-amber-500" />
+                            <span className="text-sm text-amber-700">Unable to send confirmation email</span>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            <p className="mt-5 text-xs text-slate-400">
+                You can safely close this page.
             </p>
         </div>
     )
 }
 
-function AlreadyConfirmedCard({ session }: { session: SessionInfo }) {
+function AlreadyConfirmedCard({ data }: { data: ConfirmAttendanceItem }) {
+    const schedule = data.trainingSchedule
+    const course = schedule.courseObj
+
     return (
         <div className="text-center">
             <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-amber-500 shadow-lg shadow-amber-200">
@@ -140,11 +156,11 @@ function AlreadyConfirmedCard({ session }: { session: SessionInfo }) {
                 Your attendance for this session has already been confirmed. No further action is needed.
             </p>
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-left">
-                <p className="text-sm font-semibold text-amber-800">{session.courseName}</p>
+                <p className="text-sm font-semibold text-amber-800">{course.courseName}</p>
                 <p className="text-xs text-amber-600 mt-1">
-                    {formatDisplayDate(session.dateStart)} · {session.timeStart} – {session.timeEnd}
+                    {formatDisplayDate(schedule.startDate)}
                 </p>
-                <p className="text-xs text-amber-600">{session.venue}</p>
+                <p className="text-xs text-amber-600">{schedule.venue || schedule.trainingAttendanceTypeObj?.name || '-'}</p>
             </div>
             <p className="mt-6 text-xs text-slate-400">You can safely close this page.</p>
         </div>
@@ -185,29 +201,82 @@ function LoadingState() {
 function ConfirmAttendanceContent() {
     const searchParams = useSearchParams()
     const token = searchParams.get('token')
-    const sessionId = searchParams.get('session')
-    const staffId = searchParams.get('staff')
 
     const [loading, setLoading] = useState(true)
-    const [result, setResult] = useState<ConfirmResult | null>(null)
+    const [data, setData] = useState<ConfirmAttendanceItem | null>(null)
+    const [error, setError] = useState<string | null>(null)
+    const [emailStatus, setEmailStatus] = useState<EmailStatus | undefined>(undefined)
+    const [attendanceTypeName, setAttendanceTypeName] = useState<string>('')
 
     useEffect(() => {
-        mockConfirmAttendance(token, sessionId, staffId).then((res) => {
-            setResult(res)
+        if (!token) {
+            setError('missing_token')
             setLoading(false)
-        })
-    }, [token, sessionId, staffId])
+            return
+        }
+
+        confirmAttendance(token)
+            .then((res) => {
+                if (res.message === 'success' && res.responseData?.length > 0) {
+                    const item = res.responseData[0]
+                    setData(item)
+
+                    // Look up attendance type name from master data
+                    getAttendanceTypesPublic()
+                        .then((types) => {
+                            const found = types.find((t) => t.id === item.trainingSchedule.trainingAttendanceTypeId)
+                            setAttendanceTypeName(found?.name ?? '')
+                        })
+                        .catch(() => { /* silently fail */ })
+
+                    setLoading(false)
+
+                    // If newly confirmed, send the confirmation email asynchronously
+                    if (item.confirmed) {
+                        setEmailStatus({ state: 'sending' })
+                        sendEmailConfirmedList({
+                            scheduleId: item.trainingScheduleId,
+                            staffIdList: [item.staffId],
+                            subject: `Registration Confirmed - ${item.trainingSchedule.courseObj.courseName}`,
+                            emailFrom: null,
+                            emailCc: null,
+                        })
+                            .then(({ message, result }) => {
+                                setEmailStatus({ state: 'sent', message, result })
+                            })
+                            .catch(() => {
+                                setEmailStatus({ state: 'failed' })
+                            })
+                    }
+                } else if (res.error) {
+                    setError(res.error)
+                    setLoading(false)
+                } else {
+                    setError('unknown')
+                    setLoading(false)
+                }
+            })
+            .catch((err) => {
+                const status = err?.response?.status
+                const serverError = err?.response?.data?.error || err?.response?.data?.message
+                if (status === 400 || status === 401) {
+                    setError(serverError || 'invalid_token')
+                } else if (status === 410) {
+                    setError('expired_token')
+                } else {
+                    setError(serverError || 'network_error')
+                }
+                setLoading(false)
+            })
+    }, [token])
 
     if (loading) return <LoadingState />
 
-    if (!result) return null
+    // ── Error states ────────────────────────────────────
+    if (error || !data) {
+        const errorKey = error ?? 'unknown'
 
-    switch (result.status) {
-        case 'success':
-            return <SuccessCard session={result.session} />
-        case 'already_confirmed':
-            return <AlreadyConfirmedCard session={result.session} />
-        case 'invalid_token':
+        if (errorKey === 'missing_token' || errorKey === 'invalid_token') {
             return (
                 <ErrorCard
                     title="Invalid Link"
@@ -215,7 +284,8 @@ function ConfirmAttendanceContent() {
                     icon={<XCircle className="h-10 w-10 text-white" strokeWidth={2.5} />}
                 />
             )
-        case 'expired_token':
+        }
+        if (errorKey === 'expired_token') {
             return (
                 <ErrorCard
                     title="Link Expired"
@@ -223,22 +293,31 @@ function ConfirmAttendanceContent() {
                     icon={<Clock className="h-10 w-10 text-white" strokeWidth={2.5} />}
                 />
             )
-        case 'session_cancelled':
+        }
+        if (errorKey === 'network_error') {
             return (
                 <ErrorCard
-                    title="Session Cancelled"
-                    message="This training session has been cancelled. No further action is required."
+                    title="Connection Error"
+                    message="Unable to reach the server. Please check your internet connection and try again."
                     icon={<ShieldAlert className="h-10 w-10 text-white" strokeWidth={2.5} />}
                 />
             )
-        case 'session_full':
-            return (
-                <ErrorCard
-                    title="Session Full"
-                    message="This training session has reached maximum capacity. Please contact your training administrator for alternative sessions."
-                    icon={<AlertTriangle className="h-10 w-10 text-white" strokeWidth={2.5} />}
-                />
-            )
+        }
+        return (
+            <ErrorCard
+                title="Something Went Wrong"
+                message={typeof errorKey === 'string' && errorKey !== 'unknown' ? errorKey : 'An unexpected error occurred. Please try again later.'}
+                icon={<XCircle className="h-10 w-10 text-white" strokeWidth={2.5} />}
+            />
+        )
+    }
+
+    // ── Success states ──────────────────────────────────
+    if (data.confirmed) {
+        return <SuccessCard data={data} emailStatus={emailStatus} attendanceTypeName={attendanceTypeName} />
+    } else {
+        // confirmed === false means already confirmed previously
+        return <AlreadyConfirmedCard data={data} />
     }
 }
 
@@ -260,7 +339,7 @@ export default function ConfirmAttendancePage() {
                 <div className="flex justify-center mb-8">
                     <Image
                         src="/images/logo/logo.png"
-                        alt="SAM Airline Maintenance"
+                        alt="SAMS Engineering Maintenance System"
                         width={140}
                         height={56}
                         className="h-auto object-contain"
@@ -277,7 +356,7 @@ export default function ConfirmAttendancePage() {
 
                 {/* Footer */}
                 <p className="text-center text-xs text-slate-400 mt-6">
-                    SAM Airline Maintenance Training System
+                    SAMS Engineering Maintenance System
                 </p>
             </div>
         </div>

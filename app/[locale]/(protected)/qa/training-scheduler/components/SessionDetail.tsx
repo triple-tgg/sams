@@ -30,10 +30,10 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
     const maxParticipants = detail?.maxParticipants ?? s.maxParticipants
     const instructor = detail?.instructor ?? s.instructor
     const venue = detail?.venue ?? s.venue
-    const format = detail?.format ?? s.format ?? 'Onsite'
+    const trainingAttendanceTypeId = detail?.trainingAttendanceTypeObj?.id ?? s.trainingAttendanceTypeId ?? 1
     const link = detail?.link ?? s.link ?? ''
     const note = detail?.note ?? null
-    const isOnline = format === 'Online'
+    const isOnline = trainingAttendanceTypeId === 2
 
     const cfg = STATUS_CONFIG[s.status] || STATUS_CONFIG.Scheduled
     const cc = CAT_COLOR[s.category] || { bar: '#94a3b8', light: '#f8fafc', text: '#475569' }
@@ -60,7 +60,7 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
         { key: 'category', icon: Tag, label: 'Category', val: detail?.categoryObj?.name },
         { key: 'instructor', icon: User, label: 'Instructor', val: instructor },
         { key: 'training-type', icon: Tag, label: 'Training Type', val: detail?.courseObj?.courseType },
-        { key: 'format', icon: isOnline ? Video : MapPin, label: 'Format', val: isOnline ? 'Online' : 'Onsite', isBadge: true },
+        { key: 'format', icon: isOnline ? Video : MapPin, label: 'Attendance Type', val: isOnline ? 'Online' : 'Onsite', isBadge: true },
     ]
 
     const targetDepts: string[] = detail?.requiredFor?.length ? detail.requiredFor : []

@@ -43,7 +43,7 @@ const config = {
   },
   useNextSeoProps() {
     return {
-      titleTemplate: "%s – SAMs",
+      titleTemplate: "%s – SAMS",
     };
   },
 };

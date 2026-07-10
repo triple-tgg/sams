@@ -42,7 +42,7 @@ const staffDatabase: Record<number, StaffData> = {
             { course: 'A320 Type Training', type: 'INI', dateFrom: '2022-09-15', dateTo: '-', validUntil: '-', status: 'Permanent' },
         ],
         experience: [
-            { title: 'B1 Engineer', company: 'SAM Airline Maintenance', period: 'May 2021 – Present', description: 'Perform line maintenance on B737 and A320 fleet. Lead shift team for daily aircraft checks.' },
+            { title: 'B1 Engineer', company: 'SAMS Engineering Maintenance', period: 'May 2021 – Present', description: 'Perform line maintenance on B737 and A320 fleet. Lead shift team for daily aircraft checks.' },
             { title: 'Technician', company: 'Thai Airways Engineering', period: 'June 2015 – May 2021', description: 'Assisted in C-check and heavy maintenance. Specialized in landing gear and hydraulic systems.' },
             { title: 'Apprentice', company: 'CAAT Training Center', period: 'July 2013 – June 2015', description: 'Completed apprenticeship program with focus on aircraft structures and powerplant.' },
         ],
@@ -153,7 +153,7 @@ const staffDatabase: Record<number, StaffData> = {
             { course: 'Dangerous Goods', type: 'R2Y', dateFrom: '2024-09-20', dateTo: '2026-09-20', validUntil: '2026-09-20', status: 'Valid' },
         ],
         experience: [
-            { title: 'Technician', company: 'SAM Airline Maintenance', period: '2019 – Present', description: 'Perform scheduled and unscheduled maintenance tasks on B737 fleet.' },
+            { title: 'Technician', company: 'SAMS Engineering Maintenance', period: '2019 – Present', description: 'Perform scheduled and unscheduled maintenance tasks on B737 fleet.' },
             { title: 'Junior Technician', company: 'Nok Air Engineering', period: '2016 – 2019', description: 'Line maintenance support and daily transit checks.' },
         ],
         education: [

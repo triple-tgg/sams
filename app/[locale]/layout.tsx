@@ -14,8 +14,8 @@ import AuthProvider from "@/providers/auth.provider";
 import ReactQueryProviders from "@/providers/reactQuery.providers";
 
 export const metadata: Metadata = {
-  title: "SAMs Airline",
-  description: "SAMs Airline Maintainance",
+  title: "SAMS Engineering Maintenance System",
+  description: "SAMS Engineering Maintenance System",
 };
 
 export default async function RootLayout({

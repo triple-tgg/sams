@@ -159,11 +159,11 @@ export default function HRStaffListPage() {
                             <Upload className="h-4 w-4 mr-1.5" />
                             Import
                         </Button>
-                        <PermissionActionGuard menuCode="QA_STAFF" action="canCreate">
+                        <PermissionActionGuard menuCode="HR_STAFF" action="canCreate">
                             <Button
                                 size="sm"
                                 className="hr-btn-add"
-                                onClick={() => router.push('/en/qa/staff/new')}
+                                onClick={() => router.push('/en/hr/staff/new')}
                             >
                                 <Plus className="h-4 w-4 mr-1.5" />
                                 New Staff
@@ -301,7 +301,7 @@ export default function HRStaffListPage() {
                                             <TableRow
                                                 key={staff.id}
                                                 className="cursor-pointer hover:bg-blue-50/50 transition-colors"
-                                                onClick={() => router.push(`/en/qa/staff/${staff.id}`)}
+                                                onClick={() => router.push(`/en/hr/staff/${staff.id}`)}
                                             >
                                                 <TableCell className="text-muted-foreground">
                                                     {(page - 1) * perPage + index + 1}
@@ -369,7 +369,7 @@ export default function HRStaffListPage() {
                                                             </Button>
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem onClick={() => router.push(`/en/qa/staff/${staff.id}`)}>
+                                                            <DropdownMenuItem onClick={() => router.push(`/en/hr/staff/${staff.id}`)}>
                                                                 <Eye className="h-4 w-4 mr-2" />
                                                                 View Profile
                                                             </DropdownMenuItem>
