@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { Camera } from 'lucide-react'
+import { Camera, User } from 'lucide-react'
 import Image from 'next/image'
 
 interface ProfileAvatarProps {
@@ -38,8 +38,7 @@ export function ProfileAvatar({ initials, avatarBg, profileImage }: ProfileAvata
         <div className="relative group shrink-0">
             {/* Avatar Circle */}
             <div
-                className="w-50 h-50 rounded-md overflow-hidden border-[3px] border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.08)]"
-                style={{ background: !imageUrl ? avatarBg : undefined }}
+                className={`w-50 h-50 rounded-md overflow-hidden border-[3px] border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.08)] ${!imageUrl ? 'bg-muted flex items-center justify-center' : ''}`}
             >
                 {imageUrl ? (
                     <Image
@@ -50,9 +49,7 @@ export function ProfileAvatar({ initials, avatarBg, profileImage }: ProfileAvata
                         className="w-full h-full object-cover"
                     />
                 ) : (
-                    <div className="w-full h-full flex items-center justify-center text-2xl font-extrabold text-white">
-                        {initials}
-                    </div>
+                    <User className="h-16 w-16 text-muted-foreground" />
                 )}
             </div>
 

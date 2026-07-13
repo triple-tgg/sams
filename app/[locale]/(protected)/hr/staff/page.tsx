@@ -16,7 +16,7 @@ import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import {
-    ChevronLeft, ChevronRight, Plus, MoreHorizontal, Eye, Search, Users, Upload, RefreshCw, AlertCircle,
+    ChevronLeft, ChevronRight, Plus, MoreHorizontal, Eye, Search, Users, RefreshCw, AlertCircle, User,
 } from 'lucide-react'
 import { useQAStaffList } from '@/lib/api/hooks/useQAStaffManagement'
 import type { QAStaffItem } from '@/lib/api/qa/staff-management'
@@ -151,14 +151,7 @@ export default function HRStaffListPage() {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            className="hr-btn-import"
-                        >
-                            <Upload className="h-4 w-4 mr-1.5" />
-                            Import
-                        </Button>
+
                         <PermissionActionGuard menuCode="HR_STAFF" action="canCreate">
                             <Button
                                 size="sm"
@@ -259,11 +252,9 @@ export default function HRStaffListPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="w-[50px]">No.</TableHead>
                                         <TableHead className="whitespace-nowrap min-w-[220px]">Employee Name</TableHead>
-                                        <TableHead className="w-[200px]">Position</TableHead>
                                         <TableHead className="w-[160px]">Department</TableHead>
-                                        <TableHead className="w-[220px]">Email</TableHead>
+                                        <TableHead className="w-[200px]">Position</TableHead>
                                         <TableHead className="w-[100px]">Status</TableHead>
                                         <TableHead className="w-[60px] text-center">Action</TableHead>
                                     </TableRow>
@@ -273,26 +264,24 @@ export default function HRStaffListPage() {
                                         // ── Skeleton loading state ──
                                         Array.from({ length: perPage > 10 ? 10 : perPage }).map((_, index) => (
                                             <TableRow key={`skeleton-${index}`}>
-                                                <TableCell><Skeleton className="h-4 w-6" /></TableCell>
                                                 <TableCell>
                                                     <div className="flex items-center gap-3">
-                                                        <Skeleton className="h-[34px] w-[34px] rounded-[10px]" />
+                                                        <Skeleton className="h-10 w-10 rounded-[10px]" />
                                                         <div>
                                                             <Skeleton className="h-4 w-32 mb-1" />
                                                             <Skeleton className="h-3 w-16" />
                                                         </div>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                                                 <TableCell><Skeleton className="h-5 w-20 rounded-md" /></TableCell>
-                                                <TableCell><Skeleton className="h-4 w-36" /></TableCell>
+                                                <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                                                 <TableCell><Skeleton className="h-5 w-14 rounded-full" /></TableCell>
                                                 <TableCell><Skeleton className="h-8 w-8 rounded mx-auto" /></TableCell>
                                             </TableRow>
                                         ))
                                     ) : staffList.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                                            <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
                                                 {debouncedSearch ? 'No staff matching your search' : 'No staff found'}
                                             </TableCell>
                                         </TableRow>
@@ -303,19 +292,20 @@ export default function HRStaffListPage() {
                                                 className="cursor-pointer hover:bg-blue-50/50 transition-colors"
                                                 onClick={() => router.push(`/en/hr/staff/${staff.id}`)}
                                             >
-                                                <TableCell className="text-muted-foreground">
-                                                    {(page - 1) * perPage + index + 1}
-                                                </TableCell>
-
                                                 {/* Employee Name + Code */}
                                                 <TableCell>
                                                     <div className="flex items-center gap-3">
-                                                        <div
-                                                            className="hr-staff-avatar"
-                                                            style={{ background: getAvatarBg(staff.id) }}
-                                                        >
-                                                            {getInitials(staff.name)}
-                                                        </div>
+                                                        {staff.profileImagePath ? (
+                                                            <img
+                                                                src={staff.profileImagePath}
+                                                                alt={staff.name}
+                                                                className="h-10 w-10 rounded-[10px] object-cover shrink-0"
+                                                            />
+                                                        ) : (
+                                                            <div className="h-10 w-10 rounded-[10px] bg-muted flex items-center justify-center shrink-0">
+                                                                <User className="h-5 w-5 text-muted-foreground" />
+                                                            </div>
+                                                        )}
                                                         <div>
                                                             <div className="font-medium text-sm">
                                                                 {staff.title ? `${staff.title} ` : ''}{staff.name}
@@ -323,11 +313,6 @@ export default function HRStaffListPage() {
                                                             <div className="text-xs text-muted-foreground">{staff.code}</div>
                                                         </div>
                                                     </div>
-                                                </TableCell>
-
-                                                {/* Position */}
-                                                <TableCell className="text-sm">
-                                                    {staff.jobTitle || staff.positionObj?.name || '—'}
                                                 </TableCell>
 
                                                 {/* Department */}
@@ -348,9 +333,9 @@ export default function HRStaffListPage() {
                                                     )}
                                                 </TableCell>
 
-                                                {/* Email */}
-                                                <TableCell className="text-sm text-muted-foreground">
-                                                    {staff.email || '—'}
+                                                {/* Position */}
+                                                <TableCell className="text-sm">
+                                                    {staff.jobTitle || staff.positionObj?.name || '—'}
                                                 </TableCell>
 
                                                 {/* Status */}

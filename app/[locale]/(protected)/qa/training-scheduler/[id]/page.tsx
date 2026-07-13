@@ -705,7 +705,7 @@ export default function ScheduleDetailPage() {
                                 </TooltipProvider>
                             </div>
 
-                            <div className="grid grid-cols-[32px_1fr_80px_100px_80px_90px_70px] gap-3 px-4 py-2.5 bg-muted/30 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border">
+                            <div className="grid grid-cols-[32px_1fr_120px_130px_80px_90px_70px] gap-3 px-4 py-2.5 bg-muted/30 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border">
                                 <span className="flex items-center justify-center">
                                     <input
                                         type="checkbox"
@@ -745,7 +745,7 @@ export default function ScheduleDetailPage() {
                                     enrolledStaff.map((staff, idx) => (
                                         <div
                                             key={staff.id + '-' + idx}
-                                            className={`grid grid-cols-[32px_1fr_80px_100px_80px_90px_70px] gap-3 px-4 py-3 items-center border-b border-border/50 hover:bg-muted/20 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-muted/10'
+                                            className={`grid grid-cols-[32px_1fr_120px_130px_80px_90px_70px] gap-3 px-4 py-3 items-center border-b border-border/50 hover:bg-muted/20 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-muted/10'
                                                 }`}
                                         >
                                             <div className="flex items-center justify-center">
@@ -766,12 +766,48 @@ export default function ScheduleDetailPage() {
                                                     className="w-3.5 h-3.5 rounded border-border cursor-pointer accent-primary"
                                                 />
                                             </div>
-                                            <div className="min-w-0">
-                                                <p className="text-xs font-semibold text-foreground truncate">{staff.name}</p>
-                                                <p className="text-[10px] text-slate-400 font-bold">{staff.code}</p>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <button type="button" title={`${staff.name} (${staff.code})`} className="min-w-0 text-left w-full bg-transparent border-none p-0 cursor-default outline-none">
+                                                            <p className="text-xs font-semibold text-foreground truncate">{staff.name}</p>
+                                                            <p className="text-[10px] text-slate-400 font-bold truncate">{staff.code}</p>
+                                                        </button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="top">
+                                                        <p>{staff.name}</p>
+                                                        <p className="text-muted-foreground">{staff.code}</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                            <div className="min-w-0 overflow-hidden">
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <button type="button" title={staff.license} className="w-full text-left bg-transparent border-none p-0 cursor-default outline-none text-xs font-semibold text-foreground truncate block">
+                                                                {staff.license}
+                                                            </button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="top">
+                                                            <p>{staff.license}</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
                                             </div>
-                                            <span className="text-xs font-semibold text-foreground">{staff.license}</span>
-                                            <span className="text-[11px] text-muted-foreground font-medium truncate">{staff.dept}</span>
+                                            <div className="min-w-0 overflow-hidden">
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <button type="button" title={staff.dept} className="w-full text-left bg-transparent border-none p-0 cursor-default outline-none text-[11px] text-muted-foreground font-medium truncate block">
+                                                                {staff.dept}
+                                                            </button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="top">
+                                                            <p>{staff.dept}</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            </div>
                                             <div className="flex">
                                                 <span
                                                     className="inline-flex items-center gap-1 w-fit px-1.5 py-0.5 rounded text-[9px] font-bold capitalize"

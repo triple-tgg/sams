@@ -219,6 +219,14 @@ export function getMenuList(pathname: string, t: any): Group[] {
               icon: "heroicons-outline:banknotes",
               children: [],
             },
+            {
+              permCode: "HR_DOCUMENT_VERIFICATION",
+              href: "/hr/document-verification",
+              label: t("hrDocumentVerification"),
+              active: pathname.includes("/hr/document-verification"),
+              icon: "heroicons-outline:document-check",
+              children: [],
+            },
           ],
         },
       ],
@@ -239,7 +247,7 @@ export function getMenuList(pathname: string, t: any): Group[] {
             {
               href: "/master-data/staff",
               label: t("mdOrganization"),
-              active: pathname.includes("/master-data/staff") || pathname.includes("/master-data/department") || pathname.includes("/master-data/manager-mapping") || pathname.includes("/master-data/position"),
+              active: pathname.includes("/master-data/staff") || pathname.includes("/master-data/department") || pathname.includes("/master-data/manager-mapping"),
               icon: "heroicons-outline:building-office-2",
               children: [
                 {
@@ -260,12 +268,6 @@ export function getMenuList(pathname: string, t: any): Group[] {
                   href: "/master-data/manager-mapping",
                   label: t("mdManagerMapping"),
                   active: pathname.includes("/master-data/manager-mapping"),
-                },
-                {
-                  permCode: "MASTER_DATA_POSITION",
-                  href: "/master-data/position",
-                  label: t("mdPosition"),
-                  active: pathname.includes("/master-data/position"),
                 },
               ]
             },

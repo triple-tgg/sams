@@ -43,6 +43,7 @@ export const ROUTE_PERMISSION_MAP: RoutePermission[] = [
 
     // ── HR ───────────────────────────────────────────────────
     { path: "/hr/employee-income",                      menuCodes: ["HR_STAFF_INCOME"] },
+    { path: "/hr/document-verification",                menuCodes: ["HR_DOCUMENT_VERIFICATION"] },
     { path: "/hr/staff",                                menuCodes: ["HR_STAFF"] },
     { path: "/hr",                                      menuCodes: ["HR"] },
 
@@ -58,7 +59,6 @@ export const ROUTE_PERMISSION_MAP: RoutePermission[] = [
     { path: "/master-data/staff",                       menuCodes: ["MASTER_DATA_STAFF"] },
     { path: "/master-data/department",                  menuCodes: ["MASTER_DATA_DEPARTMENT"] },
     { path: "/master-data/manager-mapping",             menuCodes: ["MASTER_DATA_MANAGER_MAPPING"] },
-    { path: "/master-data/position",                    menuCodes: ["MASTER_DATA_POSITION"] },
     { path: "/master-data/aircraft-type-license",       menuCodes: ["MASTER_DATA_AIRCRAFT_TYPE_LICENSE"] },
     { path: "/master-data/aircraft-type",               menuCodes: ["MASTER_DATA_AIRCRAFT_TYPE"] },
     { path: "/master-data/aircraft-group",              menuCodes: ["MASTER_DATA_AIRCRAFT_GROUP"] },
