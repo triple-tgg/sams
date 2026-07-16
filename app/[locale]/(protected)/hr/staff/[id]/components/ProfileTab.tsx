@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { User, Phone, Briefcase, Pencil, Award, Plane, FileText, Shield, ExternalLink, Upload, X, Loader2, CheckCircle2, Save, Check, AlertTriangle } from 'lucide-react'
 import { StaffData } from '../types'
 import { formatDate } from '../utils'
@@ -14,6 +14,10 @@ import { StaffByIdData, UpsertStaffRequest, UpsertEducation, UpsertWorkExperienc
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
+import { useStaffDocumentTypes } from '@/lib/api/master/staff/staffDocumentTypes.hooks'
+import type { StaffDocumentType } from '@/lib/api/master/staff/staffDocumentTypes'
+import { useStaffDocumentStatuses } from '@/lib/api/master/staff/staffDocumentStatuses.hooks'
+import type { StaffDocumentStatus } from '@/lib/api/master/staff/staffDocumentStatuses'
 
 // ── Constants ──
 const AIRCRAFT_TYPE_LICENSES = [
@@ -37,15 +41,7 @@ const AMEL_LICENSE_CATEGORIES = [
     { code: 'C', label: 'C — Base Maintenance' },
 ]
 
-const DOCUMENT_TYPES: { key: string; label: string; subtitle?: string }[] = [
-    { key: 'id_card', label: 'ID Card' },
-    { key: 'passport', label: 'Passport' },
-    { key: 'cv', label: 'CV' },
-    { key: 'amel', label: 'AMEL', subtitle: 'For Certifying Staff' },
-    { key: 'experience_log', label: 'Previous Experience Log', subtitle: 'For Certifying Staff' },
-    { key: 'training_records', label: 'Previous Training Records', subtitle: 'For Certifying Staff' },
-    { key: 'aircraft_type_cert', label: 'Aircraft Type Certificate', subtitle: 'For Certifying Staff' },
-]
+// DOCUMENT_TYPES is now fetched from the API via useStaffDocumentTypes()
 
 // ── Reusable Info Row ──
 function InfoRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
@@ -109,26 +105,35 @@ interface DocSlotState {
     subtitle?: string
     // from API (existing uploaded)
     existingId: number
+    staffDocumentTypeId: number
     fileName: string
     filePath: string
+    staffDocumentStatusId: number | null
+    rejectedReason: string | null
     // upload state
     uploading: boolean
 }
 
-function buildDocSlots(apiDocs: StaffByIdData['staffDocumentList']): DocSlotState[] {
-    const existingByType: Record<string, typeof apiDocs[0]> = {}
+function buildDocSlots(
+    apiDocs: StaffByIdData['staffDocumentList'],
+    docTypes: { key: string; label: string; id: number }[],
+): DocSlotState[] {
+    // Index existing docs by staffDocumentTypeId (numeric)
+    const existingByTypeId: Record<number, typeof apiDocs[0]> = {}
     for (const d of (apiDocs || [])) {
-        if (!d.isdelete) existingByType[d.documentType] = d
+        if (!d.isdelete && d.staffDocumentTypeId) existingByTypeId[d.staffDocumentTypeId] = d
     }
-    return DOCUMENT_TYPES.map(dt => {
-        const existing = existingByType[dt.key]
+    return docTypes.map(dt => {
+        const existing = existingByTypeId[dt.id]
         return {
             key: dt.key,
             label: dt.label,
-            subtitle: dt.subtitle,
             existingId: existing?.id || 0,
+            staffDocumentTypeId: existing?.staffDocumentTypeId || dt.id,
             fileName: existing?.fileName || '',
             filePath: existing?.filePath || '',
+            staffDocumentStatusId: existing?.staffDocumentStatusId ?? null,
+            rejectedReason: existing?.rejectedReason ?? null,
             uploading: false,
         }
     })
@@ -157,22 +162,40 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
     const amelLicenses = apiData?.staffAmelLicenseList?.filter(l => !l.isdelete) || []
     const amelLicense = amelLicenses[0]
 
+    // ── Document types from API ──
+    const { data: docTypesResp } = useStaffDocumentTypes()
+    const docTypesList = useMemo(() => {
+        const raw = docTypesResp?.responseData ?? []
+        return raw.map((dt: StaffDocumentType) => ({ key: dt.code, label: dt.name, id: dt.id }))
+    }, [docTypesResp])
+
+    // ── Document statuses from API ──
+    const { data: docStatusesResp } = useStaffDocumentStatuses()
+    const statusMap = useMemo(() => {
+        const map: Record<number, string> = {}
+        for (const s of (docStatusesResp?.responseData ?? [])) {
+            map[s.id] = s.name
+        }
+        return map
+    }, [docStatusesResp])
+
     // ── Document Slots State ──
-    const [docSlots, setDocSlots] = useState<DocSlotState[]>(() => buildDocSlots(apiData?.staffDocumentList || []))
+    const [docSlots, setDocSlots] = useState<DocSlotState[]>([])
     const docInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
-    // Sync docSlots when apiData changes (after refetch)
-    const lastApiDataId = useRef<number | null>(null)
-    if (apiData && apiData.id !== lastApiDataId.current) {
-        lastApiDataId.current = apiData.id
-    }
+    // Sync docSlots when apiData or docTypesList changes
+    useEffect(() => {
+        if (docTypesList.length > 0) {
+            setDocSlots(buildDocSlots(apiData?.staffDocumentList || [], docTypesList))
+        }
+    }, [apiData?.staffDocumentList, docTypesList])
 
     // Re-sync slots when api data updates (e.g. after upsert)
     const syncDocSlots = useCallback(() => {
-        if (apiData?.staffDocumentList) {
-            setDocSlots(buildDocSlots(apiData.staffDocumentList))
+        if (apiData?.staffDocumentList && docTypesList.length > 0) {
+            setDocSlots(buildDocSlots(apiData.staffDocumentList, docTypesList))
         }
-    }, [apiData?.staffDocumentList])
+    }, [apiData?.staffDocumentList, docTypesList])
 
     // ── Document Upload Handler ──
     const handleDocUpload = (docKey: string, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -240,7 +263,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
             .filter(s => s.filePath)
             .map(s => ({
                 id: s.existingId,
-                documentType: s.key,
+                staffDocumentTypeId: s.staffDocumentTypeId,
                 fileName: s.fileName,
                 filePath: s.filePath,
             }))
@@ -268,7 +291,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
             .filter(s => s.filePath && s.key !== docKey)
             .map(s => ({
                 id: s.existingId,
-                documentType: s.key,
+                staffDocumentTypeId: s.staffDocumentTypeId,
                 fileName: s.fileName,
                 filePath: s.filePath,
             }))
@@ -316,7 +339,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
             workExperiences: (apiData.workExperiences || []) as UpsertWorkExperience[],
             staffDocumentList: documents.map(d => ({
                 id: d.id,
-                documentType: d.documentType,
+                staffDocumentTypeId: d.staffDocumentTypeId || 0,
                 fileName: d.fileName,
                 filePath: d.filePath,
             })),
@@ -335,7 +358,6 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                 attachmentFilePath: l.attachmentFilePath || '',
                 attachmentFileName: l.attachmentFileName || '',
             })),
-            userName: "system",
             ...overrideFields,
         }
     }
@@ -663,6 +685,22 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                                                 ) : (
                                                     <p className="text-[10px] text-slate-300 mt-1">No file uploaded</p>
                                                 )}
+                                                {slot.filePath && slot.staffDocumentStatusId != null && (
+                                                    <span className={`inline-flex items-center mt-1.5 px-1.5 py-0.5 rounded text-[9px] font-semibold ${
+                                                        statusMap[slot.staffDocumentStatusId]?.toLowerCase() === 'approved'
+                                                            ? 'bg-green-100 text-green-700'
+                                                            : statusMap[slot.staffDocumentStatusId]?.toLowerCase() === 'rejected'
+                                                            ? 'bg-red-100 text-red-600'
+                                                            : 'bg-amber-100 text-amber-700'
+                                                    }`}>
+                                                        {statusMap[slot.staffDocumentStatusId] ?? 'Unknown'}
+                                                    </span>
+                                                )}
+                                                {slot.filePath && slot.rejectedReason && (
+                                                    <p className="text-[10px] text-red-500 mt-1 leading-tight">
+                                                        Reason: {slot.rejectedReason}
+                                                    </p>
+                                                )}
                                             </div>
                                             {slot.filePath ? (
                                                 <div className="flex items-center gap-1 shrink-0">
@@ -718,6 +756,22 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                                             <p className="text-[10px] text-slate-400 mt-0.5 truncate" title={slot.fileName}>
                                                 {slot.fileName}
                                             </p>
+                                            {slot.staffDocumentStatusId != null && (
+                                                <span className={`inline-flex items-center mt-1 px-1.5 py-0.5 rounded text-[9px] font-semibold ${
+                                                    statusMap[slot.staffDocumentStatusId]?.toLowerCase() === 'approved'
+                                                        ? 'bg-green-100 text-green-700'
+                                                        : statusMap[slot.staffDocumentStatusId]?.toLowerCase() === 'rejected'
+                                                        ? 'bg-red-100 text-red-600'
+                                                        : 'bg-amber-100 text-amber-700'
+                                                }`}>
+                                                    {statusMap[slot.staffDocumentStatusId] ?? 'Unknown'}
+                                                </span>
+                                            )}
+                                            {slot.rejectedReason && (
+                                                <p className="text-[10px] text-red-500 mt-0.5 leading-tight">
+                                                    Reason: {slot.rejectedReason}
+                                                </p>
+                                            )}
                                         </div>
                                         <ExternalLink className="h-3.5 w-3.5 text-slate-300 group-hover:text-blue-500 shrink-0 transition-colors" />
                                     </a>
@@ -944,7 +998,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                             <h3 className="text-base font-bold text-slate-800 mb-1">Delete Document</h3>
                             <p className="text-sm text-slate-500 mb-1">Are you sure you want to delete</p>
                             <p className="text-sm font-semibold text-slate-700 mb-5">
-                                {DOCUMENT_TYPES.find(d => d.key === confirmDeleteDoc)?.label || confirmDeleteDoc}?
+                                {docSlots.find(d => d.key === confirmDeleteDoc)?.label || confirmDeleteDoc}?
                             </p>
                             <div className="flex items-center gap-3 w-full">
                                 <button

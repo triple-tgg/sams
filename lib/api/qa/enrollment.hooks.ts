@@ -6,11 +6,14 @@ import {
   enrollStaff,
   unenrollStaff,
   sendEmailList,
+  completeCertificate,
   type EnrollRequest,
   type UnenrollRequest,
   type StaffListRequest,
   type SendEmailListRequest,
+  type CompleteCertificateRequest,
 } from "@/lib/api/qa/enrollment";
+import { schedulerKeys } from "@/lib/api/qa/scheduler.hooks";
 
 // ──────────────────────────────────────────────────────────────
 // Query Keys (central registry for cache management)
@@ -20,8 +23,6 @@ export const enrollmentKeys = {
   staffForEnrollment: (scheduleId: number) => ["staffForEnrollment", scheduleId] as const,
   /** /training/enrollment/staff-list */
   enrolledList: (scheduleId: number) => ["enrolledStaffList", scheduleId] as const,
-  /** /training/scheduler/byid/{id} */
-  sessionDetail: (scheduleId: number) => [`/training/scheduler/byid/${scheduleId}`] as const,
 };
 
 // ──────────────────────────────────────────────────────────────
@@ -58,7 +59,7 @@ export function useEnrollStaff(scheduleId: number) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: enrollmentKeys.enrolledList(scheduleId) });
       qc.invalidateQueries({ queryKey: enrollmentKeys.staffForEnrollment(scheduleId) });
-      qc.invalidateQueries({ queryKey: enrollmentKeys.sessionDetail(scheduleId) });
+      qc.invalidateQueries({ queryKey: schedulerKeys.detail(scheduleId) });
     },
   });
 }
@@ -71,7 +72,7 @@ export function useUnenrollStaff(scheduleId: number) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: enrollmentKeys.enrolledList(scheduleId) });
       qc.invalidateQueries({ queryKey: enrollmentKeys.staffForEnrollment(scheduleId) });
-      qc.invalidateQueries({ queryKey: enrollmentKeys.sessionDetail(scheduleId) });
+      qc.invalidateQueries({ queryKey: schedulerKeys.detail(scheduleId) });
     },
   });
 }
@@ -81,6 +82,17 @@ export function useSendEmailList(scheduleId: number) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: SendEmailListRequest) => sendEmailList(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: enrollmentKeys.enrolledList(scheduleId) });
+    },
+  });
+}
+
+/** Grade enrolled staff (Pass/Fail) via complete-certificate API */
+export function useCompleteCertificate(scheduleId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CompleteCertificateRequest) => completeCertificate(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: enrollmentKeys.enrolledList(scheduleId) });
     },

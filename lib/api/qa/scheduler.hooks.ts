@@ -5,6 +5,7 @@ import {
   getSchedulerCalendar,
   getSchedulerById,
   upsertScheduler,
+  updateSchedulerStatus,
   deleteScheduler,
   type SchedulerCalendarRequest,
   type SchedulerSessionDetail,
@@ -47,7 +48,8 @@ export function mapSchedulerDetailToSession(d: SchedulerSessionDetail): Session 
     dept: "",
     maxParticipants: d.maxParticipants ?? 0,
     enrolled: d.enrolledCount ?? 0,
-    status: d.trainingDataStatusesId === 1 ? "Scheduled" : "Scheduled",
+    status: "Scheduled",
+    trainingDataStatusesId: d.trainingDataStatusesId,
     type: d.courseObj?.courseType ?? "",
     objective: d.courseObj?.courseObjective ?? undefined,
     note: d.courseObj?.additionalNote || d.note || undefined,
@@ -110,6 +112,18 @@ export function useDeleteScheduler() {
   return useMutation({
     mutationFn: (data: { id: number; userName: string }) => deleteScheduler(data),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: schedulerKeys.all });
+    },
+  });
+}
+
+/** Update only the status of a scheduler session */
+export function useUpdateSchedulerStatus(scheduleId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { trainingScheduleId: number; trainingDataStatusesId: number }) => updateSchedulerStatus(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: schedulerKeys.detail(scheduleId) });
       qc.invalidateQueries({ queryKey: schedulerKeys.all });
     },
   });

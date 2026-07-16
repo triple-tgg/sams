@@ -43,7 +43,7 @@ export function ExperienceTab({ staff, apiData }: { staff: StaffData, apiData?: 
             workExperiences: (apiData.workExperiences || []) as UpsertWorkExperience[],
             staffDocumentList: (apiData.staffDocumentList || []).filter(d => !d.isdelete).map(d => ({
                 id: d.id,
-                documentType: d.documentType,
+                staffDocumentTypeId: d.staffDocumentTypeId || 0,
                 fileName: d.fileName,
                 filePath: d.filePath,
             })),
@@ -62,7 +62,6 @@ export function ExperienceTab({ staff, apiData }: { staff: StaffData, apiData?: 
                 attachmentFilePath: l.attachmentFilePath,
                 attachmentFileName: l.attachmentFileName,
             })),
-            userName: "system",
             ...overrideFields,
         }
     }

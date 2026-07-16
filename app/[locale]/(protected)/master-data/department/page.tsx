@@ -4,7 +4,7 @@ import React, { useState, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { RefreshCw, Plus, Building2 } from "lucide-react";
+import { RefreshCw, Plus, Building2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import type {
@@ -13,11 +13,11 @@ import type {
   SelectedNode,
   OrgNodeType,
 } from "@/lib/api/master/department/department.interface";
-import {
-  MOCK_DEPARTMENTS,
-  MOCK_POSITIONS,
-  generateId,
-} from "@/lib/api/master/department/department.mock";
+
+import { useStaffDepartments, useStaffDepartmentPositions, useUpsertStaffDepartment, useUpsertStaffDepartmentPosition, useDeleteStaffDepartment, useDeleteStaffDepartmentPosition } from "@/lib/api/master/organization.hooks";
+import type { StaffDepartment, StaffDepartmentPosition } from "@/lib/api/master/organization";
+import { useQueryClient } from "@tanstack/react-query";
+import { organizationKeys } from "@/lib/api/master/organization.hooks";
 
 import OrganizationTree from "./components/OrganizationTree";
 import NodeDetailPanel from "./components/NodeDetailPanel";
@@ -35,13 +35,43 @@ type DialogState =
   | { type: "delete"; nodeType: OrgNodeType; nodeId: string };
 
 const DepartmentPage = () => {
-  // Data state (mock — replace with API hooks when ready)
-  const [departments, setDepartments] = useState<DepartmentItem[]>([
-    ...MOCK_DEPARTMENTS,
-  ]);
-  const [positions, setPositions] = useState<PositionItem[]>([
-    ...MOCK_POSITIONS,
-  ]);
+  const queryClient = useQueryClient();
+
+  // ── API Data ──────────────────────────────────────────────
+  const { data: deptResp, isLoading: isLoadingDepts } = useStaffDepartments();
+  const { data: posResp, isLoading: isLoadingPos } = useStaffDepartmentPositions();
+
+  // Map API data → existing interface shapes
+  const departments: DepartmentItem[] = useMemo(() => {
+    const raw: StaffDepartment[] = deptResp?.responseData ?? [];
+    return raw.map((d) => ({
+      id: String(d.id),
+      code: d.code,
+      name: d.name,
+      isdelete: d.isdelete,
+      createddate: d.createddate,
+      createdby: d.createdby ?? undefined,
+      updateddate: d.updateddate ?? undefined,
+      updatedby: d.updatedby ?? undefined,
+    }));
+  }, [deptResp]);
+
+  const positions: PositionItem[] = useMemo(() => {
+    const raw: StaffDepartmentPosition[] = posResp?.responseData ?? [];
+    return raw.map((p) => ({
+      id: String(p.id),
+      departmentId: String(p.staffDepartmentId),
+      positionCode: p.code,
+      positionName: p.name,
+      isdelete: p.isdelete,
+      createddate: p.createddate,
+      createdby: p.createdby ?? undefined,
+      updateddate: p.updateddate ?? undefined,
+      updatedby: p.updatedby ?? undefined,
+    }));
+  }, [posResp]);
+
+  const isLoading = isLoadingDepts || isLoadingPos;
 
   // UI state
   const [selectedNode, setSelectedNode] = useState<SelectedNode | null>(null);
@@ -51,111 +81,110 @@ const DepartmentPage = () => {
     setDialog({ type: "closed" });
   }, []);
 
+  // ─── Mutations ───
+  const upsertDeptMutation = useUpsertStaffDepartment();
+  const upsertPosMutation = useUpsertStaffDepartmentPosition();
+  const deleteDeptMutation = useDeleteStaffDepartment();
+  const deletePosMutation = useDeleteStaffDepartmentPosition();
+
   // ─── CRUD Handlers ───
 
   // Department
   const handleAddDepartment = useCallback(
-    (data: { code: string; name: string }) => {
-      const newDept: DepartmentItem = {
-        id: generateId("D", departments),
-        code: data.code,
-        name: data.name,
-        isdelete: false,
-        createddate: new Date().toISOString(),
-        createdby: "system",
-      };
-      setDepartments((prev) => [...prev, newDept]);
-      setSelectedNode({ type: "department", id: newDept.id });
-      toast.success(`Department "${data.name}" added successfully`);
-      closeDialog();
+    async (data: { code: string; name: string }) => {
+      try {
+        await upsertDeptMutation.mutateAsync({
+          id: 0,
+          code: data.code,
+          name: data.name,
+          description: "",
+        });
+        toast.success(`Department "${data.name}" created successfully`);
+        closeDialog();
+      } catch {
+        toast.error("Failed to create department");
+      }
     },
-    [departments, closeDialog]
+    [closeDialog, upsertDeptMutation]
   );
 
   const handleEditDepartment = useCallback(
-    (data: { code: string; name: string }) => {
+    async (data: { code: string; name: string }) => {
       if (dialog.type !== "edit-department") return;
-      setDepartments((prev) =>
-        prev.map((d) =>
-          d.id === dialog.department.id
-            ? {
-                ...d,
-                code: data.code,
-                name: data.name,
-                updateddate: new Date().toISOString(),
-                updatedby: "system",
-              }
-            : d
-        )
-      );
-      toast.success(`Department "${data.name}" updated`);
-      closeDialog();
+      try {
+        await upsertDeptMutation.mutateAsync({
+          id: Number(dialog.department.id),
+          code: data.code,
+          name: data.name,
+          description: "",
+        });
+        toast.success(`Department "${data.name}" updated successfully`);
+        closeDialog();
+      } catch {
+        toast.error("Failed to update department");
+      }
     },
-    [dialog, closeDialog]
+    [closeDialog, dialog, upsertDeptMutation]
   );
 
   // Position
   const handleAddPosition = useCallback(
-    (data: { positionCode: string; positionName: string; departmentId: string }) => {
-      const newPos: PositionItem = {
-        id: generateId("P", positions),
-        departmentId: data.departmentId,
-        positionCode: data.positionCode,
-        positionName: data.positionName,
-        isdelete: false,
-        createddate: new Date().toISOString(),
-        createdby: "system",
-      };
-      setPositions((prev) => [...prev, newPos]);
-      setSelectedNode({ type: "position", id: newPos.id });
-      toast.success(`Position "${data.positionName}" added successfully`);
-      closeDialog();
+    async (data: { positionCode: string; positionName: string; departmentId: string }) => {
+      try {
+        await upsertPosMutation.mutateAsync({
+          id: 0,
+          code: data.positionCode,
+          name: data.positionName,
+          description: "",
+          staffDepartmentId: Number(data.departmentId),
+        });
+        toast.success(`Position "${data.positionName}" created successfully`);
+        closeDialog();
+      } catch {
+        toast.error("Failed to create position");
+      }
     },
-    [positions, closeDialog]
+    [closeDialog, upsertPosMutation]
   );
 
   const handleEditPosition = useCallback(
-    (data: { positionCode: string; positionName: string; departmentId: string }) => {
+    async (data: { positionCode: string; positionName: string; departmentId: string }) => {
       if (dialog.type !== "edit-position") return;
-      setPositions((prev) =>
-        prev.map((p) =>
-          p.id === dialog.position.id
-            ? {
-                ...p,
-                positionCode: data.positionCode,
-                positionName: data.positionName,
-                updateddate: new Date().toISOString(),
-                updatedby: "system",
-              }
-            : p
-        )
-      );
-      toast.success(`Position "${data.positionName}" updated`);
-      closeDialog();
+      try {
+        await upsertPosMutation.mutateAsync({
+          id: Number(dialog.position.id),
+          code: data.positionCode,
+          name: data.positionName,
+          description: "",
+          staffDepartmentId: Number(data.departmentId),
+        });
+        toast.success(`Position "${data.positionName}" updated successfully`);
+        closeDialog();
+      } catch {
+        toast.error("Failed to update position");
+      }
     },
-    [dialog, closeDialog]
+    [closeDialog, dialog, upsertPosMutation]
   );
 
-  // Delete (cascading)
-  const handleConfirmDelete = useCallback(() => {
+  // Delete
+  const handleConfirmDelete = useCallback(async () => {
     if (dialog.type !== "delete") return;
     const { nodeType, nodeId } = dialog;
-
-    if (nodeType === "department") {
-      setPositions((prev) => prev.filter((p) => p.departmentId !== nodeId));
-      setDepartments((prev) => prev.filter((d) => d.id !== nodeId));
-      toast.success("Department deleted");
-    } else if (nodeType === "position") {
-      setPositions((prev) => prev.filter((p) => p.id !== nodeId));
-      toast.success("Position deleted");
-    }
-
-    // Clear selection if deleted node was selected
-    if (selectedNode?.id === nodeId) {
+    try {
+      if (nodeType === "department") {
+        await deleteDeptMutation.mutateAsync(Number(nodeId));
+        toast.success("Department deleted successfully");
+      } else {
+        await deletePosMutation.mutateAsync(Number(nodeId));
+        toast.success("Position deleted successfully");
+      }
       setSelectedNode(null);
+      closeDialog();
+    } catch {
+      toast.error(`Failed to delete ${nodeType}`);
     }
-    closeDialog();
-  }, [dialog, selectedNode, closeDialog]);
+  }, [dialog, closeDialog, deleteDeptMutation, deletePosMutation]);
 
   // ─── Detail panel action handlers ───
 
@@ -192,11 +221,11 @@ const DepartmentPage = () => {
   );
 
   const handleRefresh = useCallback(() => {
-    setDepartments([...MOCK_DEPARTMENTS]);
-    setPositions([...MOCK_POSITIONS]);
+    queryClient.invalidateQueries({ queryKey: organizationKeys.departments });
+    queryClient.invalidateQueries({ queryKey: organizationKeys.positions });
     setSelectedNode(null);
     toast.info("Data refreshed");
-  }, []);
+  }, [queryClient]);
 
   // ─── Delete dialog context ───
 
@@ -249,6 +278,7 @@ const DepartmentPage = () => {
             </Button>
             <Button
               size="sm"
+              color="primary"
               onClick={() => setDialog({ type: "add-department" })}
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -260,19 +290,24 @@ const DepartmentPage = () => {
           <div className="flex flex-col lg:flex-row gap-0 min-h-[500px] rounded-lg border overflow-hidden">
             {/* Left: Tree Panel */}
             <div className="w-full lg:w-[340px] shrink-0 p-4 bg-muted/20 border-b lg:border-b-0 lg:border-r">
-              <OrganizationTree
-                departments={departments}
-                positions={positions}
-                selectedNode={selectedNode}
-                onSelectNode={setSelectedNode}
-              />
+              {isLoading ? (
+                <div className="flex items-center justify-center h-full min-h-[200px]">
+                  <Loader2 className="w-6 h-6 text-primary animate-spin" />
+                </div>
+              ) : (
+                <OrganizationTree
+                  departments={departments}
+                  positions={positions}
+                  selectedNode={selectedNode}
+                  onSelectNode={setSelectedNode}
+                />
+              )}
             </div>
 
             {/* Right: Detail Panel */}
             <div className="flex-1 p-6">
               <NodeDetailPanel
                 selectedNode={selectedNode}
-                departments={departments}
                 positions={positions}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
@@ -293,6 +328,7 @@ const DepartmentPage = () => {
         <DialogContent className="max-w-lg">
           <DepartmentFormDialog
             mode="add"
+            isPending={upsertDeptMutation.isPending}
             onClose={closeDialog}
             onSubmit={handleAddDepartment}
           />
@@ -310,6 +346,7 @@ const DepartmentPage = () => {
             department={
               dialog.type === "edit-department" ? dialog.department : null
             }
+            isPending={upsertDeptMutation.isPending}
             onClose={closeDialog}
             onSubmit={handleEditDepartment}
           />
@@ -325,6 +362,7 @@ const DepartmentPage = () => {
           <PositionFormDialog
             mode="add"
             parentDepartment={dialogParentDept}
+            isPending={upsertPosMutation.isPending}
             onClose={closeDialog}
             onSubmit={handleAddPosition}
           />
@@ -343,6 +381,7 @@ const DepartmentPage = () => {
               dialog.type === "edit-position" ? dialog.position : null
             }
             parentDepartment={dialogParentDept}
+            isPending={upsertPosMutation.isPending}
             onClose={closeDialog}
             onSubmit={handleEditPosition}
           />

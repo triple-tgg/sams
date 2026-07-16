@@ -11,17 +11,20 @@ import {
   Plus,
   Calendar,
   UserCircle,
+  Loader2,
 } from "lucide-react";
 import type {
-  DepartmentItem,
   PositionItem,
   SelectedNode,
   OrgNodeType,
 } from "@/lib/api/master/department/department.interface";
+import {
+  useStaffDepartmentById,
+  useStaffDepartmentPositionById,
+} from "@/lib/api/master/organization.hooks";
 
 interface Props {
   selectedNode: SelectedNode | null;
-  departments: DepartmentItem[];
   positions: PositionItem[];
   onEdit: () => void;
   onDelete: () => void;
@@ -38,9 +41,7 @@ const nodeLabel: Record<OrgNodeType, string> = {
   position: "Position",
 };
 
-
-
-function formatDate(dateStr?: string): string {
+function formatDate(dateStr?: string | null): string {
   if (!dateStr) return "-";
   return new Date(dateStr).toLocaleDateString("en-GB", {
     day: "2-digit",
@@ -53,12 +54,21 @@ function formatDate(dateStr?: string): string {
 
 const NodeDetailPanel = ({
   selectedNode,
-  departments,
   positions,
   onEdit,
   onDelete,
   onAddChild,
 }: Props) => {
+  const deptId =
+    selectedNode?.type === "department" ? Number(selectedNode.id) : null;
+  const posId =
+    selectedNode?.type === "position" ? Number(selectedNode.id) : null;
+
+  const { data: deptDetailResp, isLoading: isLoadingDept } =
+    useStaffDepartmentById(deptId);
+  const { data: posDetailResp, isLoading: isLoadingPos } =
+    useStaffDepartmentPositionById(posId);
+
   // Empty state
   if (!selectedNode) {
     return (
@@ -78,9 +88,22 @@ const NodeDetailPanel = ({
 
   const { type, id } = selectedNode;
 
+  // Loading state
+  const isLoading =
+    (type === "department" && isLoadingDept) ||
+    (type === "position" && isLoadingPos);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full min-h-[200px]">
+        <Loader2 className="w-6 h-6 text-primary animate-spin" />
+      </div>
+    );
+  }
+
   // ─── Department detail ───
   if (type === "department") {
-    const dept = departments.find((d) => d.id === id);
+    const dept = deptDetailResp?.responseData;
     if (!dept) return null;
 
     const childPositions = positions.filter((p) => p.departmentId === id);
@@ -106,18 +129,17 @@ const NodeDetailPanel = ({
             </div>
           </div>
           <div className="flex items-center gap-1.5">
-            <Button variant="outline" size="sm" onClick={onEdit}>
-              <Pencil className="h-3.5 w-3.5 mr-1.5" />
-              Edit
+            <Button variant="outline" size="icon" color="primary" onClick={onEdit}>
+              <Pencil className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="outline"
-              size="sm"
+              size="icon"
+              color="destructive"
               className="text-destructive hover:text-destructive"
               onClick={onDelete}
             >
-              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-              Delete
+              <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
@@ -191,10 +213,8 @@ const NodeDetailPanel = ({
 
   // ─── Position detail ───
   if (type === "position") {
-    const pos = positions.find((p) => p.id === id);
+    const pos = posDetailResp?.responseData;
     if (!pos) return null;
-
-    const parentDept = departments.find((d) => d.id === pos.departmentId) || null;
 
     return (
       <div className="space-y-5">
@@ -206,9 +226,9 @@ const NodeDetailPanel = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-semibold">{pos.positionName}</h3>
+                <h3 className="text-lg font-semibold">{pos.name}</h3>
                 <span className="text-xs font-mono border bg-transparent rounded-md px-2 py-0.5">
-                  {pos.positionCode}
+                  {pos.code}
                 </span>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
@@ -240,7 +260,7 @@ const NodeDetailPanel = ({
           <DetailField
             icon={<Building2 className="h-3.5 w-3.5" />}
             label="Department"
-            value={parentDept ? `${parentDept.code} — ${parentDept.name}` : "-"}
+            value={`ID: ${pos.staffDepartmentId}`}
           />
           <DetailField
             icon={<Calendar className="h-3.5 w-3.5" />}

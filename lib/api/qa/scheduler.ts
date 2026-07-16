@@ -167,6 +167,17 @@ export const upsertScheduler = async (reqData: SchedulerUpsertRequest): Promise<
   }
 };
 
+/** Lightweight status-only update via the same upsert endpoint */
+export const updateSchedulerStatus = async (data: { trainingScheduleId: number; trainingDataStatusesId: number }): Promise<SchedulerUpsertResponse> => {
+  try {
+    const res = await axiosConfig.post('/training/scheduler/upsert', data);
+    return res.data;
+  } catch (error: any) {
+    console.error("Error updating scheduler status:", error);
+    throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to update status");
+  }
+};
+
 export const deleteScheduler = async (reqData: { id: number, userName: string }): Promise<{ message: string, responseData: string[], error: string }> => {
   try {
     const res = await axiosConfig.post('/training/scheduler/delete', reqData);

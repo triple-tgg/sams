@@ -105,6 +105,7 @@ const DepartmentFormDialog = ({
           </Button>
           <Button
             type="submit"
+            color="primary"
             disabled={isPending || !code.trim() || !name.trim()}
           >
             {isPending ? (

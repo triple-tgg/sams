@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, useRef, useMemo, useCallback } from 'react'
+import { useState, useRef, useMemo, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, User, Phone, Briefcase, Save, UserPlus, Camera, Trash2, ChevronDown, GraduationCap, Plus, Loader2, FileText, Upload, X, CheckCircle2, Shield, Award } from 'lucide-react'
 import { useUpsertStaff, useUploadStaffFile } from '@/lib/api/hooks/useQAStaffManagement'
 import { UpsertStaffRequest } from '@/lib/api/qa/staff-management'
 import { toast } from 'sonner'
 import { dateTimeUtils } from '@/lib/dayjs'
+import { useStaffDocumentTypes } from '@/lib/api/master/staff/staffDocumentTypes.hooks'
+import type { StaffDocumentType } from '@/lib/api/master/staff/staffDocumentTypes'
 
 // ── Form State ──
 interface StaffForm {
@@ -63,6 +65,7 @@ interface DocumentUpload {
     key: string
     label: string
     subtitle?: string
+    staffDocumentTypeId: number
     file: File | null
     filePath: string
     fileName: string
@@ -120,15 +123,7 @@ const STAFF_TYPES = [
 
 const TITLE_NAMES = ['Mr.', 'Mrs.', 'Ms.', 'Miss']
 
-const DOCUMENT_TYPES: { key: string; label: string; subtitle?: string }[] = [
-    { key: 'id_card', label: 'ID Card' },
-    { key: 'passport', label: 'Passport' },
-    { key: 'cv', label: 'CV' },
-    { key: 'amel', label: 'AMEL', subtitle: 'For Certifying Staff' },
-    { key: 'experience_log', label: 'Previous Experience Log', subtitle: 'For Certifying Staff' },
-    { key: 'training_records', label: 'Previous Training Records', subtitle: 'For Certifying Staff' },
-    { key: 'aircraft_type_cert', label: 'Aircraft Type Certificate', subtitle: 'For Certifying Staff' },
-]
+// DOCUMENT_TYPES is now fetched from the API via useStaffDocumentTypes()
 
 const AIRCRAFT_TYPE_LICENSES = [
     'B737-600/700/800/900',
@@ -253,9 +248,24 @@ export default function NewStaffPage() {
     const [experiences, setExperiences] = useState<ExperienceItem[]>([])
     const [touched, setTouched] = useState<Record<string, boolean>>({})
     const [submitAttempted, setSubmitAttempted] = useState(false)
-    const [documents, setDocuments] = useState<DocumentUpload[]>(
-        DOCUMENT_TYPES.map(dt => ({ key: dt.key, label: dt.label, subtitle: dt.subtitle, file: null, filePath: '', fileName: '', uploading: false }))
-    )
+    const [documents, setDocuments] = useState<DocumentUpload[]>([])
+
+    // Fetch document types from API and initialize documents
+    const { data: docTypesResp } = useStaffDocumentTypes()
+    useEffect(() => {
+        const raw = docTypesResp?.responseData ?? []
+        if (raw.length > 0 && documents.length === 0) {
+            setDocuments(raw.map((dt: StaffDocumentType) => ({
+                key: dt.code,
+                label: dt.name,
+                staffDocumentTypeId: dt.id,
+                file: null,
+                filePath: '',
+                fileName: '',
+                uploading: false,
+            })))
+        }
+    }, [docTypesResp])
     const docInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
     const [selectedLicenses, setSelectedLicenses] = useState<string[]>([])
     const [amelLicense, setAmelLicense] = useState<AmelLicenseForm>({
@@ -381,7 +391,7 @@ export default function NewStaffPage() {
                     onSuccess: (response) => {
                         const filePath = response.responseData?.[0]?.filePath || ''
                         setDocuments(prev => prev.map(d => d.key === docKey ? { ...d, filePath, uploading: false } : d))
-                        toast.success(`${DOCUMENT_TYPES.find(dt => dt.key === docKey)?.label} uploaded`)
+                        toast.success(`${documents.find(dt => dt.key === docKey)?.label} uploaded`)
                     },
                     onError: (error) => {
                         setDocuments(prev => prev.map(d => d.key === docKey ? { ...d, file: null, fileName: '', uploading: false } : d))
@@ -463,7 +473,7 @@ export default function NewStaffPage() {
                 .filter(d => d.filePath)
                 .map((d, idx) => ({
                     id: idx,
-                    documentType: d.key,
+                    staffDocumentTypeId: d.staffDocumentTypeId,
                     fileName: d.fileName,
                     filePath: d.filePath,
                 })),
@@ -484,7 +494,6 @@ export default function NewStaffPage() {
                     attachmentFileName: amelLicense.attachmentFileName || '',
                 }]
                 : [],
-            userName: 'system',
         }
     }
 

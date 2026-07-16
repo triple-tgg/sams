@@ -50,8 +50,9 @@ export const ROUTE_PERMISSION_MAP: RoutePermission[] = [
     // ── QA ──────────────────────────────────────────────────
     { path: "/qa/monitoring",                           menuCodes: ["QA_MONITORING"] },
     { path: "/qa/course-management",                    menuCodes: ["QA_MONITORING"] },
-    { path: "/qa/training-scheduler",                   menuCodes: ["QA_MONITORING"] },
+    { path: "/qa/training-scheduler",                   menuCodes: ["QA_TRAINING_SCHEDULER"] },
     { path: "/qa/authorization",                        menuCodes: ["QA_AUTHORIZATION"] },
+    { path: "/qa/document-generation",                  menuCodes: ["QA_DOCUMENT_GENERATION"] },
     { path: "/qa/dashboard",                            menuCodes: ["QA"] },
     { path: "/qa",                                      menuCodes: ["QA"] },
 

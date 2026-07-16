@@ -129,6 +129,19 @@ export interface CourseDepartmentSub {
   updatedby: string | null;
 }
 
+export interface CourseDepartmentPosition {
+  id: number;
+  code: string;
+  name: string;
+  description: string | null;
+  staffDepartmentId: number;
+  isdelete: boolean;
+  createddate: string;
+  createdby: string | null;
+  updateddate: string | null;
+  updatedby: string | null;
+}
+
 export interface CourseDepartment {
   id: number;
   code: string;
@@ -136,14 +149,14 @@ export interface CourseDepartment {
   description: string | null;
   isdelete: boolean;
   createddate: string;
-  createdby: string;
+  createdby: string | null;
   updateddate: string | null;
   updatedby: string | null;
 }
 
 export interface CourseDepartmentItem {
   courseDepartment: CourseDepartment;
-  courseDepartmentSubs: CourseDepartmentSub[];
+  courseDepartmentPositions: CourseDepartmentPosition[];
 }
 
 export interface CourseDepartmentResponseData {

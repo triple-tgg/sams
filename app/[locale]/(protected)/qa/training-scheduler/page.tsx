@@ -100,7 +100,8 @@ export default function TrainingSchedulerPage() {
                 status: s.statusName,
                 enrolled: s.enrolledCount,
                 maxParticipants: s.maxParticipants,
-                dept: s.targetDepartmentName
+                dept: s.targetDepartmentName,
+                note: s.note || '',
             }
         })
     }
@@ -377,14 +378,14 @@ export default function TrainingSchedulerPage() {
                                                 </CommandItem>
                                                 {apiDepts.map(d => (
                                                     <CommandGroup key={d.courseDepartment.id} heading={d.courseDepartment.name}>
-                                                        {d.courseDepartmentSubs.map(sub => (
+                                                        {d.courseDepartmentPositions.map(pos => (
                                                             <CommandItem
-                                                                key={sub.id}
-                                                                value={`${d.courseDepartment.name} ${sub.name}`}
-                                                                onSelect={() => { setFilterDept(sub.name); setDeptOpen(false) }}
+                                                                key={pos.id}
+                                                                value={`${d.courseDepartment.name} ${pos.name}`}
+                                                                onSelect={() => { setFilterDept(pos.name); setDeptOpen(false) }}
                                                             >
-                                                                <Check className={cn('mr-2 w-3.5 h-3.5', filterDept === sub.name ? 'opacity-100' : 'opacity-0')} />
-                                                                {sub.name}
+                                                                <Check className={cn('mr-2 w-3.5 h-3.5', filterDept === pos.name ? 'opacity-100' : 'opacity-0')} />
+                                                                {pos.name}
                                                             </CommandItem>
                                                         ))}
                                                     </CommandGroup>

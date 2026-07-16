@@ -33,7 +33,7 @@ const OrganizationTree = ({
   onSelectNode,
 }: Props) => {
   const [expandedDepts, setExpandedDepts] = useState<Set<string>>(
-    new Set(departments.map((d) => d.id))
+    new Set()
   );
   const [searchTerm, setSearchTerm] = useState("");
 

@@ -122,10 +122,13 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
                                                             onCourseSelect(String(c.id))
                                                             setCourseOpen(false)
                                                         }}
+                                                        className="flex items-start gap-2"
                                                     >
-                                                        <Check className={cn('mr-2 w-4 h-4 shrink-0', String(form.courseId) === String(c.id) ? 'opacity-100' : 'opacity-0')} />
-                                                        <span className="font-medium mr-1.5 text-xs text-muted-foreground">{c.courseCode}</span>
-                                                        {c.courseName}
+                                                        <Check className={cn('mr-1 w-4 h-4 shrink-0 mt-0.5', String(form.courseId) === String(c.id) ? 'opacity-100' : 'opacity-0')} />
+                                                        <div className="flex flex-col min-w-0">
+                                                            <span className="text-[11px] font-mono text-muted-foreground">{c.courseCode}</span>
+                                                            <span className="text-sm leading-tight">{c.courseName}</span>
+                                                        </div>
                                                     </CommandItem>
                                                 ))}
                                             </CommandGroup>
@@ -205,10 +208,13 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
                             <label className="text-xs font-medium text-muted-foreground block mb-1.5">Status</label>
                             <select value={form.status} onChange={e => f('status', e.target.value)}
                                 className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 cursor-pointer">
-                                {statusOptions.length > 0
-                                    ? statusOptions.map(s => <option key={s.id} value={s.name}>{s.name}</option>)
-                                    : Object.keys(STATUS_CONFIG).map(s => <option key={s}>{s}</option>)
-                                }
+                                {(() => {
+                                    const allowed = ['Draft', 'Open Registration', 'Registration Closed', 'In Progress']
+                                    const filtered = statusOptions.filter(s => allowed.includes(s.name))
+                                    return filtered.length > 0
+                                        ? filtered.map(s => <option key={s.id} value={s.name}>{s.name}</option>)
+                                        : allowed.map(s => <option key={s}>{s}</option>)
+                                })()}
                             </select>
                         </div>
                         <div>

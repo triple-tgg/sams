@@ -160,6 +160,7 @@
     "enrollment": "Enrollment",
     "monitoring": "Monitoring",
     "authorization": "Authorization",
+    "documentGeneration": "Document Generation",
     "certificate": "Certificate",
     "mechProfile": "Mech. Profile",
     "autoPlanMech": "APlanMech.",

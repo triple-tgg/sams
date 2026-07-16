@@ -20,6 +20,7 @@ export interface Session {
     objective?: string
     note?: string
     trainingAttendanceTypeId?: number
+    trainingDataStatusesId?: number
     link?: string
 }
 

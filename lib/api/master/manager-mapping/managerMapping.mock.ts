@@ -63,8 +63,3 @@ export const MOCK_STAFF: StaffOption[] = [
     startDate: "2026-05-19",
   },
 ];
-
-// D001 (MNT) is mapped to staff 1 (Somchai)
-export const MOCK_MAPPINGS: ManagerMappingItem[] = [
-  { departmentId: "D001", staffId: 1 },
-];

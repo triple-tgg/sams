@@ -10,11 +10,12 @@ import { CertificateModal } from '../components/CertificateModal'
 import { EmailPreviewDialog } from '../components/EmailPreviewDialog'
 import { STATUS_CONFIG, CAT_COLOR, formatDate } from '../types'
 import type { Session } from '../types'
-import { useSchedulerById } from '@/lib/api/qa/scheduler.hooks'
+import { useSchedulerById, useUpdateSchedulerStatus } from '@/lib/api/qa/scheduler.hooks'
+import { useTrainingDataStatuses } from '@/lib/api/master/trainingDataStatuses.hooks'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
-import { useStaffForEnrollment, useEnrolledStaffList, useEnrollStaff, useUnenrollStaff, useSendEmailList } from '@/lib/api/qa/enrollment.hooks'
+import { useStaffForEnrollment, useEnrolledStaffList, useEnrollStaff, useUnenrollStaff, useSendEmailList, useCompleteCertificate } from '@/lib/api/qa/enrollment.hooks'
 import { useInvalidateEmailLogs, usePreviewEmailDepartment } from '@/lib/api/qa/email-log.hooks'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { StaffForEnrollmentItem } from '@/lib/api/qa/enrollment'
@@ -42,6 +43,13 @@ export default function ScheduleDetailPage() {
     // ── API: Fetch session data (React Query) ─────────────────────
     const { data: session = null, isLoading, error: sessionError } = useSchedulerById(sessionId)
     const fetchError = sessionError?.message ?? null
+
+    // ── Master: Training Data Statuses ────────────────────────────
+    const { data: trainingStatusesResp } = useTrainingDataStatuses()
+    const trainingStatuses = trainingStatusesResp?.responseData ?? []
+
+    // ── Mutation: Update status via API ──────────────────────────
+    const updateStatusMutation = useUpdateSchedulerStatus(sessionId)
 
     // ── Staff states ──────────────────────────────────────────────
     const [enrolledStaff, setEnrolledStaff] = useState<StaffItem[]>([])
@@ -82,8 +90,8 @@ export default function ScheduleDetailPage() {
                 license: s.license || '-',
                 dept: s.department || '-',
                 date: s.enrolledDate ? s.enrolledDate.split('T')[0] : '-',
-                status: s.status ?? 'Enrolled',
-                result: s.result ?? 'Pending',
+                status: s.trainingEnrollmentStatus?.name ?? s.status ?? 'Enrolled',
+                result: s.result ?? s.trainingEnrollmentActionStatus?.name ?? 'Pending',
                 expireStatus: '',
             }))
             setEnrolledStaff(mapped)
@@ -94,11 +102,21 @@ export default function ScheduleDetailPage() {
     const [staffSearch, setStaffSearch] = useState('')
     const [selectedEnrolledIds, setSelectedEnrolledIds] = useState<Set<string>>(new Set())
     const [sessionStatus, setSessionStatus] = useState<'Draft' | 'Open Registration' | 'Registration Closed' | 'In Progress' | 'Grading' | 'Completed' | 'Cancelled'>('Open Registration')
+
+    // Sync sessionStatus from API data
+    useEffect(() => {
+        if (session && trainingStatuses.length > 0) {
+            const matched = trainingStatuses.find((s: any) => s.id === session.trainingDataStatusesId)
+            if (matched) {
+                setSessionStatus(matched.name as typeof sessionStatus)
+            }
+        }
+    }, [session, trainingStatuses])
     const [showPrintModal, setShowPrintModal] = useState(false)
     const [showEvidenceModal, setShowEvidenceModal] = useState(false)
     const [evidences, setEvidences] = useState<File[]>([])
     const [showCertModal, setShowCertModal] = useState(false)
-    const [certStaffList, setCertStaffList] = useState<StaffItem[]>([])
+    const [certEnrollmentId, setCertEnrollmentId] = useState<number | null>(null)
     const [emailPreviewStaff, setEmailPreviewStaff] = useState<StaffItem | null>(null)
     const invalidateEmailLogs = useInvalidateEmailLogs()
     const [showManagerReport, setShowManagerReport] = useState(false)
@@ -119,12 +137,39 @@ export default function ScheduleDetailPage() {
         }
     }
 
-    const handleStatusChange = (status: any) => {
-        if (status === 'Completed' && evidences.length === 0) {
-            setShowEvidenceModal(true)
+    const handleStatusChange = async (status: any) => {
+        if (status === 'Completed') {
+            const ungradedStaff = enrolledStaff.filter(s => {
+                const r = (s.result ?? '').toLowerCase()
+                return r !== 'pass' && r !== 'passed' && r !== 'fail' && r !== 'failed'
+            })
+            if (ungradedStaff.length > 0) {
+                toast.warning(`There are ${ungradedStaff.length} staff member(s) without grading results. Please complete all grading before marking as Completed.`)
+                return
+            }
+            if (evidences.length === 0) {
+                setShowEvidenceModal(true)
+                return
+            }
+        }
+
+        // Find the status ID from master data
+        const statusObj = trainingStatuses.find((s: any) => s.name === status)
+        if (!statusObj) {
+            toast.error('Status not found in master data.')
             return
         }
-        setSessionStatus(status)
+
+        try {
+            await updateStatusMutation.mutateAsync({
+                trainingScheduleId: sessionId,
+                trainingDataStatusesId: statusObj.id,
+            })
+            setSessionStatus(status)
+            toast.success(`Status updated to ${status}`)
+        } catch {
+            toast.error('Failed to update status. Please try again.')
+        }
     }
 
     const handleUploadEvidence = (files: File[]) => {
@@ -133,14 +178,11 @@ export default function ScheduleDetailPage() {
         setSessionStatus('Completed')
     }
 
-    const openCertificateModal = (staff?: any) => {
-        if (staff) {
-            setCertStaffList([staff])
-        } else {
-            // Issue to all passed staff
-            setCertStaffList(enrolledStaff.filter(s => s.result === 'Pass'))
+    const openCertificateModal = (staff?: StaffItem) => {
+        if (staff?.enrollmentId) {
+            setCertEnrollmentId(staff.enrollmentId)
+            setShowCertModal(true)
         }
-        setShowCertModal(true)
     }
 
     const ALLOWED_NEXT_STATUS: Record<string, string[]> = {
@@ -172,6 +214,7 @@ export default function ScheduleDetailPage() {
     const enrollMutation = useEnrollStaff(sessionId)
     const unenrollMutation = useUnenrollStaff(sessionId)
     const sendEmailMutation = useSendEmailList(sessionId)
+    const completeCertMutation = useCompleteCertificate(sessionId)
 
     const [enrollingId, setEnrollingId] = useState<string | null>(null)
 
@@ -196,6 +239,7 @@ export default function ScheduleDetailPage() {
     }
 
     const [removingId, setRemovingId] = useState<string | null>(null)
+    const [gradingId, setGradingId] = useState<string | null>(null)
     const [confirmRemoveStaff, setConfirmRemoveStaff] = useState<StaffItem | null>(null)
 
     const handleRemove = (staff: any) => {
@@ -230,8 +274,29 @@ export default function ScheduleDetailPage() {
         }
     }
 
-    const handleUpdateResult = (staffId: string, field: 'score' | 'result', value: string) => {
-        setEnrolledStaff(prev => prev.map(s => s.id === staffId ? { ...s, [field]: value } : s));
+    const handleUpdateResult = async (staffId: string, field: 'score' | 'result', value: string) => {
+        if (field !== 'result') return
+        const staff = enrolledStaff.find(s => s.id === staffId)
+        if (!staff?.enrollmentId) return
+
+        setGradingId(staffId)
+        const isPassed = value === 'Pass'
+        try {
+            const res = await completeCertMutation.mutateAsync({
+                enrollmentIds: [staff.enrollmentId],
+                isPassed,
+            })
+            const item = res.responseData?.[0]
+            if (item?.status === 'success') {
+                toast.success(`${staff.name || 'Staff'} marked as ${value}`)
+            } else {
+                toast.error(item?.message || `Failed to update grading result. (${item?.status ?? 'unknown'})`)
+            }
+        } catch {
+            toast.error('Failed to update grading result. Please try again.')
+        } finally {
+            setGradingId(null)
+        }
     }
 
     const handleSendAll = async () => {
@@ -705,175 +770,188 @@ export default function ScheduleDetailPage() {
                                 </TooltipProvider>
                             </div>
 
-                            <div className="grid grid-cols-[32px_1fr_120px_130px_80px_90px_70px] gap-3 px-4 py-2.5 bg-muted/30 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border">
-                                <span className="flex items-center justify-center">
-                                    <input
-                                        type="checkbox"
-                                        checked={enrolledStaff.length > 0 && selectedEnrolledIds.size === enrolledStaff.length}
-                                        onChange={(e) => {
-                                            if (e.target.checked) {
-                                                setSelectedEnrolledIds(new Set(enrolledStaff.map(s => s.id)))
-                                            } else {
-                                                setSelectedEnrolledIds(new Set())
-                                            }
-                                        }}
-                                        className="w-3.5 h-3.5 rounded border-border cursor-pointer accent-primary"
-                                    />
-                                </span>
-                                <span>Employee Name</span>
-                                <span>License</span>
-                                <span>Department</span>
-                                <span>Status</span>
-                                <span>Result</span>
-                                <span className="text-center">Action</span>
-                            </div>
-
-                            <div className="max-h-[500px] overflow-y-auto">
-                                {isLoadingEnrolled ? (
-                                    <div className="p-12 text-center">
-                                        <Loader2 className="w-6 h-6 text-primary animate-spin mx-auto mb-2" />
-                                        <p className="text-xs text-muted-foreground">Loading enrolled staff...</p>
+                            <div className="max-h-[500px] overflow-auto">
+                                <div className="min-w-[780px]">
+                                    <div className="grid grid-cols-[32px_minmax(150px,1fr)_120px_130px_110px_100px_70px] gap-3 px-4 py-2.5 bg-muted/30 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border sticky top-0 z-10">
+                                        <span className="flex items-center justify-center">
+                                            <input
+                                                type="checkbox"
+                                                checked={enrolledStaff.length > 0 && selectedEnrolledIds.size === enrolledStaff.length}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setSelectedEnrolledIds(new Set(enrolledStaff.map(s => s.id)))
+                                                    } else {
+                                                        setSelectedEnrolledIds(new Set())
+                                                    }
+                                                }}
+                                                className="w-3.5 h-3.5 rounded border-border cursor-pointer accent-primary"
+                                            />
+                                        </span>
+                                        <span>Employee Name</span>
+                                        <span>License</span>
+                                        <span>Department</span>
+                                        <span>Status</span>
+                                        <span>Result</span>
+                                        <span className="text-center">Action</span>
                                     </div>
-                                ) : enrolledStaff.length === 0 ? (
-                                    <div className="p-12 text-center">
-                                        <Users className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-                                        <p className="text-xs text-muted-foreground">
-                                            {enrolledSearch ? 'No matching enrolled staff' : 'No staff enrolled yet. Add staff from the left panel.'}
-                                        </p>
-                                    </div>
-                                ) : (
-                                    enrolledStaff.map((staff, idx) => (
-                                        <div
-                                            key={staff.id + '-' + idx}
-                                            className={`grid grid-cols-[32px_1fr_120px_130px_80px_90px_70px] gap-3 px-4 py-3 items-center border-b border-border/50 hover:bg-muted/20 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-muted/10'
-                                                }`}
-                                        >
-                                            <div className="flex items-center justify-center">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selectedEnrolledIds.has(staff.id)}
-                                                    onChange={(e) => {
-                                                        setSelectedEnrolledIds(prev => {
-                                                            const next = new Set(prev)
-                                                            if (e.target.checked) {
-                                                                next.add(staff.id)
-                                                            } else {
-                                                                next.delete(staff.id)
-                                                            }
-                                                            return next
-                                                        })
-                                                    }}
-                                                    className="w-3.5 h-3.5 rounded border-border cursor-pointer accent-primary"
-                                                />
-                                            </div>
-                                            <TooltipProvider>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <button type="button" title={`${staff.name} (${staff.code})`} className="min-w-0 text-left w-full bg-transparent border-none p-0 cursor-default outline-none">
-                                                            <p className="text-xs font-semibold text-foreground truncate">{staff.name}</p>
-                                                            <p className="text-[10px] text-slate-400 font-bold truncate">{staff.code}</p>
-                                                        </button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent side="top">
-                                                        <p>{staff.name}</p>
-                                                        <p className="text-muted-foreground">{staff.code}</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
-                                            <div className="min-w-0 overflow-hidden">
-                                                <TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <button type="button" title={staff.license} className="w-full text-left bg-transparent border-none p-0 cursor-default outline-none text-xs font-semibold text-foreground truncate block">
-                                                                {staff.license}
-                                                            </button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent side="top">
-                                                            <p>{staff.license}</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                            </div>
-                                            <div className="min-w-0 overflow-hidden">
-                                                <TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <button type="button" title={staff.dept} className="w-full text-left bg-transparent border-none p-0 cursor-default outline-none text-[11px] text-muted-foreground font-medium truncate block">
-                                                                {staff.dept}
-                                                            </button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent side="top">
-                                                            <p>{staff.dept}</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                            </div>
-                                            <div className="flex">
-                                                <span
-                                                    className="inline-flex items-center gap-1 w-fit px-1.5 py-0.5 rounded text-[9px] font-bold capitalize"
-                                                    style={{ background: '#dbeafe', color: '#1e40af' }}
-                                                >
-                                                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#3b82f6' }} />
-                                                    {staff.status}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center">
-                                                {sessionStatus === 'Grading' ? (
-                                                    <div className="flex bg-muted/50 p-0.5 rounded-md border border-border/50">
-                                                        <button
-                                                            onClick={() => handleUpdateResult(staff.id, 'result', 'Pass')}
-                                                            className={`px-2 py-1 text-[10px] font-bold rounded-sm transition-colors cursor-pointer border-none ${staff.result === 'Pass' ? 'bg-emerald-500 text-white shadow-sm' : 'text-emerald-700 hover:bg-emerald-100 bg-transparent'}`}
-                                                        >
-                                                            Pass
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleUpdateResult(staff.id, 'result', 'Fail')}
-                                                            className={`px-2 py-1 text-[10px] font-bold rounded-sm transition-colors cursor-pointer border-none ${staff.result === 'Fail' ? 'bg-red-500 text-white shadow-sm' : 'text-red-700 hover:bg-red-100 bg-transparent'}`}
-                                                        >
-                                                            Fail
-                                                        </button>
-                                                    </div>
-                                                ) : sessionStatus === 'Completed' ? (
-                                                    <span className={`px-2 py-1 text-[10px] font-bold rounded-md ${staff.result === 'Pass' || staff.result === 'Passed' ? 'bg-emerald-100 text-emerald-700' : staff.result === 'Fail' || staff.result === 'Failed' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-500'}`}>
-                                                        {staff.result}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-[10px] text-muted-foreground italic px-2 py-1 bg-slate-100 rounded-md border border-border" title="Result can be edited during Grading">
-                                                        {staff.result === 'Pending' ? 'Pending' : staff.result}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="flex items-center justify-center gap-1">
-                                                {sessionStatus === 'Completed' && (staff.result === 'Pass' || staff.result === 'Passed') && (
-                                                    <button
-                                                        onClick={() => openCertificateModal(staff)}
-                                                        className="p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors cursor-pointer border-none bg-transparent"
-                                                        title="Issue Certificate"
-                                                    >
-                                                        <Award className="w-4 h-4" />
-                                                    </button>
-                                                )}
-                                                <button
-                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer border-none bg-transparent"
-                                                    title="Send Email"
-                                                    onClick={() => {
-                                                        setEmailPreviewStaff(staff)
-                                                    }}
-                                                >
-                                                    <Mail className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleRemove(staff)}
-                                                    disabled={sessionStatus === 'Completed' || sessionStatus === 'Grading' || removingId === staff.id}
-                                                    className={`p-1.5 rounded-lg transition-colors border-none bg-transparent ${sessionStatus === 'Completed' || sessionStatus === 'Grading' || removingId === staff.id ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-red-600 hover:bg-red-50 cursor-pointer'}`}
-                                                    title="Remove Staff"
-                                                >
-                                                    {removingId === staff.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                                                </button>
-                                            </div>
+                                    {isLoadingEnrolled ? (
+                                        <div className="p-12 text-center">
+                                            <Loader2 className="w-6 h-6 text-primary animate-spin mx-auto mb-2" />
+                                            <p className="text-xs text-muted-foreground">Loading enrolled staff...</p>
                                         </div>
-                                    ))
-                                )}
+                                    ) : enrolledStaff.length === 0 ? (
+                                        <div className="p-12 text-center">
+                                            <Users className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                                            <p className="text-xs text-muted-foreground">
+                                                {enrolledSearch ? 'No matching enrolled staff' : 'No staff enrolled yet. Add staff from the left panel.'}
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        enrolledStaff.map((staff, idx) => (
+                                            <div
+                                                key={staff.id + '-' + idx}
+                                                className={`grid grid-cols-[32px_minmax(150px,1fr)_120px_130px_110px_100px_70px] gap-3 px-4 py-3 items-center border-b border-border/50 hover:bg-muted/20 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-muted/10'
+                                                    }`}
+                                            >
+                                                <div className="flex items-center justify-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedEnrolledIds.has(staff.id)}
+                                                        onChange={(e) => {
+                                                            setSelectedEnrolledIds(prev => {
+                                                                const next = new Set(prev)
+                                                                if (e.target.checked) {
+                                                                    next.add(staff.id)
+                                                                } else {
+                                                                    next.delete(staff.id)
+                                                                }
+                                                                return next
+                                                            })
+                                                        }}
+                                                        className="w-3.5 h-3.5 rounded border-border cursor-pointer accent-primary"
+                                                    />
+                                                </div>
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <button type="button" title={`${staff.name} (${staff.code})`} className="min-w-0 text-left w-full bg-transparent border-none p-0 cursor-default outline-none">
+                                                                <p className="text-xs font-semibold text-foreground truncate">{staff.name}</p>
+                                                                <p className="text-[10px] text-slate-400 font-bold truncate">{staff.code}</p>
+                                                            </button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="top">
+                                                            <p>{staff.name}</p>
+                                                            <p className="text-muted-foreground">{staff.code}</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                                <div className="min-w-0 overflow-hidden">
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <button type="button" title={staff.license} className="w-full text-left bg-transparent border-none p-0 cursor-default outline-none text-xs font-semibold text-foreground truncate block">
+                                                                    {staff.license}
+                                                                </button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent side="top">
+                                                                <p>{staff.license}</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                </div>
+                                                <div className="min-w-0 overflow-hidden">
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <button type="button" title={staff.dept} className="w-full text-left bg-transparent border-none p-0 cursor-default outline-none text-[11px] text-muted-foreground font-medium truncate block">
+                                                                    {staff.dept}
+                                                                </button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent side="top">
+                                                                <p>{staff.dept}</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                </div>
+                                                <div className="flex">
+                                                    <span
+                                                        className="inline-flex items-center gap-1 w-fit px-1.5 py-0.5 rounded text-[9px] font-bold capitalize"
+                                                        style={{ background: '#dbeafe', color: '#1e40af' }}
+                                                    >
+                                                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#3b82f6' }} />
+                                                        {staff.status}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center">
+                                                    {sessionStatus === 'Grading' ? (
+                                                        gradingId === staff.id ? (
+                                                            <div className="flex items-center justify-center w-full">
+                                                                <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                                                            </div>
+                                                        ) : staff.result === 'Pending' ? (
+                                                            <div className="flex bg-muted/50 p-0.5 rounded-md border border-border/50">
+                                                                <button
+                                                                    onClick={() => handleUpdateResult(staff.id, 'result', 'Pass')}
+                                                                    disabled={gradingId !== null}
+                                                                    className={`px-2 py-1 text-[10px] font-bold rounded-sm transition-colors cursor-pointer border-none text-emerald-700 hover:bg-emerald-100 bg-transparent ${gradingId !== null ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                >
+                                                                    Pass
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleUpdateResult(staff.id, 'result', 'Fail')}
+                                                                    disabled={gradingId !== null}
+                                                                    className={`px-2 py-1 text-[10px] font-bold rounded-sm transition-colors cursor-pointer border-none text-red-700 hover:bg-red-100 bg-transparent ${gradingId !== null ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                >
+                                                                    Fail
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <span className={`px-2 py-1 text-[10px] font-bold rounded-md ${staff.result === 'Pass' || staff.result === 'Passed' ? 'bg-emerald-100 text-emerald-700' : staff.result === 'Fail' || staff.result === 'Failed' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-500'}`}>
+                                                                {staff.result}
+                                                            </span>
+                                                        )
+                                                    ) : sessionStatus === 'Completed' ? (
+                                                        <span className={`px-2 py-1 text-[10px] font-bold rounded-md ${staff.result === 'Pass' || staff.result === 'Passed' ? 'bg-emerald-100 text-emerald-700' : staff.result === 'Fail' || staff.result === 'Failed' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-500'}`}>
+                                                            {staff.result}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-[10px] text-muted-foreground italic px-2 py-1 bg-slate-100 rounded-md border border-border" title="Result can be edited during Grading">
+                                                            {staff.result === 'Pending' ? 'Pending' : staff.result}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center justify-center gap-1">
+                                                    {sessionStatus === 'Completed' && (staff.result === 'Pass' || staff.result === 'Passed') && (
+                                                        <button
+                                                            onClick={() => openCertificateModal(staff)}
+                                                            className="p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors cursor-pointer border-none bg-transparent"
+                                                            title="Issue Certificate"
+                                                        >
+                                                            <Award className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer border-none bg-transparent"
+                                                        title="Send Email"
+                                                        onClick={() => {
+                                                            setEmailPreviewStaff(staff)
+                                                        }}
+                                                    >
+                                                        <Mail className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleRemove(staff)}
+                                                        disabled={staff.status !== 'Draft' || removingId === staff.id}
+                                                        className={`p-1.5 rounded-lg transition-colors border-none bg-transparent ${staff.status !== 'Draft' || removingId === staff.id ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-red-600 hover:bg-red-50 cursor-pointer'}`}
+                                                        title={staff.status !== 'Draft' ? 'Can only remove staff with Draft status' : 'Remove Staff'}
+                                                    >
+                                                        {removingId === staff.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
                             </div>
 
                             {/* Pagination */}
@@ -921,9 +999,9 @@ export default function ScheduleDetailPage() {
             />
             <CertificateModal
                 isOpen={showCertModal}
-                onClose={() => setShowCertModal(false)}
-                session={session as any}
-                staffList={certStaffList}
+                onClose={() => { setShowCertModal(false); setCertEnrollmentId(null) }}
+                enrollmentId={certEnrollmentId}
+                instructorName={session?.instructor ?? ''}
             />
 
             {/* Unenroll Confirmation Modal */}

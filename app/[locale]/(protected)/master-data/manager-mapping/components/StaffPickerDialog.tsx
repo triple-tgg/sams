@@ -122,7 +122,7 @@ const StaffPickerDialog = ({
                     {staff.position}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" className="h-7 text-xs">
+                    <Button variant="ghost" color="primary" size="sm" className="h-7 text-xs">
                       <UserCheck className="h-3.5 w-3.5 mr-1" />
                       Select
                     </Button>

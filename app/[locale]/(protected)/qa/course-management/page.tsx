@@ -12,7 +12,7 @@ import { TrainingNeedsMatrix } from './components/TrainingNeedsMatrix'
 import { CourseDetailPanel } from './components/CourseDetailModal'
 import { AddCourseModal } from './components/AddCourseModal'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getCourseList, getCourseCategories, getCourseDepartments, getCourseSummary, deleteCourse, DeleteCourseRequest, DeleteCourseResponse } from '@/lib/api/qa/course'
+import { getCourseList, getCourseCategories, getCourseDepartments, getCourseSummary, deleteCourse, DeleteCourseRequest, DeleteCourseResponse, CourseDepartmentItem, CourseData, CourseCategory } from '@/lib/api/qa/course'
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
 import { useReduxAuth } from '@/lib/api/hooks/useReduxAuth'
 import { toast } from 'sonner'
@@ -81,7 +81,7 @@ export default function CourseManagementPage() {
         const defaultAll = { id: 'all', name: 'All Departments', icon: <Building2 className="w-4 h-4" />, roles: [] };
         if (!deptListResp?.responseData) return [defaultAll];
 
-        const mappedDepts = deptListResp.responseData.map(item => {
+        const mappedDepts = deptListResp.responseData.map((item: CourseDepartmentItem) => {
             let icon = <Building2 className="w-4 h-4" />;
             if (item.courseDepartment.name === 'Executive') icon = <Briefcase className="w-4 h-4" />;
             else if (item.courseDepartment.name === 'Maintenance') icon = <Wrench className="w-4 h-4" />;
@@ -91,7 +91,7 @@ export default function CourseManagementPage() {
                 id: item.courseDepartment.id.toString(),
                 name: item.courseDepartment.name,
                 icon,
-                roles: item.courseDepartmentSubs.map(sub => ({ id: sub.id, name: sub.name }))
+                roles: item.courseDepartmentPositions.map(pos => ({ id: pos.id, name: pos.name }))
             };
         });
 
@@ -100,7 +100,7 @@ export default function CourseManagementPage() {
 
     const apiCourses = useMemo<Course[]>(() => {
         if (!courseListResp?.responseData) return []
-        return courseListResp.responseData.map(c => ({
+        return courseListResp.responseData.map((c: CourseData) => ({
             id: c.id,
             code: c.courseCode,
             name: c.courseName,
@@ -212,7 +212,7 @@ export default function CourseManagementPage() {
                                                     {/* Roles sub-list */}
                                                     {isExpanded && hasRoles && (
                                                         <div className="ml-3 mt-0.5 mb-1 border-l-2 border-primary/20 pl-3 space-y-0.5">
-                                                            {dept.roles.map((role) => {
+                                                            {dept.roles.map((role: { id: number; name: string }) => {
                                                                 const isSubSelected = selectedSubDept === role.id
                                                                 return (
                                                                     <div
@@ -245,7 +245,7 @@ export default function CourseManagementPage() {
                                 <div className="pt-3 border-t border-border">
                                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Category</p>
                                     <div className="space-y-0.5">
-                                        {['All', ...apiCategories.map(c => c.name)].map(cat => (
+                                        {['All', ...apiCategories.map((c: CourseCategory) => c.name)].map(cat => (
                                             <button
                                                 key={cat}
                                                 onClick={() => setSelectedCategory(cat)}

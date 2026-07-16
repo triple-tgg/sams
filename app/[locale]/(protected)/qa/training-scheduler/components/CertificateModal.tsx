@@ -1,36 +1,72 @@
-import React, { useRef } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Printer } from 'lucide-react'
+import React, { useRef, useMemo } from 'react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Printer, Loader2 } from 'lucide-react'
+import { useCertificate } from '@/lib/api/qa/certificate.hooks'
 import { formatDate } from '../types'
-
-interface Staff {
-    name: string
-    code: string
-    dept: string
-}
-
-interface Session {
-    courseName: string
-    courseCode: string
-    dateStart: string
-    dateEnd: string
-    instructor: string
-}
 
 interface Props {
     isOpen: boolean
     onClose: () => void
-    session: Session
-    staffList: Staff[]
+    enrollmentId: number | null
+    instructorName?: string
 }
 
-export function CertificateModal({ isOpen, onClose, session, staffList }: Props) {
-    const printRef = useRef<HTMLDivElement>(null)
+export function CertificateModal({ isOpen, onClose, enrollmentId, instructorName = '' }: Props) {
+    const iframeRef = useRef<HTMLIFrameElement>(null)
+
+    // Fetch certificate data from API
+    const { data: certResp, isLoading } = useCertificate(isOpen ? enrollmentId : null)
+    const certData = certResp?.responseData?.[0] ?? null
+
+    // Build the HTML with placeholders replaced
+    const certificateHtml = useMemo(() => {
+        if (!certData) return null
+
+        // We'll fetch the template synchronously via fetch in an effect,
+        // but for SSR-safety we build it here with the known structure
+        return null // placeholder — actual HTML built in iframe load
+    }, [certData])
 
     const handlePrint = () => {
-        window.print()
+        if (iframeRef.current?.contentWindow) {
+            iframeRef.current.contentWindow.print()
+        }
     }
+
+    // Load and inject the template into the iframe
+    const handleIframeLoad = async () => {
+        if (!certData || !iframeRef.current) return
+
+        try {
+            const resp = await fetch('/FM-CM-055-Certificate-Template.html')
+            let html = await resp.text()
+
+            // Replace placeholders with real data
+            html = html.replace(/\{\{CertificateNo\}\}/g, certData.certificateNo || '—')
+            html = html.replace(/\{\{FullName\}\}/g, certData.employeeName || '—')
+            html = html.replace(/\{\{TrainingCourse\}\}/g, certData.courseName || '—')
+            html = html.replace(/\{\{TrainingDate\}\}/g, certData.completedDate ? formatDate(certData.completedDate) : '—')
+            html = html.replace(/\{\{InstructorName\}\}/g, instructorName || '—')
+            html = html.replace(/\{\{AccountableManagerName\}\}/g, '—')
+
+            const iframe = iframeRef.current
+            const doc = iframe.contentDocument || iframe.contentWindow?.document
+            if (doc) {
+                doc.open()
+                doc.write(html)
+                doc.close()
+            }
+        } catch (err) {
+            console.error('Failed to load certificate template:', err)
+        }
+    }
+
+    // Trigger template load when data is ready
+    React.useEffect(() => {
+        if (isOpen && certData && iframeRef.current) {
+            handleIframeLoad()
+        }
+    }, [isOpen, certData])
 
     return (
         <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
@@ -41,53 +77,34 @@ export function CertificateModal({ isOpen, onClose, session, staffList }: Props)
                         <button onClick={onClose} className="px-4 py-2 bg-white border border-border text-foreground rounded-lg text-sm font-semibold hover:bg-muted transition-colors">
                             Cancel
                         </button>
-                        <button onClick={handlePrint} disabled={staffList.length === 0} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <button
+                            onClick={handlePrint}
+                            disabled={!certData || isLoading}
+                            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
                             <Printer className="w-4 h-4" />
                             Print / Save as PDF
                         </button>
                     </div>
                 </DialogHeader>
 
-                <div className="flex-1 overflow-y-auto p-8 flex justify-center flex-col items-center gap-8 print-preview-container">
-                    {staffList.map((staff, idx) => (
-                        <div 
-                            key={idx} 
-                            className="bg-white shadow-xl printable-a4 w-[297mm] min-h-[210mm] relative p-12 shrink-0 flex flex-col justify-center items-center text-center"
-                        >
-                            {/* Decorative border */}
-                            <div className="absolute inset-6 border-[16px] border-double border-slate-200 pointer-events-none" />
-                            
-                            <div className="z-10 w-full px-16 flex flex-col items-center justify-center h-full">
-                                <h1 className="text-5xl font-serif font-bold text-slate-800 mb-4 uppercase tracking-widest">Certificate of Completion</h1>
-                                <div className="w-40 h-1.5 bg-primary mb-12" />
-
-                                <p className="text-xl text-slate-500 mb-6">This is to certify that</p>
-                                <h2 className="text-5xl font-bold text-slate-900 mb-8 font-serif border-b border-slate-300 pb-2 px-12">{staff.name}</h2>
-                                
-                                <p className="text-xl text-slate-500 mb-6">has successfully completed the training course on</p>
-                                <h3 className="text-4xl font-bold text-primary mb-10 leading-tight px-10">{session.courseName}</h3>
-                                
-                                <p className="text-lg text-slate-600 mb-16 font-medium">
-                                    Conducted from {formatDate(session.dateStart)} to {formatDate(session.dateEnd)}
-                                </p>
-
-                                <div className="flex w-full justify-between px-16 mt-auto">
-                                    <div className="flex flex-col items-center">
-                                        <div className="w-64 h-px bg-slate-400 mb-3" />
-                                        <p className="text-base font-bold text-slate-700 uppercase">{session.instructor}</p>
-                                        <p className="text-sm text-slate-500">Course Instructor</p>
-                                    </div>
-                                    <div className="flex flex-col items-center">
-                                        <div className="w-64 h-px bg-slate-400 mb-3" />
-                                        <p className="text-base font-bold text-slate-700 uppercase">Training Manager</p>
-                                        <p className="text-sm text-slate-500">Quality Assurance</p>
-                                    </div>
-                                </div>
-                            </div>
+                <div className="flex-1 overflow-y-auto p-8 flex justify-center items-start">
+                    {isLoading ? (
+                        <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground">
+                            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                            <span className="text-sm">Loading certificate data...</span>
                         </div>
-                    ))}
-                    {staffList.length === 0 && (
-                        <div className="text-center text-slate-500 py-20 w-full">No staff selected for certificate</div>
+                    ) : certData ? (
+                        <iframe
+                            ref={iframeRef}
+                            title="Certificate Preview"
+                            className="bg-white shadow-xl w-[297mm] min-h-[210mm] border-none"
+                            style={{ aspectRatio: '297/210' }}
+                        />
+                    ) : (
+                        <div className="text-center text-slate-500 py-20 w-full">
+                            No certificate data available
+                        </div>
                     )}
                 </div>
 
@@ -101,21 +118,6 @@ export function CertificateModal({ isOpen, onClose, session, staffList }: Props)
                             position: static !important;
                             box-shadow: none !important;
                             background: white !important;
-                        }
-                        .print-preview-container {
-                            padding: 0 !important;
-                            overflow: visible !important;
-                        }
-                        .printable-a4 {
-                            box-shadow: none !important;
-                            margin: 0 !important;
-                            width: 100% !important;
-                            height: 100% !important;
-                            page-break-after: always;
-                        }
-                        @page { size: landscape; margin: 0; }
-                        .fixed {
-                            position: static !important;
                         }
                         button, .hidden-print {
                             display: none !important;

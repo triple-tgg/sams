@@ -131,7 +131,7 @@ export interface UpsertWorkExperience {
 
 export interface UpsertStaffDocument {
     id: number;
-    documentType: string;
+    staffDocumentTypeId: number;
     fileName: string;
     filePath: string;
 }
@@ -177,7 +177,6 @@ export interface UpsertStaffRequest {
     staffDocumentList: UpsertStaffDocument[];
     staffAircraftLicenseList: UpsertAircraftLicense[];
     staffAmelLicenseList: UpsertAmelLicense[];
-    userName: string;
 }
 
 export interface UpsertStaffResponse {
@@ -278,9 +277,12 @@ export interface StaffDocumentItem {
     id: number;
     staffId: number;
     documentType: string;
+    staffDocumentTypeId: number | null;
     fileName: string;
     filePath: string;
     uploadDate: string;
+    staffDocumentStatusId: number | null;
+    rejectedReason: string | null;
     isdelete: boolean;
     createddate: string;
     createdby: string;

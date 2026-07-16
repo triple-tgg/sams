@@ -63,6 +63,24 @@ export interface SendEmailResult {
   details: { email: string | null; isSuccess: boolean; errorMessage: string }[];
 }
 
+export interface CompleteCertificateRequest {
+  enrollmentIds: number[];
+  isPassed: boolean;
+}
+
+export interface CompleteCertificateResultItem {
+  enrollmentId: number;
+  status: string;
+  certificateNo: string;
+  message: string;
+}
+
+export interface CompleteCertificateResponse {
+  message: string;
+  responseData: CompleteCertificateResultItem[];
+  error: string;
+}
+
 // ──────────────────────────────────────────────────────────────
 // API Functions
 // ──────────────────────────────────────────────────────────────
@@ -70,7 +88,7 @@ export interface SendEmailResult {
 /** GET available staff for enrollment */
 export const getStaffForEnrollment = async (scheduleId: number): Promise<StaffForEnrollmentItem[]> => {
   const res = await axiosConfig.get(`/training/enrollment/staff-for-enrollment/${scheduleId}`);
-  return res.data?.responseData ?? [];
+  return res.data?.responseData?.staffs ?? [];
 };
 
 /** POST enrolled staff list (paginated) */
@@ -98,6 +116,12 @@ export const unenrollStaff = async (data: UnenrollRequest): Promise<any> => {
 export const sendEmailList = async (data: SendEmailListRequest): Promise<SendEmailResult> => {
   const res = await axiosConfig.post("/training/send-email-list", data);
   return res.data?.responseData;
+};
+
+/** POST complete certificate (grade Pass/Fail) */
+export const completeCertificate = async (data: CompleteCertificateRequest): Promise<CompleteCertificateResponse> => {
+  const res = await axiosConfig.post("/training/enrollment/complete-certificate", data);
+  return res.data;
 };
 
 // ──────────────────────────────────────────────────────────────

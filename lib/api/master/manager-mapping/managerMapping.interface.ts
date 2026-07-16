@@ -15,6 +15,7 @@ export interface StaffOption {
 }
 
 export interface ManagerMappingItem {
-  departmentId: string;
+  chiefId: number;          // id of the chief record (for upsert/delete)
+  departmentId: string;     // staffDepartmentId as string (for matching)
   staffId: number;
 }
