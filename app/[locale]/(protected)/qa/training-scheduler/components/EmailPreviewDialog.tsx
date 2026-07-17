@@ -27,10 +27,14 @@ interface EmailPreviewDialogProps {
     scheduleId: number
     onSend: (staffId: number) => Promise<void>
     isSending: boolean
+    sessionStatus?: string
 }
 
-export function EmailPreviewDialog({ isOpen, onClose, staff, scheduleId, onSend, isSending }: EmailPreviewDialogProps) {
+export function EmailPreviewDialog({ isOpen, onClose, staff, scheduleId, onSend, isSending, sessionStatus }: EmailPreviewDialogProps) {
     const [activeTab, setActiveTab] = useState<'preview' | 'log'>('preview')
+
+    // Email sending is disabled once session reaches Grading or beyond
+    const isEmailDisabled = ['Grading', 'Completed', 'Cancelled'].includes(sessionStatus ?? '')
 
     // ── Fetch email preview HTML from API ──────────────────────────
     const { data: previewHtml, isLoading: isLoadingPreview } = usePreviewEmailConfirmed(
@@ -60,7 +64,7 @@ export function EmailPreviewDialog({ isOpen, onClose, staff, scheduleId, onSend,
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose() }}>
-            <DialogContent size="lg" className="p-0 gap-0 overflow-hidden min-h-[90vh] flex flex-col">
+            <DialogContent size="lg" className="p-0 gap-0 overflow-hidden min-h-[90vh] max-h-[90vh] flex flex-col">
                 <DialogHeader className="px-6 pt-5 pb-0">
                     <DialogTitle className="flex items-center gap-2 text-base">
                         <Mail className="w-4 h-4 text-primary" />
@@ -74,7 +78,7 @@ export function EmailPreviewDialog({ isOpen, onClose, staff, scheduleId, onSend,
                 <Tabs
                     value={activeTab}
                     onValueChange={(v) => setActiveTab(v as 'preview' | 'log')}
-                    className="mt-3 flex-1 flex flex-col"
+                    className="mt-3 flex-1 flex flex-col min-h-0 overflow-hidden"
                 >
                     <div className="px-6">
                         <TabsList className="h-9 w-auto inline-flex bg-transparent p-0 gap-4">
@@ -120,8 +124,8 @@ export function EmailPreviewDialog({ isOpen, onClose, staff, scheduleId, onSend,
                     </TabsContent>
 
                     {/* ── Log Tab ─────────────────────────────── */}
-                    <TabsContent value="log" className="mt-0 px-6 pb-4 flex-1 min-h-0 data-[state=active]:flex data-[state=active]:flex-col">
-                        <div className="mt-4 flex-1 flex flex-col min-h-0">
+                    <TabsContent value="log" className="mt-0 px-6 pb-4 flex-1 min-h-0 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col">
+                        <div className="mt-4 flex-1 flex flex-col min-h-0 overflow-hidden">
                             {isLoadingLogs ? (
                                 <div className="flex flex-col items-center justify-center py-12 text-center">
                                     <Loader2 className="w-6 h-6 text-muted-foreground/40 animate-spin mb-3" />
@@ -195,13 +199,13 @@ export function EmailPreviewDialog({ isOpen, onClose, staff, scheduleId, onSend,
                     <Button variant="outline" size="sm" onClick={onClose} className="text-xs">
                         Close
                     </Button>
-                    <Button size="sm" onClick={handleSend} disabled={isSending} className="text-xs gap-1.5">
+                    <Button size="sm" onClick={handleSend} disabled={isSending || isEmailDisabled} className="text-xs gap-1.5">
                         {isSending ? (
                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         ) : (
                             <Send className="w-3.5 h-3.5" />
                         )}
-                        {isSending ? 'Sending...' : 'Send Email'}
+                        {isSending ? 'Sending...' : isEmailDisabled ? 'Send Disabled' : 'Send Email'}
                     </Button>
                 </DialogFooter>
             </DialogContent>

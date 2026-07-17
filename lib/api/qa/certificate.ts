@@ -4,7 +4,6 @@ import axiosConfig from "@/lib/axios.config";
 // Types
 // ──────────────────────────────────────────────────────────────
 
-/** Single certificate item returned by GET /training/certificate/{enrollmentId} */
 export interface CertificateData {
   enrollmentId: number;
   trainingScheduleId: number;
@@ -14,9 +13,10 @@ export interface CertificateData {
   department: string;
   courseName: string;
   courseCode: string;
+  instructor: string;
   certificateNo: string;
   completedDate: string;
-  score: number;
+  score: number | null;
 }
 
 /** GET /training/certificate/{enrollmentId} — full response */
@@ -37,5 +37,15 @@ export const getCertificate = async (
   const res = await axiosConfig.get(
     `/training/certificate/${enrollmentId}`,
   );
+  return res.data;
+};
+
+/** POST /training/certificate/list — fetch multiple certificates */
+export const getCertificateList = async (
+  enrollmentIds: number[],
+): Promise<CertificateResponse> => {
+  const res = await axiosConfig.post("/training/certificate/list", {
+    enrollmentId: enrollmentIds,
+  });
   return res.data;
 };

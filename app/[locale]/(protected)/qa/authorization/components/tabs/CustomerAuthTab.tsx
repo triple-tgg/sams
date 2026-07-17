@@ -443,8 +443,8 @@ function MatrixView() {
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-xs" style={{ minWidth: '100%' }}>
             <thead>
-              <tr className="bg-muted/50 border-b-2 border-border">
-                <th className="px-3 py-2 text-left text-muted-foreground font-bold whitespace-nowrap sticky left-0 bg-muted/50 z-10 border-r border-border" style={{ minWidth: 200 }}>
+              <tr className="bg-slate-50 border-b-2 border-border">
+                <th className="px-3 py-2 text-left text-muted-foreground font-bold whitespace-nowrap sticky left-0 bg-slate-50 z-10 border-r border-border" style={{ minWidth: 200 }}>
                   Staff
                 </th>
                 {visibleAirlines.map(code => (
@@ -467,11 +467,11 @@ function MatrixView() {
                 return (
                   <tr
                     key={s.id}
-                    className={`border-b border-border/50 transition-colors hover:bg-muted/40 ${ri % 2 === 0 ? 'bg-card' : 'bg-muted/20'
+                    className={`group border-b border-border/50 transition-colors hover:bg-slate-100 ${ri % 2 === 0 ? 'bg-white' : 'bg-slate-50'
                       }`}
                   >
                     {/* Sticky Staff Column */}
-                    <td className={`px-3 py-1.5 sticky left-0 z-10 border-r border-border ${ri % 2 === 0 ? 'bg-card' : 'bg-muted/20'}`}>
+                    <td className={`px-3 py-1.5 sticky left-0 z-10 border-r border-border transition-colors group-hover:bg-slate-100 ${ri % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
                       <div className="flex items-center gap-2">
                         {s.profileImage ? (
                           <img

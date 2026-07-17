@@ -261,12 +261,12 @@ export function CrsTab() {
                 return (
                   <tr
                     key={s.id}
-                    className={`border-b border-border/50 transition-colors hover:bg-blue-50/30 ${
-                      ri % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'
+                    className={`group border-b border-border/50 transition-colors hover:bg-slate-100 ${
+                      ri % 2 === 0 ? 'bg-white' : 'bg-slate-50'
                     }`}
                   >
                     {/* Staff */}
-                    <td className={`px-3 py-2 sticky left-0 z-10 border-r border-border ${ri % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
+                    <td className={`px-3 py-2 sticky left-0 z-10 border-r border-border transition-colors group-hover:bg-slate-100 ${ri % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
                       <div className="flex items-center gap-2.5">
                         <div
                           className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"

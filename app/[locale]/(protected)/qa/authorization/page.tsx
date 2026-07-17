@@ -14,7 +14,7 @@ import { MechAuthTab } from './components/tabs/MechAuthTab'
 
 // ─── Tab Definitions ─────────────────────────────────────────────────────────
 
-type TabKey = 'dashboard' | 'monitoring' | 'sams' | 'customer' | 'authority' | 'mech'
+type TabKey = 'dashboard' | 'monitoring' | 'sams' | 'customer' | 'authority'
 
 const TABS: { key: TabKey; label: string; icon: ReactNode }[] = [
     { key: 'dashboard',   label: 'Dashboard',       icon: <BarChart3 className="w-3.5 h-3.5" /> },
@@ -22,7 +22,7 @@ const TABS: { key: TabKey; label: string; icon: ReactNode }[] = [
     { key: 'sams',        label: 'SAMs Auth',       icon: <Building2 className="w-3.5 h-3.5" /> },
     { key: 'customer',    label: 'Customer',        icon: <Plane className="w-3.5 h-3.5" /> },
     { key: 'authority',   label: 'Authority',       icon: <Globe className="w-3.5 h-3.5" /> },
-    { key: 'mech',        label: 'Mech',            icon: <Wrench className="w-3.5 h-3.5" /> },
+    // { key: 'mech',        label: 'Mech',            icon: <Wrench className="w-3.5 h-3.5" /> },
 ]
 
 // ─── Main Page ───────────────────────────────────────────────────────────────
@@ -75,7 +75,7 @@ export default function AuthorizationPage() {
                         {activeTab === 'sams' && <SamsAuthTab />}
                         {activeTab === 'customer' && <CustomerAuthTab />}
                         {activeTab === 'authority' && <AuthorityAuthTab />}
-                        {activeTab === 'mech' && <MechAuthTab />}
+                        {/* {activeTab === 'mech' && <MechAuthTab />} */}
                     </div>
                 </CardContent>
             </Card>

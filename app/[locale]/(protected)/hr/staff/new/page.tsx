@@ -476,6 +476,7 @@ export default function NewStaffPage() {
                     staffDocumentTypeId: d.staffDocumentTypeId,
                     fileName: d.fileName,
                     filePath: d.filePath,
+                    staffDocumentStatusId: 1,
                 })),
             staffAircraftLicenseList: selectedLicenses.map((license, idx) => ({
                 id: idx,

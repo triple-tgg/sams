@@ -1,6 +1,6 @@
 "use client";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { getEmailLogDatalist, previewEmailConfirmed, previewEmailDepartment, type EmailLogRequest } from "@/lib/api/qa/email-log";
+import { getEmailLogDatalist, previewEmailConfirmed, previewEmailDepartment, sendEmailDepartment, type EmailLogRequest } from "@/lib/api/qa/email-log";
 
 // ──────────────────────────────────────────────────────────────
 // Query Keys (central registry for cache management)
@@ -48,5 +48,13 @@ export function useInvalidateEmailLogs() {
 export function usePreviewEmailDepartment() {
   return useMutation({
     mutationFn: (scheduleId: number) => previewEmailDepartment({ scheduleId }),
+  });
+}
+
+/** Mutation: send department manager report email */
+export function useSendEmailDepartment() {
+  return useMutation({
+    mutationFn: (data: { scheduleId: number; subject: string; emailFrom: string | null; emailCc: string | null }) =>
+      sendEmailDepartment(data),
   });
 }

@@ -64,3 +64,37 @@ export const previewEmailDepartment = async (data: PreviewEmailDepartmentRequest
   const res = await axiosConfig.post("/training/preview-email-department", data);
   return res.data?.responseData ?? "";
 };
+
+// ──────────────────────────────────────────────────────────────
+// Send Email Department (Manager Report)
+// ──────────────────────────────────────────────────────────────
+
+export interface SendEmailDepartmentRequest {
+  scheduleId: number;
+  subject: string;
+  emailFrom: string | null;
+  emailCc: string | null;
+}
+
+export interface SendEmailDepartmentDetail {
+  email: string | null;
+  isSuccess: boolean;
+  errorMessage: string;
+}
+
+export interface SendEmailDepartmentResponse {
+  message: string;
+  responseData: {
+    totalSent: number;
+    totalFailed: number;
+    details: SendEmailDepartmentDetail[];
+    trainingSchedule: any;
+  };
+  error: string;
+}
+
+/** POST send department manager report email */
+export const sendEmailDepartment = async (data: SendEmailDepartmentRequest): Promise<SendEmailDepartmentResponse> => {
+  const res = await axiosConfig.post("/training/send-email-department-list", data);
+  return res.data;
+};

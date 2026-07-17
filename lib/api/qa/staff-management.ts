@@ -131,9 +131,10 @@ export interface UpsertWorkExperience {
 
 export interface UpsertStaffDocument {
     id: number;
-    staffDocumentTypeId: number;
     fileName: string;
     filePath: string;
+    staffDocumentStatusId: number;
+    staffDocumentTypeId: number;
 }
 
 export interface UpsertAircraftLicense {
@@ -293,7 +294,8 @@ export interface StaffDocumentItem {
 export interface StaffAircraftLicenseItem {
     id: number;
     staffId: number;
-    aircraftTypeId: number;
+    aircraftTypeId?: number;
+    aircraftTypeLicensId: number;
     isdelete: boolean;
     createddate: string;
     createdby: string;

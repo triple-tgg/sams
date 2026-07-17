@@ -28,6 +28,7 @@ export interface EnrolledStaffItem {
   result: string;
   trainingEnrollmentActionStatus: { id: number; code: string; name: string };
   trainingEnrollmentStatus: { id: number; code: string; name: string };
+  emailCount: number;
 }
 
 export interface EnrollRequest {
@@ -92,11 +93,14 @@ export const getStaffForEnrollment = async (scheduleId: number): Promise<StaffFo
 };
 
 /** POST enrolled staff list (paginated) */
-export const getEnrolledStaffList = async (data: StaffListRequest): Promise<{ list: EnrolledStaffItem[]; total: number }> => {
+export const getEnrolledStaffList = async (data: StaffListRequest): Promise<{ list: EnrolledStaffItem[]; total: number; totalAll: number; page: number; perPage: number }> => {
   const res = await axiosConfig.post("/training/enrollment/staff-list", data);
   return {
     list: res.data?.responseData ?? [],
     total: res.data?.total ?? 0,
+    totalAll: res.data?.totalAll ?? 0,
+    page: res.data?.page ?? data.page,
+    perPage: res.data?.perPage ?? data.perPage,
   };
 };
 

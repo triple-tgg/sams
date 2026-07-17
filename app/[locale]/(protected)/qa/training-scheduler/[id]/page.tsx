@@ -7,16 +7,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { PrintAttendanceModal } from '../components/PrintAttendanceModal'
 import { EvidenceUploadModal } from '../components/EvidenceUploadModal'
 import { CertificateModal } from '../components/CertificateModal'
+import { CertificateAllModal } from '../components/CertificateAllModal'
 import { EmailPreviewDialog } from '../components/EmailPreviewDialog'
 import { STATUS_CONFIG, CAT_COLOR, formatDate } from '../types'
 import type { Session } from '../types'
 import { useSchedulerById, useUpdateSchedulerStatus } from '@/lib/api/qa/scheduler.hooks'
 import { useTrainingDataStatuses } from '@/lib/api/master/trainingDataStatuses.hooks'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { useStaffForEnrollment, useEnrolledStaffList, useEnrollStaff, useUnenrollStaff, useSendEmailList, useCompleteCertificate } from '@/lib/api/qa/enrollment.hooks'
-import { useInvalidateEmailLogs, usePreviewEmailDepartment } from '@/lib/api/qa/email-log.hooks'
+import { useInvalidateEmailLogs, usePreviewEmailDepartment, useSendEmailDepartment } from '@/lib/api/qa/email-log.hooks'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { StaffForEnrollmentItem } from '@/lib/api/qa/enrollment'
 import { toast } from 'sonner'
@@ -33,6 +35,7 @@ interface StaffItem {
     status: string
     result: string
     expireStatus?: string
+    emailCount: number
 }
 
 export default function ScheduleDetailPage() {
@@ -70,6 +73,7 @@ export default function ScheduleDetailPage() {
         date: '-',
         status: 'available',
         result: 'Pending',
+        emailCount: 0,
     }))
 
     // ── React Query: Enrolled staff list ──────────────────────────
@@ -93,6 +97,7 @@ export default function ScheduleDetailPage() {
                 status: s.trainingEnrollmentStatus?.name ?? s.status ?? 'Enrolled',
                 result: s.result ?? s.trainingEnrollmentActionStatus?.name ?? 'Pending',
                 expireStatus: '',
+                emailCount: s.emailCount ?? 0,
             }))
             setEnrolledStaff(mapped)
             setEnrolledTotal(enrolledData.total)
@@ -103,7 +108,6 @@ export default function ScheduleDetailPage() {
     const [selectedEnrolledIds, setSelectedEnrolledIds] = useState<Set<string>>(new Set())
     const [sessionStatus, setSessionStatus] = useState<'Draft' | 'Open Registration' | 'Registration Closed' | 'In Progress' | 'Grading' | 'Completed' | 'Cancelled'>('Open Registration')
 
-    // Sync sessionStatus from API data
     useEffect(() => {
         if (session && trainingStatuses.length > 0) {
             const matched = trainingStatuses.find((s: any) => s.id === session.trainingDataStatusesId)
@@ -111,17 +115,30 @@ export default function ScheduleDetailPage() {
                 setSessionStatus(matched.name as typeof sessionStatus)
             }
         }
+        // Load attachments from session data
+        if (session && (session as any).attachments?.length > 0) {
+            setEvidences((session as any).attachments.map((a: any) => ({
+                id: a.id,
+                fileName: a.fileName ?? '',
+                filePath: a.filePath ?? '',
+                fileType: a.fileType ?? '',
+                fileSize: a.fileSize ?? 0,
+            })))
+        }
     }, [session, trainingStatuses])
     const [showPrintModal, setShowPrintModal] = useState(false)
     const [showEvidenceModal, setShowEvidenceModal] = useState(false)
-    const [evidences, setEvidences] = useState<File[]>([])
+    const [evidences, setEvidences] = useState<{ id?: number; fileName: string; filePath: string; fileType: string; fileSize: number }[]>([])
     const [showCertModal, setShowCertModal] = useState(false)
     const [certEnrollmentId, setCertEnrollmentId] = useState<number | null>(null)
+    const [showCertAllModal, setShowCertAllModal] = useState(false)
     const [emailPreviewStaff, setEmailPreviewStaff] = useState<StaffItem | null>(null)
     const invalidateEmailLogs = useInvalidateEmailLogs()
     const [showManagerReport, setShowManagerReport] = useState(false)
     const [managerReportHtml, setManagerReportHtml] = useState('')
     const previewDeptMutation = usePreviewEmailDepartment()
+
+    const sendDeptMutation = useSendEmailDepartment()
 
     const handleManagerReport = async () => {
         try {
@@ -134,6 +151,28 @@ export default function ScheduleDetailPage() {
             }
         } catch {
             toast.error('Failed to load Managers Report. Please try again.')
+        }
+    }
+
+    const handleSendManagerReport = async () => {
+        try {
+            const res = await sendDeptMutation.mutateAsync({
+                scheduleId: sessionId,
+                subject: `Enrolled Staff ${session?.courseName ?? 'Training'}`,
+                emailFrom: null,
+                emailCc: null,
+            })
+            const { totalSent, totalFailed } = res.responseData ?? {}
+            if (totalFailed > 0) {
+                toast.warning(`Email sent: ${totalSent} success, ${totalFailed} failed.`)
+            } else if (totalSent > 0) {
+                toast.success(`Managers Report email sent successfully to ${totalSent} recipient(s).`)
+            } else {
+                toast.warning('No emails were sent. Check if department chiefs have email addresses configured.')
+            }
+            setShowManagerReport(false)
+        } catch {
+            toast.error('Failed to send Managers Report email. Please try again.')
         }
     }
 
@@ -172,8 +211,14 @@ export default function ScheduleDetailPage() {
         }
     }
 
-    const handleUploadEvidence = (files: File[]) => {
-        setEvidences(files)
+    const handleUploadEvidence = (uploadedFiles: any[]) => {
+        const mapped = uploadedFiles.map((f: any) => ({
+            fileName: f.fileName ?? '',
+            filePath: f.filePath ?? '',
+            fileType: f.fileType ?? '',
+            fileSize: f.fileSize ?? 0,
+        }))
+        setEvidences(prev => [...prev, ...mapped])
         setShowEvidenceModal(false)
         setSessionStatus('Completed')
     }
@@ -182,6 +227,9 @@ export default function ScheduleDetailPage() {
         if (staff?.enrollmentId) {
             setCertEnrollmentId(staff.enrollmentId)
             setShowCertModal(true)
+        } else {
+            // Open "all certificates" modal
+            setShowCertAllModal(true)
         }
     }
 
@@ -587,17 +635,23 @@ export default function ScheduleDetailPage() {
                                         <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Attached Evidence</h4>
                                         <div className="space-y-2">
                                             {evidences.map((file, idx) => (
-                                                <div key={idx} className="flex items-center justify-between p-2.5 bg-white border border-slate-200 rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.03)] group hover:shadow-md transition-shadow cursor-pointer">
+                                                <a
+                                                    key={idx}
+                                                    href={file.filePath}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center justify-between p-2.5 bg-white border border-slate-200 rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.03)] group hover:shadow-md transition-shadow cursor-pointer no-underline"
+                                                >
                                                     <div className="flex items-center gap-2.5 overflow-hidden">
                                                         <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
                                                             <File className="w-4 h-4 text-primary" />
                                                         </div>
                                                         <div className="flex flex-col min-w-0">
-                                                            <span className="text-[11px] font-bold text-slate-700 truncate">{file.name}</span>
-                                                            <span className="text-[9px] text-slate-400">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                                                            <span className="text-[11px] font-bold text-slate-700 truncate">{file.fileName}</span>
+                                                            <span className="text-[9px] text-slate-400">{file.fileType}</span>
                                                         </div>
                                                     </div>
-                                                </div>
+                                                </a>
                                             ))}
                                         </div>
                                     </div>
@@ -931,13 +985,18 @@ export default function ScheduleDetailPage() {
                                                         </button>
                                                     )}
                                                     <button
-                                                        className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer border-none bg-transparent"
+                                                        className="relative p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer border-none bg-transparent"
                                                         title="Send Email"
                                                         onClick={() => {
                                                             setEmailPreviewStaff(staff)
                                                         }}
                                                     >
                                                         <Mail className="w-4 h-4" />
+                                                        {staff.emailCount > 0 && (
+                                                            <Badge color="primary" className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center rounded-full text-[10px]">
+                                                                {staff.emailCount}
+                                                            </Badge>
+                                                        )}
                                                     </button>
                                                     <button
                                                         onClick={() => handleRemove(staff)}
@@ -989,18 +1048,25 @@ export default function ScheduleDetailPage() {
             <PrintAttendanceModal
                 isOpen={showPrintModal}
                 onClose={() => setShowPrintModal(false)}
-                session={session as any}
-                enrolledStaff={enrolledStaff}
+                scheduleId={sessionId}
             />
             <EvidenceUploadModal
                 isOpen={showEvidenceModal}
                 onClose={() => setShowEvidenceModal(false)}
+                scheduleId={sessionId}
+                completedStatusId={trainingStatuses.find((s: any) => s.name === 'Completed')?.id ?? null}
                 onUploadSuccess={handleUploadEvidence}
             />
             <CertificateModal
                 isOpen={showCertModal}
                 onClose={() => { setShowCertModal(false); setCertEnrollmentId(null) }}
                 enrollmentId={certEnrollmentId}
+                instructorName={session?.instructor ?? ''}
+            />
+            <CertificateAllModal
+                isOpen={showCertAllModal}
+                onClose={() => setShowCertAllModal(false)}
+                enrollmentIds={enrolledStaff.filter(s => s.enrollmentId).map(s => s.enrollmentId!)}
                 instructorName={session?.instructor ?? ''}
             />
 
@@ -1031,12 +1097,13 @@ export default function ScheduleDetailPage() {
                     scheduleId={sessionId}
                     onSend={handleSendSingleEmail}
                     isSending={sendEmailMutation.isPending}
+                    sessionStatus={sessionStatus}
                 />
             )}
 
             {/* Managers Report Preview Dialog */}
             <Dialog open={showManagerReport} onOpenChange={(open) => { if (!open) setShowManagerReport(false) }}>
-                <DialogContent size="lg" className="p-0 gap-0 overflow-hidden min-h-[90vh] flex flex-col">
+                <DialogContent size="lg" className="p-0 gap-0 overflow-hidden min-h-[90vh] max-h-[90vh] flex flex-col">
                     <DialogHeader className="px-6 pt-5 pb-4 border-b border-border">
                         <DialogTitle className="flex items-center gap-2 text-base">
                             <Mail className="w-4 h-4 text-primary" />
@@ -1050,6 +1117,19 @@ export default function ScheduleDetailPage() {
                             sandbox="allow-same-origin"
                             title="Managers Report Preview"
                         />
+                    </div>
+                    <div className="px-6 py-4 border-t border-border bg-slate-50/50 flex justify-end gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setShowManagerReport(false)} className="text-xs">
+                            Close
+                        </Button>
+                        <Button size="sm" onClick={handleSendManagerReport} disabled={sendDeptMutation.isPending} className="text-xs gap-1.5">
+                            {sendDeptMutation.isPending ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                                <Mail className="w-3.5 h-3.5" />
+                            )}
+                            {sendDeptMutation.isPending ? 'Sending...' : 'Send Report'}
+                        </Button>
                     </div>
                 </DialogContent>
             </Dialog>

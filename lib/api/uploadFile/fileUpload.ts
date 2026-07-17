@@ -4,7 +4,7 @@ import axiosConfig from "@/lib/axios.config";
 export interface FileUploadRequest {
   FileBase64: string;
   FileName: string;
-  FileType: "thfnumber" | "service"; // Based on your example
+  FileType: "thfnumber" | "service" | "training_materials";
   ExtensionFile: string;
 }
 
@@ -91,7 +91,7 @@ export const getFileExtension = (filename: string): string => {
  */
 export const uploadFile = async (
   file: File,
-  fileType: "thfnumber" | "service" = "thfnumber",
+  fileType: "thfnumber" | "service" | "training_materials" = "thfnumber",
   fileName: string,
 ): Promise<FileUploadResponse> => {
   try {

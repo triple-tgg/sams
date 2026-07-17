@@ -254,7 +254,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
         // Build doc list from current slots + the just-uploaded one
         const currentSlots = docSlots.map(s => {
             if (s.key === updatedKey) {
-                return { ...s, filePath: updatedDoc.filePath, fileName: updatedDoc.fileName }
+                return { ...s, filePath: updatedDoc.filePath, fileName: updatedDoc.fileName, staffDocumentStatusId: 1 }
             }
             return s
         })
@@ -266,6 +266,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                 staffDocumentTypeId: s.staffDocumentTypeId,
                 fileName: s.fileName,
                 filePath: s.filePath,
+                staffDocumentStatusId: s.staffDocumentStatusId ?? 1
             }))
 
         const payload = buildUpsertPayload({ staffDocumentList: docList })
@@ -294,6 +295,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                 staffDocumentTypeId: s.staffDocumentTypeId,
                 fileName: s.fileName,
                 filePath: s.filePath,
+                staffDocumentStatusId: s.staffDocumentStatusId ?? 1
             }))
 
         const payload = buildUpsertPayload({ staffDocumentList: docList })
@@ -342,10 +344,11 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                 staffDocumentTypeId: d.staffDocumentTypeId || 0,
                 fileName: d.fileName,
                 filePath: d.filePath,
+                staffDocumentStatusId: d.staffDocumentStatusId ?? 1
             })),
             staffAircraftLicenseList: aircraftLicenses.map(l => ({
                 id: l.id,
-                aircraftTypeId: l.aircraftTypeId,
+                aircraftTypeId: l.aircraftTypeId ?? 0,
             })),
             staffAmelLicenseList: amelLicenses.map(l => ({
                 id: l.id,
@@ -556,7 +559,8 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
         return cat ? cat.label : `Category ${categoryId}`
     }
 
-    const getAircraftTypeName = (typeId: number) => {
+    const getAircraftTypeName = (typeId: number | undefined) => {
+        if (typeId === undefined) return "Unknown Type"
         return AIRCRAFT_TYPE_LICENSES[typeId - 1] || `Type ${typeId}`
     }
 
@@ -1087,7 +1091,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
             <EditAircraftModal
                 isOpen={showEditAircraft}
                 onClose={() => setShowEditAircraft(false)}
-                initialSelection={aircraftLicenses.map(l => l.aircraftTypeId)}
+                initialSelection={aircraftLicenses.map(l => l.aircraftTypeId).filter((id): id is number => id !== undefined)}
                 isSaving={savingAircraft}
                 onSave={(selection) => {
                     if (!apiData) return

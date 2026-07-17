@@ -46,10 +46,11 @@ export function ExperienceTab({ staff, apiData }: { staff: StaffData, apiData?: 
                 staffDocumentTypeId: d.staffDocumentTypeId || 0,
                 fileName: d.fileName,
                 filePath: d.filePath,
+                staffDocumentStatusId: d.staffDocumentStatusId ?? 1
             })),
             staffAircraftLicenseList: (apiData.staffAircraftLicenseList || []).filter(l => !l.isdelete).map(l => ({
                 id: l.id,
-                aircraftTypeId: l.aircraftTypeId,
+                aircraftTypeId: l.aircraftTypeId ?? 0,
             })),
             staffAmelLicenseList: (apiData.staffAmelLicenseList || []).filter(l => !l.isdelete).map(l => ({
                 id: l.id,
