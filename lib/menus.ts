@@ -212,12 +212,6 @@ export function getMenuList(pathname: string, t: any): Group[] {
                   label: t("employeeHistoryTraining"),
                   active: pathname.includes("/qa/qa-document/employee-history-training"),
                 },
-                {
-                  permCode: "QA_DOC_CERTIFYING_STAFF",
-                  href: "/qa/qa-document/certifying-staff-maintenance",
-                  label: t("certifyingStaffMaintenance"),
-                  active: pathname.includes("/qa/qa-document/certifying-staff-maintenance"),
-                },
               ],
             },
           ],

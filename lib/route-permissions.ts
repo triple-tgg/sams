@@ -55,7 +55,6 @@ export const ROUTE_PERMISSION_MAP: RoutePermission[] = [
     { path: "/qa/document-generation",                  menuCodes: ["QA_DOCUMENT_GENERATION"] },
     { path: "/qa/qa-document/work-experience-records",   menuCodes: ["QA_DOC_WORK_EXPERIENCE"] },
     { path: "/qa/qa-document/employee-history-training",  menuCodes: ["QA_DOC_EMPLOYEE_HISTORY"] },
-    { path: "/qa/qa-document/certifying-staff-maintenance", menuCodes: ["QA_DOC_CERTIFYING_STAFF"] },
     { path: "/qa/dashboard",                            menuCodes: ["QA"] },
     { path: "/qa",                                      menuCodes: ["QA"] },
 
