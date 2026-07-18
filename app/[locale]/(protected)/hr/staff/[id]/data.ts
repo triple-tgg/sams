@@ -194,5 +194,5 @@ const defaultStaff: StaffData = {
 }
 
 export function getStaffData(id: number): StaffData {
-    return staffDatabase[id] ?? { ...defaultStaff, id, empId: `EMP-${String(id).padStart(4, '0')}` }
+    return staffDatabase[id] ?? { ...defaultStaff, id, empId: '-' }
 }

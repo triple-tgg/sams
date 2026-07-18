@@ -13,8 +13,8 @@ import { ProfileTab } from './components/ProfileTab'
 import { TrainingTab } from './components/TrainingTab'
 import { ExperienceTab } from './components/ExperienceTab'
 import { LogbookTab } from './components/LogbookTab'
-import { useStaffById } from '@/lib/api/hooks/useQAStaffManagement'
-import type { StaffByIdData } from '@/lib/api/qa/staff-management'
+import { useStaffById, useStaffTrainingDashboard } from '@/lib/api/hooks/useQAStaffManagement'
+import type { StaffByIdData, TrainingDashboardResponseData } from '@/lib/api/qa/staff-management'
 
 // ── Tab Configuration ──
 const TABS: { name: TabName; icon: React.ReactNode }[] = [
@@ -33,7 +33,7 @@ const TAB_CONTENT: Record<TabName, React.ComponentType<{ staff: StaffData, apiDa
 }
 
 // ── Map API data → StaffData ──
-function mapApiToStaffData(api: StaffByIdData): StaffData {
+function mapApiToStaffData(api: StaffByIdData, trainingApi?: TrainingDashboardResponseData): StaffData {
     const nameEn = api.fullNameEn || api.name || 'Staff Member'
     const initials = nameEn
         .split(' ')
@@ -44,13 +44,13 @@ function mapApiToStaffData(api: StaffByIdData): StaffData {
 
     return {
         id: api.id,
-        empId: api.employeeId || `EMP-${String(api.id).padStart(4, '0')}`,
+        empId: api.employeeId || '-',
         name: api.name || '-',
         nameEn: api.fullNameEn || '-',
         position: api.positionObj?.name || api.jobTitle || '-',
         department: api.departmentObj?.name || '-',
         status: api.isActive ? 'active' : 'inactive',
-        startDate: api.startDate || '-',
+        startDate: api.startDate || null,
         initials,
         avatarBg: 'linear-gradient(135deg,#475569,#94a3b8)',
         profileImage: api.profileImagePath && api.profileImagePath !== 'string' ? api.profileImagePath : undefined,
@@ -63,33 +63,14 @@ function mapApiToStaffData(api: StaffByIdData): StaffData {
         address: api.address || '-',
         placeOfBirth: api.placeOfBirth || '-',
         ratings: [],
-        // Mock Training Data
-        training: [
-            {
-                course: 'Human Factors Initial',
-                type: 'Mandatory',
-                dateFrom: '2025-01-15',
-                dateTo: '2025-01-16',
-                validUntil: '2027-01-15',
-                status: 'Completed',
-            },
-            {
-                course: 'A320 Familiarization',
-                type: 'Aircraft Type',
-                dateFrom: '2024-05-10',
-                dateTo: '2024-05-20',
-                validUntil: '2026-05-10',
-                status: 'Completed',
-            },
-            {
-                course: 'Safety Management System',
-                type: 'Mandatory',
-                dateFrom: '2025-08-01',
-                dateTo: '2025-08-02',
-                validUntil: '2027-08-01',
-                status: 'Upcoming',
-            }
-        ],
+        training: (trainingApi?.records || []).map(t => ({
+            course: t.courseName || '-',
+            type: 'Training', // API doesn't provide type directly in records
+            dateFrom: t.dateFrom ? formatDate(t.dateFrom) : '-',
+            dateTo: t.dateTo ? formatDate(t.dateTo) : '-',
+            validUntil: t.validUntil === 'Permanent' ? 'Permanent' : (t.validUntil ? formatDate(t.validUntil) : '-'),
+            status: t.status || 'Completed',
+        })),
         experience: (api.workExperiences || [])
             .filter(w => !w.isdelete)
             .map(w => ({
@@ -160,31 +141,19 @@ function mapApiToStaffData(api: StaffByIdData): StaffData {
                 from: w.periodFrom ? formatDate(w.periodFrom) : '-',
                 to: w.periodTo ? formatDate(w.periodTo) : 'Present',
             })),
-        // Mock Training Records for Print Preview
-        previousTraining: [
-            {
-                dateFrom: '2021-03-01',
-                dateTo: '2021-03-05',
-                course: 'Initial Maintenance Training',
-                provider: 'Aviation Academy',
-            }
-        ],
-        currentTraining: [
-            {
-                dateFrom: '2024-05-10',
-                dateTo: '2024-05-20',
-                validUntil: '2026-05-10',
-                course: 'A320 Familiarization',
-                provider: 'Airbus Training Center',
-            },
-            {
-                dateFrom: '2025-01-15',
-                dateTo: '2025-01-16',
-                validUntil: '2027-01-15',
-                course: 'Human Factors Initial',
-                provider: 'In-house',
-            }
-        ],
+        previousTraining: (trainingApi?.histories || []).map(t => ({
+            dateFrom: t.dateFrom ? formatDate(t.dateFrom) : '-',
+            dateTo: t.dateTo ? formatDate(t.dateTo) : '-',
+            course: t.courseName || '-',
+            provider: t.academyName || '-',
+        })),
+        currentTraining: (trainingApi?.records || []).map(t => ({
+            dateFrom: t.dateFrom ? formatDate(t.dateFrom) : '-',
+            dateTo: t.dateTo ? formatDate(t.dateTo) : '-',
+            validUntil: t.validUntil === 'Permanent' ? 'Permanent' : (t.validUntil ? formatDate(t.validUntil) : '-'),
+            course: t.courseName || '-',
+            provider: t.providedBy || '-',
+        })),
     }
 }
 
@@ -198,21 +167,22 @@ export default function StaffProfilePage() {
 
     // ── Fetch from API ──
     const { data, isLoading, isError, error } = useStaffById(staffId)
+    const { data: trainingDashboardRes } = useStaffTrainingDashboard(staffId)
 
     const staff = useMemo<StaffData>(() => {
         if (data?.responseData) {
-            return mapApiToStaffData(data.responseData)
+            return mapApiToStaffData(data.responseData, trainingDashboardRes?.responseData)
         }
         // Fallback while loading
         return {
             id: staffId,
-            empId: `EMP-${String(staffId).padStart(4, '0')}`,
+            empId: '-',
             name: 'Loading...',
             nameEn: 'Loading...',
             position: '-',
             department: '-',
             status: 'active',
-            startDate: '-',
+            startDate: null,
             initials: '--',
             avatarBg: 'linear-gradient(135deg,#475569,#94a3b8)',
             dob: '-',
@@ -228,7 +198,7 @@ export default function StaffProfilePage() {
             education: [],
             logbook: [],
         }
-    }, [data, staffId])
+    }, [data, trainingDashboardRes, staffId])
 
     const ActiveTabContent = TAB_CONTENT[activeTab]
 
@@ -316,7 +286,7 @@ export default function StaffProfilePage() {
                                 </div>
                                 <div className="flex items-center gap-5 mt-2.5 text-[13px] text-slate-400">
                                     <span className="flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" /> {staff.department}</span>
-                                    <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> Joined {formatDate(staff.startDate)}</span>
+                                    <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> Joined {staff.startDate ? formatDate(staff.startDate) : '-'}</span>
                                     <span className="flex items-center gap-1.5"><FileText className="h-3.5 w-3.5" /> {staff.empId}</span>
                                 </div>
                             </div>

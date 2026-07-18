@@ -10,6 +10,7 @@ import { EditEmploymentModal } from './EditEmploymentModal'
 import { EditLicenseModal } from './EditLicenseModal'
 import { EditAircraftModal } from './EditAircraftModal'
 import { useUpsertStaff, useUploadStaffFile } from '@/lib/api/hooks/useQAStaffManagement'
+import { useAircraftTypeLicenses } from '@/lib/api/master/aircraft-type-licenses.hooks'
 import { StaffByIdData, UpsertStaffRequest, UpsertEducation, UpsertWorkExperience } from '@/lib/api/qa/staff-management'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
@@ -155,6 +156,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
 
     const queryClient = useQueryClient()
     const upsertMutation = useUpsertStaff()
+    const { data: licenses = [] } = useAircraftTypeLicenses()
     const uploadMutation = useUploadStaffFile()
 
     // Derived data from API
@@ -348,7 +350,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
             })),
             staffAircraftLicenseList: aircraftLicenses.map(l => ({
                 id: l.id,
-                aircraftTypeId: l.aircraftTypeId ?? 0,
+                aircraftTypeId: Number(l.aircraftTypeLicensId ?? l.aircraftTypeId ?? 0),
             })),
             staffAmelLicenseList: amelLicenses.map(l => ({
                 id: l.id,
@@ -559,9 +561,11 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
         return cat ? cat.label : `Category ${categoryId}`
     }
 
-    const getAircraftTypeName = (typeId: number | undefined) => {
+    const getAircraftTypeName = (typeId: string | number | undefined) => {
         if (typeId === undefined) return "Unknown Type"
-        return AIRCRAFT_TYPE_LICENSES[typeId - 1] || `Type ${typeId}`
+        
+        const license = licenses.find(l => l.id === Number(typeId))
+        return license ? license.name : `Type ${typeId}`
     }
 
     const uploadedCount = docSlots.filter(s => s.filePath).length
@@ -600,7 +604,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                             <InfoRow label="Employee ID" value={staff.empId} mono />
                             <InfoRow label="Position" value={staff.position} />
                             <InfoRow label="Department" value={staff.department} />
-                            <InfoRow label="Start Date" value={formatDate(staff.startDate)} mono />
+                            <InfoRow label="Start Date" value={staff.startDate ? formatDate(staff.startDate) : '-'} mono />
                         </div>
                     </Section>
 
@@ -832,7 +836,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                                         className="inline-flex items-center gap-1.5 text-[11px] font-semibold py-1.5 px-3 rounded-lg bg-green-50 text-green-700 border border-green-200"
                                     >
                                         <Plane className="h-3 w-3" />
-                                        {getAircraftTypeName(lic.aircraftTypeId)}
+                                        {getAircraftTypeName(lic.aircraftTypeId ?? lic.aircraftTypeLicensId)}
                                     </span>
                                 ))}
                             </div>
@@ -1091,14 +1095,14 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
             <EditAircraftModal
                 isOpen={showEditAircraft}
                 onClose={() => setShowEditAircraft(false)}
-                initialSelection={aircraftLicenses.map(l => l.aircraftTypeId).filter((id): id is number => id !== undefined)}
+                initialSelection={aircraftLicenses.map(l => l.aircraftTypeLicensId).filter((id): id is number => id !== undefined)}
                 isSaving={savingAircraft}
                 onSave={(selection) => {
                     if (!apiData) return
                     setSavingAircraft(true)
                     const payload = buildUpsertPayload({
                         staffAircraftLicenseList: selection.map((typeId) => ({
-                            id: aircraftLicenses.find(l => l.aircraftTypeId === typeId)?.id || 0,
+                            id: aircraftLicenses.find(l => l.aircraftTypeLicensId === typeId)?.id || 0,
                             aircraftTypeId: typeId,
                         })),
                     })

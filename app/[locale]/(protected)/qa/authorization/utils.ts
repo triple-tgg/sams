@@ -39,7 +39,7 @@ export function countTotalAirlines(s: Staff): number {
 }
 
 /** Format date to Thai-friendly format */
-export function fmtDate(dateStr: string): string {
+export function fmtDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '—'
   const d = new Date(dateStr)
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })

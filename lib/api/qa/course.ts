@@ -286,7 +286,7 @@ export interface CourseDepartmentSubListResponseData {
 
 export const getCourseDepartmentSubList = async (): Promise<CourseDepartmentSubListResponseData> => {
   try {
-    const res = await axiosConfig.get("/training/course-department-sub-list");
+    const res = await axiosConfig.get("/training/course-department-position-list");
     return res.data as CourseDepartmentSubListResponseData;
   } catch (error: any) {
     console.error("Error fetching course department sub list:", error);

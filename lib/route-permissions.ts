@@ -53,6 +53,9 @@ export const ROUTE_PERMISSION_MAP: RoutePermission[] = [
     { path: "/qa/training-scheduler",                   menuCodes: ["QA_TRAINING_SCHEDULER"] },
     { path: "/qa/authorization",                        menuCodes: ["QA_AUTHORIZATION"] },
     { path: "/qa/document-generation",                  menuCodes: ["QA_DOCUMENT_GENERATION"] },
+    { path: "/qa/qa-document/work-experience-records",   menuCodes: ["QA_DOC_WORK_EXPERIENCE"] },
+    { path: "/qa/qa-document/employee-history-training",  menuCodes: ["QA_DOC_EMPLOYEE_HISTORY"] },
+    { path: "/qa/qa-document/certifying-staff-maintenance", menuCodes: ["QA_DOC_CERTIFYING_STAFF"] },
     { path: "/qa/dashboard",                            menuCodes: ["QA"] },
     { path: "/qa",                                      menuCodes: ["QA"] },
 
@@ -63,6 +66,7 @@ export const ROUTE_PERMISSION_MAP: RoutePermission[] = [
     { path: "/master-data/aircraft-type-license",       menuCodes: ["MASTER_DATA_AIRCRAFT_TYPE_LICENSE"] },
     { path: "/master-data/aircraft-type",               menuCodes: ["MASTER_DATA_AIRCRAFT_TYPE"] },
     { path: "/master-data/aircraft-group",              menuCodes: ["MASTER_DATA_AIRCRAFT_GROUP"] },
+    { path: "/master-data/aircraft-engine",             menuCodes: ["MASTER_DATA_AIRCRAFT_ENGINE"] },
     { path: "/master-data/customer-airline",            menuCodes: ["MASTER_DATA_CUSTOMER_AIRLINE"] },
     { path: "/master-data/station",                     menuCodes: ["MASTER_DATA_STATION"] },
     { path: "/master-data/user-login",                  menuCodes: ["MASTER_DATA_USER_LOGIN"] },

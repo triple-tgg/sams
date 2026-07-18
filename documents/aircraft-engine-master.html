@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Aircraft-Engine Master Data — SAMS Engineering Maintenance System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#12294b; --navy-2:#0f1e3c; --amber:#f6a821; --amber-2:#d97706;
+  --blue:#2f6fed; --green:#1a9e5c; --red:#d64545;
+  --bg:#eef1f5; --card:#ffffff; --border:#e1e5eb; --text:#1c2733; --text-2:#5c6b7a; --text-3:#8b97a3;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+body{font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); font-size:14px;}
+code, .mono{font-family:'JetBrains Mono',monospace;}
+
+/* ===== Header ===== */
+header{background:var(--navy); color:#fff; padding:14px 24px; display:flex; align-items:center; justify-content:space-between;}
+.brand{display:flex; align-items:center; gap:10px;}
+.brand .logo{width:32px; height:32px; background:var(--amber); border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--navy-2); font-size:15px;}
+.brand .name{font-size:14px; font-weight:500;}
+.brand .sub{font-size:11px; color:#9fb0c9;}
+.time-pill{background:var(--navy-2); border:1px solid #26375a; border-radius:20px; padding:6px 14px; display:flex; gap:14px; font-family:'JetBrains Mono',monospace; font-size:12px; color:#cfe0f5;}
+.time-pill b{color:#fff; font-weight:500;}
+
+/* ===== Layout ===== */
+.wrap{max-width:1240px; margin:0 auto; padding:24px;}
+.crumb{font-size:12px; color:var(--text-3); margin-bottom:6px;}
+.pagehead{display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:18px;}
+.pagehead h1{font-size:20px; font-weight:700; color:var(--navy);}
+.pagehead p{font-size:13px; color:var(--text-2); margin-top:4px; max-width:640px;}
+.btn{border:none; border-radius:8px; padding:9px 16px; font-size:13px; font-weight:500; cursor:pointer; display:inline-flex; align-items:center; gap:6px;}
+.btn-primary{background:var(--navy); color:#fff;}
+.btn-primary:hover{background:var(--navy-2);}
+.btn-amber{background:var(--amber); color:var(--navy-2);}
+.btn-amber:hover{background:var(--amber-2); color:#fff;}
+.btn-ghost{background:#fff; color:var(--text); border:1px solid var(--border);}
+.btn-ghost:hover{border-color:var(--navy);}
+.btn-icon{background:transparent; border:none; cursor:pointer; color:var(--text-3); padding:4px 6px; border-radius:6px;}
+.btn-icon:hover{background:#f0f3f7; color:var(--navy);}
+
+/* ===== Data quality banner ===== */
+.dq-banner{background:#fff7e8; border:1px solid #f2d49b; border-radius:10px; padding:14px 18px; margin-bottom:20px;}
+.dq-head{display:flex; align-items:center; gap:10px; cursor:pointer;}
+.dq-dot{width:8px; height:8px; border-radius:50%; background:var(--amber-2);}
+.dq-head b{font-size:13px; color:#7a4e05;}
+.dq-head span{font-size:12px; color:#8a6a2a; margin-left:auto;}
+.dq-list{margin-top:12px; display:none; flex-direction:column; gap:8px;}
+.dq-list.open{display:flex;}
+.dq-item{display:flex; gap:10px; font-size:12.5px; color:#5c4415; background:#fffdf7; border:1px solid #f2d49b; border-radius:8px; padding:8px 12px;}
+.dq-item .tag{font-family:'JetBrains Mono',monospace; font-size:10.5px; background:#f6a821; color:#412402; padding:2px 6px; border-radius:4px; height:fit-content;}
+
+/* ===== Tabs ===== */
+.tabs{display:flex; gap:4px; border-bottom:1px solid var(--border); margin-bottom:18px;}
+.tab{padding:10px 16px; font-size:13px; font-weight:500; color:var(--text-2); cursor:pointer; border-bottom:2px solid transparent; display:flex; align-items:center; gap:6px;}
+.tab.active{color:var(--navy); border-bottom-color:var(--navy);}
+.tab .count{background:#eef1f5; color:var(--text-2); font-size:10.5px; padding:1px 7px; border-radius:10px; font-family:'JetBrains Mono',monospace;}
+.tab.active .count{background:var(--navy); color:#fff;}
+
+/* ===== Toolbar ===== */
+.toolbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;}
+.search{position:relative;}
+.search input{width:280px; padding:8px 12px 8px 32px; border:1px solid var(--border); border-radius:8px; font-size:13px;}
+.search svg{position:absolute; left:10px; top:9px; opacity:0.4;}
+
+/* ===== Card / Table ===== */
+.card{background:var(--card); border:1px solid var(--border); border-radius:12px; overflow:hidden;}
+table{width:100%; border-collapse:collapse; font-size:13px;}
+th{text-align:left; background:#f7f9fb; color:var(--text-2); font-weight:500; font-size:11.5px; text-transform:uppercase; letter-spacing:0.03em; padding:10px 16px; border-bottom:1px solid var(--border);}
+td{padding:10px 16px; border-bottom:1px solid #f0f2f5; vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:#fafbfc;}
+.badge{display:inline-block; padding:3px 9px; border-radius:6px; font-size:11px; font-weight:500; font-family:'JetBrains Mono',monospace;}
+.b-green{background:#e5f7ee; color:#0f6e3d;}
+.b-amber{background:#fef3dc; color:#8a5a06;}
+.b-red{background:#fbe8e8; color:#a12525;}
+.b-blue{background:#e8f0fe; color:#1d4fbf;}
+.b-gray{background:#eef1f5; color:var(--text-2);}
+.chip{display:inline-block; background:#eef1f5; color:var(--text-2); font-size:11px; padding:2px 8px; border-radius:12px; margin:2px 3px 2px 0; font-family:'JetBrains Mono',monospace;}
+.actions{display:flex; gap:2px; justify-content:flex-end;}
+.muted{color:var(--text-3); font-size:12px;}
+.source-tag{font-size:10px; color:var(--text-3); font-family:'JetBrains Mono',monospace;}
+
+/* ===== Modal ===== */
+.overlay{display:none; position:fixed; inset:0; background:rgba(18,41,75,0.45); align-items:center; justify-content:center; z-index:50;}
+.overlay.open{display:flex;}
+.modal{background:#fff; border-radius:14px; width:460px; max-width:92vw; padding:22px 24px; max-height:88vh; overflow:auto;}
+.modal h3{font-size:15px; color:var(--navy); margin-bottom:4px;}
+.modal .sub{font-size:12px; color:var(--text-3); margin-bottom:16px;}
+.field{margin-bottom:14px;}
+.field label{display:block; font-size:12px; font-weight:500; color:var(--text-2); margin-bottom:5px;}
+.field select, .field input{width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:7px; font-size:13px; font-family:inherit;}
+.field .hint{font-size:11px; color:var(--text-3); margin-top:4px;}
+.preview{background:#f7f9fb; border:1px dashed var(--border); border-radius:8px; padding:10px 12px; font-family:'JetBrains Mono',monospace; font-size:12.5px; color:var(--navy);}
+.modal-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:20px;}
+
+/* ===== Footer note ===== */
+.footnote{margin-top:20px; font-size:11.5px; color:var(--text-3); display:flex; gap:6px; align-items:center;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="logo">S</div>
+    <div>
+      <div class="name">SAMS Engineering Maintenance System</div>
+      <div class="sub">Master Data Administration</div>
+    </div>
+  </div>
+  <div class="time-pill">
+    <span>UTC <b id="utcClock">--:--</b></span>
+    <span>LOCAL (Asia/Bangkok) <b id="localClock">--:--</b></span>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="crumb">Master Data / Aircraft &amp; Engine</div>
+  <div class="pagehead">
+    <div>
+      <h1>Aircraft-Engine master data</h1>
+      <p>จัดการข้อมูลหลักเครื่องบิน-เครื่องยนต์ที่ใช้ผูกกับ Authorization, Training Needs Matrix (FM-CM-014) และ Authorization Certificate (FM-CM-063) ทุกโมดูลอ้างอิงจากชุดข้อมูลนี้ชุดเดียว</p>
+    </div>
+    <button class="btn btn-primary" onclick="openModal()"><i>+</i> เพิ่มรายการ</button>
+  </div>
+
+  <div class="dq-banner">
+    <div class="dq-head" onclick="document.getElementById('dqList').classList.toggle('open')">
+      <div class="dq-dot"></div>
+      <b>พบข้อมูลไม่สอดคล้องกัน 4 รายการ</b>
+      <span>คลิกเพื่อดูรายละเอียด ▾</span>
+    </div>
+    <div class="dq-list" id="dqList">
+      <div class="dq-item"><span class="tag">NAMING</span> Authorization Group "A318/A319/A320/A321" ใช้ชื่อเครื่องยนต์ "IAE V500" แต่ใน Engine Master ไม่มีชื่อนี้ — สงสัยว่าจะหมายถึง "V2500"</div>
+      <div class="dq-item"><span class="tag">NAMING</span> System Config มีชื่อเครื่องยนต์ "RR211 Trent 1000" ซึ่งไม่ตรงกับ "RB211 Trent 1000" ใน Engine Master</div>
+      <div class="dq-item"><span class="tag">MISSING</span> B737-10 และ B737-8200 (CFM LEAP-1B) มีอยู่ใน Aircraft-Engine Combinations แต่ยังไม่ถูกรวมใน Authorization Group ใดเลย</div>
+      <div class="dq-item"><span class="tag">MISSING</span> A318 และ A350-900/1000 มีอยู่ใน Aircraft-Engine Combinations แต่ไม่มีข้อมูลใน Aircraft System Config</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="combo" onclick="switchTab('combo')">Aircraft-Engine combinations <span class="count">47</span></div>
+    <div class="tab" data-tab="group" onclick="switchTab('group')">Authorization type groups <span class="count">9</span></div>
+    <div class="tab" data-tab="sys" onclick="switchTab('sys')">Aircraft system config <span class="count">34</span></div>
+    <div class="tab" data-tab="engine" onclick="switchTab('engine')">Engine master <span class="count">16</span></div>
+  </div>
+
+  <div class="toolbar">
+    <div class="search">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="searchBox" placeholder="ค้นหา aircraft model, engine, ICAO code..." oninput="renderTable()">
+    </div>
+    <span class="muted" id="tableSubtitle"></span>
+  </div>
+
+  <div class="card">
+    <table id="dataTable">
+      <thead id="tableHead"></thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  <div class="footnote">
+    <span>●</span> Source of truth: <b>Aircraft-Engine combinations</b> — ตารางอื่นทั้งหมด derive/join จากตารางนี้ ไม่ใช่พิมพ์ซ้ำมือ
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h3>เพิ่ม Aircraft-Engine combination</h3>
+    <div class="sub">1 แถว = 1 คู่ Aircraft Model + Series + Engine (ระดับ atomic ที่สุด)</div>
+    <div class="field">
+      <label>Aircraft family</label>
+      <select id="f-family">
+        <option>B737</option><option>A318</option><option>A319</option><option>A320</option><option>A321</option>
+        <option>B777</option><option>A330</option><option>B787</option><option>B767</option><option>A350</option><option>E190</option>
+        <option value="__new">+ เพิ่ม family ใหม่...</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Series / variant</label>
+      <input id="f-series" placeholder="เช่น 600, 8200, 300ER">
+      <div class="hint">เว้นว่างได้ถ้า aircraft นี้ไม่มี series ย่อย เช่น A318</div>
+    </div>
+    <div class="field">
+      <label>Engine model</label>
+      <select id="f-engine">
+        <option>CFM56</option><option>CFM LEAP-1A</option><option>CFM LEAP-1B</option><option>V2500</option>
+        <option>IAE PW1100G</option><option>RB211 Trent 800</option><option>GE90</option><option>RR Trent 700</option>
+        <option>GE CF6</option><option>PW4000</option><option>RR Trent 7000</option><option>RB211 Trent 1000</option>
+        <option>GEnx</option><option>RB211</option><option>RR Trent XWB</option><option>PW1900G</option>
+      </select>
+      <div class="hint">ดึงจาก Engine master เท่านั้น ป้องกันการพิมพ์ชื่อเครื่องยนต์ผิด/ไม่ตรงกัน</div>
+    </div>
+    <div class="field">
+      <label>Display label (auto-generated)</label>
+      <div class="preview" id="f-preview">B737-600 (CFM56)</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="closeModal()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const combo = [
+["B737","600","CFM56"],["B737","700","CFM56"],["B737","800","CFM56"],["B737","900","CFM56"],
+["B737","7","CFM LEAP-1B"],["B737","8","CFM LEAP-1B"],["B737","9","CFM LEAP-1B"],["B737","10","CFM LEAP-1B"],["B737","8200","CFM LEAP-1B"],
+["A318","","CFM56"],
+["A319","","CFM56"],["A319","","V2500"],["A319","","IAE PW1100G"],["A319","","CFM LEAP-1A"],
+["A320","","CFM56"],["A320","","V2500"],["A320","","IAE PW1100G"],["A320","","CFM LEAP-1A"],
+["A321","","CFM56"],["A321","","V2500"],["A321","","IAE PW1100G"],["A321","","CFM LEAP-1A"],
+["B777","200","RB211 Trent 800"],["B777","200","GE90"],["B777","300","RB211 Trent 800"],["B777","300","GE90"],
+["B777","300ER","RB211 Trent 800"],["B777","300ER","GE90"],["B777","F","RB211 Trent 800"],["B777","F","GE90"],
+["A330","200","RR Trent 700"],["A330","200","GE CF6"],["A330","200","PW4000"],
+["A330","300","RR Trent 700"],["A330","300","GE CF6"],["A330","300","PW4000"],
+["A330","800","RR Trent 7000"],["A330","900","RR Trent 7000"],
+["B787","8","RB211 Trent 1000"],["B787","8","GEnx"],["B787","9","RB211 Trent 1000"],["B787","9","GEnx"],["B787","10","RB211 Trent 1000"],["B787","10","GEnx"],
+["B767","200","PW4000"],["B767","200","RB211"],["B767","300","PW4000"],["B767","300","RB211"],
+["A350","900","RR Trent XWB"],["A350","1000","RR Trent XWB"],
+["E190","","PW1900G"]
+];
+
+const groups = [
+{label:"B737-600/700/800/900", engines:"CFM56", flagged:false},
+{label:"B737-7/8/9", engines:"CFM LEAP-1B", flagged:true, note:"ขาด B737-10, B737-8200"},
+{label:"A318/A319/A320/A321", engines:"CFM56, CFM LEAP-1A, IAE PW1100G, IAE V500", flagged:true, note:"engine name \"IAE V500\" ไม่ตรงกับ master"},
+{label:"B777-200/300/300ER", engines:"GE90, RB211 Trent 800", flagged:false},
+{label:"A330-200/300/800/900", engines:"RR Trent 700, PW4000, GE CF6, RR Trent 7000", flagged:false},
+{label:"B787-8/9/10", engines:"RB211 Trent 1000, GEnx", flagged:false},
+{label:"B767-200/300", engines:"PW4000, RB211", flagged:false},
+{label:"A350-900/1000", engines:"RR Trent XWB", flagged:false},
+{label:"ERJ-190", engines:"PW1900G", flagged:false},
+];
+
+const sysConfig = [
+["A319","A319-100","CLASSIC","A319",2,2,4,true],["A319","A319neo","NEO","A19N",2,2,4,true],
+["A320","A320-200","CLASSIC","A320",2,2,4,true],["A320","A320neo","NEO","A20N",2,2,4,true],
+["A321","A321-200","CLASSIC","A321",2,2,4,true],["A321","A321neo / LR / XLR","NEO","A21N",2,2,4,true],
+["A330","A330-200","CLASSIC","A332",2,2,4,true],["A330","A330-300","CLASSIC","A333",2,2,4,true],
+["A330","A330-800neo","NEO","A338",2,2,4,true],["A330","A330-900neo","NEO","A339",2,2,4,true],
+["B737","737-800 (NG)","CLASSIC","B738",2,2,3,true],["B737","737-900ER (NG)","CLASSIC","B739",2,2,3,true],
+["B737","737 MAX 8","NEO","B38M",2,2,3,true],["B737","737 MAX 9","NEO","B39M",2,2,3,true],
+["B767","767-200","CLASSIC","B762",2,2,4,true],["B767","767-2C (KC-46)","CLASSIC","B762",2,2,4,true],
+["B767","767-300ER","CLASSIC","B763",2,2,4,true],["B767","767-400ER","CLASSIC","B764",2,2,4,true],
+["B777","777-200","CLASSIC","B772",2,2,4,true],["B777","777-200ER","CLASSIC","B772",2,2,4,true],
+["B777","777-200LR","CLASSIC","B77L",2,2,4,true],["B777","777-300","CLASSIC","B773",2,2,4,true],
+["B777","777-300ER","CLASSIC","B77W",2,2,4,true],["B777","777F (Freighter)","CLASSIC","B77F",2,2,4,true],
+["B777","777-8 (777X)","NEO","B778",2,2,4,true],["B777","777-9 (777X)","NEO","B779",2,2,4,true],
+["B787","787-10 Dreamliner","NEO","B78X",2,4,4,true],["B787","787-8 Dreamliner","NEO","B788",2,4,4,true],["B787","787-9 Dreamliner","NEO","B789",2,4,4,true],
+["E190","E190 (E1)","CLASSIC","E190",2,2,4,true],["E190","E195 (E1)","CLASSIC","E195",2,2,4,true],
+["E190","E190-E2","NEO","E290",2,2,4,true],["E190","E195-E2","NEO","E295",2,2,4,true]
+];
+
+const engineMaster = [
+["CFM56","CFM International","Classic narrow/wide-body"],
+["CFM LEAP-1A","CFM International","A320neo family"],
+["CFM LEAP-1B","CFM International","B737 MAX family"],
+["V2500","IAE","A320ceo family"],
+["IAE PW1100G","IAE / Pratt & Whitney","A320neo family (GTF)"],
+["RB211 Trent 800","Rolls-Royce","B777 classic"],
+["GE90","GE Aerospace","B777 classic"],
+["RR Trent 700","Rolls-Royce","A330ceo"],
+["GE CF6","GE Aerospace","A330ceo, B767"],
+["PW4000","Pratt & Whitney","A330ceo, B767"],
+["RR Trent 7000","Rolls-Royce","A330neo"],
+["RB211 Trent 1000","Rolls-Royce","B787"],
+["GEnx","GE Aerospace","B787"],
+["RB211","Rolls-Royce","B767 classic"],
+["RR Trent XWB","Rolls-Royce","A350"],
+["PW1900G","Pratt & Whitney","E190/195-E2 (GTF)"]
+];
+
+let current = 'combo';
+
+function switchTab(t){
+  current = t;
+  document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active', el.dataset.tab===t));
+  document.getElementById('searchBox').value='';
+  document.getElementById('searchBox').placeholder =
+    t==='combo' ? 'ค้นหา aircraft model, engine...' :
+    t==='group' ? 'ค้นหา authorization group...' :
+    t==='sys' ? 'ค้นหา ICAO code, model...' : 'ค้นหา engine name, manufacturer...';
+  renderTable();
+}
+
+function renderTable(){
+  const q = document.getElementById('searchBox').value.toLowerCase();
+  const head = document.getElementById('tableHead');
+  const body = document.getElementById('tableBody');
+  const sub = document.getElementById('tableSubtitle');
+  body.innerHTML=''; head.innerHTML='';
+
+  if(current==='combo'){
+    head.innerHTML = '<tr><th>Family</th><th>Series</th><th>Engine</th><th>Display label</th><th></th></tr>';
+    let rows = combo.filter(r=>r.join(' ').toLowerCase().includes(q));
+    sub.textContent = rows.length+' รายการ · source: File 1 (New List)';
+    rows.forEach(r=>{
+      const [fam,ser,eng]=r;
+      const label = fam+(ser?('-'+ser):'')+' ('+eng+')';
+      body.innerHTML += `<tr><td class="mono">${fam}</td><td class="mono">${ser||'<span class="muted">—</span>'}</td>
+      <td><span class="chip">${eng}</span></td><td class="mono">${label}</td>
+      <td class="actions"><button class="btn-icon" onclick="openModal()">✎</button><button class="btn-icon">🗑</button></td></tr>`;
+    });
+  }
+
+  if(current==='group'){
+    head.innerHTML = '<tr><th>Authorization group</th><th>Engines (rolled up)</th><th>Status</th><th></th></tr>';
+    let rows = groups.filter(r=>(r.label+r.engines).toLowerCase().includes(q));
+    sub.textContent = rows.length+' รายการ · source: File 2, derive จาก Aircraft-Engine combinations';
+    rows.forEach(g=>{
+      body.innerHTML += `<tr><td class="mono">${g.label}</td><td>${g.engines.split(', ').map(e=>`<span class="chip">${e}</span>`).join('')}</td>
+      <td>${g.flagged?`<span class="badge b-amber">ตรวจสอบ</span> <span class="muted">${g.note}</span>`:'<span class="badge b-green">ok</span>'}</td>
+      <td class="actions"><button class="btn-icon" onclick="openModal()">✎</button><button class="btn-icon">↻</button></td></tr>`;
+    });
+  }
+
+  if(current==='sys'){
+    head.innerHTML = '<tr><th>Family</th><th>Model</th><th>Type</th><th>ICAO</th><th>Engine</th><th>Gen</th><th>Hyd</th><th>APU</th><th></th></tr>';
+    let rows = sysConfig.filter(r=>r.join(' ').toLowerCase().includes(q));
+    sub.textContent = rows.length+' รายการ · source: File 3 (Systems master)';
+    rows.forEach(r=>{
+      const [fam,model,type,icao,eng,gen,hyd,apu]=r;
+      body.innerHTML += `<tr><td class="mono">${fam}</td><td>${model}</td>
+      <td><span class="badge ${type==='NEO'?'b-blue':'b-gray'}">${type}</span></td>
+      <td class="mono">${icao}</td><td>${eng}</td><td>${gen}</td><td>${hyd}</td>
+      <td>${apu?'<span class="badge b-green">yes</span>':'<span class="badge b-red">no</span>'}</td>
+      <td class="actions"><button class="btn-icon">✎</button><button class="btn-icon">🗑</button></td></tr>`;
+    });
+  }
+
+  if(current==='engine'){
+    head.innerHTML = '<tr><th>Engine model</th><th>Manufacturer</th><th>Typically used on</th><th></th></tr>';
+    let rows = engineMaster.filter(r=>r.join(' ').toLowerCase().includes(q));
+    sub.textContent = rows.length+' รายการ · controlled vocabulary สำหรับ dropdown ทุกตาราง';
+    rows.forEach(r=>{
+      body.innerHTML += `<tr><td class="mono">${r[0]}</td><td>${r[1]}</td><td class="muted">${r[2]}</td>
+      <td class="actions"><button class="btn-icon">✎</button><button class="btn-icon">🗑</button></td></tr>`;
+    });
+  }
+}
+
+function openModal(){ document.getElementById('overlay').classList.add('open'); updatePreview(); }
+function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+function updatePreview(){
+  const fam = document.getElementById('f-family').value;
+  const ser = document.getElementById('f-series').value;
+  const eng = document.getElementById('f-engine').value;
+  document.getElementById('f-preview').textContent = fam+(ser?('-'+ser):'')+' ('+eng+')';
+}
+document.getElementById('f-family').addEventListener('change', updatePreview);
+document.getElementById('f-series').addEventListener('input', updatePreview);
+document.getElementById('f-engine').addEventListener('change', updatePreview);
+
+function tick(){
+  const now = new Date();
+  const utc = now.toUTCString().slice(17,25);
+  const local = new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Bangkok',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(now);
+  document.getElementById('utcClock').textContent = utc;
+  document.getElementById('localClock').textContent = local;
+}
+tick(); setInterval(tick,1000);
+renderTable();
+</script>
+</body>
+</html>

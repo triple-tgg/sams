@@ -1,0 +1,31 @@
+-- ============================================================================
+-- Migration 005 — CR-5: cache-invalidation event `aircraft_engine.updated`
+-- Baseline: schema.sql + migrations 001-004.
+--
+-- NO SCHEMA CHANGE. Per the agreed design, the event is delivered over the
+-- existing in-app react-query cache invalidation (see aircraftEngine.events.ts) —
+-- no message queue or outbox table is introduced. This file exists so every CR
+-- has a matching, reversible migration; it is intentionally a no-op.
+--
+-- IF a durable, cross-service transport is chosen later, the reversible change is
+-- a transactional outbox — provided below (commented) as the ready alternative.
+-- ============================================================================
+
+-- +migrate Up
+-- (no-op)
+--
+-- Durable-transport alternative (enable only if moving off in-app invalidation):
+-- CREATE TABLE aircraft_engine_event_outbox (
+--     id           BIGSERIAL   PRIMARY KEY,
+--     event_type   VARCHAR(64) NOT NULL DEFAULT 'aircraft_engine.updated',
+--     table_name   VARCHAR(64) NOT NULL,
+--     record_id    VARCHAR(64) NOT NULL,
+--     action       VARCHAR(16) NOT NULL CHECK (action IN ('upsert', 'delete')),
+--     emitted_at_utc TIMESTAMPTZ NOT NULL DEFAULT (now() AT TIME ZONE 'utc'),
+--     published_at_utc TIMESTAMPTZ NULL
+-- );
+-- CREATE INDEX ix_ae_outbox_unpublished ON aircraft_engine_event_outbox (id) WHERE published_at_utc IS NULL;
+
+-- +migrate Down
+-- (no-op)
+-- DROP TABLE IF EXISTS aircraft_engine_event_outbox;

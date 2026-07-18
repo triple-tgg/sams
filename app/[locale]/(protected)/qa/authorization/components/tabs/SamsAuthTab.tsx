@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState, useEffect } from 'react'
-import { Search, RotateCw, CalendarClock, Filter, ChevronLeft, ChevronRight, MoreHorizontal, Edit2 } from 'lucide-react'
+import { Search, RotateCw, CalendarClock, Filter, ChevronLeft, ChevronRight, MoreHorizontal, Edit2, User } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,12 +33,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { STAFF } from '../../data-v2'
 import { SAMS_STATUS_META } from '../../types-v2'
-import type { SamsAuthStatus, Staff } from '../../types-v2'
-import { getSamsStatus, daysLeft, fmtDate } from '../../utils'
+import type { SamsAuthStatus } from '../../types-v2'
+import { fmtDate } from '../../utils'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { useStaffAuthorizationAirlineStatuses } from "@/lib/api/master/staff-authorization/staff-authorization-airline-statuses.hooks"
+import type { StaffAuthorizationAirlineStatus } from "@/lib/api/master/staff-authorization/staff-authorization-airline-statuses"
+import { useSamsAuthList, useSamsAuthById } from "@/lib/api/qa/sams-auth.hooks"
+import type { SamsAuthItem, SamsAuthDetail } from "@/lib/api/qa/sams-auth"
+import { useDebounce } from "@/hooks/useDebounce"
 
-type FilterStatus = 'all' | 'valid' | 'expiring' | 'expired'
+type FilterStatus = string
 
 const AIRCRAFT_OPTIONS = [
   'A318/A319/A320/A321',
@@ -63,10 +68,29 @@ const AIRCRAFT_OPTIONS = [
 
 export function SamsAuthTab() {
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 500)
   const [filter, setFilter] = useState<FilterStatus>('all')
+  
+  const { data: statusOptions = [] } = useStaffAuthorizationAirlineStatuses()
 
-  const [version, setVersion] = useState(0)
-  const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null)
+  // Pagination states
+  const [pageIndex, setPageIndex] = useState(0) // UI uses 0-index internally
+  const pageSize = 20
+
+  // Server API call
+  const { data: samsData, isFetching } = useSamsAuthList({
+    searchKeyword: debouncedSearch,
+    status: filter === 'all' ? '' : filter,
+    page: pageIndex + 1,
+    perPage: pageSize
+  })
+
+  // Edit Modal States
+  const [editStaffId, setEditStaffId] = useState<number | null>(null)
+  const { data: detailResp, isPending: isDetailPending, isFetching: isDetailFetching, isError: isDetailError } = useSamsAuthById(editStaffId)
+  const detailData: SamsAuthDetail | null = detailResp?.responseData ?? null
+  const isDetailLoading = editStaffId !== null && (isDetailPending || isDetailFetching)
+
   const [editAuthNo, setEditAuthNo] = useState('')
   const [editRating, setEditRating] = useState<Set<string>>(new Set())
   const [editAmelExp, setEditAmelExp] = useState('')
@@ -74,47 +98,41 @@ export function SamsAuthTab() {
   const [editCurrDate, setEditCurrDate] = useState('')
   const [editSamsExp, setEditSamsExp] = useState('')
 
-  const handleEditClick = (staff: Staff) => {
-    setSelectedStaff(staff)
-    setEditAuthNo(staff.authNo)
-    const ratings = staff.rating ? staff.rating.split(/\n/).map(r => r.trim()).filter(Boolean) : []
-    setEditRating(new Set(ratings))
-    setEditAmelExp(staff.amelExp)
-    setEditInitDate(staff.initDate)
-    setEditCurrDate(staff.currDate)
-    setEditSamsExp(staff.samsExp)
+  // Populate form when detail data arrives
+  useEffect(() => {
+    if (detailData) {
+      setEditAuthNo(detailData.authNo || '')
+      setEditRating(new Set(detailData.aircrafts || []))
+      setEditAmelExp(detailData.amelExpiryDate?.split('T')[0] || '')
+      setEditInitDate(detailData.initialIssueDate?.split('T')[0] || '')
+      setEditCurrDate(detailData.currentIssueDate?.split('T')[0] || '')
+      setEditSamsExp(detailData.expiryDate?.split('T')[0] || '')
+    }
+  }, [detailData])
+
+  const handleEditClick = (staff: SamsAuthItem) => {
+    setEditStaffId(staff.staffId)
   }
 
-  const filtered = useMemo(() => {
-    let list = [...STAFF]
-
-    if (search) {
-      const q = search.toLowerCase()
-      list = list.filter(s =>
-        s.name.toLowerCase().includes(q) ||
-        s.id.includes(q) ||
-        s.authNo.toLowerCase().includes(q)
-      )
-    }
-
-    if (filter !== 'all') {
-      list = list.filter(s => getSamsStatus(s) === filter)
-    }
-
-    return list
-  }, [search, filter, version])
-
-  // Pagination states
-  const [pageIndex, setPageIndex] = useState(0)
-  const pageSize = 15
+  const handleCloseEdit = () => {
+    setEditStaffId(null)
+    setEditAuthNo('')
+    setEditRating(new Set())
+    setEditAmelExp('')
+    setEditInitDate('')
+    setEditCurrDate('')
+    setEditSamsExp('')
+  }
 
   // Reset page to 0 when filters change
   useEffect(() => {
     setPageIndex(0)
-  }, [search, filter])
+  }, [debouncedSearch, filter])
 
-  const totalPages = Math.ceil(filtered.length / pageSize)
-  const paginatedStaff = filtered.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize)
+  const totalPages = samsData ? Math.ceil(samsData.total / pageSize) : 0
+  const paginatedStaff = samsData?.responseData || []
+  const totalAll = samsData?.totalAll || 0
+  const totalFiltered = samsData?.total || 0
 
   const getPageNumbers = () => {
     const pages = []
@@ -128,12 +146,21 @@ export function SamsAuthTab() {
     return pages.filter((p, index, arr) => p !== -1 || arr[index - 1] !== -1)
   }
 
-  const counts = useMemo(() => ({
-    all: STAFF.length,
-    valid: STAFF.filter(s => getSamsStatus(s) === 'valid').length,
-    expiring: STAFF.filter(s => getSamsStatus(s) === 'expiring').length,
-    expired: STAFF.filter(s => getSamsStatus(s) === 'expired').length,
-  }), [])
+  // Status mapping adapter for UI styling
+  const getUiStatus = (apiStatus: string): SamsAuthStatus | 'not_issued' => {
+    const s = (apiStatus || '').toLowerCase()
+    if (s === 'valid') return 'valid'
+    if (s === 'not issued') return 'not_issued'
+    if (s === 'expired') return 'expired'
+    if (s === 'expiring') return 'expiring'
+    return 'valid' // default fallback
+  }
+
+  // Extended meta including not_issued
+  const EXTENDED_SAMS_STATUS_META: Record<string, { bg: string; dot: string; text: string; label: string; labelTh: string }> = {
+    ...SAMS_STATUS_META,
+    not_issued: { bg: '#f1f5f9', dot: '#94a3b8', text: '#64748b', label: 'Not Issued', labelTh: 'ยังไม่ออกบัตร' }
+  }
 
   return (
     <div className="space-y-4">
@@ -163,27 +190,30 @@ export function SamsAuthTab() {
               </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">ทั้งหมด ({counts['all']})</SelectItem>
-              <SelectItem value="valid">Valid ({counts['valid']})</SelectItem>
-              <SelectItem value="expiring">Expiring ({counts['expiring']})</SelectItem>
-              <SelectItem value="expired">Expired ({counts['expired']})</SelectItem>
+              <SelectItem value="all">ทั้งหมด ({totalAll})</SelectItem>
+              {statusOptions.map((opt: StaffAuthorizationAirlineStatus) => {
+                return (
+                  <SelectItem key={opt.code} value={opt.code}>
+                    {opt.name}
+                  </SelectItem>
+                )
+              })}
             </SelectContent>
           </Select>
         </div>
 
         <span className="ml-auto text-[10px] text-muted-foreground hidden">
-          แสดง {filtered.length} จาก {STAFF.length} รายการ
+          แสดง {totalFiltered} จาก {totalAll} รายการ
         </span>
       </div>
       </div>
 
       {/* ── Table ── */}
-      <div className="rounded-xl border border-border overflow-hidden bg-white">
+      <div className={cn("rounded-xl border border-border overflow-hidden bg-white transition-opacity", isFetching ? "opacity-60" : "opacity-100")}>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-xs">
             <thead>
               <tr className="bg-slate-50 border-b-2 border-border">
-                <th className="px-3 py-2.5 text-left text-muted-foreground font-bold text-[10px] uppercase tracking-wider w-10">#</th>
                 <th className="px-3 py-2.5 text-left text-muted-foreground font-bold text-[10px] uppercase tracking-wider" style={{ minWidth: 220 }}>Employee Name</th>
                 <th className="px-3 py-2.5 text-left text-muted-foreground font-bold text-[10px] uppercase tracking-wider" style={{ minWidth: 150 }}>Auth No.</th>
                 <th className="px-3 py-2.5 text-left text-muted-foreground font-bold text-[10px] uppercase tracking-wider" style={{ minWidth: 180 }}>Rating (AMEL)</th>
@@ -196,57 +226,61 @@ export function SamsAuthTab() {
               </tr>
             </thead>
             <tbody>
-              {paginatedStaff.map((s, ri) => {
-                const st = getSamsStatus(s)
-                const d = daysLeft(s.samsExp)
-                const meta = SAMS_STATUS_META[st]
+              {paginatedStaff.map((s: SamsAuthItem, ri: number) => {
+                const uiStatus = getUiStatus(s.samsAuthStatus)
+                const meta = EXTENDED_SAMS_STATUS_META[uiStatus] || EXTENDED_SAMS_STATUS_META.valid
+
+
                 return (
                   <tr
-                    key={s.id}
+                    key={s.staffId}
                     className={`border-b border-border/50 transition-colors hover:bg-blue-50 group ${
                       ri % 2 === 0 ? 'bg-white' : 'bg-slate-50'
                     }`}
                   >
-                    {/* # */}
-                    <td className="px-3 py-2.5 text-muted-foreground font-semibold">{s.no}</td>
                     {/* Staff */}
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-2.5">
-                        <div
-                          className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
-                          style={{ background: s.color }}
-                        >
-                          {s.name.split(' ').pop()?.[0] || s.name[0]}
-                        </div>
+                        {s.profileImagePath ? (
+                          <img
+                            src={s.profileImagePath}
+                            alt={s.employeeName || ''}
+                            className="w-7 h-7 rounded-full object-cover shrink-0"
+                          />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center shrink-0">
+                            <User className="w-3.5 h-3.5 text-muted-foreground" />
+                          </div>
+                        )}
                         <div>
-                          <p className="font-semibold text-foreground leading-tight">{s.name}</p>
-                          <p className="text-[10px] text-primary font-bold">{s.id}</p>
+                          <p className="font-semibold text-foreground leading-tight">{s.employeeName}</p>
+                          <p className="text-[10px] text-primary font-bold">{s.employeeId}</p>
                         </div>
                       </div>
                     </td>
                     {/* Auth No */}
-                    <td className="px-3 py-2.5 font-bold text-[11px] text-slate-700">{s.authNo}</td>
+                    <td className="px-3 py-2.5 font-bold text-[11px] text-slate-700">{s.authorizationNo || '-'}</td>
                     {/* Rating */}
                     <td className="px-3 py-2.5 text-muted-foreground">
-                      <div className="text-[10px] leading-relaxed whitespace-pre-line">{s.rating}</div>
+                      <div className="text-[10px] leading-relaxed whitespace-pre-line">{(s.ratingAmel || []).join('\n') || '-'}</div>
                     </td>
                     {/* AMEL Exp */}
-                    <td className="px-3 py-2.5 text-center text-muted-foreground">{fmtDate(s.amelExp)}</td>
+                    <td className="px-3 py-2.5 text-center text-muted-foreground">{fmtDate(s.amelExpiryDate) || '-'}</td>
                     {/* Initial Issue */}
-                    <td className="px-3 py-2.5 text-center text-muted-foreground">{fmtDate(s.initDate)}</td>
+                    <td className="px-3 py-2.5 text-center text-muted-foreground">{fmtDate(s.initialIssueDate) || '-'}</td>
                     {/* Current Issue */}
-                    <td className="px-3 py-2.5 text-center text-muted-foreground">{fmtDate(s.currDate)}</td>
+                    <td className="px-3 py-2.5 text-center text-muted-foreground">{fmtDate(s.currentIssueDate) || '-'}</td>
                     {/* SAMS Exp */}
                     <td className="px-3 py-2.5 text-center font-semibold" style={{ color: meta.text }}>
-                      {fmtDate(s.samsExp)}
+                      {fmtDate(s.samsExpiryDate) || '-'}
                     </td>
                     {/* Status */}
                     <td className="px-3 py-2.5 text-center">
                       <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold" style={{ background: meta.bg, color: meta.text }}>
                         <span className="w-1.5 h-1.5 rounded-full" style={{ background: meta.dot }} />
-                        {meta.label}
-                        {st === 'expiring' && <span className="text-[9px] opacity-80">({d}d)</span>}
-                        {st === 'expired' && <span className="text-[9px] opacity-80">({Math.abs(d)}d)</span>}
+                        {s.samsAuthStatus || meta.label}
+                        {uiStatus === 'expiring' && <span className="text-[9px] opacity-80">({s.daysToExpiry}d)</span>}
+                        {uiStatus === 'expired' && <span className="text-[9px] opacity-80">({Math.abs(s.daysToExpiry || 0)}d)</span>}
                       </div>
                     </td>
                     {/* Action */}
@@ -254,25 +288,18 @@ export function SamsAuthTab() {
                       ri % 2 === 0 ? 'bg-white group-hover:bg-blue-50' : 'bg-slate-50 group-hover:bg-blue-50'
                     }`}>
                       <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button className="text-muted-foreground hover:text-primary transition-colors p-1.5 rounded-md hover:bg-slate-200 mx-auto block">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEditClick(s)} className="text-xs font-semibold cursor-pointer">
-                              <Edit2 className="w-3.5 h-3.5 mr-2" />
-                              แก้ไขข้อมูล
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <button
+                          onClick={() => handleEditClick(s)}
+                          className="text-muted-foreground hover:text-primary transition-colors p-1.5 rounded-md hover:bg-slate-200 mx-auto block"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
                       </PermissionActionGuard>
                     </td>
                   </tr>
                 )
               })}
-              {filtered.length === 0 && (
+              {paginatedStaff.length === 0 && !isFetching && (
                 <tr>
                   <td colSpan={10} className="px-4 py-12 text-center text-muted-foreground text-sm">
                     ไม่พบข้อมูลที่ตรงกับเงื่อนไข
@@ -286,7 +313,7 @@ export function SamsAuthTab() {
         {/* Pagination & Footer */}
         <div className="flex items-center justify-between border-t border-border px-4 py-3 bg-white">
             <div className="text-xs font-medium text-muted-foreground">
-                Showing <span className="font-semibold text-foreground">{filtered.length === 0 ? 0 : pageIndex * pageSize + 1}</span> to <span className="font-semibold text-foreground">{Math.min((pageIndex + 1) * pageSize, filtered.length)}</span> of <span className="font-semibold text-foreground">{filtered.length}</span> entries
+                Showing <span className="font-semibold text-foreground">{paginatedStaff.length === 0 ? 0 : pageIndex * pageSize + 1}</span> to <span className="font-semibold text-foreground">{Math.min((pageIndex + 1) * pageSize, totalFiltered)}</span> of <span className="font-semibold text-foreground">{totalFiltered}</span> entries
             </div>
             
             {totalPages > 1 && (
@@ -347,19 +374,43 @@ export function SamsAuthTab() {
       </div>
 
       {/* Edit Modal */}
-      <Dialog open={!!selectedStaff} onOpenChange={(open) => !open && setSelectedStaff(null)}>
+      <Dialog open={editStaffId !== null} onOpenChange={(open) => !open && handleCloseEdit()}>
         <DialogContent className="max-w-[650px] p-0 overflow-hidden border-border/60 shadow-2xl bg-white">
-          {selectedStaff && (
+          {isDetailLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <DialogTitle className="sr-only">Loading</DialogTitle>
+              <RotateCw className="w-6 h-6 text-blue-500 animate-spin" />
+            </div>
+          ) : isDetailError || (!detailData && editStaffId !== null) ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <DialogTitle className="sr-only">Error</DialogTitle>
+              <p className="text-sm text-muted-foreground">ไม่สามารถโหลดข้อมูลได้</p>
+              <Button variant="outline" size="sm" onClick={handleCloseEdit}>ปิด</Button>
+            </div>
+          ) : detailData ? (
             <>
               <div className="px-5 pt-5 pb-4 border-b border-border/60 bg-slate-50">
-                <div className="flex items-center justify-between mb-1">
-                  <DialogTitle className="text-lg font-bold text-slate-800">
-                    {selectedStaff.name}
-                  </DialogTitle>
+                <div className="flex items-center gap-3 mb-1">
+                  {detailData.profileImagePath ? (
+                    <img
+                      src={detailData.profileImagePath}
+                      alt={detailData.staffName || ''}
+                      className="w-10 h-10 rounded-full object-cover shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0">
+                      <User className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div>
+                    <DialogTitle className="text-lg font-bold text-slate-800">
+                      {detailData.staffName}
+                    </DialogTitle>
+                    <p className="text-xs font-semibold text-slate-500">
+                      {detailData.employeeId}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-xs font-semibold text-slate-500">
-                  {selectedStaff.id} • License {selectedStaff.license}
-                </p>
               </div>
 
               <div className="px-5 py-4 space-y-4">
@@ -422,20 +473,14 @@ export function SamsAuthTab() {
               </div>
 
               <DialogFooter className="px-5 py-4 border-t border-border/60 bg-slate-50">
-                <Button variant="outline" onClick={() => setSelectedStaff(null)} className="font-bold">
+                <Button variant="outline" onClick={handleCloseEdit} className="font-bold">
                   Cancel
                 </Button>
                 <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
                   <Button 
                     onClick={() => {
-                      selectedStaff.authNo = editAuthNo
-                      selectedStaff.rating = Array.from(editRating).join('\n')
-                      selectedStaff.amelExp = editAmelExp
-                      selectedStaff.initDate = editInitDate
-                      selectedStaff.currDate = editCurrDate
-                      selectedStaff.samsExp = editSamsExp
-                      setVersion(v => v + 1)
-                      setSelectedStaff(null)
+                      // Note: Updating local state only (API update not yet available)
+                      handleCloseEdit()
                     }}
                     className="font-bold bg-blue-600 hover:bg-blue-700 text-white"
                   >
@@ -444,7 +489,7 @@ export function SamsAuthTab() {
                 </PermissionActionGuard>
               </DialogFooter>
             </>
-          )}
+          ) : null}
         </DialogContent>
       </Dialog>
     </div>

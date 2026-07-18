@@ -1,19 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Shield, Plane, Check } from 'lucide-react'
-
-const AIRCRAFT_TYPE_LICENSES = [
-    'B737-600/700/800/900',
-    'B737-7/8/9',
-    'A318/A319/A320/A321',
-    'B777-200/300/300ER',
-    'A330-200/300/800/900',
-    'B787-8/9/10',
-    'B767-200/300',
-    'A350-900/1000',
-    'ERJ-190',
-]
+import { X, Shield, Plane, Check, Loader2 } from 'lucide-react'
+import { useAircraftTypeLicenses } from '@/lib/api/master/aircraft-type-licenses.hooks'
 
 interface EditAircraftModalProps {
     isOpen: boolean
@@ -25,6 +14,7 @@ interface EditAircraftModalProps {
 
 export function EditAircraftModal({ isOpen, onClose, initialSelection, onSave, isSaving }: EditAircraftModalProps) {
     const [selection, setSelection] = useState<number[]>([])
+    const { data: licenses = [], isLoading } = useAircraftTypeLicenses()
 
     useEffect(() => {
         if (isOpen) {
@@ -69,44 +59,51 @@ export function EditAircraftModal({ isOpen, onClose, initialSelection, onSave, i
                 <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
                     <div className="px-7 py-5 overflow-y-auto flex-1 max-h-[60vh]">
                         <p className="text-sm font-medium text-slate-500 mb-4">Select aircraft types to assign to this staff member.</p>
-                        <div className="grid grid-cols-1 gap-2.5">
-                            {AIRCRAFT_TYPE_LICENSES.map((license, idx) => {
-                                const typeId = idx + 1
-                                const isSelected = selection.includes(typeId)
-                                return (
-                                    <label
-                                        key={license}
-                                        className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all duration-150 select-none ${
-                                            isSelected
-                                                ? 'border-green-300 bg-green-50/60 text-green-800 shadow-sm'
-                                                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                                        }`}
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            checked={isSelected}
-                                            onChange={(e) => {
-                                                if (e.target.checked) {
-                                                    setSelection(prev => [...prev, typeId])
-                                                } else {
-                                                    setSelection(prev => prev.filter(id => id !== typeId))
-                                                }
-                                            }}
-                                            className="sr-only"
-                                        />
-                                        <div className={`w-4.5 h-4.5 rounded md border-2 flex items-center justify-center shrink-0 transition-colors ${
-                                            isSelected ? 'border-green-500 bg-green-500' : 'border-slate-300 bg-white'
-                                        }`}>
-                                            {isSelected && (
-                                                <Check className="w-3 h-3 text-white" strokeWidth={3} />
-                                            )}
-                                        </div>
-                                        <Plane className="h-4 w-4 shrink-0" />
-                                        <span className="text-sm font-semibold">{license}</span>
-                                    </label>
-                                )
-                            })}
-                        </div>
+                        
+                        {isLoading ? (
+                            <div className="flex justify-center items-center py-10">
+                                <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 gap-2.5">
+                                {licenses.map((license) => {
+                                    const typeId = license.id
+                                    const isSelected = selection.includes(typeId)
+                                    return (
+                                        <label
+                                            key={typeId}
+                                            className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all duration-150 select-none ${
+                                                isSelected
+                                                    ? 'border-green-300 bg-green-50/60 text-green-800 shadow-sm'
+                                                    : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                            }`}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={isSelected}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setSelection(prev => [...prev, typeId])
+                                                    } else {
+                                                        setSelection(prev => prev.filter(id => id !== typeId))
+                                                    }
+                                                }}
+                                                className="sr-only"
+                                            />
+                                            <div className={`w-4.5 h-4.5 rounded md border-2 flex items-center justify-center shrink-0 transition-colors ${
+                                                isSelected ? 'border-green-500 bg-green-500' : 'border-slate-300 bg-white'
+                                            }`}>
+                                                {isSelected && (
+                                                    <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                                                )}
+                                            </div>
+                                            <Plane className="h-4 w-4 shrink-0" />
+                                            <span className="text-sm font-semibold">{license.name}</span>
+                                        </label>
+                                    )
+                                })}
+                            </div>
+                        )}
                     </div>
 
                     {/* Footer */}
@@ -115,13 +112,13 @@ export function EditAircraftModal({ isOpen, onClose, initialSelection, onSave, i
                             type="button"
                             onClick={onClose}
                             className="px-5 py-2.5 text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg cursor-pointer transition-all duration-200 hover:bg-slate-50 hover:border-slate-300"
-                            disabled={isSaving}
+                            disabled={isSaving || isLoading}
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
-                            disabled={isSaving}
+                            disabled={isSaving || isLoading}
                             className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-green-600 border border-green-600 rounded-lg cursor-pointer transition-all duration-200 hover:bg-green-700 hover:border-green-700 hover:shadow-md disabled:opacity-50"
                         >
                             {isSaving ? 'Saving...' : 'Save Changes'}
@@ -132,3 +129,4 @@ export function EditAircraftModal({ isOpen, onClose, initialSelection, onSave, i
         </div>
     )
 }
+

@@ -139,7 +139,7 @@ export interface UpsertStaffDocument {
 
 export interface UpsertAircraftLicense {
     id: number;
-    aircraftTypeId: number;
+    aircraftTypeId: string | number;
 }
 
 export interface UpsertAmelLicense {
@@ -294,8 +294,19 @@ export interface StaffDocumentItem {
 export interface StaffAircraftLicenseItem {
     id: number;
     staffId: number;
-    aircraftTypeId?: number;
+    aircraftTypeId?: string | number; // TODO: Migrate to string groupId based on new API spec
     aircraftTypeLicensId: number;
+    aircraftTypeLicensObj?: {
+        id: number;
+        code: string;
+        name: string;
+        description: string | null;
+        isdelete: boolean;
+        createddate: string;
+        createdby: string;
+        updateddate: string | null;
+        updatedby: string | null;
+    };
     isdelete: boolean;
     createddate: string;
     createdby: string;

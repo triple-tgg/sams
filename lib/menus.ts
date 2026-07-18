@@ -194,6 +194,32 @@ export function getMenuList(pathname: string, t: any): Group[] {
               icon: "heroicons-outline:document-duplicate",
               children: [],
             },
+            {
+              href: "/qa/qa-document/work-experience-records",
+              label: t("qaDocument"),
+              active: pathname.includes("/qa/qa-document"),
+              icon: "heroicons-outline:document-text",
+              children: [
+                {
+                  permCode: "QA_DOC_WORK_EXPERIENCE",
+                  href: "/qa/qa-document/work-experience-records",
+                  label: t("workExperienceRecords"),
+                  active: pathname.includes("/qa/qa-document/work-experience-records"),
+                },
+                {
+                  permCode: "QA_DOC_EMPLOYEE_HISTORY",
+                  href: "/qa/qa-document/employee-history-training",
+                  label: t("employeeHistoryTraining"),
+                  active: pathname.includes("/qa/qa-document/employee-history-training"),
+                },
+                {
+                  permCode: "QA_DOC_CERTIFYING_STAFF",
+                  href: "/qa/qa-document/certifying-staff-maintenance",
+                  label: t("certifyingStaffMaintenance"),
+                  active: pathname.includes("/qa/qa-document/certifying-staff-maintenance"),
+                },
+              ],
+            },
           ],
         },
       ],
@@ -280,28 +306,16 @@ export function getMenuList(pathname: string, t: any): Group[] {
               ]
             },
             {
-              href: "/master-data/aircraft-type",
+              href: "/master-data/aircraft-engine",
               label: t("mdAircraftManagement"),
-              active: pathname.includes("/master-data/aircraft-type") || pathname.includes("/master-data/aircraft-type-license") || pathname.includes("/master-data/aircraft-group"),
+              active: pathname.includes("/master-data/aircraft-engine"),
               icon: "heroicons-outline:paper-airplane",
               children: [
                 {
-                  permCode: "MASTER_DATA_AIRCRAFT_TYPE",
-                  href: "/master-data/aircraft-type",
-                  label: t("mdAircraftType"),
-                  active: pathname.includes("/master-data/aircraft-type") && !pathname.includes("/master-data/aircraft-type-license"),
-                },
-                {
-                  permCode: "MASTER_DATA_AIRCRAFT_TYPE_LICENSE",
-                  href: "/master-data/aircraft-type-license",
-                  label: t("mdAircraftTypeLicense"),
-                  active: pathname.includes("/master-data/aircraft-type-license"),
-                },
-                {
-                  permCode: "MASTER_DATA_AIRCRAFT_GROUP",
-                  href: "/master-data/aircraft-group",
-                  label: t("mdAircraftGroup"),
-                  active: pathname.includes("/master-data/aircraft-group"),
+                  permCode: "MASTER_DATA_AIRCRAFT_ENGINE",
+                  href: "/master-data/aircraft-engine",
+                  label: t("mdAircraftEngine"),
+                  active: pathname.includes("/master-data/aircraft-engine"),
                 },
               ]
             },

@@ -85,7 +85,7 @@ export interface StaffData {
     position: string
     department: string
     status: string
-    startDate: string
+    startDate: string | null
     initials: string
     avatarBg: string
     profileImage?: string

@@ -16,6 +16,20 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
+import { AircraftEngineRefPanel } from "@/components/aircraft-engine/AircraftEngineRefPanel"
+
+// CR-6 embed (M-02): for aircraft-family courses, show the systems config of the
+// family being trained. A real integration passes the course's aircraft ICAO;
+// this maps the course name to a representative ICAO, defaulting to A320.
+const AIRCRAFT_COURSE_CATEGORIES = ["Aircraft Type", "Aircraft Familiarization"]
+function courseIcao(name: string): string {
+  const map: Record<string, string> = {
+    A350: "A359", A330: "A333", A320: "A320", A321: "A321", A319: "A319",
+    B787: "B789", B777: "B77W", B767: "B763", B737: "B738", E190: "E190",
+  }
+  const hit = Object.keys(map).find((k) => name.toUpperCase().includes(k))
+  return hit ? map[hit] : "A320"
+}
 
 interface CourseDetailPanelProps {
     course: Course
@@ -120,6 +134,16 @@ export function CourseDetailPanel({ course, onClose, onEdit, onDelete }: CourseD
                         className="text-xs text-foreground/70 leading-relaxed bg-muted/50 rounded-lg p-3 prose prose-sm max-w-none [&_p]:m-0 [&_ul]:m-0 [&_ol]:m-0"
                         dangerouslySetInnerHTML={{ __html: courseDetail.course.additionalNote }}
                     />
+                </div>
+            )}
+
+            {/* CR-6: read-only reference to the aircraft systems master data */}
+            {AIRCRAFT_COURSE_CATEGORIES.includes(course.category) && (
+                <div className="pt-3 border-t border-border">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                        Aircraft systems (reference)
+                    </p>
+                    <AircraftEngineRefPanel context="training" refId={courseIcao(course.name)} />
                 </div>
             )}
 

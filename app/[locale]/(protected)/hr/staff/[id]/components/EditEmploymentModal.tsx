@@ -99,7 +99,7 @@ export function EditEmploymentModal({ isOpen, onClose, staff, onSave }: EditEmpl
         empId: staff.empId,
         position: POSITIONS.find(p => p.name === staff.position)?.id.toString() || '',
         department: DEPARTMENTS.find(d => d.name === staff.department)?.id.toString() || '',
-        startDate: staff.startDate,
+        startDate: staff.startDate ?? '',
     })
 
     useEffect(() => {
@@ -108,7 +108,7 @@ export function EditEmploymentModal({ isOpen, onClose, staff, onSave }: EditEmpl
                 empId: staff.empId,
                 position: POSITIONS.find(p => p.name === staff.position)?.id.toString() || '',
                 department: DEPARTMENTS.find(d => d.name === staff.department)?.id.toString() || '',
-                startDate: staff.startDate,
+                startDate: staff.startDate ?? '',
             })
         }
     }, [isOpen, staff])

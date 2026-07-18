@@ -23,6 +23,7 @@ import type { CustomerAuthValue, AirlineKey, Staff } from '../../types-v2'
 import { getSamsStatus } from '../../utils'
 import { cn } from '@/lib/utils'
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
+import { AircraftEngineRefPanel } from "@/components/aircraft-engine/AircraftEngineRefPanel"
 
 const AIRCRAFT_OPTIONS = [
   'A318/A319/A320/A321',
@@ -691,6 +692,20 @@ function MatrixView() {
                     </div>
                   </div>
                 </div>
+
+                {/* CR-6: read-only reference to the authorization group(s) in scope */}
+                {editRating.size > 0 && (
+                  <div className="pt-3">
+                    <span className="text-xs font-bold text-slate-700 mb-1.5 block">
+                      Authorization group reference ({editRating.size})
+                    </span>
+                    <div className="grid gap-2 sm:grid-cols-2 max-h-64 overflow-y-auto pr-1">
+                      {Array.from(editRating).map((scope) => (
+                        <AircraftEngineRefPanel key={scope} context="authorization" refId={scope} />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <DialogFooter className="px-5 py-4 border-t border-border/60 bg-slate-50">
