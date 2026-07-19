@@ -13,6 +13,6 @@ export interface GetStaffAuthorizationAirlineStatusesResponse {
 }
 
 export const getStaffAuthorizationAirlineStatuses = async (): Promise<StaffAuthorizationAirlineStatus[]> => {
-    const res = await axiosConfig.get("/master/staff-authorization-airline-statuses");
+    const res = await axiosConfig.get("/master/authorization-statuses");
     return res.data?.responseData || [];
 };

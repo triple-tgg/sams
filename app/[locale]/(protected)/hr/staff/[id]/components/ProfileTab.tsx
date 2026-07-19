@@ -11,7 +11,7 @@ import { EditLicenseModal } from './EditLicenseModal'
 import { EditAircraftModal } from './EditAircraftModal'
 import { useUpsertStaff, useUploadStaffFile } from '@/lib/api/hooks/useQAStaffManagement'
 import { useAircraftTypeLicenses } from '@/lib/api/master/aircraft-type-licenses.hooks'
-import { StaffByIdData, UpsertStaffRequest, UpsertEducation, UpsertWorkExperience } from '@/lib/api/qa/staff-management'
+import { buildStaffUpsertRequest, StaffByIdData, UpsertStaffRequest } from '@/lib/api/qa/staff-management'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
@@ -318,53 +318,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
             return null
         }
 
-        const documents = apiData.staffDocumentList?.filter(d => !d.isdelete) || []
-
-        return {
-            staffId: apiData.id,
-            title: apiData.title || '',
-            fullNameTh: apiData.name || '',
-            fullNameEn: apiData.fullNameEn || '',
-            dateOfBirth: apiData.dateOfBirth || '',
-            placeOfBirth: apiData.placeOfBirth || '',
-            nationality: apiData.nationality || '',
-            idCardNo: apiData.idCardNo || '',
-            phone: apiData.phone || '',
-            email: apiData.email || '',
-            address: apiData.address || '',
-            employeeId: apiData.employeeId || '',
-            startDate: apiData.startDate || '',
-            positionId: apiData.positionObj?.id || 0,
-            departmentId: apiData.departmentObj?.id || 0,
-            staffstypeid: apiData.staffstypeObj?.id || 0,
-            jobTitle: apiData.jobTitle || '',
-            profileImagePath: apiData.profileImagePath || '',
-            educations: (apiData.educations || []) as UpsertEducation[],
-            workExperiences: (apiData.workExperiences || []) as UpsertWorkExperience[],
-            staffDocumentList: documents.map(d => ({
-                id: d.id,
-                staffDocumentTypeId: d.staffDocumentTypeId || 0,
-                fileName: d.fileName,
-                filePath: d.filePath,
-                staffDocumentStatusId: d.staffDocumentStatusId ?? 1
-            })),
-            staffAircraftLicenseList: aircraftLicenses.map(l => ({
-                id: l.id,
-                aircraftTypeId: Number(l.aircraftTypeLicensId ?? l.aircraftTypeId ?? 0),
-            })),
-            staffAmelLicenseList: amelLicenses.map(l => ({
-                id: l.id,
-                licenseNumber: l.licenseNumber,
-                categoryId: l.categoryId,
-                issuedDate: l.issuedDate || '',
-                expiryDate: l.expiryDate || '',
-                limitations: l.limitations || '',
-                aircraftRatings: l.aircraftRatings || '',
-                attachmentFilePath: l.attachmentFilePath || '',
-                attachmentFileName: l.attachmentFileName || '',
-            })),
-            ...overrideFields,
-        }
+        return buildStaffUpsertRequest(apiData, overrideFields)
     }
 
     const handleSavePersonal = (data: any) => {
@@ -804,9 +758,9 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                         )}
                     </div>
                 </div>
-                <div className="col-span-4">
+                <div className="col-span-4 min-w-0">
                     {/* ── Aircraft Type License ── */}
-                    <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 mb-4">
+                    <div className="min-w-0 bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 mb-4">
                         <div className="flex items-center justify-between mb-5 pb-3.5 border-b border-slate-100">
                             <div className="flex items-center gap-2.5 text-base font-bold text-slate-800">
                                 <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-green-50 text-green-600">
@@ -861,7 +815,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                     </div>
 
                     {/* ── AMEL License ── */}
-                    <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 mb-4">
+                    <div className="min-w-0 bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 mb-4">
                         <div className="flex items-center justify-between mb-5 pb-3.5 border-b border-slate-100">
                             <div className="flex items-center gap-2.5 text-base font-bold text-slate-800">
                                 <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-blue-50 text-blue-800">
@@ -881,7 +835,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                         </div>
 
                         {amelLicense ? (
-                            <div className="bg-linear-to-br from-slate-50 to-blue-50/40 border border-slate-200 rounded-xl p-5 space-y-4">
+                            <div className="min-w-0 bg-linear-to-br from-slate-50 to-blue-50/40 border border-slate-200 rounded-xl p-5 space-y-4">
                                 {/* License Number */}
                                 <div className="flex items-center gap-3 pb-3.5 border-b border-slate-200/80">
                                     <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center shrink-0">
@@ -928,18 +882,18 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                                 )}
 
                                 {/* Attachment */}
-                                <div>
+                                <div className="min-w-0">
                                     <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider block mb-2">Attachment</span>
                                     {amelLicense.attachmentFilePath ? (
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex min-w-0 items-center gap-2">
                                             <a
                                                 href={amelLicense.attachmentFilePath}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="flex-1 flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-white border border-slate-200 hover:border-blue-300 hover:bg-blue-50/30 cursor-pointer transition-all duration-200 text-left group no-underline"
+                                                className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden px-3 py-2.5 rounded-lg bg-white border border-slate-200 hover:border-blue-300 hover:bg-blue-50/30 cursor-pointer transition-all duration-200 text-left group no-underline"
                                             >
                                                 <FileText className="h-4 w-4 text-blue-500 shrink-0" />
-                                                <span className="text-sm text-slate-700 group-hover:text-blue-700 truncate flex-1">
+                                                <span className="min-w-0 flex-1 truncate text-sm text-slate-700 group-hover:text-blue-700">
                                                     {amelLicense.attachmentFileName || 'License Document'}
                                                 </span>
                                                 <ExternalLink className="h-3.5 w-3.5 text-slate-400 group-hover:text-blue-500 shrink-0" />

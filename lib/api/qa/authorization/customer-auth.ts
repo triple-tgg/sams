@@ -100,7 +100,12 @@ export interface CustomerAuthDetailResponse {
   error: string;
 }
 
-export const getCustomerAuthById = async (id: number) => {
-  const res = await axiosConfig.get<CustomerAuthDetailResponse>(`/authorization/customer-auth/byid/${id}`);
+export interface CustomerAuthDetailRequest {
+  staffId: number;
+  airlineId: number;
+}
+
+export const getCustomerAuthById = async (data: CustomerAuthDetailRequest) => {
+  const res = await axiosConfig.post<CustomerAuthDetailResponse>(`/authorization/customer-auth/byid`, data);
   return res.data;
 };

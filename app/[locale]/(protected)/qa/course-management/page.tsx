@@ -4,9 +4,17 @@ import { useState, useMemo } from 'react'
 import { Plus, Building2, Briefcase, Wrench, ShieldCheck } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import {
+    AlertDialog,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
-import { Course, CATEGORIES, CATEGORY_DOT } from './types'
-import { COURSES, DEPARTMENTS } from './data'
+import { Course, CATEGORY_DOT } from './types'
 import { CourseTable } from './components/CourseTable'
 import { TrainingNeedsMatrix } from './components/TrainingNeedsMatrix'
 import { CourseDetailPanel } from './components/CourseDetailModal'
@@ -26,6 +34,7 @@ export default function CourseManagementPage() {
     const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
     const [showAddModal, setShowAddModal] = useState(false)
     const [editingCourse, setEditingCourse] = useState<Course | null>(null)
+    const [coursePendingDelete, setCoursePendingDelete] = useState<Course | null>(null)
     const [expandedDept, setExpandedDept] = useState<string | null>(null)
 
     const { getUserName } = useReduxAuth()
@@ -41,6 +50,7 @@ export default function CourseManagementPage() {
                 queryClient.invalidateQueries({ queryKey: ['course-summary'] })
                 queryClient.invalidateQueries({ queryKey: ['course-detail'] })
                 setSelectedCourse(null)
+                setCoursePendingDelete(null)
             } else {
                 toast.error(response.error || 'Failed to delete course')
             }
@@ -292,7 +302,10 @@ export default function CourseManagementPage() {
                                                     search={search}
                                                     onSearchChange={setSearch}
                                                     onSelectCourse={setSelectedCourse}
+                                                    onEditCourse={setEditingCourse}
+                                                    onDeleteCourse={setCoursePendingDelete}
                                                     selectedCourseId={selectedCourse?.id ?? null}
+                                                    deletingCourseId={deleteCourseMutation.isPending ? deleteCourseMutation.variables?.id : null}
                                                 />
                                             )}
                                         </>
@@ -331,6 +344,45 @@ export default function CourseManagementPage() {
                     }}
                 />
             )}
+
+            <AlertDialog
+                open={coursePendingDelete !== null}
+                onOpenChange={(open) => {
+                    if (!open && !deleteCourseMutation.isPending) setCoursePendingDelete(null)
+                }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete course?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently delete{' '}
+                            <strong className="font-semibold text-foreground">
+                                {coursePendingDelete?.code} — {coursePendingDelete?.name}
+                            </strong>
+                            . This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deleteCourseMutation.isPending}>
+                            Cancel
+                        </AlertDialogCancel>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (!coursePendingDelete || deleteCourseMutation.isPending) return
+                                deleteCourseMutation.mutate({
+                                    id: coursePendingDelete.id,
+                                    userName: getUserName() || 'system',
+                                })
+                            }}
+                            disabled={deleteCourseMutation.isPending}
+                            className="inline-flex h-10 items-center justify-center rounded-md bg-destructive px-4 text-sm font-medium text-destructive-foreground transition-colors hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            {deleteCourseMutation.isPending ? 'Deleting...' : 'Delete Course'}
+                        </button>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     )
 }

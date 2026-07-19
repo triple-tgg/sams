@@ -25,7 +25,8 @@ export interface FetchAuthGroupsOptions {
 }
 
 export interface AuthGroupInput {
-  groupId: string;
+  /** Omit when creating; the backend generates the new group ID. */
+  groupId?: string;
   groupLabel: string;
   memberCombinationIds: number[];
   customerId?: number | null;
@@ -369,13 +370,14 @@ export async function fetchAuthGroups(
 }
 
 export async function saveAuthGroupDraft(input: AuthGroupInput): Promise<void> {
+  const body = {
+    ...(input.groupId ? { groupId: input.groupId } : {}),
+    groupLabel: input.groupLabel,
+    memberCombinationIds: input.memberCombinationIds,
+    customerId: input.customerId ?? null,
+  };
   await writeRequest(
-    () => axiosConfig.post("/master/authorization-group/draft", {
-      groupId: input.groupId,
-      groupLabel: input.groupLabel,
-      memberCombinationIds: input.memberCombinationIds,
-      customerId: input.customerId ?? null,
-    }),
+    () => axiosConfig.post("/master/authorization-group/draft", body),
     "Failed to save authorization group draft",
   );
 }

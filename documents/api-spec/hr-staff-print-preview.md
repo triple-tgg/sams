@@ -106,3 +106,14 @@ Used to retrieve the previous and current training records for the Training Reco
   "error": null
 }
 ```
+
+## 3. Print and PDF Export
+
+- **Print** waits for document fonts and images, then opens the browser print
+  dialog. Print CSS keeps the Next.js root mounted and reveals only the preview
+  overlay; hiding the root with `display: none` also hides the nested document.
+- **Download PDF** renders each `.pp-page` separately at 2× resolution and adds
+  it to a portrait A4 PDF. The generated filename is
+  `Employee-Profile-{employeeId}.pdf`.
+- PDF generation is client-side and makes no additional API request. Remote
+  profile images require CORS permission from their storage host to be embedded.

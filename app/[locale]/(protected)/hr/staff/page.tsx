@@ -20,46 +20,9 @@ import {
 } from 'lucide-react'
 import { useQAStaffList } from '@/lib/api/hooks/useQAStaffManagement'
 import type { QAStaffItem } from '@/lib/api/qa/staff-management'
+import { useStaffDepartments, useStaffDepartmentPositions } from '@/lib/api/master/organization.hooks'
 import { PermissionActionGuard } from '@/components/partials/auth/PermissionActionGuard'
 import './hr-staff.css'
-
-const avatarGradients = [
-    'linear-gradient(135deg,#7c3aed,#a855f7)',
-    'linear-gradient(135deg,#dc2626,#ef4444)',
-    'linear-gradient(135deg,#0369a1,#3b82f6)',
-    'linear-gradient(135deg,#b45309,#f59e0b)',
-    'linear-gradient(135deg,#065f46,#22c55e)',
-    'linear-gradient(135deg,#1e40af,#60a5fa)',
-    'linear-gradient(135deg,#9333ea,#c084fc)',
-    'linear-gradient(135deg,#475569,#94a3b8)',
-    'linear-gradient(135deg,#0f766e,#2dd4bf)',
-    'linear-gradient(135deg,#be185d,#f472b6)',
-    'linear-gradient(135deg,#ea580c,#fb923c)',
-    'linear-gradient(135deg,#4338ca,#818cf8)',
-]
-
-const POSITIONS = [
-    { id: 1, name: 'Aircraft Mechanic' },
-    { id: 2, name: 'Aircraft Inspector' },
-    { id: 3, name: 'Certifying Staff (B1)' },
-    { id: 4, name: 'Certifying Staff (B2)' },
-    { id: 5, name: 'Certifying Staff (B1/B2)' },
-    { id: 6, name: 'Avionics Technician' },
-    { id: 7, name: 'Senior Engineer' },
-    { id: 8, name: 'Line Maintenance Engineer' },
-    { id: 9, name: 'Base Maintenance Engineer' },
-    { id: 10, name: 'Quality Assurance Inspector' },
-]
-
-const DEPARTMENTS = [
-    { id: 1, name: 'Line Maintenance' },
-    { id: 2, name: 'Base Maintenance' },
-    { id: 3, name: 'Quality Assurance' },
-    { id: 4, name: 'Engineering' },
-    { id: 5, name: 'Avionics' },
-    { id: 6, name: 'Structures' },
-    { id: 7, name: 'Planning' },
-]
 
 const staffTypeColors: Record<string, string> = {
     'CS': '#2563eb',
@@ -68,19 +31,6 @@ const staffTypeColors: Record<string, string> = {
     'INSP': '#059669',
     'Trainee': '#d97706',
     'Operational Staff': '#dc2626',
-}
-
-/** Get initials from a name string */
-function getInitials(name: string): string {
-    if (!name) return '?'
-    const words = name.trim().split(/\s+/)
-    if (words.length === 1) return words[0].substring(0, 2).toUpperCase()
-    return (words[0][0] + words[words.length - 1][0]).toUpperCase()
-}
-
-/** Get deterministic avatar gradient based on staff id */
-function getAvatarBg(id: number): string {
-    return avatarGradients[id % avatarGradients.length]
 }
 
 export default function HRStaffListPage() {
@@ -92,6 +42,21 @@ export default function HRStaffListPage() {
     const [filterPosition, setFilterPosition] = useState<string>("0")
     const [filterDepartment, setFilterDepartment] = useState<string>("0")
     const [filterStatus, setFilterStatus] = useState<string>("all")
+
+    const { data: departmentData, isLoading: isLoadingDepartments } = useStaffDepartments()
+    const { data: positionData, isLoading: isLoadingPositions } = useStaffDepartmentPositions()
+
+    const departments = useMemo(
+        () => (departmentData?.responseData ?? []).filter((department) => !department.isdelete),
+        [departmentData]
+    )
+    const positions = useMemo(() => {
+        const activePositions = (positionData?.responseData ?? []).filter((position) => !position.isdelete)
+        if (filterDepartment === '0') return activePositions
+
+        const departmentId = Number(filterDepartment)
+        return activePositions.filter((position) => position.staffDepartmentId === departmentId)
+    }, [filterDepartment, positionData])
 
     // ── Debounced search – send name filter to API for server-side search ──
     const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -178,26 +143,42 @@ export default function HRStaffListPage() {
                         </div>
                         
                         <div className="flex items-center gap-2 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0">
-                            <Select value={filterPosition} onValueChange={(val) => { setFilterPosition(val); setPage(1); }}>
-                                <SelectTrigger className="h-9 min-w-[150px] bg-white text-xs">
-                                    <SelectValue placeholder="Position" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="0">All Positions</SelectItem>
-                                    {POSITIONS.map(p => (
-                                        <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-
-                            <Select value={filterDepartment} onValueChange={(val) => { setFilterDepartment(val); setPage(1); }}>
+                            <Select
+                                value={filterDepartment}
+                                onValueChange={(val) => {
+                                    setFilterDepartment(val)
+                                    setFilterPosition('0')
+                                    setPage(1)
+                                }}
+                                disabled={isLoadingDepartments}
+                            >
                                 <SelectTrigger className="h-9 min-w-[150px] bg-white text-xs">
                                     <SelectValue placeholder="Department" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="0">All Departments</SelectItem>
-                                    {DEPARTMENTS.map(d => (
-                                        <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
+                                    {departments.map((department) => (
+                                        <SelectItem key={department.id} value={department.id.toString()}>
+                                            {department.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            <Select
+                                value={filterPosition}
+                                onValueChange={(val) => { setFilterPosition(val); setPage(1); }}
+                                disabled={isLoadingPositions}
+                            >
+                                <SelectTrigger className="h-9 min-w-[150px] bg-white text-xs">
+                                    <SelectValue placeholder="Position" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="0">All Positions</SelectItem>
+                                    {positions.map((position) => (
+                                        <SelectItem key={position.id} value={position.id.toString()}>
+                                            {position.name}
+                                        </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -286,7 +267,7 @@ export default function HRStaffListPage() {
                                             </TableCell>
                                         </TableRow>
                                     ) : (
-                                        staffList.map((staff: QAStaffItem, index: number) => (
+                                        staffList.map((staff: QAStaffItem) => (
                                             <TableRow
                                                 key={staff.id}
                                                 className="cursor-pointer hover:bg-blue-50/50 transition-colors"
@@ -295,17 +276,9 @@ export default function HRStaffListPage() {
                                                 {/* Employee Name + Code */}
                                                 <TableCell>
                                                     <div className="flex items-center gap-3">
-                                                        {staff.profileImagePath ? (
-                                                            <img
-                                                                src={staff.profileImagePath}
-                                                                alt={staff.name}
-                                                                className="h-10 w-10 rounded-[10px] object-cover shrink-0"
-                                                            />
-                                                        ) : (
-                                                            <div className="h-10 w-10 rounded-[10px] bg-muted flex items-center justify-center shrink-0">
-                                                                <User className="h-5 w-5 text-muted-foreground" />
-                                                            </div>
-                                                        )}
+                                                        <div className="h-10 w-10 rounded-[10px] bg-muted flex items-center justify-center shrink-0">
+                                                            <User className="h-5 w-5 text-muted-foreground" />
+                                                        </div>
                                                         <div>
                                                             <div className="font-medium text-sm">
                                                                 {staff.title ? `${staff.title} ` : ''}{staff.name}

@@ -268,9 +268,16 @@ function MatrixView() {
   const updateAuthMutation = useUpdateCustomerAuth()
 
   const currentSelectedStatusObj = selectedCell ? selectedCell.staff.airlineStatuses?.find(a => a.airlineCode === selectedCell.airlineCode) : null
-  const selectedDetailId = selectedCell?.staff?.staffAuthorizationId || 0
-  const { data: detailRes, isLoading: detailLoading } = useCustomerAuthById(selectedDetailId)
+  
+  const detailRequest = useMemo(() => {
+    if (!selectedCell || !currentSelectedStatusObj?.airlineId || !selectedCell.staff.dbId) return null;
+    return {
+      staffId: selectedCell.staff.dbId,
+      airlineId: currentSelectedStatusObj.airlineId
+    };
+  }, [selectedCell, currentSelectedStatusObj]);
 
+  const { data: detailRes, isLoading: detailLoading } = useCustomerAuthById(detailRequest)
   useEffect(() => {
     if (detailRes?.responseData && selectedCell) {
       const detail = detailRes.responseData;

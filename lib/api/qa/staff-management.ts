@@ -371,6 +371,66 @@ export interface StaffByIdResponse {
 }
 
 /**
+ * Build a complete staff upsert payload from the by-ID response. Staff upsert is
+ * a full aggregate write, so callers changing one field must preserve every
+ * nested collection instead of sending a partial object.
+ */
+export const buildStaffUpsertRequest = (
+    data: StaffByIdData,
+    overrides: Partial<UpsertStaffRequest> = {}
+): UpsertStaffRequest => ({
+    staffId: data.id,
+    title: data.title || "",
+    fullNameTh: data.name || "",
+    fullNameEn: data.fullNameEn || "",
+    dateOfBirth: data.dateOfBirth || "",
+    placeOfBirth: data.placeOfBirth || "",
+    nationality: data.nationality || "",
+    idCardNo: data.idCardNo || "",
+    phone: data.phone || "",
+    email: data.email || "",
+    address: data.address || "",
+    employeeId: data.employeeId || "",
+    startDate: data.startDate || "",
+    positionId: data.positionObj?.id || 0,
+    departmentId: data.departmentObj?.id || 0,
+    staffstypeid: data.staffstypeObj?.id || 0,
+    jobTitle: data.jobTitle || "",
+    profileImagePath: data.profileImagePath || "",
+    educations: (data.educations || []) as UpsertEducation[],
+    workExperiences: (data.workExperiences || []) as UpsertWorkExperience[],
+    staffDocumentList: (data.staffDocumentList || [])
+        .filter((document) => !document.isdelete)
+        .map((document) => ({
+            id: document.id,
+            staffDocumentTypeId: document.staffDocumentTypeId || 0,
+            fileName: document.fileName,
+            filePath: document.filePath,
+            staffDocumentStatusId: document.staffDocumentStatusId ?? 1,
+        })),
+    staffAircraftLicenseList: (data.staffAircraftLicenseList || [])
+        .filter((license) => !license.isdelete)
+        .map((license) => ({
+            id: license.id,
+            aircraftTypeId: Number(license.aircraftTypeLicensId ?? license.aircraftTypeId ?? 0),
+        })),
+    staffAmelLicenseList: (data.staffAmelLicenseList || [])
+        .filter((license) => !license.isdelete)
+        .map((license) => ({
+            id: license.id,
+            licenseNumber: license.licenseNumber,
+            categoryId: license.categoryId,
+            issuedDate: license.issuedDate || "",
+            expiryDate: license.expiryDate || "",
+            limitations: license.limitations || "",
+            aircraftRatings: license.aircraftRatings || "",
+            attachmentFilePath: license.attachmentFilePath || "",
+            attachmentFileName: license.attachmentFileName || "",
+        })),
+    ...overrides,
+});
+
+/**
  * Get staff details by ID
  * GET /master/staff-management/byid/{staffId}
  */

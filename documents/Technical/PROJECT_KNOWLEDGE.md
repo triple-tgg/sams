@@ -363,6 +363,11 @@ documents. Do not hard-code a lifecycle without checking the current API values.
 - `/hr/staff/[id]` aggregates profile, training dashboard/history, experience,
   logbook, and print preview. Some edit/display paths still contain mock/local
   behavior; verify the exact tab before promising persistence.
+- Updating its profile photo is a two-step write: upload the base64 image to
+  `POST /master/staff-management/uploadfile`, then send the returned `filePath`
+  as `profileImagePath` in a complete aggregate payload to
+  `POST /master/staff-management/upsert`. Never send a profile-only partial
+  upsert because the endpoint also owns the nested staff collections.
 - `/hr/document-verification` lists staff documents and approves/rejects them.
 - `/hr/employee-income` manages income rules and calculation previews; one write
   path still uses a placeholder `current_user` audit value.
@@ -375,7 +380,15 @@ the full HR profile form; clarify which is authoritative before merging flows.
 The authorization screen contains overview, CRS monitoring, SAMS authorization,
 customer authorization, authority authorization, and mechanic views.
 
-- SAMS Authorization: API-backed list/detail/upsert
+- SAMS Authorization: API-backed list/detail/upsert. The monitoring list uses
+  `POST /authorization/sams-auth/listdata` with server-side search, status, page,
+  and page-size fields. Its list identity is `authorizationSamsId` (nullable for
+  staff whose status is `Not Issued`), not `staffAuthorizationId`. Detail reads
+  use `GET /authorization/sams-auth/byid/{id}` and return nested
+  `authorizationSamses`, `authorizationSamsAircraftTypeLicens` (backend spelling),
+  and `staff` objects. Upserts use `POST /authorization/sams-auth/upsert` with a
+  nested `authorizationSamses` object and the selected ID array named
+  `authorizationSamsAircraftTypeLicenId` (a different backend spelling).
 - Customer Authorization: API-backed list/detail/upsert, with airline and
   aircraft-license master data; currently under active development
 - Mechanic view: staff API-backed
@@ -400,7 +413,14 @@ completeness rules, customer overrides, roll-up cache, events, and referential
 integrity are documented under `documents/aircraft-engine/`. Only published and
 complete authorization groups should feed downstream QA. Aircraft Family CRUD
 and server-side reference-preflight endpoints are not present in the supplied
-API collection.
+API collection or the detailed specs under `documents/api-spec/master-data/`.
+When creating an authorization group, omit `groupId`; the backend generates it.
+Edits send the existing ID. An authenticated read-only staging probe on
+2026-07-19 reached every Aircraft-Engine controller, but all returned HTTP 500 /
+PostgreSQL `42P01` because relations `engineMasters`, `aircraftSystemConfigs`,
+`aircraftEngineCombinations`, and `authorizationTypeGroups` did not exist. The
+reference SQL uses snake_case singular names, so backend migrations and ORM table
+mappings must be aligned before successful payloads or writes can be verified.
 
 ### 12.8 Production Planner
 

@@ -8,7 +8,7 @@ export interface SamsAuthListRequest {
 }
 
 export interface SamsAuthItem {
-  staffAuthorizationId: number | null;
+  authorizationSamsId: number | null;
   staffId: number;
   employeeName: string;
   employeeId: string;
@@ -20,6 +20,7 @@ export interface SamsAuthItem {
   samsExpiryDate: string | null;
   samsAuthStatus: string;
   daysToExpiry: number;
+  staffAircraftLicenseList: StaffAircraftLicense[];
   profileImagePath?: string | null;
 }
 
@@ -64,26 +65,65 @@ export interface StaffAircraftLicense {
   aircraftTypeLicensObj: AircraftTypeLicenseObj | null;
 }
 
-export interface SamsAuthDetail {
+export interface AuthorizationSamsRecord {
   id: number;
   staffId: number;
-  staffName: string;
-  employeeId: string;
-  profileImagePath: string | null;
   authNo: string;
-  staffAmelLicenseId: number | null;
-  amelLicenseNumber: string;
-  amelExpiryDate: string | null;
   initialIssueDate: string | null;
   currentIssueDate: string | null;
   expiryDate: string | null;
+  staffAmelLicenseId: number | null;
   isCrs: boolean;
-  aircrafts: string[];
-  staffAircraftLicenseList?: StaffAircraftLicense[];
+  isdelete: boolean;
   createddate: string;
   createdby: string;
   updateddate: string | null;
   updatedby: string | null;
+}
+
+export interface AuthorizationSamsAircraftTypeLicense {
+  id: number;
+  authorizationSamsId: number;
+  aircraftTypeId: number;
+  isdelete: boolean;
+  createddate: string;
+  createdby: string;
+  updateddate: string | null;
+  updatedby: string | null;
+}
+
+export interface SamsAuthStaff {
+  id: number;
+  code: string;
+  name: string;
+  staffstypeid: number;
+  createddate: string;
+  createdby: string;
+  updateddate: string | null;
+  updatedby: string | null;
+  isAcive: boolean;
+  title: string;
+  jobTitle: string;
+  email: string;
+  fullNameEn: string;
+  dateOfBirth: string | null;
+  placeOfBirth: string;
+  nationality: string;
+  idCardNo: string;
+  phone: string;
+  address: string;
+  employeeId: string;
+  startDate: string | null;
+  positionId: number;
+  profileImagePath: string | null;
+  staffDepartmentPositionId: number;
+  airlines: unknown | null;
+}
+
+export interface SamsAuthDetail {
+  authorizationSamses: AuthorizationSamsRecord;
+  authorizationSamsAircraftTypeLicens: AuthorizationSamsAircraftTypeLicense[];
+  staff: SamsAuthStaff;
 }
 
 export interface SamsAuthDetailResponse {
@@ -98,18 +138,17 @@ export const getSamsAuthById = async (id: number): Promise<SamsAuthDetailRespons
 };
 
 export interface SamsAuthUpsertRequest {
-  id: number;
-  staffId: number;
-  authNo: string;
-  staffAmelLicenseId: number;
-  initialIssueDate: string | null;
-  currentIssueDate: string | null;
-  expiryDate: string | null;
-  isCrs: boolean;
-  aircraftTypeIds: number[];
+  authorizationSamses: AuthorizationSamsRecord;
+  authorizationSamsAircraftTypeLicenId: number[];
 }
 
-export const upsertSamsAuth = async (data: SamsAuthUpsertRequest) => {
+export interface SamsAuthUpsertResponse {
+  message: string;
+  responseData: string;
+  error: string;
+}
+
+export const upsertSamsAuth = async (data: SamsAuthUpsertRequest): Promise<SamsAuthUpsertResponse> => {
   const res = await axiosConfig.post("/authorization/sams-auth/upsert", data);
   return res.data;
 };

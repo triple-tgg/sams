@@ -1,7 +1,10 @@
 'use client'
 
-import { X, Download, Printer } from 'lucide-react'
-import { useState } from 'react'
+import { Download, Loader2, Printer, X } from 'lucide-react'
+import { useRef, useState } from 'react'
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
+import { toast } from 'sonner'
 import { useStaffPrintPreview } from '@/lib/api/hooks/useQAStaffManagement'
 import { formatDate } from '@/app/[locale]/(protected)/hr/staff/[id]/utils'
 import './certifying-staff-preview.css'
@@ -38,8 +41,25 @@ function FormFooter({ page, total }: { page: number; total: number }) {
     )
 }
 
+async function waitForPrintableAssets(container: HTMLElement) {
+    if (document.fonts?.ready) await document.fonts.ready
+
+    const images = Array.from(container.querySelectorAll('img'))
+    await Promise.all(images.map((image) => {
+        if (image.complete) return Promise.resolve()
+
+        return new Promise<void>((resolve) => {
+            image.addEventListener('load', () => resolve(), { once: true })
+            image.addEventListener('error', () => resolve(), { once: true })
+        })
+    }))
+}
+
 export function CertifyingStaffPreview({ isOpen, onClose, staffId }: CertifyingStaffPreviewProps) {
-    const { data } = useStaffPrintPreview(staffId, isOpen)
+    const pagesRef = useRef<HTMLDivElement>(null)
+    const [isDownloading, setIsDownloading] = useState(false)
+    const [isPrinting, setIsPrinting] = useState(false)
+    const { data, isLoading, isError, error } = useStaffPrintPreview(staffId, isOpen)
 
     if (!isOpen) return null
 
@@ -60,28 +80,120 @@ export function CertifyingStaffPreview({ isOpen, onClose, staffId }: CertifyingS
         ? formatDate(workExperiences[0].periodTo!) 
         : 'Present'
 
+    const isPreviewReady = Boolean(api) && !isLoading && !isError
+    const isBusy = isDownloading || isPrinting
+
+    const handlePrint = async () => {
+        const container = pagesRef.current
+        if (!container || !isPreviewReady) {
+            toast.error('Preview data is not ready to print')
+            return
+        }
+
+        setIsPrinting(true)
+        try {
+            await waitForPrintableAssets(container)
+            window.print()
+        } catch (printError) {
+            console.error('Failed to prepare certifying staff form for printing:', printError)
+            toast.error('Failed to prepare document for printing')
+        } finally {
+            setIsPrinting(false)
+        }
+    }
+
+    const handleDownloadPdf = async () => {
+        const container = pagesRef.current
+        if (!container || !isPreviewReady) {
+            toast.error('Preview data is not ready to download')
+            return
+        }
+
+        setIsDownloading(true)
+        container.classList.add('csp-exporting')
+
+        try {
+            await waitForPrintableAssets(container)
+            const pages = Array.from(container.querySelectorAll<HTMLElement>('.csp-page'))
+            if (pages.length === 0) throw new Error('No printable pages found')
+
+            const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+            const pageWidth = pdf.internal.pageSize.getWidth()
+            const pageHeight = pdf.internal.pageSize.getHeight()
+
+            for (let index = 0; index < pages.length; index += 1) {
+                const canvas = await html2canvas(pages[index], {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    backgroundColor: '#ffffff',
+                })
+                const sourceHeight = (canvas.height * pageWidth) / canvas.width
+                const scale = Math.min(1, pageHeight / sourceHeight)
+                const imageWidth = pageWidth * scale
+                const imageHeight = sourceHeight * scale
+                const offsetX = (pageWidth - imageWidth) / 2
+
+                if (index > 0) pdf.addPage('a4', 'portrait')
+                pdf.addImage(canvas.toDataURL('image/png'), 'PNG', offsetX, 0, imageWidth, imageHeight)
+            }
+
+            const fileIdentifier = api?.employeeId || api?.code || String(staffId)
+            const safeEmployeeId = fileIdentifier.replace(/[^a-zA-Z0-9-_]+/g, '-') || 'staff'
+            pdf.save(`Certifying-Staff-Maintenance-Experience-${safeEmployeeId}.pdf`)
+            toast.success('PDF downloaded successfully')
+        } catch (downloadError) {
+            console.error('Failed to export certifying staff form PDF:', downloadError)
+            toast.error(downloadError instanceof Error ? downloadError.message : 'Failed to export PDF')
+        } finally {
+            container.classList.remove('csp-exporting')
+            setIsDownloading(false)
+        }
+    }
+
     return (
         <div className="csp-overlay">
             {/* Toolbar */}
             <div className="csp-toolbar">
                 <span className="csp-toolbar-title">Certifying Staff Maintenance Experience Summary Form (Preview)</span>
                 <div className="csp-toolbar-actions">
-                    <button className="csp-btn csp-btn-primary" onClick={() => window.print()}>
-                        <Download className="h-4 w-4" />
-                        Download
+                    <button
+                        type="button"
+                        className="csp-btn csp-btn-primary"
+                        onClick={handleDownloadPdf}
+                        disabled={!isPreviewReady || isBusy}
+                    >
+                        {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                        {isDownloading ? 'Generating PDF...' : 'Download PDF'}
                     </button>
-                    <button className="csp-btn csp-btn-primary" onClick={() => window.print()}>
-                        <Printer className="h-4 w-4" />
-                        Print
+                    <button
+                        type="button"
+                        className="csp-btn csp-btn-primary"
+                        onClick={handlePrint}
+                        disabled={!isPreviewReady || isBusy}
+                    >
+                        {isPrinting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+                        {isPrinting ? 'Preparing...' : 'Print'}
                     </button>
-                    <button className="csp-btn csp-btn-close" onClick={onClose}>
+                    <button type="button" className="csp-btn csp-btn-close" onClick={onClose} disabled={isBusy}>
                         <X className="h-4 w-4" />
                     </button>
                 </div>
             </div>
 
             {/* Pages Container */}
-            <div className="csp-pages-container">
+            {isLoading ? (
+                <div className="csp-preview-status">
+                    <Loader2 className="h-7 w-7 animate-spin" />
+                    <span>Loading preview data...</span>
+                </div>
+            ) : isError || !api ? (
+                <div className="csp-preview-status csp-preview-status-error">
+                    <span>Unable to load preview data</span>
+                    <small>{error instanceof Error ? error.message : 'Staff preview data is unavailable'}</small>
+                </div>
+            ) : (
+                <div ref={pagesRef} className="csp-pages-container">
                 {/* Page 1 */}
                 <div className="csp-page">
                     <FormHeader employeeId={employeeId} />
@@ -246,7 +358,8 @@ export function CertifyingStaffPreview({ isOpen, onClose, staffId }: CertifyingS
 
                     <FormFooter page={2} total={2} />
                 </div>
-            </div>
+                </div>
+            )}
         </div>
     )
 }

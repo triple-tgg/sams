@@ -48,6 +48,11 @@
     transition: all 0.15s;
 }
 
+.pp-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
 .pp-btn-primary {
     background: #2563eb;
     color: #fff;
@@ -268,14 +273,22 @@
 /* ── Print Styles ── */
 @media print {
 
-    /* Hide app chrome */
-    body>* {
-        display: none !important;
+    /* Keep the Next.js root mounted; hiding it with display:none also hides the
+       nested preview. Hide everything visually, then reveal the preview only. */
+    body * {
+        visibility: hidden !important;
+    }
+
+    .pp-overlay,
+    .pp-overlay * {
+        visibility: visible !important;
     }
 
     .pp-overlay {
         display: block !important;
-        position: static !important;
+        position: absolute !important;
+        inset: 0 !important;
+        width: 100% !important;
         background: transparent !important;
         overflow: visible !important;
     }
@@ -293,16 +306,18 @@
         box-shadow: none;
         margin: 0;
         page-break-after: always;
-        width: 100%;
-        min-height: auto;
+        break-after: page;
+        width: 210mm;
+        min-height: 297mm;
     }
 
     .pp-page:last-child {
         page-break-after: auto;
+        break-after: auto;
     }
 
     @page {
         size: A4 portrait;
-        margin: 10mm;
+        margin: 0;
     }
 }

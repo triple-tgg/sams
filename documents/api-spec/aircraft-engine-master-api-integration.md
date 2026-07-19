@@ -1,6 +1,7 @@
 # Aircraft-Engine Master Data — API Integration
 
-Verified against the supplied Postman collection **SAM API - Master Data** on
+Verified against the supplied Postman collection **SAM API - Master Data** and
+the four detailed specifications in `documents/api-spec/master-data` on
 2026-07-19.
 
 ## Frontend implementation
@@ -39,17 +40,18 @@ token and refresh-token queue apply automatically.
 | Submit/publish/reject group | POST | `/master/authorization-group/{groupId}/transition` | `transitionAuthGroup` |
 
 The group transition request supports `SUBMIT`, `PUBLISH`, and `REJECT`.
+For a new authorization group, the frontend omits `groupId` so the backend can
+generate it. Existing groups keep sending their current `groupId` when edited.
 
 ## Response boundary
 
-The Postman collection contains request examples but no saved response examples.
-The frontend therefore accepts the repository's standard envelope:
+The detailed specifications define the repository's standard response envelope:
 
 ```ts
 { message: string; responseData: T; error: string }
 ```
 
-It also normalizes common camelCase, snake_case, and legacy audit-field variants.
+The frontend also normalizes common camelCase, snake_case, and legacy audit-field variants.
 Malformed list responses fail visibly instead of being converted to an empty
 array. If group `completenessStatus` is missing, the adapter fails closed:
 non-empty groups become `incomplete`, never `complete`.
@@ -87,13 +89,32 @@ GET /master/aircraft-engine-combination/{id}/references
 
 ### 3. Live response/runtime verification
 
-No bearer token or response examples were included with the collection. The
-request paths and bodies are contract-tested locally, but a real authenticated
-environment is still required to verify:
+Authentication and the response envelope were verified against staging with a
+fresh bearer token on 2026-07-19. All five read-only probes reached the API, but
+the controllers returned HTTP 500 with PostgreSQL `42P01` (relation does not
+exist):
 
-- actual response field names and nesting;
+| Endpoint | Missing relation reported by staging |
+|---|---|
+| `/master/engine` | `engineMasters` |
+| `/master/aircraft-system-config` | `aircraftSystemConfigs` |
+| `/master/aircraft-engine-combination` | `aircraftEngineCombinations` |
+| `/master/authorization-group` | `authorizationTypeGroups` |
+| `/master/authorization-group?downstream=true` | `authorizationTypeGroups` |
+
+The frontend correctly surfaces the non-empty `error` field even though the
+backend also sends `responseData: []`; it does not misreport these failures as
+empty datasets. Write probes were intentionally skipped because the schema is
+not available. Backend migrations/table mappings must be fixed first. Note that
+the reference SQL in `documents/aircraft-engine/schema.sql` uses snake_case
+relation names, while the current staging errors show camelCase/plural names;
+the backend migration and ORM mapping must agree on one physical schema.
+
+After the backend schema is available, runtime verification is still required
+for:
+
+- successful dataset field names and nesting;
 - backend conflict/error payloads;
 - authorization for create/edit/delete/publish;
 - temporal `asOf` results and customer override behavior;
 - server-side completeness/engine-roll-up regeneration.
-

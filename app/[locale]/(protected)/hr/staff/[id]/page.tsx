@@ -13,8 +13,9 @@ import { ProfileTab } from './components/ProfileTab'
 import { TrainingTab } from './components/TrainingTab'
 import { ExperienceTab } from './components/ExperienceTab'
 import { LogbookTab } from './components/LogbookTab'
-import { useStaffById, useStaffTrainingDashboard } from '@/lib/api/hooks/useQAStaffManagement'
-import type { StaffByIdData, TrainingDashboardResponseData } from '@/lib/api/qa/staff-management'
+import { useStaffById, useStaffTrainingDashboard, useUploadStaffFile, useUpsertStaff } from '@/lib/api/hooks/useQAStaffManagement'
+import { buildStaffUpsertRequest, type StaffByIdData, type TrainingDashboardResponseData } from '@/lib/api/qa/staff-management'
+import { toast } from 'sonner'
 
 // ── Tab Configuration ──
 const TABS: { name: TabName; icon: React.ReactNode }[] = [
@@ -164,10 +165,49 @@ export default function StaffProfilePage() {
     const staffId = Number(params.id)
     const [activeTab, setActiveTab] = useState<TabName>('Profile')
     const [showPrintPreview, setShowPrintPreview] = useState(false)
+    const uploadMutation = useUploadStaffFile()
+    const upsertMutation = useUpsertStaff()
 
     // ── Fetch from API ──
     const { data, isLoading, isError, error } = useStaffById(staffId)
     const { data: trainingDashboardRes } = useStaffTrainingDashboard(staffId)
+
+    const handleProfileImageUpload = async (file: File): Promise<string> => {
+        const apiData = data?.responseData
+        if (!apiData) throw new Error('Staff data is not available')
+
+        try {
+            const fileBase64 = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader()
+                reader.onload = () => {
+                    const result = typeof reader.result === 'string' ? reader.result : ''
+                    const base64 = result.split(',')[1]
+                    base64 ? resolve(base64) : reject(new Error('Unable to read image file'))
+                }
+                reader.onerror = () => reject(new Error('Unable to read image file'))
+                reader.readAsDataURL(file)
+            })
+            const extension = (file.name.split('.').pop() || 'jpg').toLowerCase()
+            const fileName = file.name.replace(/\.[^/.]+$/, '')
+            const uploadResponse = await uploadMutation.mutateAsync({
+                FileBase64: fileBase64,
+                FileType: 'staff_profile',
+                ExtensionFile: extension,
+                FileName: fileName,
+            })
+            const filePath = uploadResponse.responseData?.[0]?.filePath
+            if (!filePath) throw new Error('Upload API did not return filePath')
+
+            await upsertMutation.mutateAsync(
+                buildStaffUpsertRequest(apiData, { profileImagePath: filePath })
+            )
+            toast.success('Profile image updated successfully')
+            return filePath
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Failed to update profile image')
+            throw error
+        }
+    }
 
     const staff = useMemo<StaffData>(() => {
         if (data?.responseData) {
@@ -269,6 +309,7 @@ export default function StaffProfilePage() {
                                 initials={staff.initials}
                                 avatarBg={staff.avatarBg}
                                 profileImage={staff.profileImage}
+                                onUpload={handleProfileImageUpload}
                             />
                             <div className="flex-1 min-w-0">
                                 <div className="text-xl font-bold text-slate-800 mb-0.5">{staff.name}</div>

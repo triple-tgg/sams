@@ -71,10 +71,10 @@ export function AuthGroupsTab() {
     });
 
   const handleSaveDraft = async () => {
-    if (!editor || !editor.groupId.trim() || !editor.label.trim()) return;
+    if (!editor || !editor.label.trim()) return;
     try {
       await saveDraft.mutateAsync({
-        groupId: editor.groupId.trim().toUpperCase(),
+        ...(editor.isNew ? {} : { groupId: editor.groupId.trim().toUpperCase() }),
         groupLabel: editor.label.trim(),
         memberCombinationIds: Array.from(editor.memberIds),
         customerId: editor.customerId,
@@ -239,16 +239,16 @@ export function AuthGroupsTab() {
 
           {editor && (
             <>
-              <div>
-                <Label className="text-xs font-medium text-slate-600">Group ID *</Label>
-                <Input
-                  value={editor.groupId}
-                  disabled={!editor.isNew}
-                  onChange={(e) => setEditor({ ...editor, groupId: e.target.value.toUpperCase() })}
-                  placeholder="e.g. AG-737NG"
-                  className="mt-1 h-9 text-sm disabled:opacity-60"
-                />
-              </div>
+              {editor.isNew ? (
+                <p className="rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                  Group ID will be generated automatically when the draft is saved.
+                </p>
+              ) : (
+                <div>
+                  <Label className="text-xs font-medium text-slate-600">Group ID</Label>
+                  <Input value={editor.groupId} disabled className="mt-1 h-9 text-sm disabled:opacity-60" />
+                </div>
+              )}
               <div>
                 <Label className="text-xs font-medium text-slate-600">Group label *</Label>
                 <Input value={editor.label} onChange={(e) => setEditor({ ...editor, label: e.target.value })} placeholder="e.g. A320 family" className="mt-1 h-9 text-sm" />
@@ -301,7 +301,7 @@ export function AuthGroupsTab() {
 
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setEditor(null)} className="h-9 text-sm">Cancel</Button>
-                <Button onClick={handleSaveDraft} disabled={!editor.groupId.trim() || !editor.label.trim() || saveDraft.isPending} className="h-9 gap-2 bg-slate-800 text-sm text-white hover:bg-slate-900">
+                <Button onClick={handleSaveDraft} disabled={!editor.label.trim() || saveDraft.isPending} className="h-9 gap-2 bg-slate-800 text-sm text-white hover:bg-slate-900">
                   {saveDraft.isPending && <RotateCw className="h-3.5 w-3.5 animate-spin" />} Save as Draft
                 </Button>
               </div>

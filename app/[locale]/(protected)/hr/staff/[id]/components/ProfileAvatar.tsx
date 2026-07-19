@@ -1,37 +1,59 @@
 'use client'
 
-import { useRef, useState } from 'react'
-import { Camera, User } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Camera, Loader2, User } from 'lucide-react'
 import Image from 'next/image'
+import { toast } from 'sonner'
 
 interface ProfileAvatarProps {
     initials: string
     avatarBg: string
     profileImage?: string
+    onUpload: (file: File) => Promise<string>
 }
 
-export function ProfileAvatar({ initials, avatarBg, profileImage }: ProfileAvatarProps) {
+export function ProfileAvatar({ initials, avatarBg, profileImage, onUpload }: ProfileAvatarProps) {
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [imageUrl, setImageUrl] = useState<string | null>(profileImage ?? null)
+    const [isUploading, setIsUploading] = useState(false)
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    useEffect(() => {
+        setImageUrl(profileImage ?? null)
+    }, [profileImage])
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
 
         // Validate file type
-        if (!file.type.startsWith('image/')) return
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+            toast.error('Please select a JPG, PNG, or WEBP image')
+            e.target.value = ''
+            return
+        }
 
         // Validate file size (max 5MB)
-        if (file.size > 5 * 1024 * 1024) return
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error('Profile image must not exceed 5 MB')
+            e.target.value = ''
+            return
+        }
 
-        // Create preview URL
-        const url = URL.createObjectURL(file)
-        setImageUrl(url)
+        const previousImage = imageUrl
+        const previewUrl = URL.createObjectURL(file)
+        setImageUrl(previewUrl)
+        setIsUploading(true)
+        e.target.value = ''
 
-        // TODO: Upload to server
-        // const formData = new FormData()
-        // formData.append('avatar', file)
-        // await fetch('/api/staff/avatar', { method: 'POST', body: formData })
+        try {
+            const savedPath = await onUpload(file)
+            setImageUrl(savedPath)
+        } catch {
+            setImageUrl(previousImage)
+        } finally {
+            URL.revokeObjectURL(previewUrl)
+            setIsUploading(false)
+        }
     }
 
     return (
@@ -44,8 +66,10 @@ export function ProfileAvatar({ initials, avatarBg, profileImage }: ProfileAvata
                     <Image
                         src={imageUrl}
                         alt="Profile"
-                        width={80}
-                        height={80}
+                        width={400}
+                        height={400}
+                        sizes="200px"
+                        quality={95}
                         className="w-full h-full object-cover"
                     />
                 ) : (
@@ -56,12 +80,17 @@ export function ProfileAvatar({ initials, avatarBg, profileImage }: ProfileAvata
             {/* Hover Overlay with Camera Icon */}
             <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => !isUploading && fileInputRef.current?.click()}
+                disabled={isUploading}
                 className="absolute inset-0 w-50 h-50 rounded-xl flex items-center justify-center
                     bg-black/0 group-hover:bg-black/40
                     cursor-pointer transition-all duration-200 border-none p-0"
             >
-                <Camera className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 drop-shadow-md" />
+                {isUploading ? (
+                    <Loader2 className="h-6 w-6 animate-spin text-white drop-shadow-md" />
+                ) : (
+                    <Camera className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 drop-shadow-md" />
+                )}
             </button>
 
             {/* Hidden File Input */}

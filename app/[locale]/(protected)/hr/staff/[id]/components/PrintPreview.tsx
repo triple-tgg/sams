@@ -1,6 +1,10 @@
 'use client'
 
-import { X } from 'lucide-react'
+import React, { useRef, useState } from 'react'
+import { Download, Loader2, Printer, X } from 'lucide-react'
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
+import { toast } from 'sonner'
 import { StaffData } from '../types'
 import './print-preview.css'
 
@@ -306,10 +310,24 @@ function TrainingPages({ staff, startPage, totalPages }: { staff: StaffData; sta
     )
 }
 
-import React from 'react'
+async function waitForPrintableAssets(container: HTMLElement) {
+    if (document.fonts?.ready) await document.fonts.ready
+
+    const images = Array.from(container.querySelectorAll('img'))
+    await Promise.all(images.map((image) => {
+        if (image.complete) return Promise.resolve()
+        return new Promise<void>((resolve) => {
+            image.addEventListener('load', () => resolve(), { once: true })
+            image.addEventListener('error', () => resolve(), { once: true })
+        })
+    }))
+}
 
 // ── Main Component ──
 export function PrintPreview({ isOpen, onClose, staff }: PrintPreviewProps) {
+    const pagesRef = useRef<HTMLDivElement>(null)
+    const [isDownloading, setIsDownloading] = useState(false)
+
     if (!isOpen) return null
 
     // Calculate total pages
@@ -319,6 +337,57 @@ export function PrintPreview({ isOpen, onClose, staff }: PrintPreviewProps) {
     const trainingPages = Math.max(1, Math.ceil(totalTrainingRows / 18))
     const totalPages = 1 + trainingPages // page 1 = profile
 
+    const handlePrint = async () => {
+        if (pagesRef.current) await waitForPrintableAssets(pagesRef.current)
+        window.print()
+    }
+
+    const handleDownloadPdf = async () => {
+        const container = pagesRef.current
+        if (!container) {
+            toast.error('Could not find preview content')
+            return
+        }
+
+        setIsDownloading(true)
+        try {
+            await waitForPrintableAssets(container)
+            const pages = Array.from(container.querySelectorAll<HTMLElement>('.pp-page'))
+            if (pages.length === 0) throw new Error('No printable pages found')
+
+            const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+            const pageWidth = pdf.internal.pageSize.getWidth()
+            const pageHeight = pdf.internal.pageSize.getHeight()
+
+            for (let index = 0; index < pages.length; index += 1) {
+                const canvas = await html2canvas(pages[index], {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    backgroundColor: '#ffffff',
+                })
+                const sourceHeight = (canvas.height * pageWidth) / canvas.width
+                const scale = Math.min(1, pageHeight / sourceHeight)
+                const imageWidth = pageWidth * scale
+                const imageHeight = sourceHeight * scale
+                const offsetX = (pageWidth - imageWidth) / 2
+
+                if (index > 0) pdf.addPage('a4', 'portrait')
+                pdf.addImage(canvas.toDataURL('image/png'), 'PNG', offsetX, 0, imageWidth, imageHeight)
+            }
+
+            const safeIdentifier = (staff.empId || staff.nameEn || 'staff')
+                .replace(/[^a-zA-Z0-9-_]+/g, '-')
+            pdf.save(`Employee-Profile-${safeIdentifier}.pdf`)
+            toast.success('PDF downloaded successfully')
+        } catch (error) {
+            console.error('Failed to export employee profile PDF:', error)
+            toast.error(error instanceof Error ? error.message : 'Failed to export PDF')
+        } finally {
+            setIsDownloading(false)
+        }
+    }
+
     return (
         <div className="pp-overlay">
             {/* Toolbar */}
@@ -327,9 +396,23 @@ export function PrintPreview({ isOpen, onClose, staff }: PrintPreviewProps) {
                 <div className="pp-toolbar-actions">
                     <button
                         className="pp-btn pp-btn-primary"
-                        onClick={() => window.print()}
+                        onClick={handleDownloadPdf}
+                        disabled={isDownloading}
                     >
-                        🖨️ Print
+                        {isDownloading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <Download className="h-4 w-4" />
+                        )}
+                        {isDownloading ? 'Generating PDF...' : 'Download PDF'}
+                    </button>
+                    <button
+                        className="pp-btn pp-btn-primary"
+                        onClick={handlePrint}
+                        disabled={isDownloading}
+                    >
+                        <Printer className="h-4 w-4" />
+                        Print
                     </button>
                     <button
                         className="pp-btn pp-btn-close"
@@ -341,7 +424,7 @@ export function PrintPreview({ isOpen, onClose, staff }: PrintPreviewProps) {
             </div>
 
             {/* Pages Container */}
-            <div className="pp-pages-container no-print-hide">
+            <div ref={pagesRef} className="pp-pages-container">
                 <ProfilePage staff={staff} totalPages={totalPages} />
                 <TrainingPages staff={staff} startPage={2} totalPages={totalPages} />
             </div>

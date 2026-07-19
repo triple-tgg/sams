@@ -5,7 +5,8 @@ import {
   updateCustomerAuth,
   getCustomerAuthById,
   type CustomerAuthListRequest,
-  type UpdateCustomerAuthRequest
+  type UpdateCustomerAuthRequest,
+  type CustomerAuthDetailRequest
 } from "./customer-auth";
 
 export const customerAuthKeys = {
@@ -32,11 +33,11 @@ export function useUpdateCustomerAuth() {
   });
 }
 
-export function useCustomerAuthById(id: number) {
+export function useCustomerAuthById(data: CustomerAuthDetailRequest | null) {
   return useQuery({
-    queryKey: [...customerAuthKeys.all, "detail", id],
-    queryFn: () => getCustomerAuthById(id),
-    enabled: id > 0, // Only run the query if a valid ID is provided
+    queryKey: [...customerAuthKeys.all, "detail", data?.staffId, data?.airlineId],
+    queryFn: () => getCustomerAuthById(data!),
+    enabled: !!data && data.staffId > 0 && data.airlineId > 0, // Only run the query if valid data is provided
     staleTime: 5000,
   });
 }

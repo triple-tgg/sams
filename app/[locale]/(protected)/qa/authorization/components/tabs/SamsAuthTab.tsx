@@ -47,6 +47,9 @@ import { useAircraftTypeLicenses } from "@/lib/api/master/aircraft-type-licenses
 
 type FilterStatus = string
 
+const toUtcIsoDate = (date: string): string | null =>
+  date ? new Date(`${date}T00:00:00.000Z`).toISOString() : null
+
 export function SamsAuthTab() {
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 500)
@@ -69,10 +72,12 @@ export function SamsAuthTab() {
 
   // Edit Modal States
   const [targetStaff, setTargetStaff] = useState<SamsAuthItem | null>(null)
-  const editAuthId = targetStaff?.staffAuthorizationId ?? null
+  const editAuthId = targetStaff?.authorizationSamsId ?? null
   
   const { data: detailResp, isPending: isDetailPending, isFetching: isDetailFetching, isError: isDetailError } = useSamsAuthById(editAuthId)
   const detailData: SamsAuthDetail | null = detailResp?.responseData ?? null
+  const authorizationDetail = detailData?.authorizationSamses ?? null
+  const detailStaff = detailData?.staff ?? null
   const isDetailLoading = editAuthId !== null && (isDetailPending || isDetailFetching)
   
   const upsertMutation = useUpsertSamsAuth()
@@ -86,22 +91,26 @@ export function SamsAuthTab() {
 
   // Populate form when detail data arrives or reset if add mode
   useEffect(() => {
-    if (detailData && editAuthId !== null) {
-      setEditAuthNo(detailData.authNo || '')
-      setEditRating(new Set((detailData.staffAircraftLicenseList || []).map(a => a.aircraftTypeLicensId)))
-      setEditAmelExp(detailData.amelExpiryDate?.split('T')[0] || '')
-      setEditInitDate(detailData.initialIssueDate?.split('T')[0] || '')
-      setEditCurrDate(detailData.currentIssueDate?.split('T')[0] || '')
-      setEditSamsExp(detailData.expiryDate?.split('T')[0] || '')
+    if (detailData && authorizationDetail && editAuthId !== null) {
+      setEditAuthNo(authorizationDetail.authNo || '')
+      setEditRating(new Set(
+        detailData.authorizationSamsAircraftTypeLicens
+          .filter((item) => !item.isdelete)
+          .map((item) => item.aircraftTypeId),
+      ))
+      setEditAmelExp(targetStaff?.amelExpiryDate?.split('T')[0] || '')
+      setEditInitDate(authorizationDetail.initialIssueDate?.split('T')[0] || '')
+      setEditCurrDate(authorizationDetail.currentIssueDate?.split('T')[0] || '')
+      setEditSamsExp(authorizationDetail.expiryDate?.split('T')[0] || '')
     } else if (targetStaff && editAuthId === null) {
       setEditAuthNo('')
       setEditRating(new Set())
-      setEditAmelExp('')
+      setEditAmelExp(targetStaff.amelExpiryDate?.split('T')[0] || '')
       setEditInitDate('')
       setEditCurrDate('')
       setEditSamsExp('')
     }
-  }, [detailData, targetStaff, editAuthId])
+  }, [detailData, authorizationDetail, targetStaff, editAuthId])
 
   const handleEditClick = (staff: SamsAuthItem) => {
     setTargetStaff(staff)
@@ -120,16 +129,24 @@ export function SamsAuthTab() {
   const handleSave = async () => {
     if (!targetStaff) return
     try {
+      const nowUtc = new Date().toISOString()
       await upsertMutation.mutateAsync({
-        id: targetStaff.staffAuthorizationId ?? 0,
-        staffId: targetStaff.staffId,
-        authNo: editAuthNo,
-        staffAmelLicenseId: detailData?.staffAmelLicenseId ?? 0,
-        initialIssueDate: editInitDate || null,
-        currentIssueDate: editCurrDate || null,
-        expiryDate: editSamsExp || null,
-        isCrs: true,
-        aircraftTypeIds: Array.from(editRating)
+        authorizationSamses: {
+          id: targetStaff.authorizationSamsId ?? 0,
+          staffId: targetStaff.staffId,
+          authNo: editAuthNo,
+          initialIssueDate: toUtcIsoDate(editInitDate),
+          currentIssueDate: toUtcIsoDate(editCurrDate),
+          expiryDate: toUtcIsoDate(editSamsExp),
+          staffAmelLicenseId: authorizationDetail?.staffAmelLicenseId ?? 0,
+          isCrs: authorizationDetail?.isCrs ?? true,
+          isdelete: false,
+          createddate: authorizationDetail?.createddate ?? nowUtc,
+          createdby: authorizationDetail?.createdby ?? '',
+          updateddate: nowUtc,
+          updatedby: authorizationDetail?.updatedby ?? '',
+        },
+        authorizationSamsAircraftTypeLicenId: Array.from(editRating),
       })
       toast.success(editAuthId === null ? "Added successfully" : "Updated successfully")
       handleCloseEdit()
@@ -243,7 +260,9 @@ export function SamsAuthTab() {
               {paginatedStaff.map((s: SamsAuthItem, ri: number) => {
                 const uiStatus = getUiStatus(s.samsAuthStatus)
                 const meta = EXTENDED_SAMS_STATUS_META[uiStatus] || EXTENDED_SAMS_STATUS_META.valid
-
+                const aircraftLicenseNames = (s.staffAircraftLicenseList || [])
+                  .map((license) => license.aircraftTypeLicensObj?.name)
+                  .filter((name): name is string => Boolean(name))
 
                 return (
                   <tr
@@ -276,7 +295,7 @@ export function SamsAuthTab() {
                     <td className="px-3 py-2.5 font-bold text-[11px] text-slate-700">{s.authorizationNo || '-'}</td>
                     {/* Rating */}
                     <td className="px-3 py-2.5 text-muted-foreground">
-                      <div className="text-[10px] leading-relaxed whitespace-pre-line">{(s.ratingAmel || []).join('\n') || '-'}</div>
+                      <div className="whitespace-pre-line text-[10px] leading-relaxed">{aircraftLicenseNames.join(',\n') || '-'}</div>
                     </td>
                     {/* AMEL Exp */}
                     <td className="px-3 py-2.5 text-center text-muted-foreground">{fmtDate(s.amelExpiryDate) || '-'}</td>
@@ -405,10 +424,10 @@ export function SamsAuthTab() {
             <>
               <div className="px-5 pt-5 pb-4 border-b border-border/60 bg-slate-50">
                 <div className="flex items-center gap-3 mb-1">
-                  {(detailData ? detailData.profileImagePath : targetStaff?.profileImagePath) ? (
+                  {(detailStaff ? detailStaff.profileImagePath : targetStaff?.profileImagePath) ? (
                     <img
-                      src={detailData ? detailData.profileImagePath! : targetStaff!.profileImagePath!}
-                      alt={(detailData ? detailData.staffName : targetStaff?.employeeName) || ''}
+                      src={detailStaff ? detailStaff.profileImagePath! : targetStaff!.profileImagePath!}
+                      alt={(detailStaff ? detailStaff.name : targetStaff?.employeeName) || ''}
                       className="w-10 h-10 rounded-full object-cover shrink-0"
                     />
                   ) : (
@@ -418,10 +437,10 @@ export function SamsAuthTab() {
                   )}
                   <div>
                     <DialogTitle className="text-lg font-bold text-slate-800">
-                      {detailData ? detailData.staffName : targetStaff?.employeeName}
+                      {detailStaff ? detailStaff.name : targetStaff?.employeeName}
                     </DialogTitle>
                     <p className="text-xs font-semibold text-slate-500">
-                      {detailData ? detailData.employeeId : targetStaff?.employeeId}
+                      {detailStaff ? detailStaff.employeeId : targetStaff?.employeeId}
                     </p>
                   </div>
                 </div>

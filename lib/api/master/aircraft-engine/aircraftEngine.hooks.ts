@@ -167,7 +167,7 @@ export function useSaveAuthGroupDraft() {
   const emit = useEmitAndInvalidate();
   return useMutation({
     mutationFn: saveAuthGroupDraft,
-    onSuccess: (_result, input) => emit("authorization_type_group", "upsert", input.groupId),
+    onSuccess: (_result, input) => emit("authorization_type_group", "upsert", input.groupId ?? "new"),
   });
 }
 export function useTransitionAuthGroup() {

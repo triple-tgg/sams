@@ -3,6 +3,10 @@
 import { X, Download, Printer } from 'lucide-react'
 import { useWorkExperiencePreview } from '@/lib/api/hooks/useQAStaffManagement'
 import { formatDate } from '@/app/[locale]/(protected)/hr/staff/[id]/utils'
+import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
+import { useState } from 'react'
+import { toast } from 'sonner'
 import './work-experience-preview.css'
 
 /* eslint-disable @next/next/no-img-element */
@@ -35,6 +39,7 @@ function FormFooter({ page, total }: { page: number; total: number }) {
 
 export function WorkExperiencePreview({ isOpen, onClose, staffId }: WorkExperiencePreviewProps) {
     const { data: previewData } = useWorkExperiencePreview(staffId, isOpen)
+    const [isDownloading, setIsDownloading] = useState(false)
 
     if (!isOpen) return null
 
@@ -58,15 +63,71 @@ export function WorkExperiencePreview({ isOpen, onClose, staffId }: WorkExperien
     const previousTrainings = trainingResp?.histories || []
     const currentTrainings = trainingResp?.records || []
 
+    const handleDownloadPDF = async () => {
+        const input = document.getElementById('wep-content-to-print');
+        if (!input) {
+            toast.error("Could not find content to print");
+            return;
+        }
+
+        setIsDownloading(true);
+        toast.info("Generating PDF... Please wait.");
+
+        try {
+            // Add a small delay to ensure rendering is complete
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            const canvas = await html2canvas(input, {
+                scale: 2, // Higher resolution
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff'
+            });
+
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            
+            let heightLeft = pdfHeight;
+            let position = 0;
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            
+            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+            heightLeft -= pageHeight;
+            
+            while (heightLeft >= 0) {
+                position = heightLeft - pdfHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+                heightLeft -= pageHeight;
+            }
+            
+            const fileName = `Employee_Profile_${api?.idCardNo || nameEn}.pdf`;
+            pdf.save(fileName);
+            toast.success("PDF Downloaded Successfully");
+        } catch (error) {
+            console.error("Failed to generate PDF", error);
+            toast.error("Failed to generate PDF");
+        } finally {
+            setIsDownloading(false);
+        }
+    }
+
     return (
         <div className="wep-overlay">
             {/* Toolbar */}
             <div className="wep-toolbar">
                 <span className="wep-toolbar-title">Employee Profile and Training Record (Preview)</span>
                 <div className="wep-toolbar-actions">
-                    <button className="wep-btn wep-btn-primary" onClick={() => window.print()}>
+                    <button className="wep-btn wep-btn-primary" onClick={handleDownloadPDF} disabled={isDownloading}>
                         <Download className="h-4 w-4" />
-                        Download
+                        {isDownloading ? 'Generating...' : 'Download'}
                     </button>
                     <button className="wep-btn wep-btn-primary" onClick={() => window.print()}>
                         <Printer className="h-4 w-4" />
@@ -79,7 +140,7 @@ export function WorkExperiencePreview({ isOpen, onClose, staffId }: WorkExperien
             </div>
 
             {/* Pages Container */}
-            <div className="wep-pages-container">
+            <div className="wep-pages-container" id="wep-content-to-print">
                 {/* Single continuous page view for web, printed as multiple via CSS */}
                 <div className="wep-page">
                     <FormHeader />

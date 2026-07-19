@@ -167,6 +167,22 @@ describe("Aircraft-Engine API contract", () => {
     );
   });
 
+  it("omits groupId when creating an authorization group for backend ID generation", async () => {
+    axiosMock.post.mockResolvedValue(ok());
+
+    await saveAuthGroupDraft({
+      groupLabel: "A320 family",
+      memberCombinationIds: [4, 5],
+      customerId: null,
+    });
+
+    expect(axiosMock.post).toHaveBeenCalledWith("/master/authorization-group/draft", {
+      groupLabel: "A320 family",
+      memberCombinationIds: [4, 5],
+      customerId: null,
+    });
+  });
+
   it("sends system-config upsert and all documented delete requests", async () => {
     axiosMock.post.mockResolvedValue(ok());
     axiosMock.delete.mockResolvedValue(ok());
@@ -191,6 +207,21 @@ describe("Aircraft-Engine API contract", () => {
   it("rejects a success-status response that carries an envelope error", async () => {
     axiosMock.get.mockResolvedValue({ data: { message: "error", responseData: null, error: "Database unavailable" } });
     await expect(fetchEngines()).rejects.toThrow("Database unavailable");
+  });
+
+  it("surfaces the staging database error from an HTTP 500 response", async () => {
+    axiosMock.get.mockRejectedValue({
+      response: {
+        status: 500,
+        data: {
+          message: "Error",
+          error: '42P01: relation "engineMasters" does not exist',
+          responseData: [],
+        },
+      },
+    });
+
+    await expect(fetchEngines()).rejects.toThrow('relation "engineMasters" does not exist');
   });
 
   it("rejects an error envelope even when the backend leaves error text empty", async () => {
