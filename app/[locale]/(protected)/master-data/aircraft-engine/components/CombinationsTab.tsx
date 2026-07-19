@@ -11,33 +11,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard";
 import {
-  useCombinations, useEngines, useFamilies, useUpsertCombination, useDeleteCombination, useAddFamily,
-  checkCombinationReferences,
+  useAuthGroups, useCombinations, useEngines, useFamilies, useUpsertCombination, useDeleteCombination,
 } from "@/lib/api/master/aircraft-engine/aircraftEngine.hooks";
-import { buildDisplayLabel } from "@/lib/api/master/aircraft-engine/aircraftEngine.mock";
+import { buildDisplayLabel, checkCombinationReferences } from "@/lib/api/master/aircraft-engine/aircraftEngine.validation";
 import type { AircraftEngineCombination, EngineMaster, AircraftFamily } from "@/lib/api/master/aircraft-engine/aircraftEngine.types";
 import { AE_MENU, Chip, UpdatedMeta, th } from "./shared";
-
-const NEW_FAMILY = "__new";
 
 interface FormState {
   id?: number;
   familyCode: string;
   series: string;
   engineCode: string;
-  newFamilyCode: string;
-  newFamilyName: string;
 }
 
-const emptyForm: FormState = { familyCode: "", series: "", engineCode: "", newFamilyCode: "", newFamilyName: "" };
+const emptyForm: FormState = { familyCode: "", series: "", engineCode: "" };
 
 export function CombinationsTab() {
   const { data: combinations = [], isFetching } = useCombinations();
   const { data: engines = [] } = useEngines();
   const { data: families = [] } = useFamilies();
+  const { data: groups = [] } = useAuthGroups();
   const upsert = useUpsertCombination();
   const del = useDeleteCombination();
-  const addFamily = useAddFamily();
 
   const [search, setSearch] = useState("");
   const [modalMode, setModalMode] = useState<"closed" | "add" | "edit">("closed");
@@ -55,41 +50,33 @@ export function CombinationsTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [combinations, engines, search]);
 
-  const isNewFamily = form.familyCode === NEW_FAMILY;
   const previewLabel = (() => {
-    const fam = isNewFamily ? form.newFamilyCode.trim() : form.familyCode;
+    const fam = form.familyCode;
     if (!fam || !form.engineCode) return "—";
     return buildDisplayLabel(fam, form.series.trim(), engineName(form.engineCode));
   })();
 
   const openAdd = () => { setForm(emptyForm); setModalMode("add"); };
   const openEdit = (c: AircraftEngineCombination) => {
-    setForm({ id: c.id, familyCode: c.familyCode, series: c.series, engineCode: c.engineCode, newFamilyCode: "", newFamilyName: "" });
+    setForm({ id: c.id, familyCode: c.familyCode, series: c.series, engineCode: c.engineCode });
     setModalMode("edit");
   };
   const closeModal = () => { setModalMode("closed"); setForm(emptyForm); };
 
-  const canSave =
-    !!form.engineCode &&
-    (isNewFamily ? !!form.newFamilyCode.trim() : !!form.familyCode);
+  const canSave = !!form.engineCode && !!form.familyCode;
 
   const handleSave = async () => {
     try {
-      let familyCode = form.familyCode;
-      if (isNewFamily) {
-        familyCode = form.newFamilyCode.trim().toUpperCase();
-        await addFamily.mutateAsync({ familyCode, familyName: form.newFamilyName.trim() || familyCode });
-      }
-      await upsert.mutateAsync({ id: form.id, familyCode, series: form.series.trim(), engineCode: form.engineCode });
+      await upsert.mutateAsync({ id: form.id, familyCode: form.familyCode, series: form.series.trim(), engineCode: form.engineCode });
       toast.success(modalMode === "add" ? "Added combination successfully" : "Updated combination successfully");
       closeModal();
     } catch (e) {
-      toast.error(e instanceof Error && e.message === "DUPLICATE" ? "This Family code already exists" : "An error occurred");
+      toast.error(e instanceof Error && e.message === "DUPLICATE" ? "This aircraft-engine combination already exists" : e instanceof Error ? e.message : "An error occurred");
     }
   };
 
   const requestDelete = (c: AircraftEngineCombination) => {
-    const ref = checkCombinationReferences(c.id);
+    const ref = checkCombinationReferences(c.id, groups);
     if (ref.blocked) setBlockInfo({ label: c.displayLabel, references: ref.references });
     else setDeleteTarget(c);
   };
@@ -100,8 +87,8 @@ export function CombinationsTab() {
       await del.mutateAsync(deleteTarget.id);
       toast.success("Deleted combination successfully");
       setDeleteTarget(null);
-    } catch {
-      toast.error("An error occurred");
+    } catch (error) {
+      toast.error(error instanceof Error && error.message === "REFERENCED" ? "This combination is still referenced and cannot be deleted" : error instanceof Error ? error.message : "An error occurred");
     }
   };
 
@@ -184,23 +171,10 @@ export function CombinationsTab() {
                       {fam.familyCode} — {fam.familyName}
                     </SelectItem>
                   ))}
-                  <SelectItem value={NEW_FAMILY} className="font-medium text-blue-600">+ Add new family...</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="mt-1 text-[11px] text-muted-foreground">Family list is derived from existing API data. The supplied API has no Aircraft Family create endpoint.</p>
             </div>
-
-            {isNewFamily && (
-              <div className="grid grid-cols-2 gap-3 rounded-lg border border-blue-100 bg-blue-50/50 p-3">
-                <div>
-                  <Label className="text-xs font-medium text-slate-600">Family code *</Label>
-                  <Input value={form.newFamilyCode} onChange={(e) => setForm((f) => ({ ...f, newFamilyCode: e.target.value }))} placeholder="e.g. A220" className="mt-1 h-9 text-sm" />
-                </div>
-                <div>
-                  <Label className="text-xs font-medium text-slate-600">Family name</Label>
-                  <Input value={form.newFamilyName} onChange={(e) => setForm((f) => ({ ...f, newFamilyName: e.target.value }))} placeholder="e.g. Airbus A220" className="mt-1 h-9 text-sm" />
-                </div>
-              </div>
-            )}
 
             <div>
               <Label className="text-xs font-medium text-slate-600">Series / variant</Label>
@@ -229,8 +203,8 @@ export function CombinationsTab() {
 
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="outline" onClick={closeModal} className="h-9 text-sm">Cancel</Button>
-            <Button onClick={handleSave} disabled={!canSave || upsert.isPending || addFamily.isPending} className="h-9 gap-2 bg-slate-800 text-sm text-white hover:bg-slate-900">
-              {(upsert.isPending || addFamily.isPending) && <RotateCw className="h-3.5 w-3.5 animate-spin" />}
+            <Button onClick={handleSave} disabled={!canSave || upsert.isPending} className="h-9 gap-2 bg-slate-800 text-sm text-white hover:bg-slate-900">
+              {upsert.isPending && <RotateCw className="h-3.5 w-3.5 animate-spin" />}
               Save
             </Button>
           </div>

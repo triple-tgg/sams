@@ -11,8 +11,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard";
 import {
-  useEngines, useUpsertEngine, useDeleteEngine, checkEngineReferences,
+  useCombinations, useEngines, useUpsertEngine, useDeleteEngine,
 } from "@/lib/api/master/aircraft-engine/aircraftEngine.hooks";
+import { checkEngineReferences } from "@/lib/api/master/aircraft-engine/aircraftEngine.validation";
 import type { EngineMaster } from "@/lib/api/master/aircraft-engine/aircraftEngine.types";
 import { AE_MENU, UpdatedMeta, th } from "./shared";
 
@@ -27,6 +28,7 @@ const emptyForm: FormState = { engineCode: "", engineName: "", manufacturer: "",
 
 export function EngineMasterTab() {
   const { data: engines = [], isFetching } = useEngines();
+  const { data: combinations = [] } = useCombinations();
   const upsert = useUpsertEngine();
   const del = useDeleteEngine();
 
@@ -57,17 +59,16 @@ export function EngineMasterTab() {
         engineName: form.engineName.trim(),
         manufacturer: form.manufacturer.trim(),
         notes: form.notes.trim(),
-        updatedBy: "", updatedAtUtc: "", // stamped server/mock-side
       });
       toast.success(modalMode === "add" ? "Added engine successfully" : "Updated engine successfully");
       closeModal();
-    } catch {
-      toast.error("An error occurred");
+    } catch (error) {
+      toast.error(error instanceof Error && error.message === "DUPLICATE" ? "This engine code already exists" : error instanceof Error ? error.message : "An error occurred");
     }
   };
 
   const requestDelete = (e: EngineMaster) => {
-    const ref = checkEngineReferences(e.engineCode);
+    const ref = checkEngineReferences(e.engineCode, combinations);
     if (ref.blocked) setBlockInfo({ label: e.engineName, references: ref.references });
     else setDeleteTarget(e);
   };
@@ -78,8 +79,8 @@ export function EngineMasterTab() {
       await del.mutateAsync(deleteTarget.engineCode);
       toast.success("Deleted engine successfully");
       setDeleteTarget(null);
-    } catch {
-      toast.error("An error occurred");
+    } catch (error) {
+      toast.error(error instanceof Error && error.message === "REFERENCED" ? "This engine is still referenced and cannot be deleted" : error instanceof Error ? error.message : "An error occurred");
     }
   };
 

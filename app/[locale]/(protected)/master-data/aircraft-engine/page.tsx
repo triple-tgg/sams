@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Plane } from "lucide-react";
+import { AlertTriangle, Loader2, Plane } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   useCombinations, useAuthGroups, useSystemConfigs, useEngines,
@@ -20,10 +20,17 @@ const TabCount = ({ n }: { n: number }) => (
 );
 
 export default function AircraftEnginePage() {
-  const { data: combinations = [] } = useCombinations();
-  const { data: authGroups = [] } = useAuthGroups();
-  const { data: systemConfigs = [] } = useSystemConfigs();
-  const { data: engines = [] } = useEngines();
+  const combinationsQuery = useCombinations();
+  const authGroupsQuery = useAuthGroups();
+  const systemConfigsQuery = useSystemConfigs();
+  const enginesQuery = useEngines();
+  const combinations = combinationsQuery.data ?? [];
+  const authGroups = authGroupsQuery.data ?? [];
+  const systemConfigs = systemConfigsQuery.data ?? [];
+  const engines = enginesQuery.data ?? [];
+  const queries = [combinationsQuery, authGroupsQuery, systemConfigsQuery, enginesQuery];
+  const isMasterDataPending = queries.some((query) => query.isPending);
+  const masterDataError = queries.find((query) => query.error)?.error;
   // Honor deep links from the shared reference panel (CR-6), e.g. ?tab=group.
   const searchParams = useSearchParams();
   const requestedTab = searchParams.get("tab");
@@ -56,8 +63,24 @@ export default function AircraftEnginePage() {
             </div>
           </div>
 
-          {/* Data-quality banner */}
-          <DataQualityBanner findings={findings} />
+          {/* Do not show a false "clean" data-quality result while API data is unavailable. */}
+          {masterDataError ? (
+            <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+              <div>
+                <div className="font-semibold">Unable to load Aircraft-Engine master data</div>
+                <div className="mt-0.5 text-xs text-red-700">
+                  {masterDataError instanceof Error ? masterDataError.message : "The API request failed"}
+                </div>
+              </div>
+            </div>
+          ) : isMasterDataPending ? (
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-slate-50 p-4 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading Aircraft-Engine master data…
+            </div>
+          ) : (
+            <DataQualityBanner findings={findings} />
+          )}
 
           {/* Tabs */}
           <Tabs value={tab} onValueChange={setTab}>

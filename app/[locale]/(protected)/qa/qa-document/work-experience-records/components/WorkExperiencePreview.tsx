@@ -1,7 +1,7 @@
 'use client'
 
 import { X, Download, Printer } from 'lucide-react'
-import { useStaffById, useStaffTrainingDashboard } from '@/lib/api/hooks/useQAStaffManagement'
+import { useWorkExperiencePreview } from '@/lib/api/hooks/useQAStaffManagement'
 import { formatDate } from '@/app/[locale]/(protected)/hr/staff/[id]/utils'
 import './work-experience-preview.css'
 
@@ -34,12 +34,13 @@ function FormFooter({ page, total }: { page: number; total: number }) {
 }
 
 export function WorkExperiencePreview({ isOpen, onClose, staffId }: WorkExperiencePreviewProps) {
-    const { data: staffData } = useStaffById(staffId, isOpen)
-    const { data: trainingData } = useStaffTrainingDashboard(staffId, isOpen)
+    const { data: previewData } = useWorkExperiencePreview(staffId, isOpen)
 
     if (!isOpen) return null
 
-    const api = staffData?.responseData
+    const api = previewData?.responseData?.profile
+    const trainingResp = previewData?.responseData?.training
+
     const nameEn = api?.fullNameEn || api?.name || '-'
     const nameTh = api?.title ? `${api.title} ${api.name}` : (api?.name || '-')
     const dob = api?.dateOfBirth ? formatDate(api.dateOfBirth) : '-'
@@ -54,8 +55,8 @@ export function WorkExperiencePreview({ isOpen, onClose, staffId }: WorkExperien
     const amelLicenses = (api?.staffAmelLicenseList || []).filter(l => !l.isdelete)
     const employments = (api?.workExperiences || []).filter(w => !w.isdelete)
 
-    const previousTrainings = trainingData?.responseData?.histories || []
-    const currentTrainings = trainingData?.responseData?.records || []
+    const previousTrainings = trainingResp?.histories || []
+    const currentTrainings = trainingResp?.records || []
 
     return (
         <div className="wep-overlay">

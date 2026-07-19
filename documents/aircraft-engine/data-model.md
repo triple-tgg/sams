@@ -191,13 +191,17 @@ at the record instead of failing silently. In SQL this is enforced by
 
 ## 7. Current implementation status
 
-The frontend (4-tab screen at `/master-data/aircraft-engine`) is complete and
-runs against an **in-memory mock** (`lib/api/master/aircraft-engine/`), seeded
-from the reference mockup **including the known drift** so the data-quality
-banner is exercised. The mock is a drop-in for the REST API: each hook's
-`queryFn`/`mutationFn` swaps to `axiosConfig` one line at a time (see the
-`SWAP POINT` comments). This document + `schema.sql` are the spec for the
-backend tables; no migration of the real Excel data has been performed yet.
+The frontend (4-tab screen at `/master-data/aircraft-engine`) is connected to
+the REST endpoints documented in
+`documents/api-spec/aircraft-engine-master-api-integration.md`. Production hooks
+no longer import the in-memory mock. The mock remains only as a deterministic
+fixture for the pure temporal/completeness/cache tests.
+
+The supplied API does not include Aircraft Family CRUD, so the family picker is
+derived from existing combination/system-config data and cannot create a new
+family. It also does not include reference-check endpoints; the UI performs a
+cache-based preflight while backend DELETE constraints remain authoritative.
+No migration of the real Excel data has been performed by this frontend change.
 
 ---
 

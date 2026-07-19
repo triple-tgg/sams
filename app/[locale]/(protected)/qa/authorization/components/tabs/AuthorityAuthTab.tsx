@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState, useRef, useCallback, useEffect } from 'react'
-import { ChevronDown, ChevronLeft, ChevronRight, Search, Filter, X, User } from 'lucide-react'
+import { Search, Filter, X, User, Loader2 } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -17,47 +17,39 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { STAFF, AUTHORITIES } from '../../data-v2'
-import { AUTHORITY_KEYS, SAMS_STATUS_META, CUST_STATUS_META } from '../../types-v2'
-import type { CustomerAuthValue, AuthorityKey, Staff } from '../../types-v2'
-import { getSamsStatus } from '../../utils'
-import { cn } from '@/lib/utils'
+import { AUTHORITIES } from '../../data-v2'
+import { CUST_STATUS_META } from '../../types-v2'
+import type { CustomerAuthValue } from '../../types-v2'
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
-
-const AIRCRAFT_OPTIONS = [
-  'A318/A319/A320/A321',
-  'A320 Family (CEO/NEO)',
-  'A330-200/300',
-  'A330-200/300/800/900',
-  'A340-500/600',
-  'A350-900/1000',
-  'B737-300/400/500',
-  'B737-600/700/800/900',
-  'B737-600/700/800/900 (CFM56)',
-  'B737-7/8/9',
-  'B737 MAX',
-  'B767-200/300',
-  'B777-200/300',
-  'B777-200/300/300ER',
-  'B777-200ER/300ER',
-  'B787',
-  'B787-8/9/10',
-  'ERJ-190'
-]
+import { AircraftEngineRefPanel } from "@/components/aircraft-engine/AircraftEngineRefPanel"
+import { useAircraftTypeLicenses } from "@/lib/api/master/aircraft-type-licenses.hooks"
+import { useAuthorityAuthList } from "@/lib/api/qa/authorization/authority-auth.hooks"
+import { toast } from 'sonner'
 
 // ─── Date Formatting Helper ─────────────────────────────────────────────────
 
-function formatShortDate(iso: string): string {
+function formatShortDate(iso: string | null | undefined): string {
   if (!iso) return '—'
-  const parts = iso.split('-')
+  if (iso.includes('/')) return iso
+  const parts = iso.split('T')[0].split('-')
   if (parts.length !== 3) return iso
   const [y, m, d] = parts
   return `${d}/${m}/${y.slice(2)}`
 }
 
-function getDaysRemaining(expDateIso: string): number | null {
+function getDaysRemaining(expDateIso: string | null | undefined): number | null {
   if (!expDateIso) return null
-  const exp = new Date(expDateIso)
+  let exp: Date
+  if (expDateIso.includes('/')) {
+    const parts = expDateIso.split('/')
+    if (parts.length === 3) {
+      exp = new Date(`20${parts[2]}-${parts[1]}-${parts[0]}`)
+    } else {
+      return null
+    }
+  } else {
+    exp = new Date(expDateIso)
+  }
   const now = new Date()
   now.setHours(0, 0, 0, 0)
   exp.setHours(0, 0, 0, 0)
@@ -65,21 +57,34 @@ function getDaysRemaining(expDateIso: string): number | null {
   return Math.ceil(diff / (1000 * 60 * 60 * 24))
 }
 
+function mapApiStatus(apiStatus: string | null | undefined): CustomerAuthValue {
+  if (!apiStatus) return 'pending';
+  const s = apiStatus.toLowerCase();
+  if (s === 'valid') return 'valid';
+  if (s === 'expired') return 'suspended';
+  if (s === 'expiring') return 'not_complete';
+  if (s === 'pending') return 'pending';
+  if (s === 'not approved' || s === 'not_approve' || s === 'not approve') return 'not_approve';
+  return 'pending';
+}
+
 // ─── Hover Tooltip for Matrix Cell ──────────────────────────────────────────
 
 interface TooltipInfo {
-  staff: Staff
-  authCode: AuthorityKey
+  staff: any
+  authCode: string
   status: CustomerAuthValue
+  licenseItem: any
+  aircraftOptions: any[]
   x: number
   y: number       // cell bottom
   cellTop: number  // cell top
 }
 
 function CellTooltip({ info }: { info: TooltipInfo }) {
-  const { staff, authCode, status } = info
-  const meta = CUST_STATUS_META[status]
-  const authority = AUTHORITIES[authCode]
+  const { staff, authCode, status, licenseItem, aircraftOptions } = info
+  const meta = CUST_STATUS_META[status] || CUST_STATUS_META.pending
+  const authority = AUTHORITIES[authCode as keyof typeof AUTHORITIES] || { name: authCode, color: '#333' }
   const ref = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{ left: number; top: number }>({ left: info.x, top: info.y + 8 })
 
@@ -93,21 +98,27 @@ function CellTooltip({ info }: { info: TooltipInfo }) {
     const tooltipH = rect.height
     const tooltipW = rect.width
 
-    // Vertical: show above if not enough space below
     let top = info.y + 8
     if (top + tooltipH > viewH - 8) {
       top = info.cellTop - tooltipH - 8
     }
-    // Clamp to viewport top
     if (top < 8) top = 8
 
-    // Horizontal: center on cell, clamp to viewport
     let left = info.x - tooltipW / 2
     if (left < 8) left = 8
     if (left + tooltipW > viewW - 8) left = viewW - tooltipW - 8
 
     setPos({ left, top })
   }, [info.x, info.y, info.cellTop])
+  
+  const mappedAircrafts = useMemo(() => {
+    if (!licenseItem?.aviationAuthorityLicenseAircrafts) return '—';
+    const names = licenseItem.aviationAuthorityLicenseAircrafts.map((a: any) => {
+      const found = aircraftOptions.find(o => o.id === a.aircraftTypeLicenseId)
+      return found ? found.name : a.aircraftTypeLicenseId
+    })
+    return names.length > 0 ? names.join(', ') : '—'
+  }, [licenseItem, aircraftOptions])
 
   return (
     <div
@@ -116,7 +127,7 @@ function CellTooltip({ info }: { info: TooltipInfo }) {
       style={{ left: pos.left, top: pos.top, minWidth: 240, maxWidth: 300 }}
     >
       <div className="flex items-center justify-between mb-2 pb-2 border-b border-border">
-        <span className="font-bold text-foreground text-[11px]">{staff.name}</span>
+        <span className="font-bold text-foreground text-[11px]">{staff.staffName}</span>
         <span
           className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold"
           style={{ background: meta.bg, color: meta.text }}
@@ -132,83 +143,28 @@ function CellTooltip({ info }: { info: TooltipInfo }) {
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">Date of Initial Issue</span>
-          <span className="font-semibold text-foreground">{formatShortDate(staff.initDate)}</span>
+          <span className="font-semibold text-foreground">{formatShortDate(licenseItem?.aviationAuthorityLicense?.initialIssueDate)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">Date of Current Issue</span>
-          <span className="font-semibold text-foreground">{formatShortDate(staff.currDate)}</span>
+          <span className="font-semibold text-foreground">{formatShortDate(licenseItem?.currentIssueDate)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">Date of Expire</span>
-          <span className="font-semibold text-foreground">{formatShortDate(staff.samsExp)}</span>
+          <span className="font-semibold text-foreground">{formatShortDate(licenseItem?.expireDate)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">Aircraft</span>
-          <span className="font-semibold text-foreground text-right" style={{ maxWidth: 160 }}>{staff.rating.replace(/\n/g, ', ')}</span>
+          <span className="font-semibold text-foreground text-right" style={{ maxWidth: 160 }}>
+            {mappedAircrafts}
+          </span>
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">License</span>
-          <span className="font-semibold text-foreground">{staff.license}</span>
+          <span className="font-semibold text-foreground">{licenseItem?.aviationAuthorityLicense?.licenseNo || '—'}</span>
         </div>
-        {staff.note && (
-          <div className="pt-1.5 mt-1 border-t border-border/50">
-            <span className="text-muted-foreground">Note: </span>
-            <span className="text-foreground">{staff.note}</span>
-          </div>
-        )}
       </div>
     </div>
-  )
-}
-
-// ─── Reusable Auto-Position Tooltip ─────────────────────────────────────────
-
-function AutoTooltip({ label, content, className }: { label: string; content: string; className?: string }) {
-  const [show, setShow] = useState(false)
-  const triggerRef = useRef<HTMLSpanElement>(null)
-  const tooltipRef = useRef<HTMLDivElement>(null)
-  const [pos, setPos] = useState({ left: 0, top: 0 })
-
-  useEffect(() => {
-    if (!show || !triggerRef.current || !tooltipRef.current) return
-    const triggerRect = triggerRef.current.getBoundingClientRect()
-    const tipRect = tooltipRef.current.getBoundingClientRect()
-    const viewH = window.innerHeight
-    const viewW = window.innerWidth
-
-    // Vertical: prefer below, flip above if clipped
-    let top = triggerRect.bottom + 6
-    if (top + tipRect.height > viewH - 8) {
-      top = triggerRect.top - tipRect.height - 6
-    }
-    if (top < 8) top = 8
-
-    // Horizontal: align left edge to trigger, clamp
-    let left = triggerRect.left
-    if (left + tipRect.width > viewW - 8) left = viewW - tipRect.width - 8
-    if (left < 8) left = 8
-
-    setPos({ left, top })
-  }, [show])
-
-  return (
-    <span
-      ref={triggerRef}
-      className={`cursor-default ${className || ''}`}
-      onMouseEnter={() => setShow(true)}
-      onMouseLeave={() => setShow(false)}
-    >
-      {label}
-      {show && content && content !== '—' && (
-        <div
-          ref={tooltipRef}
-          className="fixed z-50 bg-slate-800 text-white rounded-lg shadow-xl px-3 py-2 text-[11px] leading-relaxed pointer-events-none"
-          style={{ left: pos.left, top: pos.top, maxWidth: 320 }}
-        >
-          {content}
-        </div>
-      )}
-    </span>
   )
 }
 
@@ -223,13 +179,26 @@ export function AuthorityAuthTab() {
   )
 }
 
-
-// ─── Matrix View — Dot Style (matches AuthMatrix) ───────────────────────────
+// ─── Matrix View — Dot Style ───────────────────────────
 
 function MatrixView() {
   const custStatusOrder: CustomerAuthValue[] = ['valid', 'not_approve', 'not_complete', 'suspended', 'pending']
   const [version, setVersion] = useState(0)
-  const [selectedCell, setSelectedCell] = useState<{staff: Staff, authCode: AuthorityKey, status: CustomerAuthValue} | null>(null)
+
+  const { data: authData, isLoading } = useAuthorityAuthList()
+  const apiStaffRows = authData?.responseData?.staffRows || []
+  const apiAuthorities = authData?.responseData?.authorities || []
+
+  // Ensure unique authority keys
+  const AUTHORITY_KEYS = useMemo(() => {
+    return Array.from(new Set(apiAuthorities.map((a: any) => a.code)))
+  }, [apiAuthorities])
+
+  const { data: aircraftOptions = [] } = useAircraftTypeLicenses()
+  const [selectedCell, setSelectedCell] = useState<{staff: any, authCode: string, status: CustomerAuthValue, licenseItem: any} | null>(null)
+  
+  // NOTE: Form values are controlled here for the mock edit modal. The API endpoint for upserting 
+  // authority auth is not specified yet. So we just update local state (if possible) or show toast.
   const [editInitDate, setEditInitDate] = useState('')
   const [editCurrDate, setEditCurrDate] = useState('')
   const [editSamsExp, setEditSamsExp] = useState('')
@@ -238,12 +207,17 @@ function MatrixView() {
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<CustomerAuthValue | 'all'>('all')
-  const [authFilter, setAuthorityFilter] = useState<Set<AuthorityKey>>(new Set(AUTHORITY_KEYS))
+  const [authFilter, setAuthorityFilter] = useState<Set<string>>(new Set())
+  const [authFilterInit, setAuthFilterInit] = useState(false)
   const [showAuthorityDropdown, setShowAuthorityDropdown] = useState(false)
   const authDropdownRef = useRef<HTMLDivElement>(null)
-  
-  const [showAircraftDropdown, setShowAircraftDropdown] = useState(false)
-  const aircraftDropdownRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (AUTHORITY_KEYS.length > 0 && !authFilterInit) {
+      setAuthorityFilter(new Set(AUTHORITY_KEYS))
+      setAuthFilterInit(true)
+    }
+  }, [AUTHORITY_KEYS, authFilterInit])
 
   // Close authority dropdown on outside click
   useEffect(() => {
@@ -251,32 +225,51 @@ function MatrixView() {
       if (authDropdownRef.current && !authDropdownRef.current.contains(e.target as Node)) {
         setShowAuthorityDropdown(false)
       }
-      if (aircraftDropdownRef.current && !aircraftDropdownRef.current.contains(e.target as Node)) {
-        setShowAircraftDropdown(false)
-      }
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const handleCellEnter = useCallback((e: React.MouseEvent, staff: Staff, authCode: AuthorityKey, status: CustomerAuthValue) => {
+  const handleCellEnter = useCallback((e: React.MouseEvent, staff: any, authCode: string, status: CustomerAuthValue, licenseItem: any) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    setTooltip({ staff, authCode, status, x: rect.left + rect.width / 2, y: rect.bottom, cellTop: rect.top })
-  }, [])
+    setTooltip({ staff, authCode, status, licenseItem, aircraftOptions, x: rect.left + rect.width / 2, y: rect.bottom, cellTop: rect.top })
+  }, [aircraftOptions])
 
   const handleCellLeave = useCallback(() => setTooltip(null), [])
 
-  const handleCellClick = (staff: Staff, authCode: AuthorityKey, status: CustomerAuthValue) => {
-    setSelectedCell({ staff, authCode, status })
-    setEditInitDate(staff.initDate)
-    setEditCurrDate(staff.currDate)
-    setEditSamsExp(staff.samsExp)
-    const ratings = staff.rating ? staff.rating.split(/\n/).map(r => r.trim()).filter(Boolean) : []
+  const handleCellClick = (staff: any, authCode: string, status: CustomerAuthValue, licenseItem: any) => {
+    setSelectedCell({ staff, authCode, status, licenseItem })
+    setEditInitDate(licenseItem?.aviationAuthorityLicense?.initialIssueDate?.split('T')[0] || '')
+    
+    // For date inputs it needs YYYY-MM-DD
+    let currIssue = licenseItem?.currentIssueDate || ''
+    if(currIssue.includes('/')) {
+        const parts = currIssue.split('/')
+        currIssue = `20${parts[2]}-${parts[1]}-${parts[0]}`
+    } else {
+        currIssue = currIssue.split('T')[0]
+    }
+    
+    let expireDate = licenseItem?.expireDate || ''
+    if(expireDate.includes('/')) {
+        const parts = expireDate.split('/')
+        expireDate = `20${parts[2]}-${parts[1]}-${parts[0]}`
+    } else {
+        expireDate = expireDate.split('T')[0]
+    }
+    
+    setEditCurrDate(currIssue)
+    setEditSamsExp(expireDate)
+    
+    const ratings = licenseItem?.aviationAuthorityLicenseAircrafts?.map((a: any) => {
+      const found = aircraftOptions.find(o => o.id === a.aircraftTypeLicenseId)
+      return found ? found.name : String(a.aircraftTypeLicenseId)
+    }) || []
     setEditRating(new Set(ratings))
     setTooltip(null) // Hide tooltip when opening modal
   }
 
-  const toggleAuthority = (code: AuthorityKey) => {
+  const toggleAuthority = (code: string) => {
     setAuthorityFilter(prev => {
       const next = new Set(prev)
       if (next.has(code)) { if (next.size > 1) next.delete(code) } // keep at least 1
@@ -289,26 +282,29 @@ function MatrixView() {
 
   // Visible authority columns
   const visibleAuthoritys = useMemo(() =>
-    AUTHORITY_KEYS.filter(code => authFilter.has(code))
-  , [authFilter])
+    AUTHORITY_KEYS.filter((code: string) => authFilter.has(code))
+  , [authFilter, AUTHORITY_KEYS])
 
   // Filtered staff
   const filteredStaff = useMemo(() => {
     const q = search.toLowerCase().trim()
-    return STAFF.filter(s => {
+    return apiStaffRows.filter((s: any) => {
       // Search match
       if (q) {
-        const nameMatch = s.name.toLowerCase().includes(q) || s.id.toLowerCase().includes(q)
+        const nameMatch = s.staffName.toLowerCase().includes(q) || s.employeeId.toLowerCase().includes(q)
         if (!nameMatch) return false
       }
       // Status match — staff must have at least one visible authority cell matching
       if (statusFilter !== 'all') {
-        const hasStatus = visibleAuthoritys.some(code => s.auth[code] === statusFilter)
+        const hasStatus = visibleAuthoritys.some(code => {
+          const lic = s.licenses?.find((l: any) => l.authorityCode === code)
+          return mapApiStatus(lic?.status) === statusFilter
+        })
         if (!hasStatus) return false
       }
       return true
     })
-  }, [search, statusFilter, visibleAuthoritys, version])
+  }, [apiStaffRows, search, statusFilter, visibleAuthoritys, version])
 
   const isFiltering = search !== '' || statusFilter !== 'all' || authFilter.size !== AUTHORITY_KEYS.length
 
@@ -326,6 +322,10 @@ function MatrixView() {
     { value: 'suspended', label: 'Expired', dot: CUST_STATUS_META.suspended.dot },
     { value: 'pending', label: 'Pending', dot: CUST_STATUS_META.pending.dot },
   ]
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center p-10"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+  }
 
   return (
     <div className="space-y-3">
@@ -392,33 +392,36 @@ function MatrixView() {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-0.5 max-h-[240px] overflow-y-auto">
-                {AUTHORITY_KEYS.map(code => (
-                  <button
-                    key={code}
-                    onClick={() => toggleAuthority(code)}
-                    className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-all text-[11px] ${
-                      authFilter.has(code)
-                        ? 'bg-primary/10 text-foreground font-semibold'
-                        : 'text-muted-foreground hover:bg-muted/50'
-                    }`}
-                  >
-                    <div
-                      className={`w-3 h-3 rounded border-2 flex items-center justify-center transition-all ${
+                {AUTHORITY_KEYS.map(code => {
+                  const localAuth = AUTHORITIES[code as keyof typeof AUTHORITIES] || { color: '#333' }
+                  return (
+                    <button
+                      key={code}
+                      onClick={() => toggleAuthority(code)}
+                      className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-all text-[11px] ${
                         authFilter.has(code)
-                          ? 'border-primary bg-primary'
-                          : 'border-slate-300 bg-white'
+                          ? 'bg-primary/10 text-foreground font-semibold'
+                          : 'text-muted-foreground hover:bg-muted/50'
                       }`}
                     >
-                      {authFilter.has(code) && (
-                        <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </div>
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: AUTHORITIES[code].color }} />
-                    {code}
-                  </button>
-                ))}
+                      <div
+                        className={`w-3 h-3 rounded border-2 flex items-center justify-center transition-all ${
+                          authFilter.has(code)
+                            ? 'border-primary bg-primary'
+                            : 'border-slate-300 bg-white'
+                        }`}
+                      >
+                        {authFilter.has(code) && (
+                          <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: localAuth.color }} />
+                      {code}
+                    </button>
+                  )
+                })}
               </div>
             </div>
           )}
@@ -438,7 +441,7 @@ function MatrixView() {
       {/* Results Count */}
       {isFiltering && (
         <div className="text-[11px] text-muted-foreground">
-          Showing {filteredStaff.length} of {STAFF.length} staff · {visibleAuthoritys.length} of {AUTHORITY_KEYS.length} authorities
+          Showing {filteredStaff.length} of {apiStaffRows.length} staff · {visibleAuthoritys.length} of {AUTHORITY_KEYS.length} authorities
         </div>
       )}
 
@@ -450,36 +453,37 @@ function MatrixView() {
                 <th className="px-3 py-2 text-left text-muted-foreground font-bold whitespace-nowrap sticky left-0 bg-slate-50 z-10 border-r border-border" style={{ minWidth: 200 }}>
                   Staff
                 </th>
-                {visibleAuthoritys.map(code => (
-                  <th
-                    key={code}
-                    className="px-1 py-2 text-center font-bold border-l border-border"
-                    style={{ minWidth: 90 }}
-                    title={AUTHORITIES[code].name}
-                  >
-                    <div className="text-[10px] leading-snug font-bold" style={{ color: AUTHORITIES[code].color }}>{code}</div>
-                    <div className="text-[9px] text-muted-foreground/60 font-medium">Auth</div>
-                  </th>
-                ))}
+                {visibleAuthoritys.map((code: string) => {
+                  const localAuth = AUTHORITIES[code as keyof typeof AUTHORITIES] || { name: code, color: '#333' }
+                  return (
+                    <th
+                      key={code}
+                      className="px-1 py-2 text-center font-bold border-l border-border"
+                      style={{ minWidth: 90 }}
+                      title={localAuth.name}
+                    >
+                      <div className="text-[10px] leading-snug font-bold" style={{ color: localAuth.color }}>{code}</div>
+                      <div className="text-[9px] text-muted-foreground/60 font-medium">Auth</div>
+                    </th>
+                  )
+                })}
               </tr>
             </thead>
             <tbody>
-              {filteredStaff.map((s, ri) => {
-                const samsStatus = getSamsStatus(s)
-                const samsMeta = SAMS_STATUS_META[samsStatus]
+              {filteredStaff.map((s: any, ri: number) => {
                 return (
                   <tr
-                    key={s.id}
+                    key={s.staffId}
                     className={`group border-b border-border/50 transition-colors hover:bg-slate-100 ${ri % 2 === 0 ? 'bg-white' : 'bg-slate-50'
                       }`}
                   >
                     {/* Sticky Staff Column */}
                     <td className={`px-3 py-1.5 sticky left-0 z-10 border-r border-border transition-colors group-hover:bg-slate-100 ${ri % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
                       <div className="flex items-center gap-2">
-                        {s.profileImage ? (
+                        {s.profileImagePath ? (
                           <img
-                            src={s.profileImage}
-                            alt={s.name}
+                            src={s.profileImagePath}
+                            alt={s.staffName}
                             className="w-6 h-6 rounded-full object-cover shrink-0"
                           />
                         ) : (
@@ -488,32 +492,25 @@ function MatrixView() {
                           </div>
                         )}
                         <div>
-                          <p className="text-xs font-semibold text-foreground leading-tight truncate" style={{ maxWidth: 160 }}>{s.name}</p>
-                          <p className="text-[10px] font-bold text-slate-400">{s.id}</p>
+                          <p className="text-xs font-semibold text-foreground leading-tight truncate" style={{ maxWidth: 160 }}>{s.staffName}</p>
+                          <p className="text-[10px] font-bold text-slate-400">{s.employeeId}</p>
                         </div>
                       </div>
                     </td>
                     {/* Customer Auth Cells — dot style */}
-                    {visibleAuthoritys.map(code => {
-                      const val = s.auth[code]
-                      if (!val) {
-                        return (
-                          <td key={code} className="text-center border-l border-border/50" style={{ padding: '6px 4px', minWidth: 45 }}>
-                            <div className="flex flex-col items-center gap-0.5">
-                              <div className="w-2.5 h-2.5 rounded-full bg-slate-300" />
-                            </div>
-                          </td>
-                        )
-                      }
-                      const meta = CUST_STATUS_META[val]
+                    {visibleAuthoritys.map((code: string) => {
+                      const licenseItem = s.licenses?.find((l: any) => l.authorityCode === code)
+                      const val = mapApiStatus(licenseItem?.status)
+                      
+                      const meta = CUST_STATUS_META[val] || CUST_STATUS_META.pending
                       return (
                         <td
                           key={code}
                           className="text-center border-l border-border/50 cursor-pointer transition-all duration-150 group/cell hover:bg-muted/60"
                           style={{ padding: '6px 4px', minWidth: 45, position: 'relative' }}
-                          onMouseEnter={(e) => handleCellEnter(e, s, code, val)}
+                          onMouseEnter={(e) => handleCellEnter(e, s, code, val, licenseItem)}
                           onMouseLeave={handleCellLeave}
-                          onClick={() => handleCellClick(s, code, val)}
+                          onClick={() => handleCellClick(s, code, val, licenseItem)}
                         >
                           {/* Background layer with opacity */}
                           <div className="absolute inset-0 transition-opacity duration-150 opacity-40 group-hover/cell:opacity-70" style={{ background: meta.bg }} />
@@ -523,11 +520,11 @@ function MatrixView() {
                                 <div className="text-[8px] font-semibold leading-tight text-center whitespace-nowrap" style={{ color: meta.text }}>
                                   <div className="flex items-center gap-0.5 justify-center">
                                     <span className="text-muted-foreground/70">Curr:</span>
-                                    <span>{formatShortDate(s.currDate)}</span>
+                                    <span>{formatShortDate(licenseItem?.currentIssueDate)}</span>
                                   </div>
                                   <div className="flex items-center gap-0.5 justify-center mt-px">
                                     <span className="text-muted-foreground/70">Exp:</span>
-                                    <span>{formatShortDate(s.samsExp)}</span>
+                                    <span>{formatShortDate(licenseItem?.expireDate)}</span>
                                   </div>
                                 </div>
                               </>
@@ -546,7 +543,7 @@ function MatrixView() {
                             <div className="relative z-1 text-[9px] font-bold mt-0.5 leading-none" style={{ color: meta.text }}>EXP</div>
                           )}
                           {val === 'not_complete' && (() => {
-                            const days = getDaysRemaining(s.samsExp)
+                            const days = getDaysRemaining(licenseItem?.expireDate)
                             return (
                               <div className="relative z-1 text-[9px] font-bold mt-0.5 leading-none text-center" style={{ color: meta.text }}>
                                 {days !== null && (
@@ -606,21 +603,21 @@ function MatrixView() {
               <div className="px-5 pt-5 pb-4 border-b border-border/60 bg-slate-50/50">
                 <div className="flex items-center justify-between mb-1">
                   <DialogTitle className="text-lg font-bold text-slate-800">
-                    {selectedCell.staff.name}
+                    {selectedCell.staff.staffName}
                   </DialogTitle>
                   <span
                     className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-bold shadow-sm"
                     style={{
-                      background: CUST_STATUS_META[selectedCell.status].bg,
-                      color: CUST_STATUS_META[selectedCell.status].text
+                      background: (CUST_STATUS_META[selectedCell.status] || CUST_STATUS_META.pending).bg,
+                      color: (CUST_STATUS_META[selectedCell.status] || CUST_STATUS_META.pending).text
                     }}
                   >
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: CUST_STATUS_META[selectedCell.status].dot }} />
-                    {CUST_STATUS_META[selectedCell.status].label}
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: (CUST_STATUS_META[selectedCell.status] || CUST_STATUS_META.pending).dot }} />
+                    {(CUST_STATUS_META[selectedCell.status] || CUST_STATUS_META.pending).label}
                   </span>
                 </div>
                 <p className="text-xs font-semibold text-slate-500">
-                  {selectedCell.staff.id} • License {selectedCell.staff.license}
+                  {selectedCell.staff.employeeId} • License {selectedCell.licenseItem?.aviationAuthorityLicense?.licenseNo || '—'}
                 </p>
               </div>
 
@@ -629,8 +626,8 @@ function MatrixView() {
                 <div className="space-y-2 text-sm bg-white rounded-lg border border-border/50 p-4 shadow-sm">
                   <div className="flex flex-col gap-1">
                     <span className="text-muted-foreground font-bold text-xs">Authority</span>
-                    <span className="font-bold text-lg leading-tight" style={{ color: AUTHORITIES[selectedCell.authCode].color }}>
-                      {selectedCell.authCode} — {AUTHORITIES[selectedCell.authCode].name}
+                    <span className="font-bold text-lg leading-tight" style={{ color: AUTHORITIES[selectedCell.authCode as keyof typeof AUTHORITIES]?.color || '#333' }}>
+                      {selectedCell.authCode} — {AUTHORITIES[selectedCell.authCode as keyof typeof AUTHORITIES]?.name || selectedCell.authCode}
                     </span>
                   </div>
                 </div>
@@ -659,18 +656,18 @@ function MatrixView() {
                       <label className="text-xs font-bold text-slate-700 mb-1.5 block">Aircraft</label>
                       <div className="flex-1 bg-white border border-border/60 rounded-md p-1.5 overflow-y-auto">
                         <div className="space-y-0.5 pr-1">
-                          {AIRCRAFT_OPTIONS.map(opt => {
-                            const isSelected = editRating.has(opt)
+                          {aircraftOptions.map((opt: any) => {
+                            const isSelected = editRating.has(opt.name)
                             return (
                               <button
-                                key={opt}
+                                key={opt.id}
                                 type="button"
                                 onClick={(e) => {
                                   e.preventDefault();
                                   setEditRating(prev => {
                                     const next = new Set(prev)
-                                    if (next.has(opt)) next.delete(opt)
-                                    else next.add(opt)
+                                    if (next.has(opt.name)) next.delete(opt.name)
+                                    else next.add(opt.name)
                                     return next
                                   })
                                 }}
@@ -685,7 +682,7 @@ function MatrixView() {
                                     </svg>
                                   )}
                                 </div>
-                                <span className="truncate text-xs font-medium leading-tight">{opt}</span>
+                                <span className="truncate text-xs font-medium leading-tight">{opt.name}</span>
                               </button>
                             )
                           })}
@@ -704,8 +701,7 @@ function MatrixView() {
                       <Button
                         color="destructive"
                         onClick={() => {
-                          selectedCell.staff.auth[selectedCell.authCode] = 'not_approve'
-                          setVersion(v => v + 1)
+                          toast.info('Not implemented: Upsert authority auth API is required.')
                           setSelectedCell(null)
                         }}
                       >
@@ -722,11 +718,7 @@ function MatrixView() {
                     <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
                       <Button
                         onClick={() => {
-                          selectedCell.staff.initDate = editInitDate
-                          selectedCell.staff.currDate = editCurrDate
-                          selectedCell.staff.samsExp = editSamsExp
-                          selectedCell.staff.rating = Array.from(editRating).join('\n')
-                          setVersion(v => v + 1)
+                          toast.info('Not implemented: Upsert authority auth API is required.')
                           setSelectedCell(null)
                         }}
                         className="font-bold bg-blue-600 hover:bg-blue-700 text-white"

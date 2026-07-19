@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -19,14 +19,7 @@ import { CertifyingStaffPreview } from './components/CertifyingStaffPreview'
 import { WorkExperiencePreview } from './components/WorkExperiencePreview'
 import { useDebounce } from '@/hooks/useDebounce'
 import { toast } from 'sonner'
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination"
+import { Pagination } from '../employee-history-training/components/Pagination'
 
 export default function WorkExperienceRecordsPage() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -80,21 +73,17 @@ export default function WorkExperienceRecordsPage() {
   return (
     <>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
-              <FileText className="h-4 w-4" />
-            </span>
-            Staff Records
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">QA Document — View and manage work experience and certifying staff records</p>
-        </div>
-
         <Card>
           <CardHeader className="pb-4">
-            <CardTitle className="text-lg flex justify-between items-center">
-              <span>Staff Records</span>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+                <FileText className="h-4 w-4" />
+              </span>
+              Staff Records
             </CardTitle>
+            <CardDescription>
+              QA Document — View and manage work experience and certifying staff records
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {/* Filters */}
@@ -247,49 +236,16 @@ export default function WorkExperienceRecordsPage() {
               </div>
 
               {/* Pagination */}
-              {!isLoading && totalPages > 1 && (
-                <div className="border-t border-slate-200 px-4 py-3 flex items-center justify-between bg-white sm:px-6">
-                  <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-sm text-slate-500">
-                        Showing <span className="font-medium">{(page - 1) * perPage + 1}</span> to{" "}
-                        <span className="font-medium">{Math.min(page * perPage, totalItems)}</span> of{" "}
-                        <span className="font-medium">{totalItems}</span> results
-                      </p>
-                    </div>
-                    <div>
-                      <Pagination>
-                        <PaginationContent>
-                          <PaginationItem>
-                            <PaginationPrevious
-                              onClick={() => setPage(p => Math.max(1, p - 1))}
-                              className={page === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                            />
-                          </PaginationItem>
-
-                          {[...Array(totalPages)].map((_, i) => (
-                            <PaginationItem key={i + 1}>
-                              <PaginationLink
-                                onClick={() => setPage(i + 1)}
-                                isActive={page === i + 1}
-                                className="cursor-pointer"
-                              >
-                                {i + 1}
-                              </PaginationLink>
-                            </PaginationItem>
-                          ))}
-
-                          <PaginationItem>
-                            <PaginationNext
-                              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                              className={page === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                            />
-                          </PaginationItem>
-                        </PaginationContent>
-                      </Pagination>
-                    </div>
-                  </div>
-                </div>
+              {!isLoading && (
+                <Pagination
+                  pageIndex={page - 1}
+                  pageCount={totalPages}
+                  totalItems={totalItems}
+                  pageSize={perPage}
+                  onPageChange={(pageIndex) => setPage(pageIndex + 1)}
+                  onNextPage={() => setPage(p => Math.min(totalPages, p + 1))}
+                  onPrevPage={() => setPage(p => Math.max(1, p - 1))}
+                />
               )}
             </div>
           </CardContent>

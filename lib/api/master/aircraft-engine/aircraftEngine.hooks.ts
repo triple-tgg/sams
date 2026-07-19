@@ -1,24 +1,27 @@
 "use client";
 
 // ──────────────────────────────────────────────────────────────
-// TanStack Query hooks for the Aircraft & Engine master data.
-//
-// These follow the same shape as the other master-data hooks
-// (see aircraft-types/aircraftTypes.hooks.ts). Today every mutationFn/queryFn
-// calls the in-memory mock in aircraftEngine.mock.ts.
-//
-// SWAP POINT — when the backend ships, replace each mock call with axiosConfig, e.g.
-//   queryFn: () => axiosConfig.get("/master/AircraftEngineCombinations").then(r => r.data.responseData)
-//   mutationFn: (d) => (d.id ? axiosConfig.put(...) : axiosConfig.post(...)).then(r => r.data)
-// The component layer and query keys stay unchanged.
-//
-// NOTE: queryFns are wrapped in arrows so react-query's QueryFunctionContext is
-// never passed through as an `asOf` / options argument to the mock.
+// TanStack Query hooks for the Aircraft & Engine master-data API.
+// Pure HTTP functions and response normalization live in aircraftEngine.ts.
 // ──────────────────────────────────────────────────────────────
 
 import { useQuery, useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
-import * as mock from "./aircraftEngine.mock";
-import type { EngineMaster } from "./aircraftEngine.types";
+import {
+  deleteCombination,
+  deleteEngine,
+  deleteSystemConfig,
+  fetchAuthGroups,
+  fetchCombinations,
+  fetchEngines,
+  fetchSystemConfigs,
+  saveAuthGroupDraft,
+  transitionAuthGroup,
+  upsertCombination,
+  upsertEngine,
+  upsertSystemConfig,
+  type AuthGroupTransition,
+  type FetchAuthGroupsOptions,
+} from "./aircraftEngine";
 import {
   emitAircraftEngineUpdated,
   type AircraftEngineTable,
@@ -33,7 +36,7 @@ export const aircraftEngineKeys = {
   combinationsAsOf: (asOf: string) => ["ae", "combinations", "asOf", asOf] as const,
   authGroups: ["ae", "authGroups"] as const,
   /** Parameterised auth-group reads (CR-3 asOf, CR-1 downstream gate, CR-2 customer). */
-  authGroupsWith: (opts: mock.FetchAuthGroupsOptions) => ["ae", "authGroups", opts] as const,
+  authGroupsWith: (opts: FetchAuthGroupsOptions) => ["ae", "authGroups", opts] as const,
   systemConfigs: ["ae", "systemConfigs"] as const,
 };
 
@@ -59,58 +62,69 @@ function useEmitAndInvalidate() {
 
 // ── engine_master ──
 export function useEngines() {
-  return useQuery({ queryKey: aircraftEngineKeys.engines, queryFn: () => mock.fetchEngines() });
+  return useQuery({ queryKey: aircraftEngineKeys.engines, queryFn: fetchEngines });
 }
 export function useUpsertEngine() {
   const emit = useEmitAndInvalidate();
   return useMutation({
-    mutationFn: (data: EngineMaster) => mock.upsertEngine(data),
-    onSuccess: (rec) => emit("engine_master", "upsert", rec.engineCode),
+    mutationFn: upsertEngine,
+    onSuccess: (_result, input) => emit("engine_master", "upsert", input.engineCode),
   });
 }
 export function useDeleteEngine() {
   const emit = useEmitAndInvalidate();
   return useMutation({
-    mutationFn: (engineCode: string) => mock.deleteEngine(engineCode),
+    mutationFn: deleteEngine,
     onSuccess: (_r, engineCode) => emit("engine_master", "delete", engineCode),
   });
 }
 
 // ── aircraft_family ──
+// The supplied API collection has no family endpoint. Build the read-only picker
+// from family codes already present in combinations/system config.
 export function useFamilies() {
-  return useQuery({ queryKey: aircraftEngineKeys.families, queryFn: () => mock.fetchFamilies() });
-}
-export function useAddFamily() {
-  const emit = useEmitAndInvalidate();
-  return useMutation({
-    mutationFn: (data: { familyCode: string; familyName: string }) => mock.addFamily(data),
-    onSuccess: (rec) => emit("aircraft_family", "upsert", rec.familyCode),
+  const qc = useQueryClient();
+  return useQuery({
+    queryKey: aircraftEngineKeys.families,
+    queryFn: async () => {
+      const [combinations, configs] = await Promise.all([
+        qc.ensureQueryData({ queryKey: aircraftEngineKeys.combinations, queryFn: () => fetchCombinations() }),
+        qc.ensureQueryData({ queryKey: aircraftEngineKeys.systemConfigs, queryFn: fetchSystemConfigs }),
+      ]);
+      const codes = new Set([
+        ...combinations.map((item) => item.familyCode),
+        ...configs.map((item) => item.familyCode),
+      ]);
+      return Array.from(codes)
+        .sort((a, b) => a.localeCompare(b))
+        .map((familyCode) => ({ familyCode, familyName: familyCode }));
+    },
   });
 }
 
 // ── aircraft_engine_combination ──
 export function useCombinations() {
-  return useQuery({ queryKey: aircraftEngineKeys.combinations, queryFn: () => mock.fetchCombinations() });
+  return useQuery({ queryKey: aircraftEngineKeys.combinations, queryFn: () => fetchCombinations() });
 }
 /** Point-in-time combinations for audit/QA (CR-3). Disabled until `asOf` is set. */
 export function useCombinationsAsOf(asOf?: string) {
   return useQuery({
     queryKey: aircraftEngineKeys.combinationsAsOf(asOf ?? ""),
-    queryFn: () => mock.fetchCombinations(asOf),
+    queryFn: () => fetchCombinations(asOf),
     enabled: !!asOf,
   });
 }
 export function useUpsertCombination() {
   const emit = useEmitAndInvalidate();
   return useMutation({
-    mutationFn: (data: mock.CombinationInput) => mock.upsertCombination(data),
-    onSuccess: (rec) => emit("aircraft_engine_combination", "upsert", rec.id),
+    mutationFn: upsertCombination,
+    onSuccess: (_result, input) => emit("aircraft_engine_combination", "upsert", input.id ?? "new"),
   });
 }
 export function useDeleteCombination() {
   const emit = useEmitAndInvalidate();
   return useMutation({
-    mutationFn: (id: number) => mock.deleteCombination(id),
+    mutationFn: deleteCombination,
     onSuccess: (_r, id) => emit("aircraft_engine_combination", "delete", id),
   });
 }
@@ -118,54 +132,68 @@ export function useDeleteCombination() {
 // ── authorization_type_group ──
 /** Admin/Master-Data read — every group, every status (no downstream gate). */
 export function useAuthGroups() {
-  return useQuery({ queryKey: aircraftEngineKeys.authGroups, queryFn: () => mock.fetchAuthGroups() });
+  return useQuery({ queryKey: aircraftEngineKeys.authGroups, queryFn: () => fetchAuthGroups() });
+}
+/** Point-in-time authorization groups for audit/QA. Disabled until `asOf` is set. */
+export function useAuthGroupsAsOf(asOf?: string) {
+  const opts: FetchAuthGroupsOptions = { asOf };
+  return useQuery({
+    queryKey: aircraftEngineKeys.authGroupsWith(opts),
+    queryFn: () => fetchAuthGroups(opts),
+    enabled: !!asOf,
+  });
+}
+/** Customer-scoped admin read without the downstream published/complete gate. */
+export function useAuthGroupsForCustomer(customerId?: number | null) {
+  const opts: FetchAuthGroupsOptions = { customerId: customerId ?? null };
+  return useQuery({
+    queryKey: aircraftEngineKeys.authGroupsWith(opts),
+    queryFn: () => fetchAuthGroups(opts),
+    enabled: customerId != null,
+  });
 }
 /**
  * Downstream read for other modules (M-03 / FM-CM-063). Returns only groups that
  * are PUBLISHED and complete (CR-1 gate), resolved for the given airline (CR-2).
  */
 export function useDownstreamAuthGroups(customerId?: number | null) {
-  const opts: mock.FetchAuthGroupsOptions = { downstream: true, customerId: customerId ?? null };
+  const opts: FetchAuthGroupsOptions = { downstream: true, customerId: customerId ?? null };
   return useQuery({
     queryKey: aircraftEngineKeys.authGroupsWith(opts),
-    queryFn: () => mock.fetchAuthGroups(opts),
+    queryFn: () => fetchAuthGroups(opts),
   });
 }
 export function useSaveAuthGroupDraft() {
   const emit = useEmitAndInvalidate();
   return useMutation({
-    mutationFn: (data: mock.AuthGroupInput) => mock.saveAuthGroupDraft(data),
-    onSuccess: (rec) => emit("authorization_type_group", "upsert", rec.groupId),
+    mutationFn: saveAuthGroupDraft,
+    onSuccess: (_result, input) => emit("authorization_type_group", "upsert", input.groupId),
   });
 }
 export function useTransitionAuthGroup() {
   const emit = useEmitAndInvalidate();
   return useMutation({
-    mutationFn: ({ groupId, action }: { groupId: string; action: mock.AuthGroupTransition }) =>
-      mock.transitionAuthGroup(groupId, action),
-    onSuccess: (rec) => emit("authorization_type_group", "upsert", rec.groupId),
+    mutationFn: ({ groupId, action }: { groupId: string; action: AuthGroupTransition }) =>
+      transitionAuthGroup(groupId, action),
+    onSuccess: (_result, input) => emit("authorization_type_group", "upsert", input.groupId),
   });
 }
 
 // ── aircraft_system_config ──
 export function useSystemConfigs() {
-  return useQuery({ queryKey: aircraftEngineKeys.systemConfigs, queryFn: () => mock.fetchSystemConfigs() });
+  return useQuery({ queryKey: aircraftEngineKeys.systemConfigs, queryFn: fetchSystemConfigs });
 }
 export function useUpsertSystemConfig() {
   const emit = useEmitAndInvalidate();
   return useMutation({
-    mutationFn: (data: mock.SystemConfigInput) => mock.upsertSystemConfig(data),
-    onSuccess: (rec) => emit("aircraft_system_config", "upsert", rec.icaoCode),
+    mutationFn: upsertSystemConfig,
+    onSuccess: (_result, input) => emit("aircraft_system_config", "upsert", input.icaoCode),
   });
 }
 export function useDeleteSystemConfig() {
   const emit = useEmitAndInvalidate();
   return useMutation({
-    mutationFn: (icaoCode: string) => mock.deleteSystemConfig(icaoCode),
+    mutationFn: deleteSystemConfig,
     onSuccess: (_r, icaoCode) => emit("aircraft_system_config", "delete", icaoCode),
   });
 }
-
-// Synchronous reference checks (used before opening delete confirmations).
-export const checkEngineReferences = mock.checkEngineReferences;
-export const checkCombinationReferences = mock.checkCombinationReferences;

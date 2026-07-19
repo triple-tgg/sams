@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
-import { RotateCw, FileText } from 'lucide-react'
+import { RotateCw, FileText, Paperclip } from 'lucide-react'
 import { useEmployeeLogbookList } from '@/lib/api/qa/employee-logbook.hooks'
 import { useDebounce } from '@/hooks/useDebounce'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -47,7 +47,7 @@ export default function EmployeeHistoryTrainingPage() {
             QA Document — View maintenance experiences logbook records
           </CardDescription>
         </CardHeader>
-        
+
         {/* Filters */}
         <div className="px-6 pb-4">
           <div className="flex flex-col md:flex-row gap-4 mb-2 items-end">
@@ -99,24 +99,24 @@ export default function EmployeeHistoryTrainingPage() {
         {/* Table */}
         <CardContent className="p-0 overflow-x-auto">
           <Table className="relative min-w-[2000px]">
-            <TableHeader>
+            <TableHeader className="bg-slate-100/80">
               <TableRow className="border-b border-slate-200">
-                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap text-center">NAME - SURNAME</TableHead>
-                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap text-center">EMPLOYEE ID</TableHead>
-                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap text-center">LICENSE CATEGORY</TableHead>
-                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap text-center">DATE TO PERFORM TASK</TableHead>
-                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap text-center">LOCATION</TableHead>
-                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap text-center">AIRCRAFT TYPE</TableHead>
-                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap text-center">AIRCRAFT REGISTRATION</TableHead>
-                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap text-center">PRIVILEGED USED</TableHead>
-                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap text-center">ATA Chapter</TableHead>
-                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap text-center">TYPE OF MAINTENANCE (RATING)</TableHead>
-                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap text-center">TYPE OF TASK</TableHead>
-                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap text-center">TYPE OF ACTIVITY</TableHead>
-                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap text-center">MAINTENANCE REFERENCES</TableHead>
-                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap text-center">FILE ATTACHMENT FOR MAINTENANCE REFERENCE</TableHead>
-                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap text-center">PERFORMED DURATION</TableHead>
-                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap text-center">AUTHORIZED STAMP NO.</TableHead>
+                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap">NAME - SURNAME</TableHead>
+                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap">EMPLOYEE ID</TableHead>
+                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap">LICENSE CATEGORY</TableHead>
+                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap">DATE TO PERFORM TASK</TableHead>
+                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap">LOCATION</TableHead>
+                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap">AIRCRAFT TYPE</TableHead>
+                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap">AIRCRAFT REGISTRATION</TableHead>
+                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap">PRIVILEGED USED</TableHead>
+                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap">ATA Chapter</TableHead>
+                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap">TYPE OF MAINTENANCE (RATING)</TableHead>
+                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap">TYPE OF TASK</TableHead>
+                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap">TYPE OF ACTIVITY</TableHead>
+                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap">MAINTENANCE REFERENCES</TableHead>
+                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap">PERFORMED DURATION</TableHead>
+                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap">AUTHORIZED STAMP NO.</TableHead>
+                <TableHead className="text-xs font-bold text-slate-900 uppercase whitespace-nowrap">ATTACHMENT</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -136,28 +136,34 @@ export default function EmployeeHistoryTrainingPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                records.map((record) => (
-                  <TableRow key={record.id} className="text-sm text-center">
+                records.map((record, index) => (
+                  <TableRow key={record.id} className={`text-sm hover:bg-slate-100/50 transition-colors ${index % 2 === 1 ? 'bg-slate-50/50' : 'bg-white'}`}>
                     <TableCell className="text-left font-medium text-slate-800 whitespace-nowrap">{record.nameSurname}</TableCell>
                     <TableCell className="text-slate-600 whitespace-nowrap">{record.employeeId}</TableCell>
                     <TableCell className="text-slate-600 whitespace-nowrap">{record.licenseCategory}</TableCell>
                     <TableCell className="text-slate-600 whitespace-nowrap">{record.dateToPerformTask}</TableCell>
                     <TableCell className="text-slate-600 whitespace-nowrap">{record.location}</TableCell>
                     <TableCell className="text-left text-slate-600 whitespace-nowrap">{record.aircraftType}</TableCell>
-                    <TableCell className="text-slate-600 whitespace-nowrap">{record.aircraftRegistration}</TableCell>
-                    <TableCell className="text-slate-600 whitespace-nowrap">{record.privilegedUsed}</TableCell>
-                    <TableCell className="text-slate-600 whitespace-nowrap">{record.ataChapter}</TableCell>
+                    <TableCell className="text-slate-600 whitespace-nowrap text-center">{record.aircraftRegistration}</TableCell>
+                    <TableCell className="text-slate-600 whitespace-nowrap text-center">{record.privilegedUsed}</TableCell>
+                    <TableCell className="text-slate-600 whitespace-nowrap text-center">{record.ataChapter}</TableCell>
                     <TableCell className="text-slate-600 whitespace-nowrap">{record.typeOfMaintenanceRating}</TableCell>
                     <TableCell className="text-left text-slate-600 whitespace-nowrap">{record.typeOfTask}</TableCell>
-                    <TableCell className="text-slate-600 whitespace-nowrap">{record.typeOfActivity}</TableCell>
+                    <TableCell className="text-slate-600 whitespace-nowrap text-center">{record.typeOfActivity}</TableCell>
                     <TableCell className="text-slate-600 whitespace-nowrap">{record.maintenanceReferences}</TableCell>
-                    <TableCell className="text-left text-slate-600 whitespace-nowrap">
-                      <a href={record.fileAttachmentUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-700 hover:underline">
-                        {record.fileAttachmentUrl.substring(0, 40)}...
-                      </a>
+                    <TableCell className="text-slate-600 whitespace-nowrap text-center">{record.performedDuration}</TableCell>
+                    <TableCell className="font-medium text-slate-700 whitespace-nowrap text-center">{record.authorizedStampNo}</TableCell>
+                    <TableCell className="text-center whitespace-nowrap flex justify-center items-center">
+                      {record.fileAttachmentUrl ? (
+                        <a href={record.fileAttachmentUrl} target="_blank" rel="noreferrer">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                            <Paperclip className="h-4 w-4" />
+                          </Button>
+                        </a>
+                      ) : (
+                        <span className="text-slate-400">-</span>
+                      )}
                     </TableCell>
-                    <TableCell className="text-slate-600 whitespace-nowrap">{record.performedDuration}</TableCell>
-                    <TableCell className="font-medium text-slate-700 whitespace-nowrap">{record.authorizedStampNo}</TableCell>
                   </TableRow>
                 ))
               )}

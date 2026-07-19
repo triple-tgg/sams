@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState, useRef, useCallback, useEffect } from 'react'
-import { ChevronDown, ChevronLeft, ChevronRight, Search, Filter, X, User } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, Search, Filter, X, User, Loader2 } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -16,35 +16,28 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+} from "@/components/ui/pagination"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
-import { STAFF, AIRLINES } from '../../data-v2'
-import { AIRLINE_KEYS, SAMS_STATUS_META, CUST_STATUS_META } from '../../types-v2'
-import type { CustomerAuthValue, AirlineKey, Staff } from '../../types-v2'
+import { STAFF } from '../../data-v2'
+import { SAMS_STATUS_META, CUST_STATUS_META } from '../../types-v2'
+import type { CustomerAuthValue, Staff, AirlineKey } from '../../types-v2'
+import { useAirlines } from '@/lib/api/master/airlines/airlines.hooks'
+import { useCustomerAuthList, useUpdateCustomerAuth, useCustomerAuthById } from '@/lib/api/qa/authorization/customer-auth.hooks'
 import { getSamsStatus } from '../../utils'
 import { cn } from '@/lib/utils'
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
 import { AircraftEngineRefPanel } from "@/components/aircraft-engine/AircraftEngineRefPanel"
+import { toast } from "sonner"
 
-const AIRCRAFT_OPTIONS = [
-  'A318/A319/A320/A321',
-  'A320 Family (CEO/NEO)',
-  'A330-200/300',
-  'A330-200/300/800/900',
-  'A340-500/600',
-  'A350-900/1000',
-  'B737-300/400/500',
-  'B737-600/700/800/900',
-  'B737-600/700/800/900 (CFM56)',
-  'B737-7/8/9',
-  'B737 MAX',
-  'B767-200/300',
-  'B777-200/300',
-  'B777-200/300/300ER',
-  'B777-200ER/300ER',
-  'B787',
-  'B787-8/9/10',
-  'ERJ-190'
-]
+import { useDebounce } from '@/hooks/useDebounce'
+import { useAircraftTypeLicenses } from "@/lib/api/master/aircraft-type-licenses.hooks"
 
 // ─── Date Formatting Helper ─────────────────────────────────────────────────
 
@@ -70,7 +63,9 @@ function getDaysRemaining(expDateIso: string): number | null {
 
 interface TooltipInfo {
   staff: Staff
-  airlineCode: AirlineKey
+  airlineCode: string
+  airlineName: string
+  airlineColor: string
   status: CustomerAuthValue
   x: number
   y: number       // cell bottom
@@ -78,9 +73,8 @@ interface TooltipInfo {
 }
 
 function CellTooltip({ info }: { info: TooltipInfo }) {
-  const { staff, airlineCode, status } = info
+  const { staff, airlineCode, airlineName, airlineColor, status } = info
   const meta = CUST_STATUS_META[status]
-  const airline = AIRLINES[airlineCode]
   const ref = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{ left: number; top: number }>({ left: info.x, top: info.y + 8 })
 
@@ -129,7 +123,7 @@ function CellTooltip({ info }: { info: TooltipInfo }) {
       <div className="space-y-1.5 text-[11px]">
         <div className="flex justify-between">
           <span className="text-muted-foreground">Airline</span>
-          <span className="font-bold" style={{ color: airline.color }}>{airlineCode} — {airline.name}</span>
+          <span className="font-bold" style={{ color: airlineColor }}>{airlineCode} — {airlineName}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">Date of Initial Issue</span>
@@ -144,7 +138,7 @@ function CellTooltip({ info }: { info: TooltipInfo }) {
           <span className="font-semibold text-foreground">{formatShortDate(staff.samsExp)}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-muted-foreground">Aircraft</span>
+          <span className="text-muted-foreground">Aircraft License</span>
           <span className="font-semibold text-foreground text-right" style={{ maxWidth: 160 }}>{staff.rating.replace(/\n/g, ', ')}</span>
         </div>
         <div className="flex justify-between">
@@ -214,8 +208,19 @@ function AutoTooltip({ label, content, className }: { label: string; content: st
 }
 
 export function CustomerAuthTab() {
+  const { isLoading: airlinesLoading } = useAirlines()
+
+  if (airlinesLoading) {
+    return (
+      <div className="flex h-64 items-center justify-center text-muted-foreground">
+        <Loader2 className="w-6 h-6 animate-spin mr-2" />
+        Loading customer authorization data...
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 relative">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold text-foreground">Customer Authorization</h3>
       </div>
@@ -229,22 +234,82 @@ export function CustomerAuthTab() {
 
 function MatrixView() {
   const custStatusOrder: CustomerAuthValue[] = ['valid', 'not_approve', 'not_complete', 'suspended', 'pending']
-  const [version, setVersion] = useState(0)
-  const [selectedCell, setSelectedCell] = useState<{ staff: Staff, airlineCode: AirlineKey, status: CustomerAuthValue } | null>(null)
+  const [page, setPage] = useState(1)
+  const pageSize = 20
+  
+  const [search, setSearch] = useState('')
+  const [debouncedSearch] = useDebounce(search, 500)
+  const [statusFilter, setStatusFilter] = useState<CustomerAuthValue | 'all'>('all')
+
+  const { data: airlinesRes, isLoading: airlinesLoading } = useAirlines()
+  const apiAirlines = airlinesRes?.responseData || []
+  
+  const AIRLINE_KEYS = useMemo(() => apiAirlines.map(a => a.code), [apiAirlines])
+  const AIRLINES = useMemo(() => {
+    const map: Record<string, { code: string; name: string; color: string }> = {}
+    apiAirlines.forEach(a => {
+      map[a.code] = {
+        code: a.code,
+        name: a.name || a.code,
+        color: a.colorForeground || '#333'
+      }
+    })
+    return map
+  }, [apiAirlines])
+
+  const { data: aircraftOptions = [] } = useAircraftTypeLicenses()
+  const [selectedCell, setSelectedCell] = useState<{ staff: Staff, airlineCode: string, status: CustomerAuthValue } | null>(null)
   const [editInitDate, setEditInitDate] = useState('')
   const [editCurrDate, setEditCurrDate] = useState('')
   const [editSamsExp, setEditSamsExp] = useState('')
   const [editRating, setEditRating] = useState<Set<string>>(new Set())
+  const [, setVersion] = useState(0)
+  
+  const updateAuthMutation = useUpdateCustomerAuth()
+
+  const currentSelectedStatusObj = selectedCell ? selectedCell.staff.airlineStatuses?.find(a => a.airlineCode === selectedCell.airlineCode) : null
+  const selectedDetailId = selectedCell?.staff?.staffAuthorizationId || 0
+  const { data: detailRes, isLoading: detailLoading } = useCustomerAuthById(selectedDetailId)
+
+  useEffect(() => {
+    if (detailRes?.responseData && selectedCell) {
+      const detail = detailRes.responseData;
+      if (detail.initialIssueDate) setEditInitDate(detail.initialIssueDate.split('T')[0]);
+      else setEditInitDate('');
+      
+      if (detail.currentIssueDate) setEditCurrDate(detail.currentIssueDate.split('T')[0]);
+      else setEditCurrDate('');
+      
+      if (detail.expiryDate) setEditSamsExp(detail.expiryDate.split('T')[0]);
+      else setEditSamsExp('');
+      
+      if (detail.aircrafts) {
+        const optionNames = detail.aircrafts.map((a: any) => {
+          const match = aircraftOptions.find(opt => opt.id === a.aircraftTypeId);
+          return match ? match.name : (a.code || a.name);
+        });
+        setEditRating(new Set(optionNames));
+      } else {
+        setEditRating(new Set());
+      }
+    }
+  }, [detailRes, selectedCell, aircraftOptions])
 
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null)
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<CustomerAuthValue | 'all'>('all')
-  const [airlineFilter, setAirlineFilter] = useState<Set<AirlineKey>>(new Set(AIRLINE_KEYS))
+  const [airlineFilter, setAirlineFilter] = useState<Set<string>>(new Set())
+  const airlineFilterInit = useRef(false)
   const [showAirlineDropdown, setShowAirlineDropdown] = useState(false)
   const airlineDropdownRef = useRef<HTMLDivElement>(null)
 
   const [showAircraftDropdown, setShowAircraftDropdown] = useState(false)
   const aircraftDropdownRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (AIRLINE_KEYS.length > 0 && !airlineFilterInit.current) {
+      setAirlineFilter(new Set(AIRLINE_KEYS))
+      airlineFilterInit.current = true
+    }
+  }, [AIRLINE_KEYS])
 
   // Close airline dropdown on outside click
   useEffect(() => {
@@ -260,14 +325,24 @@ function MatrixView() {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const handleCellEnter = useCallback((e: React.MouseEvent, staff: Staff, airlineCode: AirlineKey, status: CustomerAuthValue) => {
+  const handleCellEnter = useCallback((e: React.MouseEvent, staff: Staff, airlineCode: string, status: CustomerAuthValue) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    setTooltip({ staff, airlineCode, status, x: rect.left + rect.width / 2, y: rect.bottom, cellTop: rect.top })
-  }, [])
+    const airline = AIRLINES[airlineCode]
+    setTooltip({ 
+      staff, 
+      airlineCode, 
+      airlineName: airline?.name || airlineCode,
+      airlineColor: airline?.color || '#ccc',
+      status, 
+      x: rect.left + rect.width / 2, 
+      y: rect.bottom, 
+      cellTop: rect.top 
+    })
+  }, [AIRLINES])
 
   const handleCellLeave = useCallback(() => setTooltip(null), [])
 
-  const handleCellClick = (staff: Staff, airlineCode: AirlineKey, status: CustomerAuthValue) => {
+  const handleCellClick = (staff: Staff, airlineCode: string, status: CustomerAuthValue) => {
     setSelectedCell({ staff, airlineCode, status })
     setEditInitDate(staff.initDate)
     setEditCurrDate(staff.currDate)
@@ -277,7 +352,7 @@ function MatrixView() {
     setTooltip(null) // Hide tooltip when opening modal
   }
 
-  const toggleAirline = (code: AirlineKey) => {
+  const toggleAirline = (code: string) => {
     setAirlineFilter(prev => {
       const next = new Set(prev)
       if (next.has(code)) { if (next.size > 1) next.delete(code) } // keep at least 1
@@ -288,28 +363,96 @@ function MatrixView() {
   const selectAllAirlines = () => setAirlineFilter(new Set(AIRLINE_KEYS))
   const deselectAllAirlines = () => setAirlineFilter(new Set([AIRLINE_KEYS[0]]))
 
+  // Convert statusFilter to API format
+  const apiStatus = useMemo(() => {
+    if (statusFilter === 'all') return null
+    if (statusFilter === 'valid') return 'VAL'
+    if (statusFilter === 'not_approve') return 'NAP'
+    if (statusFilter === 'pending') return 'PEN'
+    if (statusFilter === 'not_complete') return 'NCP'
+    if (statusFilter === 'suspended') return 'SUS'
+    return null
+  }, [statusFilter])
+
+  // Fetch from API
+  const { data: authRes, isLoading: authLoading, isFetching: authFetching } = useCustomerAuthList({
+    page,
+    perPage: pageSize,
+    searchKeyword: debouncedSearch,
+    status: apiStatus,
+    airlineId: null // We do column filtering on frontend instead of data filtering
+  })
+
+  const totalFiltered = authRes?.total ?? (authRes?.responseData?.length ?? 0)
+  const totalPages = Math.ceil(totalFiltered / pageSize)
+
+  const getPageNumbers = () => {
+    const pages = []
+    // Note: page is 1-indexed here
+    const pIndex = page - 1
+    for (let i = 0; i < totalPages; i++) {
+      if (i === 0 || i === totalPages - 1 || (i >= pIndex - 1 && i <= pIndex + 1)) {
+        pages.push(i)
+      } else if (i === pIndex - 2 || i === pIndex + 2) {
+        pages.push(-1)
+      }
+    }
+    return pages.filter((p, index, arr) => p !== -1 || arr[index - 1] !== -1)
+  }
+
+  // Map API data to `Staff` format
+  const mappedStaff: Staff[] = useMemo(() => {
+    if (!authRes?.responseData) return []
+    return authRes.responseData.map((item, idx) => {
+      const custRecord: Partial<Record<AirlineKey, CustomerAuthValue>> = {}
+      item.airlineStatuses.forEach(as => {
+        let val: CustomerAuthValue = 'pending'
+        if (as.status === 'VAL') val = 'valid'
+        else if (as.status === 'NAP') val = 'not_approve'
+        // Add more mappings if needed
+        custRecord[as.airlineCode as AirlineKey] = val
+      })
+
+      return {
+        no: idx + 1 + (page - 1) * pageSize,
+        dbId: item.staffId || item.staff.id,
+        staffAuthorizationId: item.staffAuthorizationId,
+        id: item.staff.code || item.employeeId,
+        name: item.employeeName,
+        rating: '', // Missing in API
+        amelExp: '',
+        authNo: '',
+        initDate: item.staff.startDate || '',
+        currDate: '',
+        samsExp: '',
+        color: '#3b82f6',
+        license: '',
+        cust: custRecord,
+        auth: {},
+        airlineStatuses: item.airlineStatuses,
+      }
+    })
+  }, [authRes, page, pageSize])
+
   // Visible airline columns
   const visibleAirlines = useMemo(() =>
     AIRLINE_KEYS.filter(code => airlineFilter.has(code))
     , [airlineFilter])
 
-  // Filtered staff
+  // Use mapped data as filteredStaff (since API does pagination and search)
+  // But we still apply local filtering if statusFilter requires matching a visible column specifically
   const filteredStaff = useMemo(() => {
-    const q = search.toLowerCase().trim()
-    return STAFF.filter(s => {
-      // Search match
-      if (q) {
-        const nameMatch = s.name.toLowerCase().includes(q) || s.id.toLowerCase().includes(q)
-        if (!nameMatch) return false
-      }
-      // Status match — staff must have at least one visible airline cell matching
+    return mappedStaff.filter(s => {
+      // API already filtered by search and status globally, 
+      // but to strictly match frontend logic: if statusFilter is active, 
+      // staff MUST have that status in one of the VISIBLE airline columns.
       if (statusFilter !== 'all') {
-        const hasStatus = visibleAirlines.some(code => s.cust[code] === statusFilter)
+        const hasStatus = visibleAirlines.some(code => s.cust[code as AirlineKey] === statusFilter)
         if (!hasStatus) return false
       }
       return true
     })
-  }, [search, statusFilter, visibleAirlines, version])
+  }, [mappedStaff, statusFilter, visibleAirlines])
 
   const isFiltering = search !== '' || statusFilter !== 'all' || airlineFilter.size !== AIRLINE_KEYS.length
 
@@ -413,7 +556,7 @@ function MatrixView() {
                         </svg>
                       )}
                     </div>
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: AIRLINES[code].color }} />
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: AIRLINES[code]?.color || '#333' }} />
                     {code}
                   </button>
                 ))}
@@ -436,7 +579,7 @@ function MatrixView() {
       {/* Results Count */}
       {isFiltering && (
         <div className="text-[11px] text-muted-foreground">
-          Showing {filteredStaff.length} of {STAFF.length} staff · {visibleAirlines.length} of {AIRLINE_KEYS.length} airlines
+          Showing {filteredStaff.length} staff on this page · {visibleAirlines.length} of {AIRLINE_KEYS.length} airlines
         </div>
       )}
 
@@ -446,23 +589,42 @@ function MatrixView() {
             <thead>
               <tr className="bg-slate-50 border-b-2 border-border">
                 <th className="px-3 py-2 text-left text-muted-foreground font-bold whitespace-nowrap sticky left-0 bg-slate-50 z-10 border-r border-border" style={{ minWidth: 200 }}>
-                  Staff
+                  Employee Name
                 </th>
                 {visibleAirlines.map(code => (
                   <th
                     key={code}
                     className="px-1 py-2 text-center font-bold border-l border-border"
                     style={{ minWidth: 90 }}
-                    title={AIRLINES[code].name}
+                    title={AIRLINES[code]?.name || code}
                   >
-                    <div className="text-[10px] leading-snug font-bold" style={{ color: AIRLINES[code].color }}>{code}</div>
+                    <div className="text-[10px] leading-snug font-bold" style={{ color: AIRLINES[code]?.color || '#333' }}>{code}</div>
                     <div className="text-[9px] text-muted-foreground/60 font-medium">Auth</div>
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {filteredStaff.map((s, ri) => {
+              {authLoading ? (
+                Array.from({ length: pageSize }).map((_, ri) => (
+                  <tr key={`skeleton-${ri}`} className={`border-b border-border/50 ${ri % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                    <td className={`px-3 py-1.5 sticky left-0 z-10 border-r border-border ${ri % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="w-6 h-6 rounded-full shrink-0" />
+                        <div className="space-y-1 w-full">
+                          <Skeleton className="h-3 w-3/4" />
+                          <Skeleton className="h-2 w-1/2" />
+                        </div>
+                      </div>
+                    </td>
+                    {visibleAirlines.map(code => (
+                      <td key={`skeleton-cell-${code}`} className="px-1 py-1.5 text-center border-l border-border">
+                        <Skeleton className="h-4 w-6 mx-auto rounded-md" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : filteredStaff.map((s, ri) => {
                 const samsStatus = getSamsStatus(s)
                 const samsMeta = SAMS_STATUS_META[samsStatus]
                 return (
@@ -493,11 +655,19 @@ function MatrixView() {
                     </td>
                     {/* Customer Auth Cells — dot style */}
                     {visibleAirlines.map(code => {
-                      const val = s.cust[code]
+                      const val = s.cust[code as AirlineKey] as CustomerAuthValue
                       if (!val) {
                         return (
-                          <td key={code} className="text-center border-l border-border/50" style={{ padding: '6px 4px', minWidth: 45 }}>
-                            <div className="flex flex-col items-center gap-0.5">
+                          <td 
+                            key={code} 
+                            className="text-center border-l border-border/50 cursor-pointer transition-all duration-150 group/cell hover:bg-muted/60" 
+                            style={{ padding: '6px 4px', minWidth: 45, position: 'relative' }}
+                            onMouseEnter={(e) => handleCellEnter(e, s, code, 'pending')}
+                            onMouseLeave={handleCellLeave}
+                            onClick={() => handleCellClick(s, code, 'pending')}
+                          >
+                            <div className="absolute inset-0 transition-opacity duration-150 opacity-0 group-hover/cell:opacity-100 bg-slate-100/50" />
+                            <div className="relative z-1 flex flex-col items-center gap-0.5">
                               <div className="w-2.5 h-2.5 rounded-full bg-slate-300" />
                             </div>
                           </td>
@@ -563,9 +733,78 @@ function MatrixView() {
                   </tr>
                 )
               })}
+              {!authLoading && filteredStaff.length === 0 && (
+                <tr>
+                  <td colSpan={visibleAirlines.length + 1} className="px-4 py-12 text-center text-muted-foreground text-sm">
+                    No data found
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Pagination & Footer */}
+      <div className="flex items-center justify-between border-t border-border px-4 py-3 bg-white rounded-b-xl">
+        <div className="text-xs font-medium text-muted-foreground">
+          Showing <span className="font-semibold text-foreground">{mappedStaff.length === 0 ? 0 : (page - 1) * pageSize + 1}</span> to <span className="font-semibold text-foreground">{Math.min(page * pageSize, totalFiltered)}</span> of <span className="font-semibold text-foreground">{totalFiltered}</span> entries
+          {authFetching && <Loader2 className="inline w-3 h-3 ml-2 animate-spin text-muted-foreground" />}
+        </div>
+        
+        {totalPages > 1 && (
+          <Pagination className="w-auto mx-0">
+            <PaginationContent className="gap-1.5">
+              <PaginationItem>
+                <PaginationLink 
+                  href="#" 
+                  onClick={(e) => { e.preventDefault(); setPage(p => Math.max(1, p - 1)) }}
+                  className={cn("w-8 h-8 p-0 rounded-md transition-all flex items-center justify-center", 
+                    page === 1 
+                      ? "pointer-events-none opacity-50 border border-slate-200 text-slate-400 bg-slate-50" 
+                      : "border border-slate-300 text-slate-600 bg-white hover:bg-slate-100 hover:text-slate-900"
+                  )}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </PaginationLink>
+              </PaginationItem>
+              
+              {getPageNumbers().map((p, idx) => (
+                <PaginationItem key={idx} className="hidden sm:inline-block">
+                  {p === -1 ? (
+                    <PaginationEllipsis className="w-8 h-8" />
+                  ) : (
+                    <PaginationLink 
+                      href="#" 
+                      onClick={(e) => { e.preventDefault(); setPage(p + 1) }}
+                      className={cn("w-8 h-8 p-0 rounded-md transition-all font-semibold text-xs flex items-center justify-center", 
+                        page === p + 1 
+                          ? "bg-primary text-white border border-primary shadow-md hover:bg-primary/90 hover:text-white" 
+                          : "bg-white text-slate-700 border border-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                      )}
+                    >
+                      {p + 1}
+                    </PaginationLink>
+                  )}
+                </PaginationItem>
+              ))}
+
+              <PaginationItem>
+                <PaginationLink 
+                  href="#" 
+                  onClick={(e) => { e.preventDefault(); setPage(p => Math.min(totalPages, p + 1)) }}
+                  className={cn("w-8 h-8 p-0 rounded-md transition-all flex items-center justify-center", 
+                    page >= totalPages 
+                      ? "pointer-events-none opacity-50 border border-slate-200 text-slate-400 bg-slate-50" 
+                      : "border border-slate-700 text-slate-700 bg-white hover:bg-slate-100 hover:text-slate-900"
+                  )}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </PaginationLink>
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        )}
       </div>
 
       {/* Floating Tooltip */}
@@ -627,8 +866,8 @@ function MatrixView() {
                 <div className="space-y-2 text-sm bg-white rounded-lg border border-border/50 p-4 shadow-sm">
                   <div className="flex flex-col gap-1">
                     <span className="text-muted-foreground font-bold text-xs">Airline</span>
-                    <span className="font-bold text-lg leading-tight" style={{ color: AIRLINES[selectedCell.airlineCode].color }}>
-                      {selectedCell.airlineCode} — {AIRLINES[selectedCell.airlineCode].name}
+                    <span className="font-bold text-lg leading-tight" style={{ color: AIRLINES[selectedCell.airlineCode]?.color || '#333' }}>
+                      {selectedCell.airlineCode} — {AIRLINES[selectedCell.airlineCode]?.name || selectedCell.airlineCode}
                     </span>
                   </div>
                 </div>
@@ -654,21 +893,21 @@ function MatrixView() {
 
                     {/* Right Column: Aircraft checkboxes */}
                     <div className="col-span-8 flex flex-col h-[208px]">
-                      <label className="text-xs font-bold text-slate-700 mb-1.5 block">Aircraft</label>
+                      <label className="text-xs font-bold text-slate-700 mb-1.5 block">Aircraft License</label>
                       <div className="flex-1 bg-white border border-border/60 rounded-md p-1.5 overflow-y-auto">
                         <div className="space-y-0.5 pr-1">
-                          {AIRCRAFT_OPTIONS.map(opt => {
-                            const isSelected = editRating.has(opt)
+                          {aircraftOptions.map(opt => {
+                            const isSelected = editRating.has(opt.name)
                             return (
                               <button
-                                key={opt}
+                                key={opt.id}
                                 type="button"
                                 onClick={(e) => {
                                   e.preventDefault();
                                   setEditRating(prev => {
                                     const next = new Set(prev)
-                                    if (next.has(opt)) next.delete(opt)
-                                    else next.add(opt)
+                                    if (next.has(opt.name)) next.delete(opt.name)
+                                    else next.add(opt.name)
                                     return next
                                   })
                                 }}
@@ -683,7 +922,7 @@ function MatrixView() {
                                     </svg>
                                   )}
                                 </div>
-                                <span className="truncate text-xs font-medium leading-tight">{opt}</span>
+                                <span className="truncate text-xs font-medium leading-tight">{opt.name}</span>
                               </button>
                             )
                           })}
@@ -714,14 +953,31 @@ function MatrixView() {
                   {(selectedCell.status === 'pending' || selectedCell.status === 'suspended') ? (
                     <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
                       <Button
-                        // variant="outline"
                         color="destructive"
-                        onClick={() => {
-                          selectedCell.staff.cust[selectedCell.airlineCode] = 'not_approve'
-                          setVersion(v => v + 1)
-                          setSelectedCell(null)
+                        disabled={updateAuthMutation.isPending}
+                        onClick={async () => {
+                          try {
+                            const currentStatusObj = selectedCell.staff.airlineStatuses?.find(a => a.airlineCode === selectedCell.airlineCode)
+                            // We don't have a master list of status IDs, so we send 0 or a known hardcoded ID if available.
+                            // Assuming the backend handles 0 or needs to be updated later for "Not Approved".
+                            await updateAuthMutation.mutateAsync({
+                              id: selectedCell.staff.staffAuthorizationId || 0,
+                              staffId: selectedCell.staff.dbId || 0,
+                              airlineId: currentStatusObj?.airlineId || apiAirlines.find(a => a.code === selectedCell.airlineCode)?.id || 0,
+                              staffAuthorizationAirlineStatusId: 0, // Placeholder for "NAP" status ID
+                              initialIssueDate: editInitDate,
+                              currentIssueDate: editCurrDate,
+                              expiryDate: editSamsExp,
+                              aircraftTypeIds: []
+                            })
+                            toast.success("Authorization rejected successfully")
+                            setSelectedCell(null)
+                          } catch (err) {
+                            toast.error("Failed to reject authorization")
+                          }
                         }}
                       >
+                        {updateAuthMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                         Not Approved
                       </Button>
                     </PermissionActionGuard>
@@ -729,21 +985,39 @@ function MatrixView() {
 
                   {/* Right: Cancel + Save */}
                   <div className="flex items-center gap-2">
-                    <Button variant="outline" onClick={() => setSelectedCell(null)} className="font-bold">
+                    <Button variant="outline" onClick={() => setSelectedCell(null)} className="font-bold" disabled={updateAuthMutation.isPending}>
                       Cancel
                     </Button>
                     <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
                       <Button
-                        onClick={() => {
-                          selectedCell.staff.initDate = editInitDate
-                          selectedCell.staff.currDate = editCurrDate
-                          selectedCell.staff.samsExp = editSamsExp
-                          selectedCell.staff.rating = Array.from(editRating).join('\n')
-                          setVersion(v => v + 1)
-                          setSelectedCell(null)
+                        disabled={updateAuthMutation.isPending}
+                        onClick={async () => {
+                          try {
+                            const currentStatusObj = selectedCell.staff.airlineStatuses?.find(a => a.airlineCode === selectedCell.airlineCode)
+                            const aircraftIds = Array.from(editRating).map(ratingStr => {
+                              const found = aircraftOptions.find(o => o.code === ratingStr || o.name === ratingStr)
+                              return found?.id || 0
+                            }).filter(id => id > 0)
+
+                            await updateAuthMutation.mutateAsync({
+                              id: selectedCell.staff.staffAuthorizationId || 0,
+                              staffId: selectedCell.staff.dbId || 0,
+                              airlineId: currentStatusObj?.airlineId || apiAirlines.find(a => a.code === selectedCell.airlineCode)?.id || 0,
+                              staffAuthorizationAirlineStatusId: currentStatusObj?.airlineStatus?.id || 0,
+                              initialIssueDate: editInitDate,
+                              currentIssueDate: editCurrDate,
+                              expiryDate: editSamsExp,
+                              aircraftTypeIds: aircraftIds
+                            })
+                            toast.success("Customer authorization updated successfully")
+                            setSelectedCell(null)
+                          } catch (err) {
+                            toast.error("Failed to update customer authorization")
+                          }
                         }}
                         className="font-bold bg-blue-600 hover:bg-blue-700 text-white"
                       >
+                        {updateAuthMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                         Save
                       </Button>
                     </PermissionActionGuard>

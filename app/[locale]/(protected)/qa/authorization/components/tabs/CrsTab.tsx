@@ -96,13 +96,13 @@ export function CrsTab() {
         <div className="text-xs text-blue-800 leading-relaxed">
           <p className="font-bold mb-1">Part-145 Dual-Authorization Rule</p>
           <p>
-            เพื่อออก Certificate of Release to Service (CRS) ได้ พนักงานต้องมี <strong>SAMS Authorization ที่ยังไม่หมดอายุ</strong> และ{' '}
-            <strong>Customer Authorization จากทุกสายการบินที่ valid</strong>
+            To issue a Certificate of Release to Service (CRS), staff must have a <strong>valid SAMS Authorization</strong> and{' '}
+            <strong>valid Customer Authorizations from all airlines</strong>
           </p>
-          <ul className="mt-1.5 space-y-0.5 text-[11px]">
-            <li>✅ <strong>Full CRS</strong> — SAMS valid + ทุก customer auth = valid</li>
-            <li>⚠️ <strong>Partial CRS</strong> — SAMS valid/expiring แต่ customer auth ไม่ครบ</li>
-            <li>⛔ <strong>No CRS</strong> — SAMS expired → ไม่สามารถออก CRS ได้ทุกกรณี</li>
+          <ul className="mt-2 space-y-1">
+            <li>✅ <strong>Full CRS</strong> — SAMS valid + all customer auth = valid</li>
+            <li>⚠️ <strong>Partial CRS</strong> — SAMS valid/expiring but incomplete customer auth</li>
+            <li>⛔ <strong>No CRS</strong> — SAMS expired → cannot issue CRS under any circumstances</li>
           </ul>
         </div>
       </div>
@@ -124,7 +124,7 @@ export function CrsTab() {
         {/* CRS Filter Chips */}
         <div className="flex items-center gap-1">
           {([
-            { key: 'all' as FilterCrs, label: 'ทั้งหมด', color: '#475569' },
+            { key: 'all' as FilterCrs, label: 'All', color: '#475569' },
             { key: 'full' as FilterCrs, label: 'Full CRS', color: '#16a34a' },
             { key: 'partial' as FilterCrs, label: 'Partial', color: '#d97706' },
             { key: 'none' as FilterCrs, label: 'No CRS', color: '#dc2626' },
@@ -230,7 +230,7 @@ export function CrsTab() {
           <table className="w-full border-collapse text-xs">
             <thead>
               <tr className="bg-slate-50 border-b-2 border-border">
-                <th className="px-3 py-2.5 text-left text-muted-foreground font-bold text-[10px] uppercase tracking-wider sticky left-0 bg-slate-50 z-10 border-r border-border" style={{ minWidth: 200 }}>พนักงาน</th>
+                <th className="px-3 py-2.5 text-left text-muted-foreground font-bold text-[10px] uppercase tracking-wider sticky left-0 bg-slate-50 z-10 border-r border-border" style={{ minWidth: 200 }}>Staff</th>
                 <th className="px-3 py-2.5 text-center text-muted-foreground font-bold text-[10px] uppercase tracking-wider border-l border-border" style={{ minWidth: 100 }}>SAMS</th>
                 <th className="px-3 py-2.5 text-center text-muted-foreground font-bold text-[10px] uppercase tracking-wider border-l border-border" style={{ minWidth: 100 }}>CRS Status</th>
                 <th className="px-3 py-2.5 text-center text-muted-foreground font-bold text-[10px] uppercase tracking-wider border-l border-border" style={{ minWidth: 80 }}>Summary</th>
@@ -361,7 +361,7 @@ export function CrsTab() {
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={4 + visibleAirlines.length} className="px-4 py-12 text-center text-muted-foreground text-sm">
-                    ไม่พบข้อมูลที่ตรงกับเงื่อนไข
+                    No data found
                   </td>
                 </tr>
               )}

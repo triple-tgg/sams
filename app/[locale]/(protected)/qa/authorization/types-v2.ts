@@ -40,6 +40,14 @@ export interface Staff {
   profileImage?: string      // profile photo URL
   cust: Partial<Record<AirlineKey, CustomerAuthValue>>
   auth: Partial<Record<AuthorityKey, CustomerAuthValue>>
+  dbId?: number
+  staffAuthorizationId?: number | null
+  airlineStatuses?: Array<{
+    airlineId: number;
+    airlineCode: string;
+    status: string;
+    airlineStatus: { id: number; code: string; name: string; [key: string]: any } | null;
+  }>
 }
 
 export interface Airline {

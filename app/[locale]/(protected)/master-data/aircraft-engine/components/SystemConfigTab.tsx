@@ -80,7 +80,7 @@ export function SystemConfigTab() {
       toast.success(modalMode === "add" ? "Added system config successfully" : "Updated system config successfully");
       closeModal();
     } catch (e) {
-      toast.error(e instanceof Error && e.message === "DUPLICATE" ? "This ICAO code already exists" : "An error occurred");
+      toast.error(e instanceof Error && e.message === "DUPLICATE" ? "This ICAO code already exists" : e instanceof Error ? e.message : "An error occurred");
     }
   };
 
@@ -90,8 +90,8 @@ export function SystemConfigTab() {
       await del.mutateAsync(deleteTarget.icaoCode);
       toast.success("Deleted system config successfully");
       setDeleteTarget(null);
-    } catch {
-      toast.error("An error occurred");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "An error occurred");
     }
   };
 

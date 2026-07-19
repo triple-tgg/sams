@@ -2,7 +2,7 @@
 
 import { X, Download, Printer } from 'lucide-react'
 import { useState } from 'react'
-import { useStaffById } from '@/lib/api/hooks/useQAStaffManagement'
+import { useStaffPrintPreview } from '@/lib/api/hooks/useQAStaffManagement'
 import { formatDate } from '@/app/[locale]/(protected)/hr/staff/[id]/utils'
 import './certifying-staff-preview.css'
 
@@ -39,17 +39,18 @@ function FormFooter({ page, total }: { page: number; total: number }) {
 }
 
 export function CertifyingStaffPreview({ isOpen, onClose, staffId }: CertifyingStaffPreviewProps) {
-    const { data } = useStaffById(staffId, isOpen)
+    const { data } = useStaffPrintPreview(staffId, isOpen)
 
     if (!isOpen) return null
 
-    const api = data?.responseData
+    const api = data?.responseData?.profile
     const employeeId = api?.employeeId || '-'
     const staffName = api?.fullNameEn || api?.name || '-'
     const designation = 'Certifying Staff' // Hardcoded based on PDF
     
-    const amelLicenses = (api?.staffAmelLicenseList || []).filter(l => !l.isdelete)
-    const workExperiences = (api?.workExperiences || []).filter(w => !w.isdelete)
+    // Use any as type because the API typing in QAStaffItem for these arrays is unknown[] currently
+    const amelLicenses = (api?.staffAmelLicenseList as any[] || []).filter(l => !l.isdelete)
+    const workExperiences = (api?.workExperiences as any[] || []).filter(w => !w.isdelete)
 
     // Derived values
     const expStartDate = workExperiences.length > 0 && workExperiences[workExperiences.length - 1].periodFrom 
@@ -119,7 +120,7 @@ export function CertifyingStaffPreview({ isOpen, onClose, staffId }: CertifyingS
                                     <td style={{ textAlign: 'center' }}>{lic.issuedDate ? formatDate(lic.issuedDate) : '-'}</td>
                                     <td style={{ textAlign: 'center' }}>{lic.expiryDate ? formatDate(lic.expiryDate) : '-'}</td>
                                     <td style={{ whiteSpace: 'pre-line' }}>
-                                        {lic.aircraftRatings ? lic.aircraftRatings.split(',').map(r => `-${r.trim()}`).join('\n') : '-'}
+                                        {lic.aircraftRatings ? lic.aircraftRatings.split(',').map((r: string) => `-${r.trim()}`).join('\n') : '-'}
                                     </td>
                                 </tr>
                             )) : (

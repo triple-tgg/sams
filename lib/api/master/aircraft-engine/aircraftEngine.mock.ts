@@ -1,11 +1,10 @@
 // ──────────────────────────────────────────────────────────────
-// In-memory mock store for the Aircraft & Engine master data.
+// In-memory test fixture for the Aircraft & Engine master-data domain.
 //
-// This stands in for the backend REST API until the `/master/AircraftEngine*`
-// endpoints exist. The hooks in aircraftEngine.hooks.ts call these functions;
-// swapping to `axiosConfig` later is a one-line change per hook (see the
-// SWAP POINT comments there). Keep the seed drift intact — the validation
-// banner relies on it to demonstrate the anti-drift checks.
+// Production hooks use aircraftEngine.ts and the backend REST API. This store is
+// retained for deterministic pure-logic tests of temporal history, completeness,
+// customer overrides, and roll-up caching. Keep the seed drift intact because
+// those tests intentionally exercise the anti-drift rules.
 //
 // Effective dating (CR-3): combinations and group membership are append-only and
 // effective-dated (validFrom/validTo). Edits close out the current version and

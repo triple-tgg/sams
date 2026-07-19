@@ -1,7 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { getSamsAuthList, getSamsAuthById, SamsAuthListRequest } from "./sams-auth";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getSamsAuthList, getSamsAuthById, upsertSamsAuth, SamsAuthListRequest, SamsAuthUpsertRequest } from "./sams-auth";
 
 export const samsAuthKeys = {
   all: ["sams-auth"] as const,
@@ -22,5 +22,15 @@ export function useSamsAuthById(staffId: number | null) {
     queryKey: samsAuthKeys.detail(staffId!),
     queryFn: () => getSamsAuthById(staffId!),
     enabled: staffId !== null,
+  });
+}
+
+export function useUpsertSamsAuth() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: SamsAuthUpsertRequest) => upsertSamsAuth(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: samsAuthKeys.all });
+    },
   });
 }

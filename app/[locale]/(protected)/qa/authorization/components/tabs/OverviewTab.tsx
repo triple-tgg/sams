@@ -127,7 +127,7 @@ export function OverviewTab() {
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <span className="text-2xl font-extrabold text-slate-800">{stats.total}</span>
-                <span className="text-[9px] font-semibold text-muted-foreground">พนักงาน</span>
+                <span className="text-[9px] font-semibold text-muted-foreground">Staff</span>
               </div>
             </div>
 
@@ -159,7 +159,7 @@ export function OverviewTab() {
           </h3>
           <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
             {expiryTimeline.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-6">ไม่มีรายการหมดอายุ</p>
+              <p className="text-xs text-muted-foreground text-center py-6">No expired items</p>
             ) : expiryTimeline.map(s => {
               const d = daysLeft(s.samsExp)
               const st = getSamsStatus(s)
@@ -174,7 +174,7 @@ export function OverviewTab() {
                     className="px-1.5 py-0.5 rounded text-[9px] font-bold text-white shrink-0"
                     style={{ background: isExpired ? '#dc2626' : '#d97706' }}
                   >
-                    {isExpired ? 'หมดอายุ' : 'เร่งด่วน'}
+                    {isExpired ? 'Expired' : 'Urgent'}
                   </span>
                   <span className="font-semibold text-foreground truncate flex-1">{s.name}</span>
                   <span className="text-[10px] text-muted-foreground shrink-0">{s.authNo}</span>

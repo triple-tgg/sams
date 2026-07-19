@@ -39,38 +39,20 @@ import { fmtDate } from '../../utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useStaffAuthorizationAirlineStatuses } from "@/lib/api/master/staff-authorization/staff-authorization-airline-statuses.hooks"
 import type { StaffAuthorizationAirlineStatus } from "@/lib/api/master/staff-authorization/staff-authorization-airline-statuses"
-import { useSamsAuthList, useSamsAuthById } from "@/lib/api/qa/sams-auth.hooks"
+import { useSamsAuthList, useSamsAuthById, useUpsertSamsAuth } from "@/lib/api/qa/sams-auth.hooks"
 import type { SamsAuthItem, SamsAuthDetail } from "@/lib/api/qa/sams-auth"
 import { useDebounce } from "@/hooks/useDebounce"
+import { toast } from "sonner"
+import { useAircraftTypeLicenses } from "@/lib/api/master/aircraft-type-licenses.hooks"
 
 type FilterStatus = string
-
-const AIRCRAFT_OPTIONS = [
-  'A318/A319/A320/A321',
-  'A320 Family (CEO/NEO)',
-  'A330-200/300',
-  'A330-200/300/800/900',
-  'A340-500/600',
-  'A350-900/1000',
-  'B737-300/400/500',
-  'B737-600/700/800/900',
-  'B737-600/700/800/900 (CFM56)',
-  'B737-7/8/9',
-  'B737 MAX',
-  'B767-200/300',
-  'B777-200/300',
-  'B777-200/300/300ER',
-  'B777-200ER/300ER',
-  'B787',
-  'B787-8/9/10',
-  'ERJ-190'
-]
 
 export function SamsAuthTab() {
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 500)
   const [filter, setFilter] = useState<FilterStatus>('all')
   
+  const { data: aircraftOptions = [] } = useAircraftTypeLicenses()
   const { data: statusOptions = [] } = useStaffAuthorizationAirlineStatuses()
 
   // Pagination states
@@ -86,42 +68,74 @@ export function SamsAuthTab() {
   })
 
   // Edit Modal States
-  const [editStaffId, setEditStaffId] = useState<number | null>(null)
-  const { data: detailResp, isPending: isDetailPending, isFetching: isDetailFetching, isError: isDetailError } = useSamsAuthById(editStaffId)
+  const [targetStaff, setTargetStaff] = useState<SamsAuthItem | null>(null)
+  const editAuthId = targetStaff?.staffAuthorizationId ?? null
+  
+  const { data: detailResp, isPending: isDetailPending, isFetching: isDetailFetching, isError: isDetailError } = useSamsAuthById(editAuthId)
   const detailData: SamsAuthDetail | null = detailResp?.responseData ?? null
-  const isDetailLoading = editStaffId !== null && (isDetailPending || isDetailFetching)
+  const isDetailLoading = editAuthId !== null && (isDetailPending || isDetailFetching)
+  
+  const upsertMutation = useUpsertSamsAuth()
 
   const [editAuthNo, setEditAuthNo] = useState('')
-  const [editRating, setEditRating] = useState<Set<string>>(new Set())
+  const [editRating, setEditRating] = useState<Set<number>>(new Set())
   const [editAmelExp, setEditAmelExp] = useState('')
   const [editInitDate, setEditInitDate] = useState('')
   const [editCurrDate, setEditCurrDate] = useState('')
   const [editSamsExp, setEditSamsExp] = useState('')
 
-  // Populate form when detail data arrives
+  // Populate form when detail data arrives or reset if add mode
   useEffect(() => {
-    if (detailData) {
+    if (detailData && editAuthId !== null) {
       setEditAuthNo(detailData.authNo || '')
-      setEditRating(new Set(detailData.aircrafts || []))
+      setEditRating(new Set((detailData.staffAircraftLicenseList || []).map(a => a.aircraftTypeLicensId)))
       setEditAmelExp(detailData.amelExpiryDate?.split('T')[0] || '')
       setEditInitDate(detailData.initialIssueDate?.split('T')[0] || '')
       setEditCurrDate(detailData.currentIssueDate?.split('T')[0] || '')
       setEditSamsExp(detailData.expiryDate?.split('T')[0] || '')
+    } else if (targetStaff && editAuthId === null) {
+      setEditAuthNo('')
+      setEditRating(new Set())
+      setEditAmelExp('')
+      setEditInitDate('')
+      setEditCurrDate('')
+      setEditSamsExp('')
     }
-  }, [detailData])
+  }, [detailData, targetStaff, editAuthId])
 
   const handleEditClick = (staff: SamsAuthItem) => {
-    setEditStaffId(staff.staffId)
+    setTargetStaff(staff)
   }
 
   const handleCloseEdit = () => {
-    setEditStaffId(null)
+    setTargetStaff(null)
     setEditAuthNo('')
     setEditRating(new Set())
     setEditAmelExp('')
     setEditInitDate('')
     setEditCurrDate('')
     setEditSamsExp('')
+  }
+
+  const handleSave = async () => {
+    if (!targetStaff) return
+    try {
+      await upsertMutation.mutateAsync({
+        id: targetStaff.staffAuthorizationId ?? 0,
+        staffId: targetStaff.staffId,
+        authNo: editAuthNo,
+        staffAmelLicenseId: detailData?.staffAmelLicenseId ?? 0,
+        initialIssueDate: editInitDate || null,
+        currentIssueDate: editCurrDate || null,
+        expiryDate: editSamsExp || null,
+        isCrs: true,
+        aircraftTypeIds: Array.from(editRating)
+      })
+      toast.success(editAuthId === null ? "Added successfully" : "Updated successfully")
+      handleCloseEdit()
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || "Failed to save")
+    }
   }
 
   // Reset page to 0 when filters change
@@ -174,7 +188,7 @@ export function SamsAuthTab() {
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <input
             type="text"
-            placeholder="ค้นหาชื่อ, ID, Auth No..."
+            placeholder="Search Name, ID, Auth No..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="pl-8 pr-3 py-2 text-xs border border-border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-64"
@@ -186,11 +200,11 @@ export function SamsAuthTab() {
             <SelectTrigger className="bg-white border-border h-[38px] text-xs font-semibold px-3">
               <div className="flex items-center gap-1.5">
                 <Filter className="w-3.5 h-3.5 text-muted-foreground" />
-                <SelectValue placeholder="เลือกสถานะ" />
+                <SelectValue placeholder="Select Status" />
               </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">ทั้งหมด ({totalAll})</SelectItem>
+              <SelectItem value="all">All ({totalAll})</SelectItem>
               {statusOptions.map((opt: StaffAuthorizationAirlineStatus) => {
                 return (
                   <SelectItem key={opt.code} value={opt.code}>
@@ -203,7 +217,7 @@ export function SamsAuthTab() {
         </div>
 
         <span className="ml-auto text-[10px] text-muted-foreground hidden">
-          แสดง {totalFiltered} จาก {totalAll} รายการ
+          Showing {totalFiltered} of {totalAll} items
         </span>
       </div>
       </div>
@@ -216,7 +230,7 @@ export function SamsAuthTab() {
               <tr className="bg-slate-50 border-b-2 border-border">
                 <th className="px-3 py-2.5 text-left text-muted-foreground font-bold text-[10px] uppercase tracking-wider" style={{ minWidth: 220 }}>Employee Name</th>
                 <th className="px-3 py-2.5 text-left text-muted-foreground font-bold text-[10px] uppercase tracking-wider" style={{ minWidth: 150 }}>Auth No.</th>
-                <th className="px-3 py-2.5 text-left text-muted-foreground font-bold text-[10px] uppercase tracking-wider" style={{ minWidth: 180 }}>Rating (AMEL)</th>
+                <th className="px-3 py-2.5 text-left text-muted-foreground font-bold text-[10px] uppercase tracking-wider" style={{ minWidth: 180 }}>Aircraft License</th>
                 <th className="px-3 py-2.5 text-center text-muted-foreground font-bold text-[10px] uppercase tracking-wider" style={{ minWidth: 90 }}>AMEL Exp.</th>
                 <th className="px-3 py-2.5 text-center text-muted-foreground font-bold text-[10px] uppercase tracking-wider" style={{ minWidth: 90 }}>Initial Issue</th>
                 <th className="px-3 py-2.5 text-center text-muted-foreground font-bold text-[10px] uppercase tracking-wider" style={{ minWidth: 90 }}>Current Issue</th>
@@ -302,7 +316,7 @@ export function SamsAuthTab() {
               {paginatedStaff.length === 0 && !isFetching && (
                 <tr>
                   <td colSpan={10} className="px-4 py-12 text-center text-muted-foreground text-sm">
-                    ไม่พบข้อมูลที่ตรงกับเงื่อนไข
+                    No data found
                   </td>
                 </tr>
               )}
@@ -374,27 +388,27 @@ export function SamsAuthTab() {
       </div>
 
       {/* Edit Modal */}
-      <Dialog open={editStaffId !== null} onOpenChange={(open) => !open && handleCloseEdit()}>
+      <Dialog open={targetStaff !== null} onOpenChange={(open) => !open && handleCloseEdit()}>
         <DialogContent className="max-w-[650px] p-0 overflow-hidden border-border/60 shadow-2xl bg-white">
           {isDetailLoading ? (
             <div className="flex items-center justify-center py-20">
               <DialogTitle className="sr-only">Loading</DialogTitle>
               <RotateCw className="w-6 h-6 text-blue-500 animate-spin" />
             </div>
-          ) : isDetailError || (!detailData && editStaffId !== null) ? (
+          ) : isDetailError || (!detailData && editAuthId !== null) ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <DialogTitle className="sr-only">Error</DialogTitle>
-              <p className="text-sm text-muted-foreground">ไม่สามารถโหลดข้อมูลได้</p>
-              <Button variant="outline" size="sm" onClick={handleCloseEdit}>ปิด</Button>
+              <p className="text-sm text-muted-foreground">Failed to load data</p>
+              <Button variant="outline" size="sm" onClick={handleCloseEdit}>Close</Button>
             </div>
-          ) : detailData ? (
+          ) : (detailData || targetStaff) ? (
             <>
               <div className="px-5 pt-5 pb-4 border-b border-border/60 bg-slate-50">
                 <div className="flex items-center gap-3 mb-1">
-                  {detailData.profileImagePath ? (
+                  {(detailData ? detailData.profileImagePath : targetStaff?.profileImagePath) ? (
                     <img
-                      src={detailData.profileImagePath}
-                      alt={detailData.staffName || ''}
+                      src={detailData ? detailData.profileImagePath! : targetStaff!.profileImagePath!}
+                      alt={(detailData ? detailData.staffName : targetStaff?.employeeName) || ''}
                       className="w-10 h-10 rounded-full object-cover shrink-0"
                     />
                   ) : (
@@ -404,10 +418,10 @@ export function SamsAuthTab() {
                   )}
                   <div>
                     <DialogTitle className="text-lg font-bold text-slate-800">
-                      {detailData.staffName}
+                      {detailData ? detailData.staffName : targetStaff?.employeeName}
                     </DialogTitle>
                     <p className="text-xs font-semibold text-slate-500">
-                      {detailData.employeeId}
+                      {detailData ? detailData.employeeId : targetStaff?.employeeId}
                     </p>
                   </div>
                 </div>
@@ -427,7 +441,7 @@ export function SamsAuthTab() {
                     </div>
                     <div>
                       <label className="text-xs font-bold text-slate-700 mb-1.5 block">Date of Initial Issue</label>
-                      <input type="date" value={editInitDate} disabled className="w-full bg-slate-100 text-slate-500 font-semibold text-sm border border-border/60 rounded-md px-3 py-1.5 cursor-not-allowed" />
+                      <input type="date" value={editInitDate} onChange={e => setEditInitDate(e.target.value)} disabled={editAuthId !== null} className={`w-full font-semibold text-sm border border-border/60 rounded-md px-3 py-1.5 ${editAuthId !== null ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white focus:outline-none focus:border-blue-500'}`} />
                     </div>
                     <div>
                       <label className="text-xs font-bold text-slate-700 mb-1.5 block">Date of Current Issue</label>
@@ -441,29 +455,39 @@ export function SamsAuthTab() {
 
                   {/* Right Column: Aircraft checkboxes */}
                   <div className="flex flex-col h-[340px]">
-                    <label className="text-xs font-bold text-slate-700 mb-1.5 block">Rating (AMEL)</label>
+                    <label className="text-xs font-bold text-slate-700 mb-1.5 block">Aircraft License</label>
                     <div className="flex-1 bg-white border border-border/60 rounded-md p-1.5 overflow-y-auto">
                       <div className="space-y-0.5 pr-1">
-                        {AIRCRAFT_OPTIONS.map(opt => {
-                          const isSelected = editRating.has(opt)
+                        {aircraftOptions.map(opt => {
+                          const isSelected = editRating.has(opt.id)
                           return (
-                            <div
-                              key={opt}
-                              className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-left text-sm cursor-not-allowed ${
-                                isSelected ? 'bg-slate-200/60 text-slate-700 font-semibold' : 'text-slate-400'
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setEditRating(prev => {
+                                  const next = new Set(prev)
+                                  if (next.has(opt.id)) next.delete(opt.id)
+                                  else next.add(opt.id)
+                                  return next
+                                })
+                              }}
+                              className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-left transition-all text-sm ${
+                                isSelected ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-700 hover:bg-slate-100'
                               }`}
                             >
-                              <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-                                isSelected ? 'bg-slate-400 border-slate-400' : 'bg-slate-100 border-slate-200'
+                              <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all ${
+                                isSelected ? 'bg-blue-600 border-blue-600' : 'bg-white border-slate-300'
                               }`}>
                                 {isSelected && (
-                                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                  <svg viewBox="0 0 14 14" fill="none" className="w-3 h-3 text-white">
+                                    <path d="M3 7.5L5.5 10L11 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                                   </svg>
                                 )}
                               </div>
-                              <span className="truncate text-xs font-medium leading-tight">{opt}</span>
-                            </div>
+                              {opt.name}
+                            </button>
                           )
                         })}
                       </div>
@@ -478,13 +502,11 @@ export function SamsAuthTab() {
                 </Button>
                 <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
                   <Button 
-                    onClick={() => {
-                      // Note: Updating local state only (API update not yet available)
-                      handleCloseEdit()
-                    }}
+                    onClick={handleSave}
+                    disabled={upsertMutation.isPending}
                     className="font-bold bg-blue-600 hover:bg-blue-700 text-white"
                   >
-                    Save Changes
+                    {upsertMutation.isPending ? "Saving..." : editAuthId === null ? "Add" : "Save Changes"}
                   </Button>
                 </PermissionActionGuard>
               </DialogFooter>

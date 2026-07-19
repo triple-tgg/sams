@@ -460,6 +460,33 @@ export const getStaffTrainingDashboard = async (
     }
 };
 
+export interface WorkExperiencePreviewResponse {
+    message: string;
+    responseData: {
+        profile: StaffByIdData;
+        training: TrainingDashboardResponseData;
+    };
+    error: string;
+}
+
+/**
+ * Get work experience preview
+ * GET /staffs/{staffId}/work-experience-preview
+ */
+export const getWorkExperiencePreview = async (
+    staffId: number
+): Promise<WorkExperiencePreviewResponse> => {
+    try {
+        const res = await axiosConfig.get(`/staffs/${staffId}/work-experience-preview`);
+        return res.data as WorkExperiencePreviewResponse;
+    } catch (error: any) {
+        console.error("Error fetching work experience preview:", error);
+        throw new Error(
+            error.response?.data?.error || error.response?.data?.message || "Failed to fetch work experience preview"
+        );
+    }
+};
+
 // ── Training History CRUD ──
 
 export interface UpsertTrainingHistoryRequest {
@@ -722,6 +749,43 @@ export const upsertLogbookRecord = async (
         console.error("Error upserting logbook record:", error);
         throw new Error(
             error.response?.data?.error || error.response?.data?.message || "Failed to upsert logbook record"
+        );
+    }
+};
+
+// ── Print Preview ──
+
+export interface StaffPrintPreviewResponse {
+    message: string;
+    responseData: {
+        profile: QAStaffItem;
+        training: {
+            summary: {
+                totalCourses: number;
+                expired: number;
+                permanent: number;
+                expiringSoon: number;
+            };
+            records: any[];
+            needsMatrix: any;
+            histories: any[];
+        };
+    };
+    error: string;
+}
+
+/**
+ * Get Staff Print Preview
+ * GET /staffs/{staffId}/print-preview
+ */
+export const getStaffPrintPreview = async (staffId: number): Promise<StaffPrintPreviewResponse> => {
+    try {
+        const res = await axiosConfig.get(`/staffs/${staffId}/print-preview`);
+        return res.data as StaffPrintPreviewResponse;
+    } catch (error: any) {
+        console.error("Error fetching staff print preview:", error);
+        throw new Error(
+            error.response?.data?.error || error.response?.data?.message || "Failed to fetch staff print preview"
         );
     }
 };

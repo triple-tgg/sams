@@ -11,7 +11,36 @@ import type {
   CompletenessStatus,
   DataQualityFinding,
   EngineMaster,
+  ReferenceCheck,
 } from "./aircraftEngine.types";
+
+/** Display-label derivation used by the editor preview when the API record has not been saved yet. */
+export function buildDisplayLabel(familyCode: string, series: string, engineName: string): string {
+  const base = series ? `${familyCode}-${series}` : familyCode;
+  return `${base} (${engineName})`;
+}
+
+/** Client-side preflight only; the backend DELETE endpoint remains authoritative. */
+export function checkEngineReferences(
+  engineCode: string,
+  combinations: AircraftEngineCombination[],
+): ReferenceCheck {
+  const references = combinations
+    .filter((combination) => combination.engineCode === engineCode)
+    .map((combination) => `combination: ${combination.displayLabel}`);
+  return { blocked: references.length > 0, references };
+}
+
+/** Client-side preflight only; the backend DELETE endpoint remains authoritative. */
+export function checkCombinationReferences(
+  id: number,
+  groups: AuthorizationTypeGroup[],
+): ReferenceCheck {
+  const references = groups
+    .filter((group) => group.memberCombinationIds.includes(id))
+    .map((group) => `authorization group: ${group.groupLabel}`);
+  return { blocked: references.length > 0, references };
+}
 
 /** Groups stuck below `complete` for longer than this escalate amber → red (CR-1). */
 export const COMPLETENESS_SLA_MS = 3 * 24 * 60 * 60 * 1000; // 3 days

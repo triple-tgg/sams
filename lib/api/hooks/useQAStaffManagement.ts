@@ -11,10 +11,12 @@ import {
     uploadStaffFile,
     UploadFileRequest,
     UploadFileResponse,
-    getStaffById,
+    getStaffById, getStaffPrintPreview,
     StaffByIdResponse,
     getStaffTrainingDashboard,
     TrainingDashboardResponse,
+    getWorkExperiencePreview,
+    WorkExperiencePreviewResponse,
     createTrainingHistory,
     updateTrainingHistory,
     deleteTrainingHistory,
@@ -125,6 +127,25 @@ export const useStaffTrainingDashboard = (
     return useQuery({
         queryKey: ["qa-staff-training-dashboard", staffId],
         queryFn: () => getStaffTrainingDashboard(staffId),
+        enabled: enabled && staffId > 0,
+        staleTime: 2 * 60 * 1000,
+        gcTime: 5 * 60 * 1000,
+        retry: 2,
+        refetchOnWindowFocus: false,
+    });
+};
+
+/**
+ * Hook for fetching staff work experience preview
+ * Uses GET /staffs/{staffId}/work-experience-preview
+ */
+export const useWorkExperiencePreview = (
+    staffId: number,
+    enabled: boolean = true
+): UseQueryResult<WorkExperiencePreviewResponse, Error> => {
+    return useQuery({
+        queryKey: ["qa-work-experience-preview", staffId],
+        queryFn: () => getWorkExperiencePreview(staffId),
         enabled: enabled && staffId > 0,
         staleTime: 2 * 60 * 1000,
         gcTime: 5 * 60 * 1000,
@@ -281,5 +302,24 @@ export const useUpsertLogbookRecord = (staffId: number): UseMutationResult<
         onError: (error) => {
             toast.error(error.message || "Failed to save record");
         },
+    });
+};
+
+/**
+ * Hook for fetching staff print preview
+ * Uses GET /staffs/{staffId}/print-preview
+ */
+export const useStaffPrintPreview = (
+    staffId: number,
+    enabled: boolean = true
+) => {
+    return useQuery({
+        queryKey: ["qa-staff-print-preview", staffId],
+        queryFn: () => getStaffPrintPreview(staffId),
+        enabled: enabled && staffId > 0,
+        staleTime: 2 * 60 * 1000,
+        gcTime: 5 * 60 * 1000,
+        retry: 2,
+        refetchOnWindowFocus: false,
     });
 };

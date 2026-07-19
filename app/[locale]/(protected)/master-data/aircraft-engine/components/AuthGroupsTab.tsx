@@ -22,7 +22,8 @@ import { AE_MENU, Chip, CompletenessStatusBadge, ReviewStatusBadge, UpdatedMeta,
 const GLOBAL_SCOPE = "__global__";
 
 interface EditorState {
-  groupId?: string;
+  groupId: string;
+  isNew: boolean;
   label: string;
   memberIds: Set<number>;
   /** CR-2: null = global default; a value = override for that airline. */
@@ -55,10 +56,10 @@ export function AuthGroupsTab() {
     });
   }, [groups, search]);
 
-  const openCreate = () => { setMemberSearch(""); setEditor({ label: "", memberIds: new Set(), customerId: null }); };
+  const openCreate = () => { setMemberSearch(""); setEditor({ groupId: "", isNew: true, label: "", memberIds: new Set(), customerId: null }); };
   const openEdit = (g: AuthorizationTypeGroup) => {
     setMemberSearch("");
-    setEditor({ groupId: g.groupId, label: g.groupLabel, memberIds: new Set(g.memberCombinationIds), customerId: g.customerId });
+    setEditor({ groupId: g.groupId, isNew: false, label: g.groupLabel, memberIds: new Set(g.memberCombinationIds), customerId: g.customerId });
   };
 
   const toggleMember = (id: number) =>
@@ -70,18 +71,18 @@ export function AuthGroupsTab() {
     });
 
   const handleSaveDraft = async () => {
-    if (!editor || !editor.label.trim()) return;
+    if (!editor || !editor.groupId.trim() || !editor.label.trim()) return;
     try {
       await saveDraft.mutateAsync({
-        groupId: editor.groupId,
+        groupId: editor.groupId.trim().toUpperCase(),
         groupLabel: editor.label.trim(),
         memberCombinationIds: Array.from(editor.memberIds),
         customerId: editor.customerId,
       });
       toast.success("Saved as Draft — must Submit → Publish to affect CRS");
       setEditor(null);
-    } catch {
-      toast.error("An error occurred");
+    } catch (error) {
+      toast.error(error instanceof Error && error.message === "DUPLICATE" ? "This Group ID already exists" : error instanceof Error ? error.message : "An error occurred");
     }
   };
 
@@ -89,8 +90,8 @@ export function AuthGroupsTab() {
     try {
       await transition.mutateAsync({ groupId, action });
       toast.success(action === "SUBMIT" ? "Submitted for review" : action === "PUBLISH" ? "Published — affects CRS scope" : "Reverted to Draft");
-    } catch {
-      toast.error("An error occurred");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "An error occurred");
     }
   };
 
@@ -230,7 +231,7 @@ export function AuthGroupsTab() {
       <Dialog open={!!editor} onOpenChange={(o) => !o && setEditor(null)}>
         <DialogContent className="flex max-h-[85vh] max-w-[560px] flex-col bg-white">
           <DialogTitle className="text-base font-bold text-slate-800">
-            {editor?.groupId ? "Manage group members" : "Add Authorization group"}
+            {editor?.isNew ? "Add Authorization group" : "Manage group members"}
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
             Select combinations to include/exclude from the group — engine list will roll-up automatically. Saving will create a Draft.
@@ -238,6 +239,16 @@ export function AuthGroupsTab() {
 
           {editor && (
             <>
+              <div>
+                <Label className="text-xs font-medium text-slate-600">Group ID *</Label>
+                <Input
+                  value={editor.groupId}
+                  disabled={!editor.isNew}
+                  onChange={(e) => setEditor({ ...editor, groupId: e.target.value.toUpperCase() })}
+                  placeholder="e.g. AG-737NG"
+                  className="mt-1 h-9 text-sm disabled:opacity-60"
+                />
+              </div>
               <div>
                 <Label className="text-xs font-medium text-slate-600">Group label *</Label>
                 <Input value={editor.label} onChange={(e) => setEditor({ ...editor, label: e.target.value })} placeholder="e.g. A320 family" className="mt-1 h-9 text-sm" />
@@ -290,7 +301,7 @@ export function AuthGroupsTab() {
 
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setEditor(null)} className="h-9 text-sm">Cancel</Button>
-                <Button onClick={handleSaveDraft} disabled={!editor.label.trim() || saveDraft.isPending} className="h-9 gap-2 bg-slate-800 text-sm text-white hover:bg-slate-900">
+                <Button onClick={handleSaveDraft} disabled={!editor.groupId.trim() || !editor.label.trim() || saveDraft.isPending} className="h-9 gap-2 bg-slate-800 text-sm text-white hover:bg-slate-900">
                   {saveDraft.isPending && <RotateCw className="h-3.5 w-3.5 animate-spin" />} Save as Draft
                 </Button>
               </div>

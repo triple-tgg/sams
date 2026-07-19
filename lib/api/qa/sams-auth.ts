@@ -8,6 +8,7 @@ export interface SamsAuthListRequest {
 }
 
 export interface SamsAuthItem {
+  staffAuthorizationId: number | null;
   staffId: number;
   employeeName: string;
   employeeId: string;
@@ -39,6 +40,30 @@ export const getSamsAuthList = async (data: SamsAuthListRequest): Promise<SamsAu
 
 // ── Detail by ID ──────────────────────────────────────────────
 
+export interface AircraftTypeLicenseObj {
+  id: number;
+  code: string;
+  name: string;
+  description: string | null;
+  isdelete: boolean;
+  createddate: string;
+  createdby: string;
+  updateddate: string | null;
+  updatedby: string | null;
+}
+
+export interface StaffAircraftLicense {
+  id: number;
+  staffId: number;
+  isdelete: boolean;
+  createddate: string;
+  createdby: string;
+  updateddate: string | null;
+  updatedby: string | null;
+  aircraftTypeLicensId: number;
+  aircraftTypeLicensObj: AircraftTypeLicenseObj | null;
+}
+
 export interface SamsAuthDetail {
   id: number;
   staffId: number;
@@ -54,6 +79,7 @@ export interface SamsAuthDetail {
   expiryDate: string | null;
   isCrs: boolean;
   aircrafts: string[];
+  staffAircraftLicenseList?: StaffAircraftLicense[];
   createddate: string;
   createdby: string;
   updateddate: string | null;
@@ -68,5 +94,22 @@ export interface SamsAuthDetailResponse {
 
 export const getSamsAuthById = async (id: number): Promise<SamsAuthDetailResponse> => {
   const res = await axiosConfig.get(`/authorization/sams-auth/byid/${id}`);
+  return res.data;
+};
+
+export interface SamsAuthUpsertRequest {
+  id: number;
+  staffId: number;
+  authNo: string;
+  staffAmelLicenseId: number;
+  initialIssueDate: string | null;
+  currentIssueDate: string | null;
+  expiryDate: string | null;
+  isCrs: boolean;
+  aircraftTypeIds: number[];
+}
+
+export const upsertSamsAuth = async (data: SamsAuthUpsertRequest) => {
+  const res = await axiosConfig.post("/authorization/sams-auth/upsert", data);
   return res.data;
 };
