@@ -43,10 +43,23 @@ export interface Staff {
   dbId?: number
   staffAuthorizationId?: number | null
   airlineStatuses?: Array<{
+    id?: number | null;
     airlineId: number;
     airlineCode: string;
     status: string;
     airlineStatus: { id: number; code: string; name: string; [key: string]: any } | null;
+    aircrafts?: Array<{
+      id?: number;
+      aircraftTypeLicensId?: number;
+      aircraftTypeId?: number;
+      code?: string | null;
+      name?: string | null;
+    }>;
+    initialIssueDate?: string;
+    currentIssueDate?: string;
+    expiryDate?: string;
+    authorizationRecordId?: number;
+    aircraftTypeIds?: number[];
   }>
 }
 

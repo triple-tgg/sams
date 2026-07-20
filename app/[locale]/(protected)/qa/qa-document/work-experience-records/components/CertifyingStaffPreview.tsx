@@ -138,8 +138,7 @@ export function CertifyingStaffPreview({ isOpen, onClose, staffId }: CertifyingS
                 pdf.addImage(canvas.toDataURL('image/png'), 'PNG', offsetX, 0, imageWidth, imageHeight)
             }
 
-            const fileIdentifier = api?.employeeId || api?.code || String(staffId)
-            const safeEmployeeId = fileIdentifier.replace(/[^a-zA-Z0-9-_]+/g, '-') || 'staff'
+            const safeEmployeeId = employeeId.replace(/[^a-zA-Z0-9-_]+/g, '-') || 'staff'
             pdf.save(`Certifying-Staff-Maintenance-Experience-${safeEmployeeId}.pdf`)
             toast.success('PDF downloaded successfully')
         } catch (downloadError) {
@@ -158,7 +157,6 @@ export function CertifyingStaffPreview({ isOpen, onClose, staffId }: CertifyingS
                 <span className="csp-toolbar-title">Certifying Staff Maintenance Experience Summary Form (Preview)</span>
                 <div className="csp-toolbar-actions">
                     <button
-                        type="button"
                         className="csp-btn csp-btn-primary"
                         onClick={handleDownloadPdf}
                         disabled={!isPreviewReady || isBusy}
@@ -167,7 +165,6 @@ export function CertifyingStaffPreview({ isOpen, onClose, staffId }: CertifyingS
                         {isDownloading ? 'Generating PDF...' : 'Download PDF'}
                     </button>
                     <button
-                        type="button"
                         className="csp-btn csp-btn-primary"
                         onClick={handlePrint}
                         disabled={!isPreviewReady || isBusy}
@@ -175,7 +172,7 @@ export function CertifyingStaffPreview({ isOpen, onClose, staffId }: CertifyingS
                         {isPrinting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
                         {isPrinting ? 'Preparing...' : 'Print'}
                     </button>
-                    <button type="button" className="csp-btn csp-btn-close" onClick={onClose} disabled={isBusy}>
+                    <button className="csp-btn csp-btn-close" onClick={onClose}>
                         <X className="h-4 w-4" />
                     </button>
                 </div>

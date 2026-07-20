@@ -2,14 +2,61 @@ import axiosConfig from "@/lib/axios.config";
 
 export interface CustomerAuthListRequest {
   searchKeyword: string;
-  status: string | null;
+  status: number | null;
   airlineId: number | null;
   page: number;
   perPage: number;
 }
 
+export interface CustomerAuthRecordsRequest {
+  searchKeyword: string;
+  status: number | null;
+  airlineId: number | null;
+}
+
+export interface CustomerAuthRecord {
+  authorizationCustomerId: number;
+  staffId: number;
+  airlineId: number;
+  authorizationStatusId: number;
+  isdelete: boolean;
+  initialIssueDate: string | null;
+  currentIssueDate: string | null;
+  expiryDate: string | null;
+  staff: CustomerAuthStaffItem['staff'];
+  airline: {
+    id: number;
+    code: string;
+    name: string;
+    colorForeground: string;
+    colorBackground: string;
+    [key: string]: any;
+  };
+  authorizationStatus: {
+    id: number;
+    code: string;
+    name: string;
+    color: string | null;
+    [key: string]: any;
+  };
+  authorizationCustomerAircraftTypeLicenses: Array<{
+    id: number;
+    authorizationCustomerId: number;
+    aircraftTypeLicensId: number;
+    isdelete: boolean;
+    [key: string]: any;
+  }>;
+  [key: string]: any;
+}
+
+export interface CustomerAuthRecordsResponse {
+  message: string;
+  responseData: Array<{ authorizationCustomer: CustomerAuthRecord }>;
+  error: string;
+}
+
 export interface CustomerAuthStaffItem {
-  staffAuthorizationId: number | null;
+  id: number | null;
   staffId: number;
   employeeName: string;
   employeeId: string;
@@ -24,6 +71,7 @@ export interface CustomerAuthStaffItem {
     [key: string]: any;
   };
   airlineStatuses: Array<{
+    id?: number | null;
     airlineId: number;
     airlineCode: string;
     status: string; // e.g., "VAL", "NAP", ""
@@ -41,14 +89,27 @@ export interface CustomerAuthStaffItem {
       colorBackground: string;
       [key: string]: any;
     };
+    color: string | null;
+    initialIssueDate: string | null;
+    currentIssueDate: string | null;
+    expiryDate: string | null;
+    aircrafts: Array<{
+      id: number;
+      aircraftTypeLicensId: number;
+      code: string;
+      name: string;
+    }>;
   }>;
 }
 
 export interface CustomerAuthListResponse {
   message: string;
   responseData: CustomerAuthStaffItem[];
-  total?: number;
-  totalAll?: number;
+  page: number;
+  perPage: number;
+  total: number;
+  totalAll: number;
+  error: string;
 }
 
 export const getCustomerAuthList = async (data: CustomerAuthListRequest) => {
@@ -56,56 +117,29 @@ export const getCustomerAuthList = async (data: CustomerAuthListRequest) => {
   return res.data;
 };
 
+export const getCustomerAuthRecords = async (data: CustomerAuthRecordsRequest) => {
+  const res = await axiosConfig.post<CustomerAuthRecordsResponse>("/authorization/customer-auth/list", data);
+  return res.data;
+};
+
 export interface UpdateCustomerAuthRequest {
   id: number;
   staffId: number;
   airlineId: number;
-  staffAuthorizationAirlineStatusId: number;
+  authorizationStatusId: number;
   initialIssueDate: string;
   currentIssueDate: string;
   expiryDate: string;
   aircraftTypeIds: number[];
 }
 
-export const updateCustomerAuth = async (data: UpdateCustomerAuthRequest) => {
-  const res = await axiosConfig.post("/authorization/customer-auth/upsert", data);
-  return res.data;
-};
-
-export interface CustomerAuthDetailResponse {
+export interface UpdateCustomerAuthResponse {
   message: string;
-  responseData: {
-    id: number;
-    staffAuthorizationId: number;
-    staffId: number;
-    staffName: string;
-    employeeId: string;
-    profileImagePath: string;
-    amelLicenseNumber: string;
-    airlineId: number;
-    airlineCode: string;
-    airlineName: string;
-    staffAuthorizationAirlineStatusId: number;
-    statusCode: string;
-    statusName: string;
-    initialIssueDate: string;
-    currentIssueDate: string;
-    expiryDate: string;
-    aircrafts: Array<{ id: number; code: string; name: string; [key: string]: any }>;
-    createddate: string;
-    createdby: string;
-    updateddate: string | null;
-    updatedby: string | null;
-  };
+  responseData: string;
   error: string;
 }
 
-export interface CustomerAuthDetailRequest {
-  staffId: number;
-  airlineId: number;
-}
-
-export const getCustomerAuthById = async (data: CustomerAuthDetailRequest) => {
-  const res = await axiosConfig.post<CustomerAuthDetailResponse>(`/authorization/customer-auth/byid`, data);
+export const updateCustomerAuth = async (data: UpdateCustomerAuthRequest) => {
+  const res = await axiosConfig.post<UpdateCustomerAuthResponse>("/authorization/customer-auth/upsert", data);
   return res.data;
 };

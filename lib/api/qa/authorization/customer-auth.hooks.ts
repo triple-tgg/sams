@@ -2,22 +2,31 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   getCustomerAuthList, 
+  getCustomerAuthRecords,
   updateCustomerAuth,
-  getCustomerAuthById,
   type CustomerAuthListRequest,
-  type UpdateCustomerAuthRequest,
-  type CustomerAuthDetailRequest
+  type CustomerAuthRecordsRequest,
+  type UpdateCustomerAuthRequest
 } from "./customer-auth";
 
 export const customerAuthKeys = {
   all: ["customer-auth"] as const,
   list: (params: CustomerAuthListRequest) => [...customerAuthKeys.all, "list", params] as const,
+  records: (params: CustomerAuthRecordsRequest) => [...customerAuthKeys.all, "records", params] as const,
 };
 
 export function useCustomerAuthList(params: CustomerAuthListRequest) {
   return useQuery({
     queryKey: customerAuthKeys.list(params),
     queryFn: () => getCustomerAuthList(params),
+    staleTime: 5000,
+  });
+}
+
+export function useCustomerAuthRecords(params: CustomerAuthRecordsRequest) {
+  return useQuery({
+    queryKey: customerAuthKeys.records(params),
+    queryFn: () => getCustomerAuthRecords(params),
     staleTime: 5000,
   });
 }
@@ -32,13 +41,3 @@ export function useUpdateCustomerAuth() {
     },
   });
 }
-
-export function useCustomerAuthById(data: CustomerAuthDetailRequest | null) {
-  return useQuery({
-    queryKey: [...customerAuthKeys.all, "detail", data?.staffId, data?.airlineId],
-    queryFn: () => getCustomerAuthById(data!),
-    enabled: !!data && data.staffId > 0 && data.airlineId > 0, // Only run the query if valid data is provided
-    staleTime: 5000,
-  });
-}
-

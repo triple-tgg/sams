@@ -12,6 +12,8 @@ export interface CustomerAirline {
 
 export interface AuthRecord {
     status: AuthStatus
+    resolvedStatus?: AuthStatus // backend-calculated status when the record comes from an API
+    resolvedDaysUntilExpiry?: number | null
     authNumber: string   // e.g. "SAMS-AUTH-0012" or "TLA-AUTH-0012"
     license?: string     // e.g. "B1", "B2"
     initialIssueDate?: string // ISO date — first ever issue
@@ -31,6 +33,7 @@ export interface StaffAuthorization {
     license?: string
     samsAuth: AuthRecord | null
     customerAuths: Record<string, AuthRecord | null>  // keyed by customer airline ID
+    crsEligible?: boolean // backend-calculated CRS eligibility
 }
 
 // ─── Status Helpers ─────────────────────────────────────────────────────────
@@ -39,6 +42,7 @@ const TODAY = new Date('2026-03-19')
 
 export function getAuthStatus(record: AuthRecord | null | undefined): AuthStatus {
     if (!record) return 'not-issued'
+    if (record.resolvedStatus) return record.resolvedStatus
     if (record.status === 'suspended') return 'suspended'
     const expiry = new Date(record.expiryDate)
     const diff = Math.floor((expiry.getTime() - TODAY.getTime()) / 86400000)
@@ -49,6 +53,7 @@ export function getAuthStatus(record: AuthRecord | null | undefined): AuthStatus
 
 export function getDaysUntilExpiry(record: AuthRecord | null | undefined): number | null {
     if (!record || record.status === 'suspended') return null
+    if (record.resolvedDaysUntilExpiry !== undefined) return record.resolvedDaysUntilExpiry
     const expiry = new Date(record.expiryDate)
     return Math.floor((expiry.getTime() - TODAY.getTime()) / 86400000)
 }
@@ -61,6 +66,7 @@ export function fmtDate(dateStr: string | undefined): string {
 
 /** CRS eligible = SAMS auth active/expiring AND at least ONE customer auth active/expiring */
 export function isCrsEligible(staff: StaffAuthorization): boolean {
+    if (staff.crsEligible !== undefined) return staff.crsEligible
     const samsOk = staff.samsAuth !== null && ['active', 'expiring'].includes(getAuthStatus(staff.samsAuth))
     if (!samsOk) return false
     return Object.values(staff.customerAuths).some(

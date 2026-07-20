@@ -2,7 +2,7 @@
 
 import { useState, useMemo, type ReactNode } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { ShieldCheck, RefreshCw, BarChart3, Shield, Building2, Plane, Globe, Wrench } from 'lucide-react'
+import { ShieldCheck, RefreshCw, BarChart3, Shield, Building2, Plane, Globe } from 'lucide-react'
 
 // ─── Tab Components ──────────────────────────────────────────────────────────
 import { OverviewTab } from './components/tabs/OverviewTab'
@@ -70,7 +70,7 @@ export default function AuthorizationPage() {
 
                     {/* ── Content ── */}
                     <div>
-                        {activeTab === 'dashboard' && <OverviewTab />}
+                        {activeTab === 'dashboard' && <OverviewTab onNavigate={setActiveTab} />}
                         {activeTab === 'monitoring' && <MonitoringCrsTab />}
                         {activeTab === 'sams' && <SamsAuthTab />}
                         {activeTab === 'customer' && <CustomerAuthTab />}

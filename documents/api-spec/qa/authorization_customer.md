@@ -21,7 +21,7 @@ Retrieves a paginated list of staff members along with their customer authorizat
 | `page` | `number` | Yes | The page number (1-indexed). |
 | `perPage` | `number` | Yes | Number of records per page (default: 20). |
 | `searchKeyword` | `string` | No | Keyword to search by staff name or staff ID. |
-| `status` | `string` \| `null` | No | Filter staff by a specific authorization status (e.g., `"VAL"`, `"NAP"`). |
+| `status` | `number` \| `null` | No | Authorization status master ID. Select All sends `null`. |
 | `airlineId` | `number` \| `null` | No | Filter by a specific airline ID. |
 
 ### Response payload
@@ -58,7 +58,18 @@ Retrieves a paginated list of staff members along with their customer authorizat
             "name": "9 Air",
             "colorForeground": "#E5E7EB",
             "colorBackground": "#ff8800"
-          }
+          },
+          "initialIssueDate": "2026-05-19T00:00:00",
+          "currentIssueDate": "2026-05-19T00:00:00",
+          "expiryDate": "2027-05-19T00:00:00",
+          "aircrafts": [
+            {
+              "id": 6,
+              "aircraftTypeLicensId": 1,
+              "code": "A319",
+              "name": "A319"
+            }
+          ]
         },
         {
           "airlineId": 3,
@@ -71,7 +82,11 @@ Retrieves a paginated list of staff members along with their customer authorizat
             "name": "Air India",
             "colorForeground": "#ffffff",
             "colorBackground": "#ff0000"
-          }
+          },
+          "initialIssueDate": null,
+          "currentIssueDate": null,
+          "expiryDate": null,
+          "aircrafts": []
         }
       ]
     }
@@ -81,55 +96,76 @@ Retrieves a paginated list of staff members along with their customer authorizat
 
 ---
 
+## 1.1 Get Customer Authorization Records
+
+Returns one record per staff and airline authorization. The frontend joins this response to `/listdata` with `staffId + airlineId` so that each Matrix cell has the correct `authorizationCustomerId` for detail and upsert operations.
+
+- **Method**: `POST`
+- **Endpoint**: `/api/authorization/customer-auth/list`
+
+```json
+{
+  "searchKeyword": "",
+  "status": null,
+  "airlineId": null
+}
+```
+
+Compatibility rules:
+
+- `/listdata` supplies the Matrix roster and airline columns.
+- `/list` is authoritative for existing records: `authorizationCustomerId`, status, dates, and aircraft type license IDs.
+- Join key: `authorizationCustomer.staffId + authorizationCustomer.airlineId` to `/listdata.staffId + airlineStatuses[].airlineId`.
+- `authorizationCustomerAircraftTypeLicenses[].aircraftTypeLicensId` matches `/listdata.airlineStatuses[].aircrafts[].aircraftTypeLicensId`.
+- Aircraft labels are resolved from `/master/aircraft-type-licenses` by ID so Matrix, tooltip, modal, and upsert use the same value. If `/listdata` returns a conflicting label for the same ID, the master label wins.
+- Current observed `/listdata` response reports `perPage: 134` after requesting `perPage: 20`; the frontend applies defensive client-side pagination until the API honors the requested page size.
+
+---
+
+The Matrix and tooltip read display fields from `/listdata`. The edit modal uses dates, status, record ID, and aircraft type IDs already joined from `/list`; no separate `/byid` request is required.
+
 ## 2. Update Customer Authorization (and Staff SAMS Dates)
 
-Updates a specific customer authorization status (e.g. from `pending` to `not_approve`) and/or updates the staff's core SAMS authorization dates/ratings. Based on the UI, editing an airline cell allows updating the global staff validity dates (`initDate`, `currDate`, `samsExp`) and `rating`.
+Creates or updates an airline-specific Customer Authorization record.
 
-- **Method**: `PUT`
-- **Endpoint**: `/api/qa/authorization/customer/:staffId/airline/:airlineCode`
-
-### Path Parameters
-- `staffId` (string): The ID of the staff member.
-- `airlineCode` (string): The code of the airline (e.g., `MNA`).
+- **Method**: `POST`
+- **Endpoint**: `/api/authorization/customer-auth/upsert`
 
 ### Request Body (JSON)
 
 | Field | Type | Required | Description |
 | :--- | :--- | :--- | :--- |
-| `status` | `string` | No | Update the customer authorization status for the specified airline (e.g. `valid`, `not_approve`, `suspended`). |
-| `initDate` | `string` | No | ISO Date for "Date of Initial Issue". |
-| `currDate` | `string` | No | ISO Date for "Date of Current Issue". |
-| `samsExp` | `string` | No | ISO Date for "Date of Expire" (SAMS Authorization Expire). |
-| `rating` | `string[]` | No | Array of aircraft types authorized (AMEL rating). |
+| `id` | `number` | Yes | Customer Authorization record ID; use `0` when creating. |
+| `staffId` | `number` | Yes | Staff ID. |
+| `airlineId` | `number` | Yes | Airline ID. |
+| `authorizationStatusId` | `number` | Yes | Authorization status master ID. |
+| `initialIssueDate` | `string` | Yes | Initial issue date. |
+| `currentIssueDate` | `string` | Yes | Current issue date. |
+| `expiryDate` | `string` | Yes | Expiry date. |
+| `aircraftTypeIds` | `number[]` | Yes | Aircraft type license IDs. |
 
-### Example Request (Rejecting an Authorization)
+Authorization dates are calendar dates, not instants. The frontend reads the `YYYY-MM-DD` portion without converting between UTC and local time, and sends `initialIssueDate`, `currentIssueDate`, and `expiryDate` as `YYYY-MM-DD`.
+
+### Example Request
 ```json
 {
-  "status": "not_approve"
-}
-```
-
-### Example Request (Updating Staff Dates from Cell Edit)
-```json
-{
-  "status": "valid",
-  "initDate": "2022-05-10",
-  "currDate": "2024-05-10",
-  "samsExp": "2026-05-10",
-  "rating": ["A320", "A330"]
+  "id": 1,
+  "staffId": 163,
+  "airlineId": 48,
+  "authorizationStatusId": 1,
+  "initialIssueDate": "2026-05-19",
+  "currentIssueDate": "2026-05-19",
+  "expiryDate": "2027-05-19",
+  "aircraftTypeIds": [1, 2]
 }
 ```
 
 ### Response Payload
 ```json
 {
-  "status": "success",
-  "message": "Customer authorization updated successfully.",
-  "data": {
-    "staffId": "0012",
-    "airlineCode": "MNA",
-    "updatedStatus": "valid"
-  }
+  "message": "success",
+  "responseData": "Saved successfully.",
+  "error": ""
 }
 ```
 
@@ -142,7 +178,7 @@ Following the project's 2-file pattern, the types should be placed in `lib/api/q
 ```typescript
 export interface CustomerAuthListRequest {
   searchKeyword: string;
-  status: string | null;
+  status: number | null;
   airlineId: number | null;
   page: number;
   perPage: number;

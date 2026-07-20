@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState, useRef, useCallback, useEffect } from 'react'
-import { Search, Filter, X, User, Loader2 } from 'lucide-react'
+import { CalendarDays, FileText, Filter, Globe2, Loader2, Plane, Search, User, X } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -23,8 +23,25 @@ import type { CustomerAuthValue } from '../../types-v2'
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
 import { AircraftEngineRefPanel } from "@/components/aircraft-engine/AircraftEngineRefPanel"
 import { useAircraftTypeLicenses } from "@/lib/api/master/aircraft-type-licenses.hooks"
-import { useAuthorityAuthList } from "@/lib/api/qa/authorization/authority-auth.hooks"
+import type { AircraftTypeLicense } from "@/lib/api/master/aircraft-type-licenses"
+import { useStaffAuthorizationAirlineStatuses } from "@/lib/api/master/staff-authorization/staff-authorization-airline-statuses.hooks"
+import {
+  useAuthorityAuthList,
+  useAuthorityLicenseDetail,
+  useUpsertAuthorityLicense,
+} from "@/lib/api/qa/authorization/authority-auth.hooks"
+import type {
+  AuthorityAuthListRequest,
+  AuthorityColumnHeader,
+  AuthorityLicenseCell,
+  AuthorityStaffRow,
+} from "@/lib/api/qa/authorization/authority-auth"
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
+import {
+  validateAuthorityAircraftSelection,
+  validateAuthorityLicenseDates,
+} from '@/lib/api/qa/authorization/authority-auth.validation'
 
 // ─── Date Formatting Helper ─────────────────────────────────────────────────
 
@@ -71,20 +88,21 @@ function mapApiStatus(apiStatus: string | null | undefined): CustomerAuthValue {
 // ─── Hover Tooltip for Matrix Cell ──────────────────────────────────────────
 
 interface TooltipInfo {
-  staff: any
+  staff: AuthorityStaffRow
   authCode: string
+  authorityName: string
   status: CustomerAuthValue
-  licenseItem: any
-  aircraftOptions: any[]
+  licenseItem: AuthorityLicenseCell | undefined
+  aircraftOptions: AircraftTypeLicense[]
   x: number
   y: number       // cell bottom
   cellTop: number  // cell top
 }
 
 function CellTooltip({ info }: { info: TooltipInfo }) {
-  const { staff, authCode, status, licenseItem, aircraftOptions } = info
+  const { staff, authCode, authorityName, status, licenseItem, aircraftOptions } = info
   const meta = CUST_STATUS_META[status] || CUST_STATUS_META.pending
-  const authority = AUTHORITIES[authCode as keyof typeof AUTHORITIES] || { name: authCode, color: '#333' }
+  const authority = AUTHORITIES[authCode as keyof typeof AUTHORITIES] || { color: '#333' }
   const ref = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{ left: number; top: number }>({ left: info.x, top: info.y + 8 })
 
@@ -113,7 +131,7 @@ function CellTooltip({ info }: { info: TooltipInfo }) {
   
   const mappedAircrafts = useMemo(() => {
     if (!licenseItem?.aviationAuthorityLicenseAircrafts) return '—';
-    const names = licenseItem.aviationAuthorityLicenseAircrafts.map((a: any) => {
+    const names = licenseItem.aviationAuthorityLicenseAircrafts.map(a => {
       const found = aircraftOptions.find(o => o.id === a.aircraftTypeLicenseId)
       return found ? found.name : a.aircraftTypeLicenseId
     })
@@ -139,7 +157,7 @@ function CellTooltip({ info }: { info: TooltipInfo }) {
       <div className="space-y-1.5 text-[11px]">
         <div className="flex justify-between">
           <span className="text-muted-foreground">Authority</span>
-          <span className="font-bold" style={{ color: authority.color }}>{authCode} — {authority.name}</span>
+          <span className="font-bold" style={{ color: authority.color }}>{authCode} — {authorityName}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">Date of Initial Issue</span>
@@ -183,31 +201,80 @@ export function AuthorityAuthTab() {
 
 function MatrixView() {
   const custStatusOrder: CustomerAuthValue[] = ['valid', 'not_approve', 'not_complete', 'suspended', 'pending']
-  const [version, setVersion] = useState(0)
 
-  const { data: authData, isLoading } = useAuthorityAuthList()
+  const listRequest = useMemo<AuthorityAuthListRequest>(() => ({
+    searchKeyword: '',
+    authorityId: null,
+    status: '',
+    page: 1,
+    perPage: 200,
+  }), [])
+  const { data: authData, isLoading } = useAuthorityAuthList(listRequest)
   const apiStaffRows = authData?.responseData?.staffRows || []
   const apiAuthorities = authData?.responseData?.authorities || []
 
-  // Ensure unique authority keys
+  // Authority IDs are the identity because the API can return duplicate codes (for example DGCA).
   const AUTHORITY_KEYS = useMemo(() => {
-    return Array.from(new Set(apiAuthorities.map((a: any) => a.code)))
+    return apiAuthorities.map(authority => authority.aviationAuthorityId)
   }, [apiAuthorities])
 
   const { data: aircraftOptions = [] } = useAircraftTypeLicenses()
-  const [selectedCell, setSelectedCell] = useState<{staff: any, authCode: string, status: CustomerAuthValue, licenseItem: any} | null>(null)
-  
-  // NOTE: Form values are controlled here for the mock edit modal. The API endpoint for upserting 
-  // authority auth is not specified yet. So we just update local state (if possible) or show toast.
+  const { data: authorizationStatuses = [] } = useStaffAuthorizationAirlineStatuses()
+  const [selectedCell, setSelectedCell] = useState<{
+    staff: AuthorityStaffRow
+    authCode: string
+    authorityName: string
+    status: CustomerAuthValue
+    licenseItem: AuthorityLicenseCell | undefined
+  } | null>(null)
+  const selectedLicenseId = selectedCell?.licenseItem?.aviationAuthorityLicense?.id ?? null
+  const detailQuery = useAuthorityLicenseDetail(selectedLicenseId)
+  const upsertMutation = useUpsertAuthorityLicense()
+  const validStatusId = useMemo(() =>
+    authorizationStatuses.find(status =>
+      status.code?.toUpperCase() === 'VAL' || status.name?.toLowerCase() === 'valid'
+    )?.id ?? null,
+  [authorizationStatuses])
+  const notApprovedStatusId = useMemo(() =>
+    authorizationStatuses.find(status => status.code?.toUpperCase() === 'NAP')?.id ?? null,
+  [authorizationStatuses])
+
   const [editInitDate, setEditInitDate] = useState('')
   const [editCurrDate, setEditCurrDate] = useState('')
   const [editSamsExp, setEditSamsExp] = useState('')
   const [editRating, setEditRating] = useState<Set<string>>(new Set())
+  const [aircraftLicenseSearch, setAircraftLicenseSearch] = useState('')
+  const [showDateValidation, setShowDateValidation] = useState(false)
+  const [showAircraftValidation, setShowAircraftValidation] = useState(false)
+
+  const licenseDateErrors = useMemo(
+    () => validateAuthorityLicenseDates(editInitDate, editCurrDate, editSamsExp),
+    [editCurrDate, editInitDate, editSamsExp],
+  )
+  const hasLicenseDateErrors = Object.keys(licenseDateErrors).length > 0
+  const aircraftValidationError = validateAuthorityAircraftSelection(editRating.size)
+
+  useEffect(() => {
+    const detail = detailQuery.data?.responseData
+    if (!detail || detail.id !== selectedLicenseId) return
+    setEditInitDate(detail.initialIssueDate || '')
+    setEditCurrDate(detail.currentIssueDate || '')
+    setEditSamsExp(detail.expireDate || '')
+    setEditRating(new Set(detail.aircrafts.map(aircraft => aircraft.name || aircraft.code || String(aircraft.aircraftTypeLicenseId))))
+  }, [detailQuery.data, selectedLicenseId])
+
+  const filteredAircraftOptions = useMemo(() => {
+    const keyword = aircraftLicenseSearch.trim().toLowerCase()
+    if (!keyword) return aircraftOptions
+    return aircraftOptions.filter(option =>
+      option.name.toLowerCase().includes(keyword) || option.code.toLowerCase().includes(keyword)
+    )
+  }, [aircraftLicenseSearch, aircraftOptions])
 
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<CustomerAuthValue | 'all'>('all')
-  const [authFilter, setAuthorityFilter] = useState<Set<string>>(new Set())
+  const [authFilter, setAuthorityFilter] = useState<Set<number>>(new Set())
   const [authFilterInit, setAuthFilterInit] = useState(false)
   const [showAuthorityDropdown, setShowAuthorityDropdown] = useState(false)
   const authDropdownRef = useRef<HTMLDivElement>(null)
@@ -230,15 +297,18 @@ function MatrixView() {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const handleCellEnter = useCallback((e: React.MouseEvent, staff: any, authCode: string, status: CustomerAuthValue, licenseItem: any) => {
+  const handleCellEnter = useCallback((e: React.MouseEvent, staff: AuthorityStaffRow, authority: AuthorityColumnHeader, status: CustomerAuthValue, licenseItem: AuthorityLicenseCell | undefined) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    setTooltip({ staff, authCode, status, licenseItem, aircraftOptions, x: rect.left + rect.width / 2, y: rect.bottom, cellTop: rect.top })
+    setTooltip({ staff, authCode: authority.code, authorityName: authority.name, status, licenseItem, aircraftOptions, x: rect.left + rect.width / 2, y: rect.bottom, cellTop: rect.top })
   }, [aircraftOptions])
 
   const handleCellLeave = useCallback(() => setTooltip(null), [])
 
-  const handleCellClick = (staff: any, authCode: string, status: CustomerAuthValue, licenseItem: any) => {
-    setSelectedCell({ staff, authCode, status, licenseItem })
+  const handleCellClick = (staff: AuthorityStaffRow, authority: AuthorityColumnHeader, status: CustomerAuthValue, licenseItem: AuthorityLicenseCell | undefined) => {
+    setAircraftLicenseSearch('')
+    setShowDateValidation(false)
+    setShowAircraftValidation(false)
+    setSelectedCell({ staff, authCode: authority.code, authorityName: authority.name, status, licenseItem })
     setEditInitDate(licenseItem?.aviationAuthorityLicense?.initialIssueDate?.split('T')[0] || '')
     
     // For date inputs it needs YYYY-MM-DD
@@ -261,7 +331,7 @@ function MatrixView() {
     setEditCurrDate(currIssue)
     setEditSamsExp(expireDate)
     
-    const ratings = licenseItem?.aviationAuthorityLicenseAircrafts?.map((a: any) => {
+    const ratings = licenseItem?.aviationAuthorityLicenseAircrafts?.map(a => {
       const found = aircraftOptions.find(o => o.id === a.aircraftTypeLicenseId)
       return found ? found.name : String(a.aircraftTypeLicenseId)
     }) || []
@@ -269,11 +339,11 @@ function MatrixView() {
     setTooltip(null) // Hide tooltip when opening modal
   }
 
-  const toggleAuthority = (code: string) => {
+  const toggleAuthority = (authorityId: number) => {
     setAuthorityFilter(prev => {
       const next = new Set(prev)
-      if (next.has(code)) { if (next.size > 1) next.delete(code) } // keep at least 1
-      else next.add(code)
+      if (next.has(authorityId)) { if (next.size > 1) next.delete(authorityId) } // keep at least 1
+      else next.add(authorityId)
       return next
     })
   }
@@ -282,13 +352,13 @@ function MatrixView() {
 
   // Visible authority columns
   const visibleAuthoritys = useMemo(() =>
-    AUTHORITY_KEYS.filter((code: string) => authFilter.has(code))
-  , [authFilter, AUTHORITY_KEYS])
+    apiAuthorities.filter(authority => authFilter.has(authority.aviationAuthorityId))
+  , [authFilter, apiAuthorities])
 
   // Filtered staff
   const filteredStaff = useMemo(() => {
     const q = search.toLowerCase().trim()
-    return apiStaffRows.filter((s: any) => {
+    return apiStaffRows.filter(s => {
       // Search match
       if (q) {
         const nameMatch = s.staffName.toLowerCase().includes(q) || s.employeeId.toLowerCase().includes(q)
@@ -296,15 +366,15 @@ function MatrixView() {
       }
       // Status match — staff must have at least one visible authority cell matching
       if (statusFilter !== 'all') {
-        const hasStatus = visibleAuthoritys.some(code => {
-          const lic = s.licenses?.find((l: any) => l.authorityCode === code)
+        const hasStatus = visibleAuthoritys.some(authority => {
+          const lic = s.licenses?.find(l => l.aviationAuthorityId === authority.aviationAuthorityId)
           return mapApiStatus(lic?.status) === statusFilter
         })
         if (!hasStatus) return false
       }
       return true
     })
-  }, [apiStaffRows, search, statusFilter, visibleAuthoritys, version])
+  }, [apiStaffRows, search, statusFilter, visibleAuthoritys])
 
   const isFiltering = search !== '' || statusFilter !== 'all' || authFilter.size !== AUTHORITY_KEYS.length
 
@@ -392,33 +462,33 @@ function MatrixView() {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-0.5 max-h-[240px] overflow-y-auto">
-                {AUTHORITY_KEYS.map(code => {
-                  const localAuth = AUTHORITIES[code as keyof typeof AUTHORITIES] || { color: '#333' }
+                {apiAuthorities.map(authority => {
+                  const localAuth = AUTHORITIES[authority.code as keyof typeof AUTHORITIES] || { color: '#333' }
                   return (
                     <button
-                      key={code}
-                      onClick={() => toggleAuthority(code)}
+                      key={authority.aviationAuthorityId}
+                      onClick={() => toggleAuthority(authority.aviationAuthorityId)}
                       className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-all text-[11px] ${
-                        authFilter.has(code)
+                        authFilter.has(authority.aviationAuthorityId)
                           ? 'bg-primary/10 text-foreground font-semibold'
                           : 'text-muted-foreground hover:bg-muted/50'
                       }`}
                     >
                       <div
                         className={`w-3 h-3 rounded border-2 flex items-center justify-center transition-all ${
-                          authFilter.has(code)
+                          authFilter.has(authority.aviationAuthorityId)
                             ? 'border-primary bg-primary'
                             : 'border-slate-300 bg-white'
                         }`}
                       >
-                        {authFilter.has(code) && (
+                        {authFilter.has(authority.aviationAuthorityId) && (
                           <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                           </svg>
                         )}
                       </div>
                       <span className="w-1.5 h-1.5 rounded-full" style={{ background: localAuth.color }} />
-                      {code}
+                      {authority.code}
                     </button>
                   )
                 })}
@@ -453,16 +523,16 @@ function MatrixView() {
                 <th className="px-3 py-2 text-left text-muted-foreground font-bold whitespace-nowrap sticky left-0 bg-slate-50 z-10 border-r border-border" style={{ minWidth: 200 }}>
                   Staff
                 </th>
-                {visibleAuthoritys.map((code: string) => {
-                  const localAuth = AUTHORITIES[code as keyof typeof AUTHORITIES] || { name: code, color: '#333' }
+                {visibleAuthoritys.map(authority => {
+                  const localAuth = AUTHORITIES[authority.code as keyof typeof AUTHORITIES] || { color: '#333' }
                   return (
                     <th
-                      key={code}
+                      key={authority.aviationAuthorityId}
                       className="px-1 py-2 text-center font-bold border-l border-border"
                       style={{ minWidth: 90 }}
-                      title={localAuth.name}
+                      title={authority.name}
                     >
-                      <div className="text-[10px] leading-snug font-bold" style={{ color: localAuth.color }}>{code}</div>
+                      <div className="text-[10px] leading-snug font-bold" style={{ color: localAuth.color }}>{authority.code}</div>
                       <div className="text-[9px] text-muted-foreground/60 font-medium">Auth</div>
                     </th>
                   )
@@ -470,7 +540,7 @@ function MatrixView() {
               </tr>
             </thead>
             <tbody>
-              {filteredStaff.map((s: any, ri: number) => {
+              {filteredStaff.map((s, ri) => {
                 return (
                   <tr
                     key={s.staffId}
@@ -480,17 +550,9 @@ function MatrixView() {
                     {/* Sticky Staff Column */}
                     <td className={`px-3 py-1.5 sticky left-0 z-10 border-r border-border transition-colors group-hover:bg-slate-100 ${ri % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
                       <div className="flex items-center gap-2">
-                        {s.profileImagePath ? (
-                          <img
-                            src={s.profileImagePath}
-                            alt={s.staffName}
-                            className="w-6 h-6 rounded-full object-cover shrink-0"
-                          />
-                        ) : (
-                          <div className="w-6 h-6 rounded-full flex items-center justify-center bg-slate-200 shrink-0">
-                            <User className="w-3.5 h-3.5 text-slate-400" />
-                          </div>
-                        )}
+                        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-100 text-slate-500">
+                          <User className="h-3.5 w-3.5" />
+                        </div>
                         <div>
                           <p className="text-xs font-semibold text-foreground leading-tight truncate" style={{ maxWidth: 160 }}>{s.staffName}</p>
                           <p className="text-[10px] font-bold text-slate-400">{s.employeeId}</p>
@@ -498,19 +560,19 @@ function MatrixView() {
                       </div>
                     </td>
                     {/* Customer Auth Cells — dot style */}
-                    {visibleAuthoritys.map((code: string) => {
-                      const licenseItem = s.licenses?.find((l: any) => l.authorityCode === code)
+                    {visibleAuthoritys.map(authority => {
+                      const licenseItem = s.licenses?.find(l => l.aviationAuthorityId === authority.aviationAuthorityId)
                       const val = mapApiStatus(licenseItem?.status)
                       
                       const meta = CUST_STATUS_META[val] || CUST_STATUS_META.pending
                       return (
                         <td
-                          key={code}
+                          key={authority.aviationAuthorityId}
                           className="text-center border-l border-border/50 cursor-pointer transition-all duration-150 group/cell hover:bg-muted/60"
                           style={{ padding: '6px 4px', minWidth: 45, position: 'relative' }}
-                          onMouseEnter={(e) => handleCellEnter(e, s, code, val, licenseItem)}
+                          onMouseEnter={(e) => handleCellEnter(e, s, authority, val, licenseItem)}
                           onMouseLeave={handleCellLeave}
-                          onClick={() => handleCellClick(s, code, val, licenseItem)}
+                          onClick={() => handleCellClick(s, authority, val, licenseItem)}
                         >
                           {/* Background layer with opacity */}
                           <div className="absolute inset-0 transition-opacity duration-150 opacity-40 group-hover/cell:opacity-70" style={{ background: meta.bg }} />
@@ -597,16 +659,27 @@ function MatrixView() {
 
       {/* Edit Modal */}
       <Dialog open={!!selectedCell} onOpenChange={(open) => !open && setSelectedCell(null)}>
-        <DialogContent size="md" className="max-w-md p-0 overflow-hidden border-border/60 shadow-2xl">
+        <DialogContent
+          size="md"
+          className="max-h-[92vh] w-[94vw] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden border-border/60 p-0 shadow-2xl md:max-w-[996px] [&>button]:right-4 [&>button]:top-4 [&>button]:rounded-md [&>button]:border [&>button]:border-slate-200 [&>button]:bg-white [&>button]:p-2"
+        >
           {selectedCell && (
             <>
-              <div className="px-5 pt-5 pb-4 border-b border-border/60 bg-slate-50/50">
-                <div className="flex items-center justify-between mb-1">
-                  <DialogTitle className="text-lg font-bold text-slate-800">
-                    {selectedCell.staff.staffName}
-                  </DialogTitle>
+              <div className="border-b border-slate-200 bg-white px-5 py-4 pr-16">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-indigo-600 text-white shadow-sm">
+                    <FileText className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <DialogTitle className="truncate text-lg font-bold text-slate-800">
+                      {selectedCell.staff.staffName}
+                    </DialogTitle>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">
+                      {selectedCell.staff.employeeId} • License {selectedCell.licenseItem?.aviationAuthorityLicense?.licenseNo || '—'}
+                    </p>
+                  </div>
                   <span
-                    className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-bold shadow-sm"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold"
                     style={{
                       background: (CUST_STATUS_META[selectedCell.status] || CUST_STATUS_META.pending).bg,
                       color: (CUST_STATUS_META[selectedCell.status] || CUST_STATUS_META.pending).text
@@ -616,47 +689,131 @@ function MatrixView() {
                     {(CUST_STATUS_META[selectedCell.status] || CUST_STATUS_META.pending).label}
                   </span>
                 </div>
-                <p className="text-xs font-semibold text-slate-500">
-                  {selectedCell.staff.employeeId} • License {selectedCell.licenseItem?.aviationAuthorityLicense?.licenseNo || '—'}
-                </p>
               </div>
 
-              <div className="px-5 py-4 space-y-4">
-                {/* Details List */}
-                <div className="space-y-2 text-sm bg-white rounded-lg border border-border/50 p-4 shadow-sm">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-muted-foreground font-bold text-xs">Authority</span>
-                    <span className="font-bold text-lg leading-tight" style={{ color: AUTHORITIES[selectedCell.authCode as keyof typeof AUTHORITIES]?.color || '#333' }}>
-                      {selectedCell.authCode} — {AUTHORITIES[selectedCell.authCode as keyof typeof AUTHORITIES]?.name || selectedCell.authCode}
-                    </span>
+              <div className="min-h-0 space-y-3 overflow-y-auto bg-slate-50/40 px-5 py-4">
+                {/* Authority summary */}
+                <section className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                    <Globe2 className="h-6 w-6" />
                   </div>
-                </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-500">Authority</p>
+                    <p className="truncate text-lg font-bold text-slate-800">
+                      {selectedCell.authCode} — {selectedCell.authorityName}
+                    </p>
+                  </div>
+                </section>
 
                 {/* Edit Form */}
-                <div className="pt-2">
-                  <div className="grid grid-cols-12 gap-5">
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
                     {/* Left Column: Dates */}
-                    <div className="space-y-4 col-span-4">
-                      <div>
-                        <label className="text-xs font-bold text-slate-700 mb-1.5 block">Date of Initial Issue</label>
-                        <input type="date" value={editInitDate} onChange={e => setEditInitDate(e.target.value)} className="w-full bg-white font-semibold text-sm border border-border/60 rounded-md px-3 py-1.5 focus:outline-none focus:border-blue-500" />
+                    <section className="rounded-xl bg-slate-100/80 p-3 lg:col-span-4">
+                      <div className="mb-3 flex items-center gap-2">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                          <CalendarDays className="h-4 w-4" />
+                        </span>
+                        <h3 className="text-xs font-bold text-slate-700">License Dates</h3>
                       </div>
-                      <div>
-                        <label className="text-xs font-bold text-slate-700 mb-1.5 block">Date of Current Issue</label>
-                        <input type="date" value={editCurrDate} onChange={e => setEditCurrDate(e.target.value)} className="w-full bg-white font-semibold text-sm border border-border/60 rounded-md px-3 py-1.5 focus:outline-none focus:border-blue-500" />
+                      <div className="space-y-2">
+                        <label className={cn(
+                          "block rounded-lg border bg-white px-3 py-2.5 shadow-sm",
+                          showDateValidation && licenseDateErrors.initialIssueDate ? "border-red-400 ring-1 ring-red-100" : "border-slate-200",
+                        )}>
+                          <span className="block text-[10px] font-semibold text-slate-500">Date of Initial Issue</span>
+                          <input
+                            type="date"
+                            required
+                            value={editInitDate}
+                            onChange={event => setEditInitDate(event.target.value)}
+                            aria-invalid={showDateValidation && Boolean(licenseDateErrors.initialIssueDate)}
+                            aria-describedby={showDateValidation && licenseDateErrors.initialIssueDate ? 'authority-initial-issue-date-error' : undefined}
+                            className={cn(
+                              "mt-1 w-full rounded bg-transparent text-sm font-bold text-slate-800 outline-none",
+                              showDateValidation && licenseDateErrors.initialIssueDate && "text-red-700",
+                            )}
+                          />
+                          {showDateValidation && licenseDateErrors.initialIssueDate && (
+                            <span id="authority-initial-issue-date-error" className="mt-1 block text-[10px] font-medium text-red-600">
+                              {licenseDateErrors.initialIssueDate}
+                            </span>
+                          )}
+                        </label>
+                        <label className={cn(
+                          "block rounded-lg border bg-white px-3 py-2.5 shadow-sm",
+                          showDateValidation && licenseDateErrors.currentIssueDate ? "border-red-400 ring-1 ring-red-100" : "border-slate-200",
+                        )}>
+                          <span className="block text-[10px] font-semibold text-slate-500">Date of Current Issue</span>
+                          <input
+                            type="date"
+                            required
+                            value={editCurrDate}
+                            onChange={event => setEditCurrDate(event.target.value)}
+                            aria-invalid={showDateValidation && Boolean(licenseDateErrors.currentIssueDate)}
+                            aria-describedby={showDateValidation && licenseDateErrors.currentIssueDate ? 'authority-current-issue-date-error' : undefined}
+                            className={cn(
+                              "mt-1 w-full rounded bg-transparent text-sm font-bold text-slate-800 outline-none",
+                              showDateValidation && licenseDateErrors.currentIssueDate && "text-red-700",
+                            )}
+                          />
+                          {showDateValidation && licenseDateErrors.currentIssueDate && (
+                            <span id="authority-current-issue-date-error" className="mt-1 block text-[10px] font-medium text-red-600">
+                              {licenseDateErrors.currentIssueDate}
+                            </span>
+                          )}
+                        </label>
+                        <label className={cn(
+                          "block rounded-lg border bg-white px-3 py-2.5 shadow-sm",
+                          showDateValidation && licenseDateErrors.expiryDate ? "border-red-400 ring-1 ring-red-100" : "border-slate-200",
+                        )}>
+                          <span className="block text-[10px] font-semibold text-slate-500">Date of Expire</span>
+                          <input
+                            type="date"
+                            required
+                            value={editSamsExp}
+                            onChange={event => setEditSamsExp(event.target.value)}
+                            aria-invalid={showDateValidation && Boolean(licenseDateErrors.expiryDate)}
+                            aria-describedby={showDateValidation && licenseDateErrors.expiryDate ? 'authority-expiry-date-error' : undefined}
+                            className={cn(
+                              "mt-1 w-full rounded bg-transparent text-sm font-bold text-slate-800 outline-none",
+                              showDateValidation && licenseDateErrors.expiryDate && "text-red-700",
+                            )}
+                          />
+                          {showDateValidation && licenseDateErrors.expiryDate && (
+                            <span id="authority-expiry-date-error" className="mt-1 block text-[10px] font-medium text-red-600">
+                              {licenseDateErrors.expiryDate}
+                            </span>
+                          )}
+                        </label>
                       </div>
-                      <div>
-                        <label className="text-xs font-bold text-slate-700 mb-1.5 block">Date of Expire</label>
-                        <input type="date" value={editSamsExp} onChange={e => setEditSamsExp(e.target.value)} className="w-full bg-white font-semibold text-sm border border-border/60 rounded-md px-3 py-1.5 focus:outline-none focus:border-blue-500" />
-                      </div>
-                    </div>
+                    </section>
 
                     {/* Right Column: Aircraft checkboxes */}
-                    <div className="col-span-8 flex flex-col h-[208px]">
-                      <label className="text-xs font-bold text-slate-700 mb-1.5 block">Aircraft</label>
-                      <div className="flex-1 bg-white border border-border/60 rounded-md p-1.5 overflow-y-auto">
+                    <section className="flex min-h-[248px] flex-col rounded-xl border border-slate-200 bg-white p-3 lg:col-span-8">
+                      <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                            <Plane className="h-4 w-4" />
+                          </span>
+                          <h3 className="text-xs font-bold text-slate-700">Aircraft License</h3>
+                        </div>
+                        <div className="relative w-full sm:w-56">
+                          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                          <input
+                            type="search"
+                            value={aircraftLicenseSearch}
+                            onChange={event => setAircraftLicenseSearch(event.target.value)}
+                            placeholder="Search license..."
+                            className="h-8 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs outline-none transition-colors focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
+                      <div className={cn(
+                        "min-h-0 flex-1 overflow-y-auto rounded-lg border p-1.5",
+                        showAircraftValidation && aircraftValidationError ? "border-red-400 ring-1 ring-red-100" : "border-slate-200",
+                      )}>
                         <div className="space-y-0.5 pr-1">
-                          {aircraftOptions.map((opt: any) => {
+                          {filteredAircraftOptions.map(opt => {
                             const isSelected = editRating.has(opt.name)
                             return (
                               <button
@@ -686,10 +843,15 @@ function MatrixView() {
                               </button>
                             )
                           })}
+                          {filteredAircraftOptions.length === 0 && (
+                            <p className="px-3 py-8 text-center text-xs text-slate-400">No aircraft licenses found</p>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  </div>
+                      {showAircraftValidation && aircraftValidationError && (
+                        <p className="mt-1.5 text-[10px] font-medium text-red-600">{aircraftValidationError}</p>
+                      )}
+                    </section>
                 </div>
               </div>
 
@@ -700,9 +862,34 @@ function MatrixView() {
                     <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
                       <Button
                         color="destructive"
-                        onClick={() => {
-                          toast.info('Not implemented: Upsert authority auth API is required.')
-                          setSelectedCell(null)
+                        disabled={upsertMutation.isPending || detailQuery.isFetching}
+                        onClick={async () => {
+                          if (!notApprovedStatusId) {
+                            toast.error('Not Approved status is unavailable')
+                            return
+                          }
+                          const license = selectedCell.licenseItem?.aviationAuthorityLicense
+                          const aircraftTypeLicenseIds = Array.from(editRating)
+                            .map(rating => aircraftOptions.find(option => option.name === rating || option.code === rating)?.id ?? 0)
+                            .filter(id => id > 0)
+                          try {
+                            await upsertMutation.mutateAsync({
+                              id: license?.id ?? 0,
+                              staffId: selectedCell.staff.staffId,
+                              aviationAuthorityId: selectedCell.licenseItem?.aviationAuthorityId ?? 0,
+                              licenseNo: detailQuery.data?.responseData.licenseNo ?? license?.licenseNo ?? null,
+                              licenseLevel: detailQuery.data?.responseData.licenseLevel ?? license?.licenseLevel ?? null,
+                              initialIssueDate: editInitDate || null,
+                              currentIssueDate: editCurrDate || null,
+                              expireDate: editSamsExp || null,
+                              aircraftTypeLicenseIds,
+                              authorizationStatusId: notApprovedStatusId,
+                            })
+                            toast.success('Authority authorization rejected successfully')
+                            setSelectedCell(null)
+                          } catch {
+                            toast.error('Failed to reject authority authorization')
+                          }
                         }}
                       >
                         Not Approved
@@ -712,14 +899,41 @@ function MatrixView() {
 
                   {/* Right: Cancel + Save */}
                   <div className="flex items-center gap-2">
-                    <Button variant="outline" onClick={() => setSelectedCell(null)} className="font-bold">
+                    <Button variant="outline" onClick={() => setSelectedCell(null)} className="font-bold" disabled={upsertMutation.isPending}>
                       Cancel
                     </Button>
                     <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
                       <Button
-                        onClick={() => {
-                          toast.info('Not implemented: Upsert authority auth API is required.')
-                          setSelectedCell(null)
+                        disabled={upsertMutation.isPending || detailQuery.isFetching}
+                        onClick={async () => {
+                          setShowDateValidation(true)
+                          setShowAircraftValidation(true)
+                          if (hasLicenseDateErrors || aircraftValidationError) {
+                            toast.error('Please complete the required license information')
+                            return
+                          }
+                          const license = selectedCell.licenseItem?.aviationAuthorityLicense
+                          const aircraftTypeLicenseIds = Array.from(editRating)
+                            .map(rating => aircraftOptions.find(option => option.name === rating || option.code === rating)?.id ?? 0)
+                            .filter(id => id > 0)
+                          try {
+                            await upsertMutation.mutateAsync({
+                              id: license?.id ?? 0,
+                              staffId: selectedCell.staff.staffId,
+                              aviationAuthorityId: selectedCell.licenseItem?.aviationAuthorityId ?? 0,
+                              licenseNo: detailQuery.data?.responseData.licenseNo ?? license?.licenseNo ?? null,
+                              licenseLevel: detailQuery.data?.responseData.licenseLevel ?? license?.licenseLevel ?? null,
+                              initialIssueDate: editInitDate || null,
+                              currentIssueDate: editCurrDate || null,
+                              expireDate: editSamsExp || null,
+                              aircraftTypeLicenseIds,
+                              authorizationStatusId: license?.authorizationStatusId ?? validStatusId,
+                            })
+                            toast.success('Authority authorization updated successfully')
+                            setSelectedCell(null)
+                          } catch {
+                            toast.error('Failed to update authority authorization')
+                          }
                         }}
                         className="font-bold bg-blue-600 hover:bg-blue-700 text-white"
                       >

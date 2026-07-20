@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState, useRef, useCallback, useEffect } from 'react'
-import { ChevronDown, ChevronLeft, ChevronRight, Search, Filter, X, User, Loader2 } from 'lucide-react'
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, FileText, Filter, Loader2, Plane, Search, ShieldCheck, User, X } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -25,11 +25,16 @@ import {
 } from "@/components/ui/pagination"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import { STAFF } from '../../data-v2'
 import { SAMS_STATUS_META, CUST_STATUS_META } from '../../types-v2'
 import type { CustomerAuthValue, Staff, AirlineKey } from '../../types-v2'
 import { useAirlines } from '@/lib/api/master/airlines/airlines.hooks'
-import { useCustomerAuthList, useUpdateCustomerAuth, useCustomerAuthById } from '@/lib/api/qa/authorization/customer-auth.hooks'
+import { useCustomerAuthList, useCustomerAuthRecords, useUpdateCustomerAuth } from '@/lib/api/qa/authorization/customer-auth.hooks'
 import { getSamsStatus } from '../../utils'
 import { cn } from '@/lib/utils'
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
@@ -38,25 +43,58 @@ import { toast } from "sonner"
 
 import { useDebounce } from '@/hooks/useDebounce'
 import { useAircraftTypeLicenses } from "@/lib/api/master/aircraft-type-licenses.hooks"
+import { useStaffAuthorizationAirlineStatuses } from '@/lib/api/master/staff-authorization/staff-authorization-airline-statuses.hooks'
+import type { StaffAuthorizationAirlineStatus } from '@/lib/api/master/staff-authorization/staff-authorization-airline-statuses'
+import { buildCustomerAuthRecordMap, formatCustomerAuthDate, getCustomerAuthCellData, getCustomerAuthCellKey, getCustomerAuthDateValue, getCustomerAuthPageItems, mapCustomerAuthStatus, resolveCustomerAuthAircrafts, resolveCustomerAuthCell, shouldShowCustomerAuthDates } from '@/lib/api/qa/authorization/customer-auth.utils'
 
 // ─── Date Formatting Helper ─────────────────────────────────────────────────
 
-function formatShortDate(iso: string): string {
-  if (!iso) return '—'
-  const parts = iso.split('-')
-  if (parts.length !== 3) return iso
-  const [y, m, d] = parts
-  return `${d}/${m}/${y.slice(2)}`
-}
-
 function getDaysRemaining(expDateIso: string): number | null {
-  if (!expDateIso) return null
-  const exp = new Date(expDateIso)
+  const dateValue = getCustomerAuthDateValue(expDateIso)
+  if (!dateValue) return null
+  const [year, month, day] = dateValue.split('-').map(Number)
+  const exp = new Date(year, month - 1, day)
   const now = new Date()
   now.setHours(0, 0, 0, 0)
   exp.setHours(0, 0, 0, 0)
   const diff = exp.getTime() - now.getTime()
   return Math.ceil(diff / (1000 * 60 * 60 * 24))
+}
+
+type LicenseDateErrors = Partial<Record<'initialIssueDate' | 'currentIssueDate' | 'expiryDate', string>>
+
+function isValidCalendarDate(value: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!match) return false
+
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const date = new Date(Date.UTC(year, month - 1, day))
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+}
+
+function validateLicenseDates(initialIssueDate: string, currentIssueDate: string, expiryDate: string): LicenseDateErrors {
+  const errors: LicenseDateErrors = {}
+
+  if (!initialIssueDate) errors.initialIssueDate = 'Date of Initial Issue is required'
+  else if (!isValidCalendarDate(initialIssueDate)) errors.initialIssueDate = 'Date of Initial Issue is invalid'
+
+  if (!currentIssueDate) errors.currentIssueDate = 'Date of Current Issue is required'
+  else if (!isValidCalendarDate(currentIssueDate)) errors.currentIssueDate = 'Date of Current Issue is invalid'
+
+  if (!expiryDate) errors.expiryDate = 'Date of Expire is required'
+  else if (!isValidCalendarDate(expiryDate)) errors.expiryDate = 'Date of Expire is invalid'
+
+  if (!errors.initialIssueDate && !errors.currentIssueDate && currentIssueDate < initialIssueDate) {
+    errors.currentIssueDate = 'Current Issue must be on or after Initial Issue'
+  }
+
+  if (!errors.currentIssueDate && !errors.expiryDate && expiryDate < currentIssueDate) {
+    errors.expiryDate = 'Expire must be on or after Current Issue'
+  }
+
+  return errors
 }
 
 // ─── Hover Tooltip for Matrix Cell ──────────────────────────────────────────
@@ -75,6 +113,9 @@ interface TooltipInfo {
 function CellTooltip({ info }: { info: TooltipInfo }) {
   const { staff, airlineCode, airlineName, airlineColor, status } = info
   const meta = CUST_STATUS_META[status]
+  const airlineAuthorization = staff.airlineStatuses?.find(item => item.airlineCode === airlineCode)
+  const cellData = getCustomerAuthCellData(airlineAuthorization)
+  const aircraftLicense = cellData.aircraftLabels.join(', ') || '—'
   const ref = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{ left: number; top: number }>({ left: info.x, top: info.y + 8 })
 
@@ -127,23 +168,19 @@ function CellTooltip({ info }: { info: TooltipInfo }) {
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">Date of Initial Issue</span>
-          <span className="font-semibold text-foreground">{formatShortDate(staff.initDate)}</span>
+          <span className="font-semibold text-foreground">{formatCustomerAuthDate(cellData.initialIssueDate)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">Date of Current Issue</span>
-          <span className="font-semibold text-foreground">{formatShortDate(staff.currDate)}</span>
+          <span className="font-semibold text-foreground">{formatCustomerAuthDate(cellData.currentIssueDate)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">Date of Expire</span>
-          <span className="font-semibold text-foreground">{formatShortDate(staff.samsExp)}</span>
+          <span className="font-semibold text-foreground">{formatCustomerAuthDate(cellData.expiryDate)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">Aircraft License</span>
-          <span className="font-semibold text-foreground text-right" style={{ maxWidth: 160 }}>{staff.rating.replace(/\n/g, ', ')}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">License</span>
-          <span className="font-semibold text-foreground">{staff.license}</span>
+          <span className="font-semibold text-foreground text-right" style={{ maxWidth: 160 }}>{aircraftLicense}</span>
         </div>
         {staff.note && (
           <div className="pt-1.5 mt-1 border-t border-border/50">
@@ -239,9 +276,12 @@ function MatrixView() {
   
   const [search, setSearch] = useState('')
   const [debouncedSearch] = useDebounce(search, 500)
-  const [statusFilter, setStatusFilter] = useState<CustomerAuthValue | 'all'>('all')
+  const [statusFilter, setStatusFilter] = useState<number | 'all'>('all')
 
   const { data: airlinesRes, isLoading: airlinesLoading } = useAirlines()
+  const { data: authorizationStatuses = [] } = useStaffAuthorizationAirlineStatuses()
+  const validStatusId = authorizationStatuses.find(status => status.code?.toUpperCase() === 'VAL')?.id || 0
+  const notApprovedStatusId = authorizationStatuses.find(status => status.code?.toUpperCase() === 'NAP')?.id || 0
   const apiAirlines = airlinesRes?.responseData || []
   
   const AIRLINE_KEYS = useMemo(() => apiAirlines.map(a => a.code), [apiAirlines])
@@ -257,50 +297,33 @@ function MatrixView() {
     return map
   }, [apiAirlines])
 
-  const { data: aircraftOptions = [] } = useAircraftTypeLicenses()
+  const { data: aircraftOptions = [], isLoading: aircraftOptionsLoading } = useAircraftTypeLicenses()
   const [selectedCell, setSelectedCell] = useState<{ staff: Staff, airlineCode: string, status: CustomerAuthValue } | null>(null)
   const [editInitDate, setEditInitDate] = useState('')
   const [editCurrDate, setEditCurrDate] = useState('')
   const [editSamsExp, setEditSamsExp] = useState('')
   const [editRating, setEditRating] = useState<Set<string>>(new Set())
+  const [aircraftLicenseSearch, setAircraftLicenseSearch] = useState('')
+  const [showDateValidation, setShowDateValidation] = useState(false)
   const [, setVersion] = useState(0)
   
   const updateAuthMutation = useUpdateCustomerAuth()
 
-  const currentSelectedStatusObj = selectedCell ? selectedCell.staff.airlineStatuses?.find(a => a.airlineCode === selectedCell.airlineCode) : null
-  
-  const detailRequest = useMemo(() => {
-    if (!selectedCell || !currentSelectedStatusObj?.airlineId || !selectedCell.staff.dbId) return null;
-    return {
-      staffId: selectedCell.staff.dbId,
-      airlineId: currentSelectedStatusObj.airlineId
-    };
-  }, [selectedCell, currentSelectedStatusObj]);
+  const filteredAircraftOptions = useMemo(() => {
+    const keyword = aircraftLicenseSearch.trim().toLowerCase()
+    if (!keyword) return aircraftOptions
+    return aircraftOptions.filter(option =>
+      option.name.toLowerCase().includes(keyword) || option.code.toLowerCase().includes(keyword)
+    )
+  }, [aircraftLicenseSearch, aircraftOptions])
 
-  const { data: detailRes, isLoading: detailLoading } = useCustomerAuthById(detailRequest)
-  useEffect(() => {
-    if (detailRes?.responseData && selectedCell) {
-      const detail = detailRes.responseData;
-      if (detail.initialIssueDate) setEditInitDate(detail.initialIssueDate.split('T')[0]);
-      else setEditInitDate('');
-      
-      if (detail.currentIssueDate) setEditCurrDate(detail.currentIssueDate.split('T')[0]);
-      else setEditCurrDate('');
-      
-      if (detail.expiryDate) setEditSamsExp(detail.expiryDate.split('T')[0]);
-      else setEditSamsExp('');
-      
-      if (detail.aircrafts) {
-        const optionNames = detail.aircrafts.map((a: any) => {
-          const match = aircraftOptions.find(opt => opt.id === a.aircraftTypeId);
-          return match ? match.name : (a.code || a.name);
-        });
-        setEditRating(new Set(optionNames));
-      } else {
-        setEditRating(new Set());
-      }
-    }
-  }, [detailRes, selectedCell, aircraftOptions])
+  const licenseDateErrors = useMemo(
+    () => validateLicenseDates(editInitDate, editCurrDate, editSamsExp),
+    [editCurrDate, editInitDate, editSamsExp],
+  )
+  const hasLicenseDateErrors = Object.keys(licenseDateErrors).length > 0
+
+  const currentSelectedStatusObj = selectedCell ? selectedCell.staff.airlineStatuses?.find(a => a.airlineCode === selectedCell.airlineCode) : null
 
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null)
   const [airlineFilter, setAirlineFilter] = useState<Set<string>>(new Set())
@@ -350,11 +373,30 @@ function MatrixView() {
   const handleCellLeave = useCallback(() => setTooltip(null), [])
 
   const handleCellClick = (staff: Staff, airlineCode: string, status: CustomerAuthValue) => {
+    if (authRecordsLoading) {
+      toast.info("Loading authorization records...")
+      return
+    }
+    if (authRecordsError) {
+      toast.error("Unable to load authorization record IDs")
+      return
+    }
+    if (aircraftOptionsLoading) {
+      toast.info("Loading aircraft licenses...")
+      return
+    }
+    const airlineAuthorization = staff.airlineStatuses?.find(item => item.airlineCode === airlineCode)
+    const cellData = getCustomerAuthCellData(airlineAuthorization)
     setSelectedCell({ staff, airlineCode, status })
-    setEditInitDate(staff.initDate)
-    setEditCurrDate(staff.currDate)
-    setEditSamsExp(staff.samsExp)
-    const ratings = staff.rating ? staff.rating.split(/\n/).map(r => r.trim()).filter(Boolean) : []
+    setEditInitDate(getCustomerAuthDateValue(cellData.initialIssueDate))
+    setEditCurrDate(getCustomerAuthDateValue(cellData.currentIssueDate))
+    setEditSamsExp(getCustomerAuthDateValue(cellData.expiryDate))
+    setAircraftLicenseSearch('')
+    setShowDateValidation(false)
+    const ratingsFromIds = (airlineAuthorization?.aircraftTypeIds || [])
+      .map(id => aircraftOptions.find(option => option.id === id)?.name)
+      .filter((name): name is string => Boolean(name))
+    const ratings = ratingsFromIds.length > 0 ? ratingsFromIds : cellData.aircraftLabels
     setEditRating(new Set(ratings))
     setTooltip(null) // Hide tooltip when opening modal
   }
@@ -370,16 +412,12 @@ function MatrixView() {
   const selectAllAirlines = () => setAirlineFilter(new Set(AIRLINE_KEYS))
   const deselectAllAirlines = () => setAirlineFilter(new Set([AIRLINE_KEYS[0]]))
 
-  // Convert statusFilter to API format
-  const apiStatus = useMemo(() => {
+  const apiStatus = statusFilter === 'all' ? null : statusFilter
+  const selectedStatusValue = useMemo(() => {
     if (statusFilter === 'all') return null
-    if (statusFilter === 'valid') return 'VAL'
-    if (statusFilter === 'not_approve') return 'NAP'
-    if (statusFilter === 'pending') return 'PEN'
-    if (statusFilter === 'not_complete') return 'NCP'
-    if (statusFilter === 'suspended') return 'SUS'
-    return null
-  }, [statusFilter])
+    const selectedStatus = authorizationStatuses.find(status => status.id === statusFilter)
+    return selectedStatus ? mapCustomerAuthStatus(selectedStatus.code) : null
+  }, [authorizationStatuses, statusFilter])
 
   // Fetch from API
   const { data: authRes, isLoading: authLoading, isFetching: authFetching } = useCustomerAuthList({
@@ -389,6 +427,14 @@ function MatrixView() {
     status: apiStatus,
     airlineId: null // We do column filtering on frontend instead of data filtering
   })
+  const { data: authRecordsRes, isLoading: authRecordsLoading, isError: authRecordsError } = useCustomerAuthRecords({
+    searchKeyword: debouncedSearch,
+    status: apiStatus,
+    airlineId: null,
+  })
+  const authorizationRecordByCell = useMemo(() => buildCustomerAuthRecordMap(
+    (authRecordsRes?.responseData || []).map(item => item.authorizationCustomer),
+  ), [authRecordsRes])
 
   const totalFiltered = authRes?.total ?? (authRes?.responseData?.length ?? 0)
   const totalPages = Math.ceil(totalFiltered / pageSize)
@@ -410,20 +456,38 @@ function MatrixView() {
   // Map API data to `Staff` format
   const mappedStaff: Staff[] = useMemo(() => {
     if (!authRes?.responseData) return []
-    return authRes.responseData.map((item, idx) => {
+    const pageItems = getCustomerAuthPageItems(authRes.responseData, page, pageSize)
+    return pageItems.map((item, idx) => {
       const custRecord: Partial<Record<AirlineKey, CustomerAuthValue>> = {}
-      item.airlineStatuses.forEach(as => {
-        let val: CustomerAuthValue = 'pending'
-        if (as.status === 'VAL') val = 'valid'
-        else if (as.status === 'NAP') val = 'not_approve'
-        // Add more mappings if needed
-        custRecord[as.airlineCode as AirlineKey] = val
+      const airlineStatuses = item.airlineStatuses.map(as => {
+        const authorizationRecord = authorizationRecordByCell.get(getCustomerAuthCellKey(item.staffId, as.airlineId))
+        const resolvedCell = resolveCustomerAuthCell(as, authorizationRecord)
+        const aircrafts = resolveCustomerAuthAircrafts(
+          as.aircrafts || [],
+          authorizationRecord?.authorizationCustomerAircraftTypeLicenses,
+          aircraftOptions,
+        )
+        const aircraftTypeIds = aircrafts
+          .map(item => item.aircraftTypeLicensId)
+          .filter((id): id is number => typeof id === 'number' && id > 0)
+        custRecord[as.airlineCode as AirlineKey] = mapCustomerAuthStatus(resolvedCell.status)
+        return {
+          ...as,
+          status: resolvedCell.status,
+          airlineStatus: as.airlineStatus || authorizationRecord?.authorizationStatus || null,
+          initialIssueDate: resolvedCell.initialIssueDate,
+          currentIssueDate: resolvedCell.currentIssueDate,
+          expiryDate: resolvedCell.expiryDate,
+          aircrafts,
+          authorizationRecordId: authorizationRecord?.authorizationCustomerId,
+          aircraftTypeIds,
+        }
       })
 
       return {
         no: idx + 1 + (page - 1) * pageSize,
         dbId: item.staffId || item.staff.id,
-        staffAuthorizationId: item.staffAuthorizationId,
+        staffAuthorizationId: item.id,
         id: item.staff.code || item.employeeId,
         name: item.employeeName,
         rating: '', // Missing in API
@@ -436,10 +500,10 @@ function MatrixView() {
         license: '',
         cust: custRecord,
         auth: {},
-        airlineStatuses: item.airlineStatuses,
+        airlineStatuses,
       }
     })
-  }, [authRes, page, pageSize])
+  }, [authRes, authorizationRecordByCell, aircraftOptions, page, pageSize])
 
   // Visible airline columns
   const visibleAirlines = useMemo(() =>
@@ -453,13 +517,13 @@ function MatrixView() {
       // API already filtered by search and status globally, 
       // but to strictly match frontend logic: if statusFilter is active, 
       // staff MUST have that status in one of the VISIBLE airline columns.
-      if (statusFilter !== 'all') {
-        const hasStatus = visibleAirlines.some(code => s.cust[code as AirlineKey] === statusFilter)
+      if (selectedStatusValue) {
+        const hasStatus = visibleAirlines.some(code => s.cust[code as AirlineKey] === selectedStatusValue)
         if (!hasStatus) return false
       }
       return true
     })
-  }, [mappedStaff, statusFilter, visibleAirlines])
+  }, [mappedStaff, selectedStatusValue, visibleAirlines])
 
   const isFiltering = search !== '' || statusFilter !== 'all' || airlineFilter.size !== AIRLINE_KEYS.length
 
@@ -468,15 +532,6 @@ function MatrixView() {
     setStatusFilter('all')
     setAirlineFilter(new Set(AIRLINE_KEYS))
   }
-
-  const statusOptions: { value: CustomerAuthValue | 'all'; label: string; dot?: string }[] = [
-    { value: 'all', label: 'All' },
-    { value: 'valid', label: 'Valid', dot: CUST_STATUS_META.valid.dot },
-    { value: 'not_approve', label: 'Not Approved', dot: CUST_STATUS_META.not_approve.dot },
-    { value: 'not_complete', label: 'Expiring', dot: CUST_STATUS_META.not_complete.dot },
-    { value: 'suspended', label: 'Expired', dot: CUST_STATUS_META.suspended.dot },
-    { value: 'pending', label: 'Pending', dot: CUST_STATUS_META.pending.dot },
-  ]
 
   return (
     <div className="space-y-3">
@@ -495,7 +550,10 @@ function MatrixView() {
         </div>
         {/* Status Filter Dropdown */}
         <div className="w-[180px]">
-          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as CustomerAuthValue | 'all')}>
+          <Select
+            value={statusFilter === 'all' ? 'all' : String(statusFilter)}
+            onValueChange={(value) => setStatusFilter(value === 'all' ? 'all' : Number(value))}
+          >
             <SelectTrigger className="bg-white border-border h-[32px] text-[11px] font-bold px-3">
               <div className="flex items-center gap-1.5">
                 <Filter className="w-3 h-3 text-muted-foreground" />
@@ -503,14 +561,20 @@ function MatrixView() {
               </div>
             </SelectTrigger>
             <SelectContent>
-              {statusOptions.map(opt => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  <div className="flex items-center gap-1.5 font-bold">
-                    {opt.dot && <span className="w-1.5 h-1.5 rounded-full" style={{ background: opt.dot }} />}
-                    {opt.label}
-                  </div>
-                </SelectItem>
-              ))}
+              <SelectItem value="all">
+                <div className="flex items-center gap-1.5 font-bold">All</div>
+              </SelectItem>
+              {authorizationStatuses.map((status: StaffAuthorizationAirlineStatus) => {
+                const statusMeta = CUST_STATUS_META[mapCustomerAuthStatus(status.code)]
+                return (
+                  <SelectItem key={status.id} value={String(status.id)}>
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: statusMeta.dot }} />
+                      {status.name}
+                    </div>
+                  </SelectItem>
+                )
+              })}
             </SelectContent>
           </Select>
         </div>
@@ -643,17 +707,9 @@ function MatrixView() {
                     {/* Sticky Staff Column */}
                     <td className={`px-3 py-1.5 sticky left-0 z-10 border-r border-border transition-colors group-hover:bg-slate-100 ${ri % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
                       <div className="flex items-center gap-2">
-                        {s.profileImage ? (
-                          <img
-                            src={s.profileImage}
-                            alt={s.name}
-                            className="w-6 h-6 rounded-full object-cover shrink-0"
-                          />
-                        ) : (
-                          <div className="w-6 h-6 rounded-full flex items-center justify-center bg-slate-200 shrink-0">
-                            <User className="w-3.5 h-3.5 text-slate-400" />
-                          </div>
-                        )}
+                        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-100 text-slate-500">
+                          <User className="h-3.5 w-3.5" />
+                        </div>
                         <div>
                           <p className="text-xs font-semibold text-foreground leading-tight truncate" style={{ maxWidth: 160 }}>{s.name}</p>
                           <p className="text-[10px] font-bold text-slate-400">{s.id}</p>
@@ -663,6 +719,8 @@ function MatrixView() {
                     {/* Customer Auth Cells — dot style */}
                     {visibleAirlines.map(code => {
                       const val = s.cust[code as AirlineKey] as CustomerAuthValue
+                      const airlineAuthorization = s.airlineStatuses?.find(item => item.airlineCode === code)
+                      const cellData = getCustomerAuthCellData(airlineAuthorization)
                       if (!val) {
                         return (
                           <td 
@@ -693,19 +751,17 @@ function MatrixView() {
                           {/* Background layer with opacity */}
                           <div className="absolute inset-0 transition-opacity duration-150 opacity-40 group-hover/cell:opacity-70" style={{ background: meta.bg }} />
                           <div className="relative z-1 flex flex-col items-center gap-0.5">
-                            {val === 'valid' ? (
-                              <>
-                                <div className="text-[8px] font-semibold leading-tight text-center whitespace-nowrap" style={{ color: meta.text }}>
-                                  <div className="flex items-center gap-0.5 justify-center">
-                                    <span className="text-muted-foreground/70">Curr:</span>
-                                    <span>{formatShortDate(s.currDate)}</span>
-                                  </div>
-                                  <div className="flex items-center gap-0.5 justify-center mt-px">
-                                    <span className="text-muted-foreground/70">Exp:</span>
-                                    <span>{formatShortDate(s.samsExp)}</span>
-                                  </div>
+                            {shouldShowCustomerAuthDates(val, cellData) ? (
+                              <div className="text-[8px] font-semibold leading-tight text-center whitespace-nowrap" style={{ color: meta.text }}>
+                                <div className="flex items-center gap-0.5 justify-center">
+                                  <span className="text-muted-foreground/70">Curr:</span>
+                                  <span>{formatCustomerAuthDate(cellData.currentIssueDate)}</span>
                                 </div>
-                              </>
+                                <div className="flex items-center gap-0.5 justify-center mt-px">
+                                  <span className="text-muted-foreground/70">Exp:</span>
+                                  <span>{formatCustomerAuthDate(cellData.expiryDate)}</span>
+                                </div>
+                              </div>
                             ) : val !== 'not_complete' ? (
                               <div
                                 className="w-2.5 h-2.5 rounded-full"
@@ -721,7 +777,7 @@ function MatrixView() {
                             <div className="relative z-1 text-[9px] font-bold mt-0.5 leading-none" style={{ color: meta.text }}>EXP</div>
                           )}
                           {val === 'not_complete' && (() => {
-                            const days = getDaysRemaining(s.samsExp)
+                            const days = getDaysRemaining(cellData.expiryDate)
                             return (
                               <div className="relative z-1 text-[9px] font-bold mt-0.5 leading-none text-center" style={{ color: meta.text }}>
                                 {days !== null && (
@@ -844,16 +900,27 @@ function MatrixView() {
 
       {/* Edit Modal */}
       <Dialog open={!!selectedCell} onOpenChange={(open) => !open && setSelectedCell(null)}>
-        <DialogContent size="md" className="max-w-md p-0 overflow-hidden border-border/60 shadow-2xl">
+        <DialogContent
+          size="md"
+          className="max-h-[92vh] w-[94vw] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden border-border/60 p-0 shadow-2xl md:max-w-[996px] [&>button]:right-4 [&>button]:top-4 [&>button]:rounded-md [&>button]:border [&>button]:border-slate-200 [&>button]:bg-white [&>button]:p-2"
+        >
           {selectedCell && (
             <>
-              <div className="px-5 pt-5 pb-4 border-b border-border/60 bg-slate-50/50">
-                <div className="flex items-center justify-between mb-1">
-                  <DialogTitle className="text-lg font-bold text-slate-800">
-                    {selectedCell.staff.name}
-                  </DialogTitle>
+              <div className="border-b border-slate-200 bg-white px-5 py-4 pr-16">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-indigo-600 text-white shadow-sm">
+                    <FileText className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <DialogTitle className="truncate text-lg font-bold text-slate-800">
+                      {selectedCell.staff.name}
+                    </DialogTitle>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">
+                      {selectedCell.staff.id} • License
+                    </p>
+                  </div>
                   <span
-                    className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-bold shadow-sm"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold"
                     style={{
                       background: CUST_STATUS_META[selectedCell.status].bg,
                       color: CUST_STATUS_META[selectedCell.status].text
@@ -863,47 +930,128 @@ function MatrixView() {
                     {CUST_STATUS_META[selectedCell.status].label}
                   </span>
                 </div>
-                <p className="text-xs font-semibold text-slate-500">
-                  {selectedCell.staff.id} • License {selectedCell.staff.license}
-                </p>
               </div>
 
-              <div className="px-5 py-4 space-y-4">
-                {/* Details List */}
-                <div className="space-y-2 text-sm bg-white rounded-lg border border-border/50 p-4 shadow-sm">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-muted-foreground font-bold text-xs">Airline</span>
-                    <span className="font-bold text-lg leading-tight" style={{ color: AIRLINES[selectedCell.airlineCode]?.color || '#333' }}>
+              <div className="min-h-0 space-y-3 overflow-y-auto bg-slate-50/40 px-5 py-4">
+                {/* Airline summary */}
+                <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                    <Plane className="h-6 w-6" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-500">Airline</p>
+                    <p className="truncate text-lg font-bold text-slate-800">
                       {selectedCell.airlineCode} — {AIRLINES[selectedCell.airlineCode]?.name || selectedCell.airlineCode}
-                    </span>
+                    </p>
                   </div>
                 </div>
 
                 {/* Edit Form */}
-                <div className="pt-2">
-                  <div className="grid grid-cols-12 gap-5">
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
                     {/* Left Column: Dates */}
-                    <div className="space-y-4 col-span-4">
-                      <div>
-                        <label className="text-xs font-bold text-slate-700 mb-1.5 block">Date of Initial Issue</label>
-                        <input type="date" value={editInitDate} onChange={e => setEditInitDate(e.target.value)} className="w-full bg-white font-semibold text-sm border border-border/60 rounded-md px-3 py-1.5 focus:outline-none focus:border-blue-500" />
+                    <section className="rounded-xl bg-slate-100/80 p-3 lg:col-span-4">
+                      <div className="mb-3 flex items-center gap-2">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                          <CalendarDays className="h-4 w-4" />
+                        </span>
+                        <h3 className="text-xs font-bold text-slate-700">License Dates</h3>
                       </div>
-                      <div>
-                        <label className="text-xs font-bold text-slate-700 mb-1.5 block">Date of Current Issue</label>
-                        <input type="date" value={editCurrDate} onChange={e => setEditCurrDate(e.target.value)} className="w-full bg-white font-semibold text-sm border border-border/60 rounded-md px-3 py-1.5 focus:outline-none focus:border-blue-500" />
+                      <div className="space-y-2">
+                        <label className={cn(
+                          "block rounded-lg border bg-white px-3 py-2.5 shadow-sm",
+                          showDateValidation && licenseDateErrors.initialIssueDate ? "border-red-400 ring-1 ring-red-100" : "border-slate-200",
+                        )}>
+                          <span className="block text-[10px] font-semibold text-slate-500">Date of Initial Issue</span>
+                          <input
+                            type="date"
+                            required
+                            value={editInitDate}
+                            onChange={e => setEditInitDate(e.target.value)}
+                            aria-invalid={showDateValidation && Boolean(licenseDateErrors.initialIssueDate)}
+                            aria-describedby={showDateValidation && licenseDateErrors.initialIssueDate ? 'initial-issue-date-error' : undefined}
+                            className={cn(
+                              "mt-1 w-full rounded bg-transparent text-sm font-bold text-slate-800 outline-none",
+                              showDateValidation && licenseDateErrors.initialIssueDate && "text-red-700",
+                            )}
+                          />
+                          {showDateValidation && licenseDateErrors.initialIssueDate && (
+                            <span id="initial-issue-date-error" className="mt-1 block text-[10px] font-medium text-red-600">
+                              {licenseDateErrors.initialIssueDate}
+                            </span>
+                          )}
+                        </label>
+                        <label className={cn(
+                          "block rounded-lg border bg-white px-3 py-2.5 shadow-sm",
+                          showDateValidation && licenseDateErrors.currentIssueDate ? "border-red-400 ring-1 ring-red-100" : "border-slate-200",
+                        )}>
+                          <span className="block text-[10px] font-semibold text-slate-500">Date of Current Issue</span>
+                          <input
+                            type="date"
+                            required
+                            value={editCurrDate}
+                            onChange={e => setEditCurrDate(e.target.value)}
+                            aria-invalid={showDateValidation && Boolean(licenseDateErrors.currentIssueDate)}
+                            aria-describedby={showDateValidation && licenseDateErrors.currentIssueDate ? 'current-issue-date-error' : undefined}
+                            className={cn(
+                              "mt-1 w-full rounded bg-transparent text-sm font-bold text-slate-800 outline-none",
+                              showDateValidation && licenseDateErrors.currentIssueDate && "text-red-700",
+                            )}
+                          />
+                          {showDateValidation && licenseDateErrors.currentIssueDate && (
+                            <span id="current-issue-date-error" className="mt-1 block text-[10px] font-medium text-red-600">
+                              {licenseDateErrors.currentIssueDate}
+                            </span>
+                          )}
+                        </label>
+                        <label className={cn(
+                          "block rounded-lg border bg-white px-3 py-2.5 shadow-sm",
+                          showDateValidation && licenseDateErrors.expiryDate ? "border-red-400 ring-1 ring-red-100" : "border-slate-200",
+                        )}>
+                          <span className="block text-[10px] font-semibold text-slate-500">Date of Expire</span>
+                          <input
+                            type="date"
+                            required
+                            value={editSamsExp}
+                            onChange={e => setEditSamsExp(e.target.value)}
+                            aria-invalid={showDateValidation && Boolean(licenseDateErrors.expiryDate)}
+                            aria-describedby={showDateValidation && licenseDateErrors.expiryDate ? 'expiry-date-error' : undefined}
+                            className={cn(
+                              "mt-1 w-full rounded bg-transparent text-sm font-bold text-slate-800 outline-none",
+                              showDateValidation && licenseDateErrors.expiryDate && "text-red-700",
+                            )}
+                          />
+                          {showDateValidation && licenseDateErrors.expiryDate && (
+                            <span id="expiry-date-error" className="mt-1 block text-[10px] font-medium text-red-600">
+                              {licenseDateErrors.expiryDate}
+                            </span>
+                          )}
+                        </label>
                       </div>
-                      <div>
-                        <label className="text-xs font-bold text-slate-700 mb-1.5 block">Date of Expire</label>
-                        <input type="date" value={editSamsExp} onChange={e => setEditSamsExp(e.target.value)} className="w-full bg-white font-semibold text-sm border border-border/60 rounded-md px-3 py-1.5 focus:outline-none focus:border-blue-500" />
-                      </div>
-                    </div>
+                    </section>
 
                     {/* Right Column: Aircraft checkboxes */}
-                    <div className="col-span-8 flex flex-col h-[208px]">
-                      <label className="text-xs font-bold text-slate-700 mb-1.5 block">Aircraft License</label>
-                      <div className="flex-1 bg-white border border-border/60 rounded-md p-1.5 overflow-y-auto">
+                    <section className="flex min-h-[248px] flex-col rounded-xl border border-slate-200 bg-white p-3 lg:col-span-8">
+                      <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                            <Plane className="h-4 w-4" />
+                          </span>
+                          <h3 className="text-xs font-bold text-slate-700">Aircraft License</h3>
+                        </div>
+                        <div className="relative w-full sm:w-56">
+                          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                          <input
+                            type="search"
+                            value={aircraftLicenseSearch}
+                            onChange={event => setAircraftLicenseSearch(event.target.value)}
+                            placeholder="Search license..."
+                            className="h-8 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs outline-none transition-colors focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
+                      <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-slate-200 p-1.5">
                         <div className="space-y-0.5 pr-1">
-                          {aircraftOptions.map(opt => {
+                          {filteredAircraftOptions.map(opt => {
                             const isSelected = editRating.has(opt.name)
                             return (
                               <button
@@ -933,24 +1081,65 @@ function MatrixView() {
                               </button>
                             )
                           })}
+                          {filteredAircraftOptions.length === 0 && (
+                            <p className="px-3 py-8 text-center text-xs text-slate-400">No aircraft licenses found</p>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  </div>
+                    </section>
                 </div>
 
                 {/* CR-6: read-only reference to the authorization group(s) in scope */}
                 {editRating.size > 0 && (
-                  <div className="pt-3">
-                    <span className="text-xs font-bold text-slate-700 mb-1.5 block">
-                      Authorization group reference ({editRating.size})
-                    </span>
-                    <div className="grid gap-2 sm:grid-cols-2 max-h-64 overflow-y-auto pr-1">
+                  <section className="rounded-xl border border-slate-200 bg-white p-3">
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                        <ShieldCheck className="h-4 w-4" />
+                      </span>
+                      <h3 className="text-xs font-bold text-slate-700">
+                        Authorization group reference ({editRating.size})
+                      </h3>
+                    </div>
+
+                    <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
                       {Array.from(editRating).map((scope) => (
-                        <AircraftEngineRefPanel key={scope} context="authorization" refId={scope} />
+                        <Collapsible
+                          key={scope}
+                          defaultOpen
+                          className="overflow-hidden rounded-xl border border-slate-200 bg-white"
+                        >
+                          <CollapsibleTrigger asChild>
+                            <button
+                              type="button"
+                              className="flex w-full items-center gap-2 bg-blue-50/70 px-4 py-3 text-left transition-colors hover:bg-blue-50 [&[data-state=open]>svg]:rotate-180"
+                            >
+                              <span className="h-2 w-2 shrink-0 rounded-full bg-blue-600" aria-hidden="true" />
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-xs font-bold text-slate-800">
+                                  Authorization type group — อ้างอิง
+                                </span>
+                                <span className="mt-0.5 block truncate text-[10px] font-medium text-slate-500">
+                                  {scope}
+                                </span>
+                              </span>
+                              <span className="shrink-0 rounded-md bg-slate-200/70 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-slate-500">
+                                Read-only
+                              </span>
+                              <ChevronDown className="h-4 w-4 shrink-0 text-slate-500 transition-transform" />
+                            </button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="overflow-hidden border-t border-blue-100 data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
+                            <AircraftEngineRefPanel
+                              context="authorization"
+                              refId={scope}
+                              hideHeader
+                              className="rounded-none border-0"
+                            />
+                          </CollapsibleContent>
+                        </Collapsible>
                       ))}
                     </div>
-                  </div>
+                  </section>
                 )}
               </div>
 
@@ -961,20 +1150,31 @@ function MatrixView() {
                     <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
                       <Button
                         color="destructive"
-                        disabled={updateAuthMutation.isPending}
+                        disabled={updateAuthMutation.isPending || authRecordsLoading}
                         onClick={async () => {
+                          setShowDateValidation(true)
+                          if (hasLicenseDateErrors) {
+                            toast.error("Please correct the license dates before continuing")
+                            return
+                          }
                           try {
                             const currentStatusObj = selectedCell.staff.airlineStatuses?.find(a => a.airlineCode === selectedCell.airlineCode)
-                            // We don't have a master list of status IDs, so we send 0 or a known hardcoded ID if available.
-                            // Assuming the backend handles 0 or needs to be updated later for "Not Approved".
+                            if (!notApprovedStatusId) {
+                              toast.error("Not Approved status is unavailable")
+                              return
+                            }
+                            if (currentStatusObj?.status?.trim() && !currentStatusObj.authorizationRecordId) {
+                              toast.error("Customer authorization record ID is unavailable")
+                              return
+                            }
                             await updateAuthMutation.mutateAsync({
-                              id: selectedCell.staff.staffAuthorizationId || 0,
+                              id: currentStatusObj?.authorizationRecordId || 0,
                               staffId: selectedCell.staff.dbId || 0,
                               airlineId: currentStatusObj?.airlineId || apiAirlines.find(a => a.code === selectedCell.airlineCode)?.id || 0,
-                              staffAuthorizationAirlineStatusId: 0, // Placeholder for "NAP" status ID
-                              initialIssueDate: editInitDate,
-                              currentIssueDate: editCurrDate,
-                              expiryDate: editSamsExp,
+                              authorizationStatusId: notApprovedStatusId,
+                              initialIssueDate: getCustomerAuthDateValue(editInitDate),
+                              currentIssueDate: getCustomerAuthDateValue(editCurrDate),
+                              expiryDate: getCustomerAuthDateValue(editSamsExp),
                               aircraftTypeIds: []
                             })
                             toast.success("Authorization rejected successfully")
@@ -997,23 +1197,37 @@ function MatrixView() {
                     </Button>
                     <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
                       <Button
-                        disabled={updateAuthMutation.isPending}
+                        disabled={updateAuthMutation.isPending || authRecordsLoading}
                         onClick={async () => {
+                          setShowDateValidation(true)
+                          if (hasLicenseDateErrors) {
+                            toast.error("Please correct the license dates before saving")
+                            return
+                          }
                           try {
                             const currentStatusObj = selectedCell.staff.airlineStatuses?.find(a => a.airlineCode === selectedCell.airlineCode)
+                            const authorizationStatusId = currentStatusObj?.airlineStatus?.id || validStatusId
+                            if (!authorizationStatusId) {
+                              toast.error("Authorization status is unavailable")
+                              return
+                            }
+                            if (currentStatusObj?.status?.trim() && !currentStatusObj.authorizationRecordId) {
+                              toast.error("Customer authorization record ID is unavailable")
+                              return
+                            }
                             const aircraftIds = Array.from(editRating).map(ratingStr => {
                               const found = aircraftOptions.find(o => o.code === ratingStr || o.name === ratingStr)
                               return found?.id || 0
                             }).filter(id => id > 0)
 
                             await updateAuthMutation.mutateAsync({
-                              id: selectedCell.staff.staffAuthorizationId || 0,
+                              id: currentStatusObj?.authorizationRecordId || 0,
                               staffId: selectedCell.staff.dbId || 0,
                               airlineId: currentStatusObj?.airlineId || apiAirlines.find(a => a.code === selectedCell.airlineCode)?.id || 0,
-                              staffAuthorizationAirlineStatusId: currentStatusObj?.airlineStatus?.id || 0,
-                              initialIssueDate: editInitDate,
-                              currentIssueDate: editCurrDate,
-                              expiryDate: editSamsExp,
+                              authorizationStatusId,
+                              initialIssueDate: getCustomerAuthDateValue(editInitDate),
+                              currentIssueDate: getCustomerAuthDateValue(editCurrDate),
+                              expiryDate: getCustomerAuthDateValue(editSamsExp),
                               aircraftTypeIds: aircraftIds
                             })
                             toast.success("Customer authorization updated successfully")

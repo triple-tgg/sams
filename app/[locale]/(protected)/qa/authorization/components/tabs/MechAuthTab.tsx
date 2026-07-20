@@ -8,22 +8,6 @@ import { useQAStaffList } from '@/lib/api/hooks/useQAStaffManagement'
 import { QAStaffItem } from '@/lib/api/qa/staff-management'
 import useDebounce from '@/hooks/useDebounce'
 
-// ── Avatar helper ────────────────────────────────────────────────────────────
-function getInitials(name: string) {
-    const parts = name.replace(/^(Mr\.|Mrs\.|Ms\.)\s*/i, '').trim().split(/\s+/)
-    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-    return (parts[0]?.[0] || '?').toUpperCase()
-}
-
-const AVATAR_COLORS = [
-    'bg-blue-500', 'bg-indigo-500', 'bg-violet-500', 'bg-pink-500',
-    'bg-rose-500', 'bg-amber-500', 'bg-emerald-500', 'bg-teal-500',
-    'bg-cyan-500', 'bg-sky-500',
-]
-function getAvatarColor(id: number) {
-    return AVATAR_COLORS[id % AVATAR_COLORS.length]
-}
-
 // ─── Main Component ──────────────────────────────────────────────────────────
 export function MechAuthTab() {
     const [mech1, setMech1] = useState<QAStaffItem[]>([])
@@ -92,8 +76,8 @@ export function MechAuthTab() {
                                 className="flex items-center gap-3 p-2.5 bg-white border rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-md transition-all"
                             >
                                 {/* Avatar */}
-                                <div className={`w-12 h-12 rounded-full ${getAvatarColor(staff.id)} flex items-center justify-center text-white text-sm font-bold shrink-0 shadow-sm`}>
-                                    {getInitials(staff.name)}
+                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-slate-500">
+                                    <User className="h-6 w-6" />
                                 </div>
 
                                 {/* Info */}
@@ -155,8 +139,8 @@ export function MechAuthTab() {
                                 className="flex items-center gap-3 p-3 bg-white border border-blue-100 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] group hover:shadow-md transition-all"
                             >
                                 {/* Avatar */}
-                                <div className={`w-10 h-10 rounded-full ${getAvatarColor(staff.id)} flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-sm`}>
-                                    {getInitials(staff.name)}
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-slate-500">
+                                    <User className="h-5 w-5" />
                                 </div>
 
                                 {/* Info */}
@@ -205,8 +189,8 @@ export function MechAuthTab() {
                                 className="flex items-center gap-3 p-3 bg-white border border-emerald-100 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] group hover:shadow-md transition-all"
                             >
                                 {/* Avatar */}
-                                <div className={`w-10 h-10 rounded-full ${getAvatarColor(staff.id)} flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-sm`}>
-                                    {getInitials(staff.name)}
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-slate-500">
+                                    <User className="h-5 w-5" />
                                 </div>
 
                                 {/* Info */}

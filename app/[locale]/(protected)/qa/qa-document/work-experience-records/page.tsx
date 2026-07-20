@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Search, Filter, MoreHorizontal, FileText, FileBadge, RotateCw, Eye } from 'lucide-react'
+import { Search, Filter, FileText, FileBadge, RotateCw, MoreVertical, User } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -160,10 +160,10 @@ export default function WorkExperienceRecordsPage() {
                 <table className="w-full text-sm text-left">
                   <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     <tr>
-                      <th className="px-6 py-4 w-full">Employee Name</th>
-                      <th className="px-6 py-4 whitespace-nowrap">Department</th>
-                      <th className="px-6 py-4 whitespace-nowrap">Position</th>
-                      <th className="px-6 py-4 text-right whitespace-nowrap">Documents</th>
+                      <th className="px-6 py-2 w-full">Employee Name</th>
+                      <th className="px-6 py-2 whitespace-nowrap">Department</th>
+                      <th className="px-6 py-2 whitespace-nowrap">Position</th>
+                      <th className="px-6 py-2 text-right whitespace-nowrap">Documents</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -185,35 +185,31 @@ export default function WorkExperienceRecordsPage() {
                     ) : (
                       staffList.map((staff) => (
                         <tr key={staff.id} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-6 py-2 whitespace-nowrap">
                             <div className="flex items-center gap-3">
-                              {staff.profileImagePath ? (
-                                <img src={staff.profileImagePath} alt={staff.name} className="w-8 h-8 rounded-full object-cover border border-slate-200 bg-slate-100" />
-                              ) : (
-                                <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs border border-blue-100">
-                                  {staff.name.charAt(0)}
-                                </div>
-                              )}
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-500">
+                                <User className="h-4 w-4" />
+                              </div>
                               <div>
                                 <div className="font-semibold text-slate-800">{staff.title} {staff.name}</div>
                                 <div className="text-xs text-slate-500">{staff.employeeId || 'No ID'}</div>
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-6 py-2 whitespace-nowrap">
                             <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700">
                               {staff.departmentObj?.name || '-'}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-slate-600">
+                          <td className="px-6 py-2 whitespace-nowrap text-slate-600">
                             {staff.positionObj?.name || '-'}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap flex justify-center">
+                          <td className="px-6 py-2 whitespace-nowrap flex justify-center">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button size="icon" color="secondary">
+                                <Button size="icon" variant="ghost" className="h-8 w-8">
                                   <span className="sr-only">Open menu</span>
-                                  <Eye className="h-4 w-4" />
+                                  <MoreVertical className="h-4 w-4 text-slate-500" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-48">

@@ -22,6 +22,13 @@ import {
 interface AuthMatrixProps {
     staff: StaffAuthorization[]
     customers: CustomerAirline[]
+    pagination?: {
+        page: number
+        perPage: number
+        total: number
+        isFetching?: boolean
+        onPageChange: (page: number) => void
+    }
 }
 
 function StatusDot({ status }: { status: AuthStatus }) {
@@ -62,15 +69,21 @@ function AuthCell({ status, days }: { status: AuthStatus; days: number | null })
 type SortField = 'no' | 'name' | 'sams' | 'crs'
 type SortDir = 'asc' | 'desc'
 
-export function AuthMatrix({ staff, customers }: AuthMatrixProps) {
+export function AuthMatrix({ staff, customers, pagination }: AuthMatrixProps) {
     const [sortField, setSortField] = useState<SortField>('no')
     const [sortDir, setSortDir] = useState<SortDir>('asc')
     const [selectedStaff, setSelectedStaff] = useState<StaffAuthorization | null>(null)
     const [drawerOpen, setDrawerOpen] = useState(false)
 
     // Pagination
-    const [pageIndex, setPageIndex] = useState(0)
-    const pageSize = 15
+    const [localPageIndex, setLocalPageIndex] = useState(0)
+    const pageIndex = pagination ? Math.max(0, pagination.page - 1) : localPageIndex
+    const pageSize = pagination?.perPage ?? 15
+
+    const goToPage = (nextPageIndex: number) => {
+        if (pagination) pagination.onPageChange(nextPageIndex + 1)
+        else setLocalPageIndex(nextPageIndex)
+    }
 
     // ── Tooltip state ────────────────────────────────────────────────────────
     const [hoveredStaff, setHoveredStaff] = useState<StaffAuthorization | null>(null)
@@ -149,7 +162,7 @@ export function AuthMatrix({ staff, customers }: AuthMatrixProps) {
     const handleSort = (field: SortField) => {
         if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
         else { setSortField(field); setSortDir('asc') }
-        setPageIndex(0)
+        goToPage(0)
     }
 
     const SortIcon = ({ field }: { field: SortField }) => {
@@ -175,8 +188,11 @@ export function AuthMatrix({ staff, customers }: AuthMatrixProps) {
         }
     })
 
-    const totalPages = Math.ceil(sorted.length / pageSize)
-    const paginatedStaff = sorted.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize)
+    const totalEntries = pagination?.total ?? sorted.length
+    const totalPages = Math.ceil(totalEntries / pageSize)
+    const paginatedStaff = pagination
+        ? sorted
+        : sorted.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize)
 
     const handleRowClick = (s: StaffAuthorization) => {
         setSelectedStaff(s)
@@ -435,7 +451,7 @@ export function AuthMatrix({ staff, customers }: AuthMatrixProps) {
             {/* Pagination & Footer */}
             <div className="flex items-center justify-between border border-t-0 border-border px-4 py-3 bg-white rounded-b-xl">
                 <div className="text-xs font-medium text-muted-foreground">
-                    Showing <span className="font-semibold text-foreground">{sorted.length === 0 ? 0 : pageIndex * pageSize + 1}</span> to <span className="font-semibold text-foreground">{Math.min((pageIndex + 1) * pageSize, sorted.length)}</span> of <span className="font-semibold text-foreground">{sorted.length}</span> entries
+                    Showing <span className="font-semibold text-foreground">{totalEntries === 0 ? 0 : pageIndex * pageSize + 1}</span> to <span className="font-semibold text-foreground">{Math.min(pageIndex * pageSize + paginatedStaff.length, totalEntries)}</span> of <span className="font-semibold text-foreground">{totalEntries}</span> entries
                 </div>
                 
                 {totalPages > 1 && (
@@ -444,9 +460,9 @@ export function AuthMatrix({ staff, customers }: AuthMatrixProps) {
                             <PaginationItem>
                                 <PaginationLink 
                                     href="#" 
-                                    onClick={(e) => { e.preventDefault(); setPageIndex(p => Math.max(0, p - 1)) }}
+                                    onClick={(e) => { e.preventDefault(); goToPage(Math.max(0, pageIndex - 1)) }}
                                     className={cn("w-8 h-8 p-0 rounded-md transition-all flex items-center justify-center", 
-                                        pageIndex === 0 
+                                        pageIndex === 0 || pagination?.isFetching
                                             ? "pointer-events-none opacity-50 border border-slate-200 text-slate-400 bg-slate-50" 
                                             : "border border-slate-300 text-slate-600 bg-white hover:bg-slate-100 hover:text-slate-900"
                                     )}
@@ -463,7 +479,7 @@ export function AuthMatrix({ staff, customers }: AuthMatrixProps) {
                                         <PaginationLink 
                                             href="#" 
                                             isActive={pageIndex === p}
-                                            onClick={(e) => { e.preventDefault(); setPageIndex(p) }}
+                                            onClick={(e) => { e.preventDefault(); goToPage(p) }}
                                             className={cn("w-8 h-8 p-0 rounded-md transition-all font-semibold text-xs flex items-center justify-center", 
                                                 pageIndex === p 
                                                     ? "bg-primary text-white border border-primary shadow-md hover:bg-primary/90 hover:text-white" 
@@ -479,9 +495,9 @@ export function AuthMatrix({ staff, customers }: AuthMatrixProps) {
                             <PaginationItem>
                                 <PaginationLink 
                                     href="#" 
-                                    onClick={(e) => { e.preventDefault(); setPageIndex(p => Math.min(totalPages - 1, p + 1)) }}
+                                    onClick={(e) => { e.preventDefault(); goToPage(Math.min(totalPages - 1, pageIndex + 1)) }}
                                     className={cn("w-8 h-8 p-0 rounded-md transition-all flex items-center justify-center", 
-                                        pageIndex >= totalPages - 1 
+                                        pageIndex >= totalPages - 1 || pagination?.isFetching
                                             ? "pointer-events-none opacity-50 border border-slate-200 text-slate-400 bg-slate-50" 
                                             : "border border-slate-700 text-slate-700 bg-white hover:bg-slate-100 hover:text-slate-900"
                                     )}
