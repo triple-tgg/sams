@@ -9,7 +9,7 @@ export interface AuthorityAuthListRequest {
 }
 
 export interface AuthorityColumnHeader {
-  aviationAuthorityId: number;
+  authorizationAuthorityMasterId: number;
   code: string;
   name: string;
 }
@@ -42,15 +42,43 @@ export interface AviationAuthorityLicenseAircraft {
   updatedby: string | null;
 }
 
+export interface AuthorizationStatusObj {
+  id: number;
+  code: string;
+  name: string;
+}
+
+export interface AuthorizationAuthorityMasterObj {
+  id: number;
+  code: string;
+  name: string;
+}
+
 export interface AuthorityLicenseCell {
-  authorityId: number;
-  aviationAuthorityId: number;
-  authorityCode: string;
+  // New API fields
+  authorizationAuthorityId: number;
+  staffId: number;
+  authorizationAuthorityMasterId: number;
+  authorizationAuthorityMaster?: AuthorizationAuthorityMasterObj | null;
+  authorizationStatusId: number;
+  authorizationStatus?: AuthorizationStatusObj | null;
+  initialIssueDate: string | null;
   currentIssueDate: string | null;
   expireDate: string | null;
-  status: string | null;
-  aviationAuthorityLicense: AviationAuthorityLicense | null;
-  aviationAuthorityLicenseAircrafts: AviationAuthorityLicenseAircraft[] | null;
+  isdelete: boolean;
+  licenseNo: string | null;
+  licenseLevel: string | null;
+  createdby: string | null;
+  createddate: string | null;
+  updatedby: string | null;
+  updateddate: string | null;
+  // Legacy fields (kept for backward compat)
+  authorityId?: number;
+  aviationAuthorityId?: number;
+  authorityCode?: string;
+  status?: string | null;
+  aviationAuthorityLicense?: AviationAuthorityLicense | null;
+  aviationAuthorityLicenseAircrafts?: AviationAuthorityLicenseAircraft[] | null;
 }
 
 export interface AuthorityStaffRow {
@@ -110,9 +138,9 @@ export interface AuthorityLicenseDetailResponse {
 }
 
 export interface AuthorityLicenseUpsertRequest {
-  id: number;
+  authorizationAuthorityId: number;
   staffId: number;
-  aviationAuthorityId: number;
+  authorizationAuthorityMasterId: number;
   licenseNo: string | null;
   licenseLevel: string | null;
   initialIssueDate: string | null;

@@ -1,21 +1,17 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Search, ChevronUp, ChevronDown, ChevronsUpDown, MoreVertical } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu'
-import { CourseRef, Employee, getStatus, STATUS_META, SortField, SortDir } from '../types'
-import { EMPLOYEES, MANDATORY, TYPE_COURSES, ALL_COURSES } from '../data'
-import { AlertBanner } from './AlertBanner'
+import { CourseRef, Employee, STATUS_META, SortField, SortDir } from '../types'
 import { StatusMatrix } from './StatusMatrix'
 import { EmployeeDetailDrawer } from './EmployeeDetailDrawer'
 import { CourseEnrollmentModal } from './CourseEnrollmentModal'
 import { useQuery } from '@tanstack/react-query'
 import { getCourseList } from '@/lib/api/qa/course'
-import { getTrainingMonitoring, TrainingMonitoringStaff } from '@/lib/api/qa/dashboardSummary'
+import { getTrainingMonitoring } from '@/lib/api/qa/dashboardSummary'
 
-const POS_FILTERS = ['All', 'CS', 'AM', 'MGR/QA'] as const
 const STATUS_FILTERS = ['All', 'expired', 'warning', 'valid'] as const
 const MONTH_FILTERS = [
     { value: 'All', label: 'All Months' },
@@ -37,12 +33,16 @@ export function TrainingRecordTab() {
 
     const [search, setSearch] = useState('')
     const [courseSelect, setCourseSelect] = useState('All')
-    const [posFilter, setPosFilter] = useState('All')
     const [statusFilter, setStatusFilter] = useState('All')
     const [monthFilter, setMonthFilter] = useState('All')
 
     // Fetch training monitoring data from API
-    const { data: monitoringResp, isLoading: isLoadingMonitoring } = useQuery({
+    const {
+        data: monitoringResp,
+        isLoading: isLoadingMonitoring,
+        isError: isMonitoringError,
+        refetch: refetchMonitoring,
+    } = useQuery({
         queryKey: ['training-monitoring', search, monthFilter, statusFilter],
         queryFn: () => getTrainingMonitoring({
             searchText: search,
@@ -68,56 +68,89 @@ export function TrainingRecordTab() {
                 staffList: cat.staffList,
             }))
         }
-        // Fallback to local mock tabs
-        return [
-            { key: 'mandatory', label: `Mandatory (${MANDATORY.length})`, data: MANDATORY, staffList: [] as TrainingMonitoringStaff[] },
-            { key: 'type', label: `Type Courses (${TYPE_COURSES.length})`, data: TYPE_COURSES, staffList: [] as TrainingMonitoringStaff[] },
-            { key: 'special', label: `Special Ops (0)`, data: [] as CourseRef[], staffList: [] as TrainingMonitoringStaff[] },
-            { key: 'other', label: `Other Courses (0)`, data: [] as CourseRef[], staffList: [] as TrainingMonitoringStaff[] },
-        ]
+        return []
     }, [monitoringData])
 
-    const [tab, setTab] = useState<string>(() => {
-        if (courseFilter && TYPE_COURSES.some(c => c.id === courseFilter)) return 'type'
-        return 'mandatory'
-    })
+    const [tab, setTab] = useState('')
     const [selectedId, setSelectedId] = useState<string | null>(null)
     const [enrollingCourse, setEnrollingCourse] = useState<{ emp: Employee, course: CourseRef } | null>(null)
     const [enrollments, setEnrollments] = useState<Record<string, string>>({})
     const [sortField, setSortField] = useState<SortField>('no')
     const [sortDir, setSortDir] = useState<SortDir>('asc')
+    const tabsContainerRef = useRef<HTMLDivElement>(null)
+    const tabsMeasureRef = useRef<HTMLDivElement>(null)
+    const [visibleTabCount, setVisibleTabCount] = useState(AVAILABLE_TABS.length)
 
-    // Auto-select first tab when API data arrives
-    useMemo(() => {
-        if (monitoringData?.courseCategories?.length && !monitoringData.courseCategories.find(c => c.categoryId.toString() === tab)) {
-            setTab(monitoringData.courseCategories[0].categoryId.toString())
+    useEffect(() => {
+        if (AVAILABLE_TABS.length === 0) return
+        const courseTab = courseFilter
+            ? AVAILABLE_TABS.find(item => item.data.some(course => course.id === courseFilter))
+            : null
+        if (courseTab) {
+            setTab(courseTab.key)
+            setCourseSelect(courseFilter as string)
+            return
         }
-    }, [monitoringData])
+        if (!AVAILABLE_TABS.some(item => item.key === tab)) {
+            setTab(AVAILABLE_TABS[0].key)
+        }
+    }, [AVAILABLE_TABS, courseFilter, tab])
 
-    const activeTabObj = AVAILABLE_TABS.find(t => t.key === tab) || AVAILABLE_TABS[0]
-    let courses = activeTabObj.data
+    const activeTabObj = AVAILABLE_TABS.find(t => t.key === tab)
+    const visibleTabs = AVAILABLE_TABS.slice(0, visibleTabCount)
+    const overflowTabs = AVAILABLE_TABS.slice(visibleTabCount)
+    let courses = activeTabObj?.data || []
+
+    useLayoutEffect(() => {
+        const container = tabsContainerRef.current
+        const measure = tabsMeasureRef.current
+        if (!container || !measure) return
+
+        const updateVisibleTabs = () => {
+            const tabWidths = Array.from(measure.children).map(child =>
+                (child as HTMLElement).getBoundingClientRect().width
+            )
+            const gap = 2
+            const availableWidth = container.clientWidth
+            const totalWidth = tabWidths.reduce((sum, width) => sum + width, 0)
+                + Math.max(0, tabWidths.length - 1) * gap
+
+            if (totalWidth <= availableWidth) {
+                setVisibleTabCount(AVAILABLE_TABS.length)
+                return
+            }
+
+            const overflowButtonWidth = 38
+            const availableForTabs = Math.max(0, availableWidth - overflowButtonWidth - gap)
+            let usedWidth = 0
+            let nextVisibleCount = 0
+
+            for (const width of tabWidths) {
+                const nextWidth = usedWidth + (nextVisibleCount > 0 ? gap : 0) + width
+                if (nextWidth > availableForTabs) break
+                usedWidth = nextWidth
+                nextVisibleCount += 1
+            }
+
+            setVisibleTabCount(Math.max(1, nextVisibleCount))
+        }
+
+        updateVisibleTabs()
+        const observer = new ResizeObserver(updateVisibleTabs)
+        observer.observe(container)
+        return () => observer.disconnect()
+    }, [AVAILABLE_TABS])
 
     if (courseSelect !== 'All') {
         const selectedApi = apiCourses.find(c => c.id.toString() === courseSelect)
         if (selectedApi) {
-            const shortCode = selectedApi.courseCode.split('-').pop() || ''
-            const matchedMock = ALL_COURSES.find(c => {
-                if (c.short.includes(shortCode)) return true;
-                if (!c.code) return false;
-                if (Array.isArray(c.code)) return c.code.some(codeItem => codeItem.includes(shortCode));
-                return c.code.includes(shortCode);
-            })
-            if (matchedMock) {
-                courses = [matchedMock]
-            } else {
-                courses = [{
-                    id: selectedApi.id.toString(),
-                    short: selectedApi.courseCode,
-                    label: selectedApi.courseName,
-                    interval: selectedApi.recurrenceIntervalYears ? selectedApi.recurrenceIntervalYears * 12 : 24,
-                    code: selectedApi.courseCode
-                }]
-            }
+            courses = [{
+                id: selectedApi.id.toString(),
+                short: selectedApi.courseCode,
+                label: selectedApi.courseName,
+                interval: selectedApi.recurrenceIntervalYears ? selectedApi.recurrenceIntervalYears * 12 : 0,
+                code: selectedApi.courseCode,
+            }]
         }
     }
 
@@ -131,61 +164,49 @@ export function TrainingRecordTab() {
                 valid: monitoringData.summary.totalValid,
             }
         }
-        let expired = 0, warning = 0, valid = 0
-        EMPLOYEES.forEach(emp => {
-            ALL_COURSES.forEach((c: CourseRef) => {
-                const s = getStatus(emp.courses[c.id])
-                if (s === 'expired') expired++
-                else if (s === 'warning') warning++
-                else if (s === 'valid') valid++
-            })
-        })
-        return { expired, warning, valid, total: EMPLOYEES.length }
+        return { expired: 0, warning: 0, valid: 0, total: 0 }
     }, [monitoringData])
 
-    // Build employee list from API staffList or fallback to local filtering
+    // Build employee list exclusively from the monitoring API.
     const filtered = useMemo(() => {
-        if (activeTabObj.staffList?.length) {
+        if (activeTabObj?.staffList?.length) {
             // Map API staff to Employee-like objects for StatusMatrix
             return activeTabObj.staffList.map((staff, idx) => {
                 const coursesMap: Record<string, string> = {}
+                const courseStatuses: Employee['courseStatuses'] = {}
+                const courseDaysLeft: Employee['courseDaysLeft'] = {}
+                const courseIssueDates: Employee['courseIssueDates'] = {}
                 staff.courses.forEach(c => {
                     coursesMap[c.courseId.toString()] = c.expiryDate || c.status || '-'
+                    const normalizedStatus = c.status.trim().toLowerCase()
+                    courseStatuses[c.courseId.toString()] =
+                        normalizedStatus === 'valid' ? 'valid'
+                            : normalizedStatus === 'warning' || normalizedStatus === 'expiring' ? 'warning'
+                                : normalizedStatus === 'expired' ? 'expired'
+                                    : normalizedStatus === 'not assigned' ? 'Not Assigned'
+                                        : 'missing'
+                    courseDaysLeft[c.courseId.toString()] = c.daysLeft
+                    courseIssueDates[c.courseId.toString()] = c.issueDate
                 })
                 return {
+                    staffId: staff.staffId,
                     no: idx + 1,
                     id: staff.employeeId,
                     name: staff.staffName,
                     pos: staff.positionName,
                     posGroup: 'CS' as const, // Default group
                     courses: coursesMap,
-                    _apiStaff: staff, // Keep reference to API data
-                } as Employee & { _apiStaff: typeof staff }
+                    courseStatuses,
+                    courseDaysLeft,
+                    courseIssueDates,
+                } as Employee
             }).filter(emp => {
                 if (!search) return true
                 return emp.name.toLowerCase().includes(search.toLowerCase()) || emp.id.includes(search)
             })
         }
-        // Fallback to local mock data
-        return EMPLOYEES.filter(emp => {
-            const nameMatch = emp.name.toLowerCase().includes(search.toLowerCase()) || emp.id.includes(search)
-            const posMatch = posFilter === 'All' ||
-                (posFilter === 'CS' && emp.posGroup === 'CS') ||
-                (posFilter === 'AM' && emp.posGroup === 'AM') ||
-                (posFilter === 'MGR/QA' && (emp.posGroup === 'MGR' || emp.posGroup === 'QA'))
-            const statusMatch = statusFilter === 'All' || courses.some(c => {
-                const s = getStatus(emp.courses[c.id])
-                return statusFilter === s
-            })
-            const monthMatch = monthFilter === 'All' || courses.some(c => {
-                const dueStr = emp.courses[c.id]
-                if (!dueStr || dueStr === '-' || dueStr === 'na') return false
-                const due = new Date(dueStr)
-                return !isNaN(due.getTime()) && due.getMonth().toString() === monthFilter
-            })
-            return nameMatch && posMatch && statusMatch && monthMatch
-        })
-    }, [activeTabObj.staffList, search, posFilter, statusFilter, monthFilter, courses])
+        return []
+    }, [activeTabObj?.staffList, search])
 
     // Sorted employees
     const sorted = useMemo(() => {
@@ -220,7 +241,7 @@ export function TrainingRecordTab() {
         return list
     }, [filtered, sortField, sortDir, courses])
 
-    const selEmp = selectedId ? EMPLOYEES.find(e => e.id === selectedId) || null : null
+    const selEmp = selectedId ? sorted.find(e => e.id === selectedId) || null : null
 
     const handleSort = (field: SortField) => {
         if (sortField === field) {
@@ -273,7 +294,15 @@ export function TrainingRecordTab() {
                     <div className="flex items-center gap-1 ml-auto">
                         <select
                             value={courseSelect}
-                            onChange={e => setCourseSelect(e.target.value)}
+                            onChange={e => {
+                                const nextCourseId = e.target.value
+                                setCourseSelect(nextCourseId)
+                                if (nextCourseId === 'All') return
+                                const category = AVAILABLE_TABS.find(item =>
+                                    item.data.some(course => course.id === nextCourseId)
+                                )
+                                if (category) setTab(category.key)
+                            }}
                             className="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-card text-foreground focus:outline-none border-border hover:border-border/80 mr-2 max-w-[200px]"
                         >
                             <option value="All">All Courses</option>
@@ -307,8 +336,8 @@ export function TrainingRecordTab() {
                 </div>
                 <div>
                     {/* Tabs */}
-                    <div className="flex gap-0.5 relative z-10">
-                        {AVAILABLE_TABS.slice(0, 3).map(t => (
+                    <div ref={tabsContainerRef} className="flex min-w-0 gap-0.5 relative z-10">
+                        {visibleTabs.map(t => (
                             <button key={t.key} onClick={() => setTab(t.key)}
                                 className={`px-5 py-2 rounded-t-xl text-xs font-bold border cursor-pointer transition-all ${tab === t.key
                                     ? 'bg-muted text-foreground border-border z-10 relative'
@@ -317,10 +346,10 @@ export function TrainingRecordTab() {
                                 {t.label}
                             </button>
                         ))}
-                        {AVAILABLE_TABS.length > 3 && (
+                        {overflowTabs.length > 0 && (
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <button className={`px-2 py-2 rounded-t-xl text-xs font-bold border cursor-pointer transition-all ${AVAILABLE_TABS.slice(3).some(t => t.key === tab)
+                                    <button aria-label="More course categories" className={`px-2 py-2 rounded-t-xl text-xs font-bold border cursor-pointer transition-all ${overflowTabs.some(t => t.key === tab)
                                         ? 'bg-muted text-foreground border-border z-10 relative'
                                         : 'bg-card text-muted-foreground border-border/50 hover:text-foreground'
                                         }`}>
@@ -328,7 +357,7 @@ export function TrainingRecordTab() {
                                     </button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="start" className="w-48">
-                                    {AVAILABLE_TABS.slice(3).map(t => (
+                                    {overflowTabs.map(t => (
                                         <DropdownMenuItem key={t.key} onClick={() => setTab(t.key)}
                                             className={`cursor-pointer ${tab === t.key ? 'bg-primary/10 text-primary font-bold' : ''}`}>
                                             {t.label}
@@ -337,26 +366,58 @@ export function TrainingRecordTab() {
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         )}
+                        <div
+                            ref={tabsMeasureRef}
+                            aria-hidden="true"
+                            className="invisible absolute left-0 top-0 flex w-max gap-0.5 pointer-events-none"
+                        >
+                            {AVAILABLE_TABS.map(t => (
+                                <span key={t.key} className="px-5 py-2 rounded-t-xl text-xs font-bold border whitespace-nowrap">
+                                    {t.label}
+                                </span>
+                            ))}
+                        </div>
                     </div>
 
                     {/* Matrix */}
                     <div className="bg-card rounded-b-xl rounded-tr-xl border border-border overflow-hidden -mt-[1px] relative z-[1]">
-                        <StatusMatrix
-                            employees={sorted}
-                            courses={courses}
-                            enrollments={enrollments}
-                            selectedId={selectedId}
-                            onSelect={setSelectedId}
-                            sortField={sortField}
-                            sortDir={sortDir}
-                            onSort={handleSort}
-                            SortIcon={SortIcon}
-                            onEnroll={(empId, courseId) => {
-                                const emp = EMPLOYEES.find(e => e.id === empId)
-                                const crs = ALL_COURSES.find(c => c.id === courseId)
-                                if (emp && crs) setEnrollingCourse({ emp, course: crs })
-                            }}
-                        />
+                        {isLoadingMonitoring ? (
+                            <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
+                                Loading training monitoring data…
+                            </div>
+                        ) : isMonitoringError ? (
+                            <div className="py-20 text-center text-sm text-destructive">
+                                Unable to load training monitoring data.
+                                <button
+                                    type="button"
+                                    onClick={() => refetchMonitoring()}
+                                    className="ml-2 font-semibold text-primary underline"
+                                >
+                                    Try again
+                                </button>
+                            </div>
+                        ) : AVAILABLE_TABS.length === 0 ? (
+                            <div className="py-20 text-center text-sm text-muted-foreground">
+                                No course categories found.
+                            </div>
+                        ) : (
+                            <StatusMatrix
+                                employees={sorted}
+                                courses={courses}
+                                enrollments={enrollments}
+                                selectedId={selectedId}
+                                onSelect={setSelectedId}
+                                sortField={sortField}
+                                sortDir={sortDir}
+                                onSort={handleSort}
+                                SortIcon={SortIcon}
+                                onEnroll={(empId, courseId) => {
+                                    const emp = sorted.find(e => e.id === empId)
+                                    const crs = courses.find(c => c.id === courseId)
+                                    if (emp && crs) setEnrollingCourse({ emp, course: crs })
+                                }}
+                            />
+                        )}
                     </div>
                 </div>
 
@@ -378,6 +439,7 @@ export function TrainingRecordTab() {
             {/* Employee Detail Drawer */}
             <EmployeeDetailDrawer
                 employee={selEmp}
+                courses={courses}
                 onClose={() => setSelectedId(null)}
             />
 

@@ -47,9 +47,9 @@ describe("authority authorization API", () => {
 
   it("posts the complete upsert payload", async () => {
     const request: AuthorityLicenseUpsertRequest = {
-      id: 1,
+      authorizationAuthorityId: 1,
       staffId: 163,
-      aviationAuthorityId: 1,
+      authorizationAuthorityMasterId: 1,
       licenseNo: "test1234",
       licenseLevel: "1",
       initialIssueDate: "2026-07-16",
@@ -67,9 +67,9 @@ describe("authority authorization API", () => {
 
   it("creates a not-approved record through the upsert route", async () => {
     const request: AuthorityLicenseUpsertRequest = {
-      id: 0,
+      authorizationAuthorityId: 0,
       staffId: 163,
-      aviationAuthorityId: 5,
+      authorizationAuthorityMasterId: 5,
       licenseNo: null,
       licenseLevel: null,
       initialIssueDate: null,

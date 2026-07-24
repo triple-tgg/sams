@@ -257,15 +257,15 @@ export function SamsAuthTab() {
           <table className="w-full border-collapse text-xs">
             <thead>
               <tr className="bg-slate-50 border-b-2 border-border">
-                <th className="px-3 py-2.5 text-left text-muted-foreground font-bold text-[10px] uppercase tracking-wider" style={{ minWidth: 220 }}>Employee Name</th>
-                <th className="px-3 py-2.5 text-left text-muted-foreground font-bold text-[10px] uppercase tracking-wider" style={{ minWidth: 150 }}>Auth No.</th>
-                <th className="px-3 py-2.5 text-left text-muted-foreground font-bold text-[10px] uppercase tracking-wider" style={{ minWidth: 180 }}>Aircraft License</th>
-                <th className="px-3 py-2.5 text-center text-muted-foreground font-bold text-[10px] uppercase tracking-wider" style={{ minWidth: 90 }}>AMEL Exp.</th>
-                <th className="px-3 py-2.5 text-center text-muted-foreground font-bold text-[10px] uppercase tracking-wider" style={{ minWidth: 90 }}>Initial Issue</th>
-                <th className="px-3 py-2.5 text-center text-muted-foreground font-bold text-[10px] uppercase tracking-wider" style={{ minWidth: 90 }}>Current Issue</th>
-                <th className="px-3 py-2.5 text-center text-muted-foreground font-bold text-[10px] uppercase tracking-wider" style={{ minWidth: 100 }}>Expiry Date</th>
-                <th className="px-3 py-2.5 text-center text-muted-foreground font-bold text-[10px] uppercase tracking-wider" style={{ minWidth: 110 }}>Status</th>
-                <th className="px-3 py-2.5 text-center text-muted-foreground font-bold text-[10px] uppercase tracking-wider w-16 sticky right-0 bg-slate-50 shadow-[-1px_0_0_0_#e2e8f0] z-10">Action</th>
+                <th className="px-3 py-2.5 text-left text-muted-foreground font-bold text-[10px] tracking-wider" style={{ minWidth: 220 }}>Employee Name</th>
+                <th className="px-3 py-2.5 text-left text-muted-foreground font-bold text-[10px] tracking-wider" style={{ minWidth: 150 }}>Authorization No.</th>
+                <th className="px-3 py-2.5 text-left text-muted-foreground font-bold text-[10px] tracking-wider" style={{ minWidth: 180 }}>Aircraft License</th>
+                <th className="px-3 py-2.5 text-center text-muted-foreground font-bold text-[10px] tracking-wider" style={{ minWidth: 90 }}>AMEL Exp.</th>
+                <th className="px-3 py-2.5 text-center text-muted-foreground font-bold text-[10px] tracking-wider" style={{ minWidth: 90 }}>Initial Issue</th>
+                <th className="px-3 py-2.5 text-center text-muted-foreground font-bold text-[10px] tracking-wider" style={{ minWidth: 90 }}>Current Issue</th>
+                <th className="px-3 py-2.5 text-center text-muted-foreground font-bold text-[10px] tracking-wider" style={{ minWidth: 100 }}>Expiry Date</th>
+                <th className="px-3 py-2.5 text-center text-muted-foreground font-bold text-[10px] tracking-wider" style={{ minWidth: 110 }}>Status</th>
+                <th className="px-3 py-2.5 text-center text-muted-foreground font-bold text-[10px] tracking-wider w-16 sticky right-0 bg-slate-50 shadow-[-1px_0_0_0_#e2e8f0] z-10">Action</th>
               </tr>
             </thead>
             <tbody>

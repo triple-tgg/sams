@@ -38,6 +38,7 @@ export interface MonitoringCrsAircraftType {
   id: number;
   code: string;
   name: string;
+  engines?: string[];
 }
 
 export interface MonitoringCrsSamsAuthorization {
@@ -68,6 +69,9 @@ export interface MonitoringCrsAirlineEligibility {
   daysToExpiry: number | null;
   eligibleAircraftTypes: MonitoringCrsAircraftType[];
   reasonCodes: MonitoringCrsReasonCode[];
+  effectiveValidTo?: string | null;
+  bindingSide?: "SAMS" | "CUSTOMER" | null;
+  rejectionReason?: string | null;
 }
 
 export interface MonitoringCrsStaffRow {
@@ -84,6 +88,9 @@ export interface MonitoringCrsStaffRow {
   atRiskAirlineCount: number;
   blockingReasonCodes: MonitoringCrsReasonCode[];
   airlineEligibilities: MonitoringCrsAirlineEligibility[];
+  licenseCategory?: string | null;
+  formCode?: string | null;
+  formRevision?: string | null;
 }
 
 export interface MonitoringCrsAirline {

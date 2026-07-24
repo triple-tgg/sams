@@ -9,12 +9,16 @@ export interface CourseRef {
 }
 
 export interface Employee {
+    staffId?: number
     no: number
     id: string
     name: string
     pos: string
     posGroup: string
     courses: Record<string, string>
+    courseStatuses?: Record<string, StatusType>
+    courseDaysLeft?: Record<string, number | null>
+    courseIssueDates?: Record<string, string | null>
 }
 
 export interface AlertItem {
@@ -30,16 +34,13 @@ export type StatusType = 'valid' | 'warning' | 'expired' | 'missing' | 'na' | 'N
 
 // ─── Status Helpers ─────────────────────────────────────────────────────────
 
-// TODO: Replace with new Date() or server time when connected to real API
-const TODAY = new Date('2026-03-19')
-
 export function getStatus(dueStr: string): StatusType {
     if (!dueStr || dueStr === '-') return 'missing'
     if (dueStr === 'na') return 'na'
     if (dueStr === 'Not Assigned') return 'Not Assigned'
     const due = new Date(dueStr)
     if (isNaN(due.getTime())) return 'missing'
-    const diff = Math.floor((due.getTime() - TODAY.getTime()) / 86400000)
+    const diff = Math.floor((due.getTime() - Date.now()) / 86400000)
     if (diff < 0) return 'expired'
     if (diff <= 90) return 'warning'
     return 'valid'
@@ -48,7 +49,18 @@ export function getStatus(dueStr: string): StatusType {
 export function getDaysLeft(dueStr: string): number | null {
     if (!dueStr || dueStr === '-' || dueStr === 'na') return null
     const due = new Date(dueStr)
-    return Math.floor((due.getTime() - TODAY.getTime()) / 86400000)
+    return Math.floor((due.getTime() - Date.now()) / 86400000)
+}
+
+export function getEmployeeCourseStatus(employee: Employee, courseId: string): StatusType {
+    return employee.courseStatuses?.[courseId] ?? getStatus(employee.courses[courseId])
+}
+
+export function getEmployeeCourseDaysLeft(employee: Employee, courseId: string): number | null {
+    if (employee.courseDaysLeft && courseId in employee.courseDaysLeft) {
+        return employee.courseDaysLeft[courseId]
+    }
+    return getDaysLeft(employee.courses[courseId])
 }
 
 export function fmtDate(dueStr: string): string | null {

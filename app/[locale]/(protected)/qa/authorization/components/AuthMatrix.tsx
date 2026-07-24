@@ -1,14 +1,14 @@
 'use client'
 
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { Filter, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Filter, X, ChevronLeft, ChevronRight, UserRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
     StaffAuthorization, CustomerAirline, AuthStatus,
     getAuthStatus, getDaysUntilExpiry, isCrsEligible,
     AUTH_STATUS_META, fmtDate,
 } from '../types'
-import { StaffAuthDrawer } from './StaffAuthDrawer'
+import { StaffAuthDialog } from './StaffAuthDialog'
 import {
   Pagination,
   PaginationContent,
@@ -66,14 +66,14 @@ function AuthCell({ status, days }: { status: AuthStatus; days: number | null })
     )
 }
 
-type SortField = 'no' | 'name' | 'sams' | 'crs'
+type SortField = 'name' | 'sams' | 'crs'
 type SortDir = 'asc' | 'desc'
 
 export function AuthMatrix({ staff, customers, pagination }: AuthMatrixProps) {
-    const [sortField, setSortField] = useState<SortField>('no')
+    const [sortField, setSortField] = useState<SortField>('name')
     const [sortDir, setSortDir] = useState<SortDir>('asc')
     const [selectedStaff, setSelectedStaff] = useState<StaffAuthorization | null>(null)
-    const [drawerOpen, setDrawerOpen] = useState(false)
+    const [dialogOpen, setDialogOpen] = useState(false)
 
     // Pagination
     const [localPageIndex, setLocalPageIndex] = useState(0)
@@ -173,7 +173,6 @@ export function AuthMatrix({ staff, customers, pagination }: AuthMatrixProps) {
     const sorted = [...staff].sort((a, b) => {
         const dir = sortDir === 'asc' ? 1 : -1
         switch (sortField) {
-            case 'no': return (a.staffNo - b.staffNo) * dir
             case 'name': return a.name.localeCompare(b.name) * dir
             case 'sams': {
                 const order: AuthStatus[] = ['expired', 'suspended', 'expiring', 'not-issued', 'active']
@@ -196,7 +195,7 @@ export function AuthMatrix({ staff, customers, pagination }: AuthMatrixProps) {
 
     const handleRowClick = (s: StaffAuthorization) => {
         setSelectedStaff(s)
-        setDrawerOpen(true)
+        setDialogOpen(true)
     }
 
     const getPageNumbers = () => {
@@ -316,9 +315,6 @@ export function AuthMatrix({ staff, customers, pagination }: AuthMatrixProps) {
                 <table className="w-full border-collapse text-xs">
                     <thead>
                         <tr className="bg-muted/50 border-b-2 border-border">
-                            <th className="px-3 py-2 text-left text-muted-foreground font-bold whitespace-nowrap cursor-pointer hover:text-foreground transition-colors select-none" style={{ minWidth: 40 }} onClick={() => handleSort('no')}>
-                                <span className="inline-flex items-center gap-1"># <SortIcon field="no" /></span>
-                            </th>
                             <th className="px-3 py-2 text-left text-muted-foreground font-bold whitespace-nowrap cursor-pointer hover:text-foreground transition-colors select-none" style={{ minWidth: 220 }} onClick={() => handleSort('name')}>
                                 <span className="inline-flex items-center gap-1">Employee Name <SortIcon field="name" /></span>
                             </th>
@@ -341,8 +337,8 @@ export function AuthMatrix({ staff, customers, pagination }: AuthMatrixProps) {
                                 <SortIcon field="sams" />
                             </th>
                             {/* Customer columns */}
-                            {visibleCustomers.map(c => (
-                                <th key={c.id} className="px-1 py-2 text-center text-muted-foreground font-bold border-l border-border" style={{ minWidth: 50 }}>
+                            {visibleCustomers.map((c, idx) => (
+                                <th key={c.id || idx} className="px-1 py-2 text-center text-muted-foreground font-bold border-l border-border" style={{ minWidth: 50 }}>
                                     <div className="text-[10px] leading-snug font-bold" style={{ color: c.color }}>{c.code}</div>
                                     <div className="text-[9px] text-muted-foreground/60 font-medium">Auth</div>
                                 </th>
@@ -379,7 +375,7 @@ export function AuthMatrix({ staff, customers, pagination }: AuthMatrixProps) {
 
                             return (
                                 <tr
-                                    key={s.staffId}
+                                    key={s.staffId || `staff-${ri}`}
                                     onClick={() => handleRowClick(s)}
                                     onMouseMove={(e) => handleRowMouseMove(e, s)}
                                     onMouseLeave={handleRowMouseLeave}
@@ -388,10 +384,16 @@ export function AuthMatrix({ staff, customers, pagination }: AuthMatrixProps) {
                                         ri % 2 === 0 ? 'bg-card' : 'bg-muted/20'
                                     } hover:bg-muted/40`}
                                 >
-                                    <td className="px-3 py-1.5 text-muted-foreground font-semibold">{s.staffNo}</td>
                                     <td className="px-3 py-1.5">
-                                        <div className="font-semibold text-foreground whitespace-nowrap">{s.name}</div>
-                                        <div className="text-[10px] text-primary font-bold">{s.staffId}</div>
+                                        <div className="flex items-center gap-2.5">
+                                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-500">
+                                                <UserRound className="h-3.5 w-3.5" strokeWidth={1.5} />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <div className="font-semibold text-foreground whitespace-nowrap">{s.name}</div>
+                                                <div className="text-[10px] text-primary font-bold">{s.staffId}</div>
+                                            </div>
+                                        </div>
                                     </td>
                                     <td className="px-3 py-1.5 border-l border-border text-[11px] font-bold text-slate-700 whitespace-nowrap">
                                         {s.samsAuth?.authNumber || '—'}
@@ -406,11 +408,11 @@ export function AuthMatrix({ staff, customers, pagination }: AuthMatrixProps) {
                                         {s.samsAuth ? fmtDate(s.samsAuth.expiryDate) : '—'}
                                     </td>
                                     <AuthCell status={samsStatus} days={samsDays} />
-                                    {visibleCustomers.map(c => {
+                                    {visibleCustomers.map((c, idx) => {
                                         const rec = s.customerAuths[c.id]
                                         const st = getAuthStatus(rec)
                                         const d = getDaysUntilExpiry(rec)
-                                        return <AuthCell key={c.id} status={st} days={d} />
+                                        return <AuthCell key={c.id || idx} status={st} days={d} />
                                     })}
                                     {/* Summary */}
                                     <td className="px-2 py-1.5 text-center border-l-2 border-border">
@@ -627,11 +629,11 @@ export function AuthMatrix({ staff, customers, pagination }: AuthMatrixProps) {
                 )}
             </div>
 
-            <StaffAuthDrawer
+            <StaffAuthDialog
                 staff={selectedStaff}
                 customers={customers}
-                open={drawerOpen}
-                onClose={() => setDrawerOpen(false)}
+                open={dialogOpen}
+                onClose={() => setDialogOpen(false)}
             />
         </>
     )

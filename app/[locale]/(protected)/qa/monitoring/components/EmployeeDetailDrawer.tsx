@@ -1,16 +1,16 @@
 'use client'
 
 import { useEffect } from 'react'
-import { Employee, CourseRef, getStatus, getDaysLeft, STATUS_META, fmtDate } from '../types'
-import { ALL_COURSES } from '../data'
+import { Employee, CourseRef, getEmployeeCourseDaysLeft, getEmployeeCourseStatus, STATUS_META, fmtDate } from '../types'
 import { X as XIcon, User, BadgeCheck, AlertTriangle, Clock } from 'lucide-react'
 
 interface EmployeeDetailDrawerProps {
     employee: Employee | null
+    courses: CourseRef[]
     onClose: () => void
 }
 
-export function EmployeeDetailDrawer({ employee: emp, onClose }: EmployeeDetailDrawerProps) {
+export function EmployeeDetailDrawer({ employee: emp, courses, onClose }: EmployeeDetailDrawerProps) {
     // Close on Escape
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
@@ -23,10 +23,10 @@ export function EmployeeDetailDrawer({ employee: emp, onClose }: EmployeeDetailD
     if (!emp) return null
 
     // Compute stats for this employee
-    const courseStatuses = ALL_COURSES.map(c => ({
+    const courseStatuses = courses.map(c => ({
         course: c,
-        status: getStatus(emp.courses[c.id]),
-        daysLeft: getDaysLeft(emp.courses[c.id]),
+        status: getEmployeeCourseStatus(emp, c.id),
+        daysLeft: getEmployeeCourseDaysLeft(emp, c.id),
         due: emp.courses[c.id],
     }))
 
@@ -105,11 +105,17 @@ export function EmployeeDetailDrawer({ employee: emp, onClose }: EmployeeDetailD
                             let dueDateStr = s === 'na' ? 'N/A' : s === 'missing' ? '—' : s === 'expired' ? 'Expired' : fmtDate(due)
 
                             if (s !== 'na' && s !== 'missing') {
+                                const issueDate = emp.courseIssueDates?.[c.id]
+                                const issueDateValue = issueDate ? new Date(issueDate) : null
                                 const dDate = new Date(due)
-                                if (!isNaN(dDate.getTime())) {
+                                if (issueDateValue && !isNaN(issueDateValue.getTime())) {
+                                    lastTrainingStr = issueDateValue.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                                } else if (!isNaN(dDate.getTime())) {
                                     const lastTraining = new Date(dDate)
                                     lastTraining.setMonth(lastTraining.getMonth() - c.interval)
                                     lastTrainingStr = lastTraining.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                                }
+                                if (!isNaN(dDate.getTime())) {
                                     dueDateStr = dDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
                                 }
                             }

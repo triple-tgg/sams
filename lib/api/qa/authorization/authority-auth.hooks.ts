@@ -8,6 +8,7 @@ import {
   upsertAuthorityLicense,
   type AuthorityAuthListRequest,
 } from "./authority-auth";
+import { authorizationKeys } from "../authorization.hooks";
 
 export const authorityAuthKeys = {
   all: ["authority-auth"] as const,
@@ -36,6 +37,9 @@ export function useUpsertAuthorityLicense() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: upsertAuthorityLicense,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: authorityAuthKeys.all }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: authorityAuthKeys.all });
+      queryClient.invalidateQueries({ queryKey: authorizationKeys.all });
+    },
   });
 }

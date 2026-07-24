@@ -25,6 +25,7 @@ export interface AuthRecord {
 }
 
 export interface StaffAuthorization {
+    sourceStaffId?: number
     staffId: string
     staffNo: number
     name: string

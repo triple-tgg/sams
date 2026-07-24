@@ -10,34 +10,26 @@ import type {
 } from '@/lib/api/qa/authorization/monitoring-crs'
 import {
     AuthRecord,
-    AuthStatus,
     CustomerAirline,
     StaffAuthorization,
     getAuthStatus,
     isCrsEligible,
-    AUTH_STATUS_META,
 } from '../../types'
 import { AuthMatrix } from '../AuthMatrix'
+import { useStaffAuthorizationAirlineStatuses } from '@/lib/api/master/staff-authorization/staff-authorization-airline-statuses.hooks'
+import type { StaffAuthorizationAirlineStatus } from '@/lib/api/master/staff-authorization/staff-authorization-airline-statuses'
+import { mapCustomerAuthStatus } from '@/lib/api/qa/authorization/customer-auth.utils'
+import { CUST_STATUS_META } from '../../types-v2'
+import { resolveMonitoringAuthStatus } from '@/lib/api/qa/authorization/monitoring-crs.utils'
 
 const EXPIRY_WARNING_DAYS = 90
-
-function toAuthStatus(code: string | null | undefined, name: string | null | undefined, daysToExpiry: number | null): AuthStatus {
-    const value = `${code || ''} ${name || ''}`.toUpperCase()
-    if (value.includes('SUSP')) return 'suspended'
-    if (value.includes('NOT_ISSUED') || value.includes('NOT ISSUED') || value.includes('PENDING')) return 'not-issued'
-    if (value.includes('EXPIR')) return daysToExpiry !== null && daysToExpiry >= 0 ? 'expiring' : 'expired'
-    if (daysToExpiry !== null && daysToExpiry < 0) return 'expired'
-    if (daysToExpiry !== null && daysToExpiry <= EXPIRY_WARNING_DAYS) return 'expiring'
-    if (value.includes('VAL') || value.includes('ACTIVE') || value.includes('APPROV')) return 'active'
-    return 'not-issued'
-}
 
 function toCustomerAuthRecord(cell: MonitoringCrsAirlineEligibility): AuthRecord | null {
     if (cell.customerAuthorizationId === null) return null
 
     return {
-        status: toAuthStatus(cell.customerStatusCode, cell.customerStatusName, cell.daysToExpiry),
-        resolvedStatus: toAuthStatus(cell.customerStatusCode, cell.customerStatusName, cell.daysToExpiry),
+        status: resolveMonitoringAuthStatus(cell.customerStatusCode, cell.customerStatusName, cell.daysToExpiry, EXPIRY_WARNING_DAYS),
+        resolvedStatus: resolveMonitoringAuthStatus(cell.customerStatusCode, cell.customerStatusName, cell.daysToExpiry, EXPIRY_WARNING_DAYS),
         resolvedDaysUntilExpiry: cell.daysToExpiry,
         authNumber: '—',
         initialIssueDate: cell.initialIssueDate || undefined,
@@ -52,14 +44,15 @@ function toCustomerAuthRecord(cell: MonitoringCrsAirlineEligibility): AuthRecord
 function toStaffAuthorization(row: MonitoringCrsStaffRow, index: number): StaffAuthorization {
     const sams = row.samsAuthorization
     return {
+        sourceStaffId: row.staffId,
         staffId: row.employeeId || String(row.staffId),
         staffNo: index + 1,
         name: row.staffName,
         position: row.jobTitle || '—',
         posGroup: 'CS',
         samsAuth: sams ? {
-            status: toAuthStatus(sams.statusCode, sams.statusName, sams.daysToExpiry),
-            resolvedStatus: toAuthStatus(sams.statusCode, sams.statusName, sams.daysToExpiry),
+            status: resolveMonitoringAuthStatus(sams.statusCode, sams.statusName, sams.daysToExpiry, EXPIRY_WARNING_DAYS),
+            resolvedStatus: resolveMonitoringAuthStatus(sams.statusCode, sams.statusName, sams.daysToExpiry, EXPIRY_WARNING_DAYS),
             resolvedDaysUntilExpiry: sams.daysToExpiry,
             authNumber: sams.authNo || '—',
             initialIssueDate: sams.initialIssueDate || undefined,
@@ -92,6 +85,10 @@ export function MonitoringCrsTab() {
         perPage: 20,
     }), [page])
     const listQuery = useMonitoringCrsList(request)
+    const {
+        data: authorizationStatuses = [],
+        isLoading: authorizationStatusesLoading,
+    } = useStaffAuthorizationAirlineStatuses()
 
     const customers = useMemo<CustomerAirline[]>(() =>
         (listQuery.data?.responseData.airlines || []).map(airline => ({
@@ -143,12 +140,14 @@ export function MonitoringCrsTab() {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Status Legend:</span>
-                        {(['active', 'expiring', 'expired', 'suspended', 'not-issued'] as AuthStatus[]).map(status => {
-                            const meta = AUTH_STATUS_META[status]
+                        {authorizationStatusesLoading ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                        ) : authorizationStatuses.map((status: StaffAuthorizationAirlineStatus) => {
+                            const meta = CUST_STATUS_META[mapCustomerAuthStatus(status.code)]
                             return (
-                                <div key={status} className="flex items-center gap-1.5 text-[11px]">
+                                <div key={status.id} className="flex items-center gap-1.5 text-[11px]">
                                     <span className="w-2.5 h-2.5 rounded-full" style={{ background: meta.dot }} />
-                                    <span className="font-semibold" style={{ color: meta.text }}>{meta.label}</span>
+                                    <span className="font-semibold" style={{ color: meta.text }}>{status.name}</span>
                                 </div>
                             )
                         })}

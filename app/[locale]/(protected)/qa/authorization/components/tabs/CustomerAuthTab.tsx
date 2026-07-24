@@ -662,9 +662,9 @@ function MatrixView() {
                 <th className="px-3 py-2 text-left text-muted-foreground font-bold whitespace-nowrap sticky left-0 bg-slate-50 z-10 border-r border-border" style={{ minWidth: 200 }}>
                   Employee Name
                 </th>
-                {visibleAirlines.map(code => (
+                {visibleAirlines.map((code, idx) => (
                   <th
-                    key={code}
+                    key={code || idx}
                     className="px-1 py-2 text-center font-bold border-l border-border"
                     style={{ minWidth: 90 }}
                     title={AIRLINES[code]?.name || code}
@@ -688,8 +688,8 @@ function MatrixView() {
                         </div>
                       </div>
                     </td>
-                    {visibleAirlines.map(code => (
-                      <td key={`skeleton-cell-${code}`} className="px-1 py-1.5 text-center border-l border-border">
+                    {visibleAirlines.map((code, idx) => (
+                      <td key={`skeleton-cell-${code || idx}`} className="px-1 py-1.5 text-center border-l border-border">
                         <Skeleton className="h-4 w-6 mx-auto rounded-md" />
                       </td>
                     ))}
@@ -700,7 +700,7 @@ function MatrixView() {
                 const samsMeta = SAMS_STATUS_META[samsStatus]
                 return (
                   <tr
-                    key={s.id}
+                    key={s.id || `staff-${ri}`}
                     className={`group border-b border-border/50 transition-colors hover:bg-slate-100 ${ri % 2 === 0 ? 'bg-white' : 'bg-slate-50'
                       }`}
                   >
@@ -717,14 +717,14 @@ function MatrixView() {
                       </div>
                     </td>
                     {/* Customer Auth Cells — dot style */}
-                    {visibleAirlines.map(code => {
+                    {visibleAirlines.map((code, idx) => {
                       const val = s.cust[code as AirlineKey] as CustomerAuthValue
                       const airlineAuthorization = s.airlineStatuses?.find(item => item.airlineCode === code)
                       const cellData = getCustomerAuthCellData(airlineAuthorization)
                       if (!val) {
                         return (
                           <td 
-                            key={code} 
+                            key={code || idx} 
                             className="text-center border-l border-border/50 cursor-pointer transition-all duration-150 group/cell hover:bg-muted/60" 
                             style={{ padding: '6px 4px', minWidth: 45, position: 'relative' }}
                             onMouseEnter={(e) => handleCellEnter(e, s, code, 'pending')}
@@ -741,7 +741,7 @@ function MatrixView() {
                       const meta = CUST_STATUS_META[val]
                       return (
                         <td
-                          key={code}
+                          key={code || idx}
                           className="text-center border-l border-border/50 cursor-pointer transition-all duration-150 group/cell hover:bg-muted/60"
                           style={{ padding: '6px 4px', minWidth: 45, position: 'relative' }}
                           onMouseEnter={(e) => handleCellEnter(e, s, code, val)}

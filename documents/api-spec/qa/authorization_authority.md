@@ -16,10 +16,14 @@ Retrieves a list of staff members along with their aviation authority licenses (
 
 ### Request Body (JSON)
 
-*Currently, the UI sends an empty object, but it can be expanded for pagination or filtering in the future.*
-
 ```json
-{}
+{
+  "searchKeyword": "",
+  "authorityId": null,
+  "status": "",
+  "page": 1,
+  "perPage": 200
+}
 ```
 
 ### Response Payload
@@ -30,12 +34,12 @@ Retrieves a list of staff members along with their aviation authority licenses (
     "responseData": {
         "authorities": [
             {
-                "aviationAuthorityId": 2,
+                "authorizationAuthorityMasterId": 2,
                 "code": "CAAM",
                 "name": "Civil Aviation Authority of Malaysia"
             },
             {
-                "aviationAuthorityId": 1,
+                "authorizationAuthorityMasterId": 1,
                 "code": "CAAT",
                 "name": "Civil Aviation Authority of Thailand"
             }
@@ -48,74 +52,161 @@ Retrieves a list of staff members along with their aviation authority licenses (
                 "profileImagePath": "",
                 "licenses": [
                     {
-                        "authorityId": 2,
-                        "aviationAuthorityId": 2,
-                        "authorityCode": "CAAM",
+                        "authorizationAuthorityId": 15,
+                        "staffId": 163,
+                        "authorizationAuthorityMasterId": 2,
+                        "authorizationAuthorityMaster": {
+                            "id": 2,
+                            "code": "CAAM",
+                            "name": "Civil Aviation Authority of Malaysia"
+                        },
+                        "authorizationStatusId": 1,
+                        "authorizationStatus": {
+                            "id": 1,
+                            "code": "VAL",
+                            "name": "Valid"
+                        },
+                        "initialIssueDate": "2022-07-19T00:00:00",
                         "currentIssueDate": "2026-07-19T00:00:00",
                         "expireDate": "2026-07-21T00:00:00",
-                        "status": "VAL",
-                        "aviationAuthorityLicense": {
-                            "initialIssueDate": "2022-07-19T00:00:00",
-                            "licenseNo": "CAAM-1234"
-                        },
+                        "isdelete": false,
+                        "licenseNo": "CAAM-1234",
+                        "licenseLevel": "B1",
+                        "createdby": "system",
+                        "createddate": "2026-06-06T17:47:47.056746",
+                        "updatedby": null,
+                        "updateddate": null,
+                        "authorityCode": "CAAM",
+                        "status": "Valid",
                         "aviationAuthorityLicenseAircrafts": [
                             {
-                                "aircraftTypeLicenseId": 1
+                                "id": 1,
+                                "authorizationAuthoritieId": 15,
+                                "aircraftTypeLicenseId": 1,
+                                "isdelete": false
                             }
                         ]
                     }
                 ]
             }
+        ],
+        "page": 1,
+        "perPage": 200,
+        "total": 50,
+        "totalAll": 50
+    },
+    "error": ""
+}
+```
+
+### Field Notes
+
+| Field | Description |
+|:---|:---|
+| `authorities[].authorizationAuthorityMasterId` | Primary key for authority columns |
+| `licenses[].authorizationAuthorityId` | Unique ID of this license record |
+| `licenses[].authorizationAuthorityMasterId` | Foreign key matching authority column |
+| `licenses[].authorizationStatus` | Status object with `id`, `code`, `name` (may be null for legacy data) |
+| `licenses[].status` | Legacy flat status string (e.g. "Valid", "Expiring", "Expired") |
+| `licenses[].authorityCode` | Legacy flat authority code (e.g. "CAAM") |
+
+> **Note**: The `status` field may appear as either a nested `authorizationStatus` object or a flat `status` string. The frontend handles both via fallback chains.
+
+---
+
+## 2. Get Authority License Detail
+
+Retrieves full details of a specific authority license for editing.
+
+- **Method**: `GET`
+- **Endpoint**: `/authorization/authority/byid/{id}`
+
+### Response Payload
+
+```json
+{
+    "message": "success",
+    "responseData": {
+        "id": 15,
+        "staffId": 163,
+        "staffName": "Aleks Reymer",
+        "employeeId": "EMP-0163",
+        "aviationAuthorityId": 2,
+        "aviationAuthorityCode": "CAAM",
+        "aviationAuthorityName": "Civil Aviation Authority of Malaysia",
+        "licenseNo": "CAAM-1234",
+        "licenseLevel": "B1",
+        "initialIssueDate": "2022-07-19T00:00:00",
+        "currentIssueDate": "2026-07-19T00:00:00",
+        "expireDate": "2026-07-21T00:00:00",
+        "aircrafts": [
+            {
+                "id": 1,
+                "aircraftTypeLicenseId": 1,
+                "code": "A319",
+                "name": "A319"
+            }
         ]
-    }
+    },
+    "error": ""
 }
 ```
 
 ---
 
-## 2. Upsert Authority Authorization (Proposed)
+## 3. Upsert Authority License
 
-Updates or creates a specific authority authorization for a staff member (e.g. from `pending` to `not_approve` or updating dates/aircrafts). This is triggered when saving from the Edit Modal in the UI.
+Updates or creates a specific authority authorization for a staff member.
 
 - **Method**: `POST`
-- **Endpoint**: `/authorization/authority/upsert`
+- **Endpoint**: `/authorization/authority-license/upsert`
 
 ### Request Body (JSON)
 
 | Field | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `id` | `number` | Yes | The ID of the existing license record (0 if new). |
+|:---|:---|:---|:---|
+| `authorizationAuthorityId` | `number` | Yes | The ID of the existing license record (0 if new). |
 | `staffId` | `number` | Yes | The ID of the staff member. |
-| `aviationAuthorityId` | `number` | Yes | The ID of the aviation authority. |
-| `status` | `string` | No | Status code (e.g., `"VAL"` for valid, `"NAP"` for not approved). |
-| `initialIssueDate` | `string` | No | ISO Date for "Date of Initial Issue". |
-| `currentIssueDate` | `string` | No | ISO Date for "Date of Current Issue". |
-| `expireDate` | `string` | No | ISO Date for "Date of Expire". |
-| `aircraftTypeIds` | `number[]` | No | Array of authorized aircraft type IDs. |
+| `authorizationAuthorityMasterId` | `number` | Yes | The master authority ID. |
+| `licenseNo` | `string \| null` | No | License number. |
+| `licenseLevel` | `string \| null` | No | License level (e.g. "B1", "B2"). |
+| `initialIssueDate` | `string \| null` | No | ISO date for initial issue. |
+| `currentIssueDate` | `string \| null` | No | ISO date for current issue. |
+| `expireDate` | `string \| null` | No | ISO date for expiry. |
+| `aircraftTypeLicenseIds` | `number[]` | No | Array of aircraft type license IDs. |
+| `authorizationStatusId` | `number \| null` | No | Status ID (from master statuses). |
 
-### Example Request (Updating from Cell Edit)
+### Example Request (Updating)
 
 ```json
 {
-  "id": 15,
-  "staffId": 163,
-  "aviationAuthorityId": 2,
-  "status": "VAL",
-  "initialIssueDate": "2022-05-10T00:00:00",
-  "currentIssueDate": "2024-05-10T00:00:00",
-  "expireDate": "2026-05-10T00:00:00",
-  "aircraftTypeIds": [1, 2]
+    "authorizationAuthorityId": 15,
+    "staffId": 163,
+    "authorizationAuthorityMasterId": 2,
+    "licenseNo": "CAAM-1234",
+    "licenseLevel": "B1",
+    "initialIssueDate": "2022-05-10",
+    "currentIssueDate": "2024-05-10",
+    "expireDate": "2026-05-10",
+    "aircraftTypeLicenseIds": [1, 2],
+    "authorizationStatusId": 1
 }
 ```
 
-### Example Request (Rejecting an Authorization)
+### Example Request (Rejecting)
 
 ```json
 {
-  "id": 15,
-  "staffId": 163,
-  "aviationAuthorityId": 2,
-  "status": "NAP"
+    "authorizationAuthorityId": 15,
+    "staffId": 163,
+    "authorizationAuthorityMasterId": 2,
+    "licenseNo": null,
+    "licenseLevel": null,
+    "initialIssueDate": null,
+    "currentIssueDate": null,
+    "expireDate": null,
+    "aircraftTypeLicenseIds": [],
+    "authorizationStatusId": 3
 }
 ```
 
@@ -131,53 +222,32 @@ Updates or creates a specific authority authorization for a staff member (e.g. f
 
 ---
 
-## TypeScript Definitions (For React Hooks)
+## 4. Get All Authorities (Master List)
 
-Following the project's 2-file pattern, the types should be placed in `lib/api/qa/authorization/authority-auth.ts`.
+Retrieves the full list of aviation authorities for filtering and display.
 
-```typescript
-export interface AuthorityAuthResponse {
-  message: string;
-  responseData: {
-    authorities: Array<{
-      aviationAuthorityId: number;
-      code: string;
-      name: string;
-    }>;
-    staffRows: Array<{
-      staffId: number;
-      staffName: string;
-      employeeId: string;
-      profileImagePath: string | null;
-      licenses: Array<{
-        authorityId: number;
-        aviationAuthorityId: number;
-        authorityCode: string;
-        currentIssueDate: string | null;
-        expireDate: string | null;
-        status: string;
-        aviationAuthorityLicense: {
-          initialIssueDate?: string | null;
-          licenseNo?: string | null;
-          [key: string]: any;
-        } | null;
-        aviationAuthorityLicenseAircrafts: Array<{
-          aircraftTypeLicenseId: number;
-          [key: string]: any;
-        }> | null;
-      }>;
-    }>;
-  };
-}
+- **Method**: `GET`
+- **Endpoint**: `/authorization/authority/list`
 
-export interface UpsertAuthorityAuthRequest {
-  id: number;
-  staffId: number;
-  aviationAuthorityId: number;
-  status?: string;
-  initialIssueDate?: string;
-  currentIssueDate?: string;
-  expireDate?: string;
-  aircraftTypeIds?: number[];
+### Response Payload
+
+```json
+{
+    "message": "success",
+    "responseData": [
+        {
+            "id": 1,
+            "code": "CAAT",
+            "name": "Civil Aviation Authority of Thailand",
+            "colorCode": "#1d4ed8"
+        },
+        {
+            "id": 2,
+            "code": "CAAM",
+            "name": "Civil Aviation Authority of Malaysia",
+            "colorCode": "#7c3aed"
+        }
+    ],
+    "error": ""
 }
 ```

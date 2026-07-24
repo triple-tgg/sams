@@ -1,8 +1,7 @@
 'use client'
 
-import { Employee, CourseRef, getStatus, getDaysLeft, STATUS_META, SortField, SortDir } from '../types'
+import { Employee, CourseRef, getEmployeeCourseDaysLeft, getEmployeeCourseStatus, STATUS_META, SortField, SortDir } from '../types'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
-import { MOCK_SESSIONS } from './CourseEnrollmentModal'
 
 interface StatusMatrixProps {
     employees: Employee[]
@@ -62,7 +61,7 @@ export function StatusMatrix({ employees, courses, selectedId, onSelect, sortFie
                     </thead>
                     <tbody>
                         {employees.map((emp, ri) => {
-                            const statuses = courses.map(c => getStatus(emp.courses[c.id]))
+                            const statuses = courses.map(c => getEmployeeCourseStatus(emp, c.id))
                             const hasIssue = statuses.some(s => s === 'expired' || s === 'warning')
                             const isSelected = selectedId === emp.id
 
@@ -76,7 +75,7 @@ export function StatusMatrix({ employees, courses, selectedId, onSelect, sortFie
                                 }
                                 return acc
                             }, null)
-                            const nearestDays = nearestExpiry ? Math.floor((nearestExpiry.getTime() - new Date('2026-03-19').getTime()) / 86400000) : null
+                            const nearestDays = nearestExpiry ? Math.floor((nearestExpiry.getTime() - Date.now()) / 86400000) : null
 
                             return (
                                 <tr key={emp.id}
@@ -90,18 +89,29 @@ export function StatusMatrix({ employees, courses, selectedId, onSelect, sortFie
                                     <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap text-[11px]">{emp.pos}</td>
                                     {courses.map(c => {
                                         const due = emp.courses[c.id]
-                                        const s = getStatus(due)
+                                        const s = getEmployeeCourseStatus(emp, c.id)
                                         const m = STATUS_META[s]
-                                        const d = getDaysLeft(due)
+                                        const d = getEmployeeCourseDaysLeft(emp, c.id)
 
                                         let lastTrainingStr = '-'
                                         let dueDateStr = '-'
-                                        if (due && due !== '-' && due !== 'na') {
+                                        const issueDate = emp.courseIssueDates?.[c.id]
+                                        if (issueDate) {
+                                            const parsedIssueDate = new Date(issueDate)
+                                            if (!isNaN(parsedIssueDate.getTime())) {
+                                                lastTrainingStr = parsedIssueDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })
+                                            }
+                                        } else if (due && due !== '-' && due !== 'na') {
                                             const dueDate = new Date(due)
                                             if (!isNaN(dueDate.getTime())) {
                                                 const lastTraining = new Date(dueDate)
                                                 lastTraining.setMonth(lastTraining.getMonth() - c.interval)
                                                 lastTrainingStr = lastTraining.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })
+                                            }
+                                        }
+                                        if (due && due !== '-' && due !== 'na') {
+                                            const dueDate = new Date(due)
+                                            if (!isNaN(dueDate.getTime())) {
                                                 dueDateStr = dueDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })
                                             }
                                         }
@@ -118,7 +128,6 @@ export function StatusMatrix({ employees, courses, selectedId, onSelect, sortFie
                                             ] : []),
                                         ].join('\n')
                                         const isEnrolled = !!enrollments?.[`${emp.id}-${c.id}`]
-                                        const enrolledSession = isEnrolled ? MOCK_SESSIONS.find(session => session.id === enrollments[`${emp.id}-${c.id}`]) : null
 
                                         return (
                                             <td key={c.id}
@@ -187,14 +196,12 @@ export function StatusMatrix({ employees, courses, selectedId, onSelect, sortFie
                                                                     </div>
                                                                 </>
                                                             )}
-                                                            {isEnrolled && enrolledSession && (
+                                                            {isEnrolled && (
                                                                 <div className="border-t border-border pt-1.5 mt-1.5 border-dashed space-y-0.5 bg-primary/5 p-1.5 rounded-sm">
                                                                     <div className="font-bold text-primary flex items-center gap-1.5">
                                                                         <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
                                                                         Currently Enrolled
                                                                     </div>
-                                                                    <div className="font-medium text-foreground">{enrolledSession.date}</div>
-                                                                    <div className="text-muted-foreground text-[10px]">{enrolledSession.location}</div>
                                                                 </div>
                                                             )}
                                                         </div>
