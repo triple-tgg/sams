@@ -44,6 +44,7 @@ export interface SchedulerSessionData {
   statusName: string;
   maxParticipants: number;
   enrolledCount: number;
+  trainingAttendanceTypeId?: number;
   note: string;
   createddate: string;
   createdby: string;
@@ -147,7 +148,6 @@ export interface SchedulerUpsertRequest {
   trainingDataStatusesId: number;
   maxParticipants: number;
   note: string;
-  userName: string;
   trainingAttendanceTypeId: number;
 }
 
@@ -178,7 +178,7 @@ export const updateSchedulerStatus = async (data: { trainingScheduleId: number; 
   }
 };
 
-export const deleteScheduler = async (reqData: { id: number, userName: string }): Promise<{ message: string, responseData: string[], error: string }> => {
+export const deleteScheduler = async (reqData: { id: number }): Promise<{ message: string, responseData: string[], error: string }> => {
   try {
     const res = await axiosConfig.post('/training/scheduler/delete', reqData);
     return res.data;

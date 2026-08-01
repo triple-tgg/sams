@@ -31,26 +31,21 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
     const instructor = detail?.instructor ?? s.instructor
     const venue = detail?.venue ?? s.venue
     const trainingAttendanceTypeId = detail?.trainingAttendanceTypeObj?.id ?? s.trainingAttendanceTypeId ?? 1
+    const attendanceTypeName = detail?.trainingAttendanceTypeObj?.name ?? (trainingAttendanceTypeId === 2 ? 'Online' : 'Onsite')
     const link = detail?.link ?? s.link ?? ''
     const note = detail?.note ?? null
-    const isOnline = trainingAttendanceTypeId === 2
+    const isOnline = attendanceTypeName.toLowerCase().includes('online')
 
     const cfg = STATUS_CONFIG[s.status] || STATUS_CONFIG.Scheduled
     const cc = CAT_COLOR[s.category] || { bar: '#94a3b8', light: '#f8fafc', text: '#475569' }
     const pct = maxParticipants > 0 ? Math.round((enrolled / maxParticipants) * 100) : 0
     const days = sessionDays(s)
 
-    // UTC → local helpers (force UTC parse in case API omits timezone suffix)
-    const pad = (n: number) => String(n).padStart(2, '0')
-    const parseUTC = (iso: string) => new Date(iso.endsWith('Z') || iso.includes('+') ? iso : iso + 'Z')
-    const toLocalDate = (iso: string) => { const d = parseUTC(iso); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` }
-    const toLocalTime = (iso: string) => { const d = parseUTC(iso); return `${pad(d.getHours())}:${pad(d.getMinutes())}` }
-
-    // Use detail dates (converted UTC→local) when available, fallback to session prop
-    const dateStart = detail?.startDate ? toLocalDate(detail.startDate) : s.dateStart
-    const dateEnd = detail?.endDate ? toLocalDate(detail.endDate) : s.dateEnd
-    const timeStart = detail?.startDate ? toLocalTime(detail.startDate) : s.timeStart
-    const timeEnd = detail?.endDate ? toLocalTime(detail.endDate) : s.timeEnd
+    // Read calendar datetime directly — no UTC conversion
+    const dateStart = detail?.startDate ? detail.startDate.split('T')[0] : s.dateStart
+    const dateEnd = detail?.endDate ? detail.endDate.split('T')[0] : s.dateEnd
+    const timeStart = detail?.startDate ? detail.startDate.split('T')[1]?.substring(0, 5) : s.timeStart
+    const timeEnd = detail?.endDate ? detail.endDate.split('T')[1]?.substring(0, 5) : s.timeEnd
 
     const INFO_ROWS = [
         { key: 'start', icon: Calendar, label: 'Start', val: formatDate(dateStart) },
@@ -60,7 +55,7 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
         { key: 'category', icon: Tag, label: 'Category', val: detail?.categoryObj?.name },
         { key: 'instructor', icon: User, label: 'Instructor', val: instructor },
         { key: 'training-type', icon: Tag, label: 'Training Type', val: detail?.courseObj?.courseType },
-        { key: 'format', icon: isOnline ? Video : MapPin, label: 'Attendance Type', val: isOnline ? 'Online' : 'Onsite', isBadge: true },
+        { key: 'format', icon: isOnline ? Video : MapPin, label: 'Attendance Type', val: attendanceTypeName, isBadge: true },
     ]
 
     const targetDepts: string[] = detail?.requiredFor?.length ? detail.requiredFor : []

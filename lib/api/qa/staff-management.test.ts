@@ -35,6 +35,7 @@ describe("staff profile image API flow", () => {
             address: "Address",
             employeeId: "EMP-0163",
             startDate: "2026-05-19",
+            endDate: null,
             positionObj: {
                 id: 4, name: "Commercial Manager", isdelete: false,
                 createddate: "2026-01-01", createdby: "system", updateddate: null, updatedby: null,

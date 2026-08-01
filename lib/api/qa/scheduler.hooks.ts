@@ -54,6 +54,7 @@ export function mapSchedulerDetailToSession(d: SchedulerSessionDetail): Session 
     objective: d.courseObj?.courseObjective ?? undefined,
     note: d.courseObj?.additionalNote || d.note || undefined,
     trainingAttendanceTypeId: d.trainingAttendanceTypeObj?.id || 1,
+    attendanceTypeName: d.trainingAttendanceTypeObj?.name,
   };
 }
 

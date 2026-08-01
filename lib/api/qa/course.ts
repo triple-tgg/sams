@@ -73,7 +73,6 @@ export interface UpsertCourseRequirement {
   courseId: number;
   courseDepartmentSubId: number;
   isRequired: boolean;
-  userName: string;
 }
 
 export interface UpsertCourseRequest {
@@ -84,7 +83,6 @@ export interface UpsertCourseRequest {
   courseType: string;
   recurrenceIntervalYears: number | null;
   additionalNote: string;
-  userName: string;
   aircraftTypeLicenseId: number | null;
   courseObjective: string;
   requirements: UpsertCourseRequirement[];

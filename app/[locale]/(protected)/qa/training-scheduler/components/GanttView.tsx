@@ -21,9 +21,10 @@ interface GanttViewProps {
     nextMonth: () => void
     today: Date
     onSelect: (s: Session) => void
+    filterSlot?: React.ReactNode
 }
 
-export function GanttView({ sessions, calYear, calMonth, setCalYear, setCalMonth, prevMonth, nextMonth, today, onSelect }: GanttViewProps) {
+export function GanttView({ sessions, calYear, calMonth, setCalYear, setCalMonth, prevMonth, nextMonth, today, onSelect, filterSlot }: GanttViewProps) {
     const [hoveredSession, setHoveredSession] = useState<number | null>(null)
     const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number; right?: boolean } | null>(null)
     const gridRef = useRef<HTMLDivElement>(null)
@@ -146,6 +147,7 @@ export function GanttView({ sessions, calYear, calMonth, setCalYear, setCalMonth
             {/* Header */}
             <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
+                    {filterSlot}
                     <Select value={calMonth.toString()} onValueChange={(v) => setCalMonth(parseInt(v))}>
                         <SelectTrigger className="w-[140px] h-8 text-xs font-semibold bg-white border-border">
                             <SelectValue placeholder="Month" />

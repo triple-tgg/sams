@@ -347,6 +347,7 @@ export interface StaffByIdData {
     address: string | null;
     employeeId: string | null;
     startDate: string | null;
+    endDate: string | null;
     positionObj: PositionObj | null;
     departmentObj: DepartmentObj | null;
     staffstypeObj: StaffTypeObj | null;

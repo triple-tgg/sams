@@ -18,7 +18,8 @@ import { GanttView } from './components/GanttView'
 import { SessionDetail } from './components/SessionDetail'
 import { SessionFormModal } from './components/SessionFormModal'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getSchedulerDashboardCalendar, getSchedulerCalendar, upsertScheduler, deleteScheduler, SchedulerSessionData } from '@/lib/api/qa/scheduler'
+import { getSchedulerDashboardCalendar, getSchedulerCalendar, getSchedulerById, upsertScheduler, deleteScheduler, SchedulerSessionData } from '@/lib/api/qa/scheduler'
+import { mapSchedulerDetailToSession } from '@/lib/api/qa/scheduler.hooks'
 import { getCourseCategories, getCourseDepartments, getCourseList, CourseDepartmentItem, CourseData, CourseCategory } from '@/lib/api/qa/course'
 import { useTrainingDataStatuses } from '@/lib/api/master/trainingDataStatuses.hooks'
 import { useAttendanceTypes } from '@/lib/api/master/attendanceTypes.hooks'
@@ -73,16 +74,11 @@ export default function TrainingSchedulerPage() {
     function mapSessions(data: typeof calendarResp): Session[] {
         if (!data?.responseData) return []
         return data.responseData.map((s: SchedulerSessionData) => {
-            // Force UTC parse (API may return ISO without timezone suffix)
-            const parseUTC = (iso: string) => new Date(iso.endsWith('Z') || iso.includes('+') ? iso : iso + 'Z')
-            const startLocal = parseUTC(s.startDate)
-            const endLocal = parseUTC(s.endDate)
-
-            const pad = (n: number) => String(n).padStart(2, '0')
-            const toLocalDate = (d: Date) =>
-                `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-            const toLocalTime = (d: Date) =>
-                `${pad(d.getHours())}:${pad(d.getMinutes())}`
+            // Read calendar datetime directly — no UTC conversion
+            const dateStart = s.startDate?.split('T')[0] ?? ''
+            const dateEnd = s.endDate?.split('T')[0] ?? ''
+            const timeStart = s.startDate?.split('T')[1]?.substring(0, 5) ?? ''
+            const timeEnd = s.endDate?.split('T')[1]?.substring(0, 5) ?? ''
 
             return {
                 id: s.id,
@@ -91,10 +87,10 @@ export default function TrainingSchedulerPage() {
                 courseName: s.courseName,
                 category: 'Core',
                 type: 'Initial',
-                dateStart: toLocalDate(startLocal),
-                dateEnd: toLocalDate(endLocal),
-                timeStart: toLocalTime(startLocal),
-                timeEnd: toLocalTime(endLocal),
+                dateStart,
+                dateEnd,
+                timeStart,
+                timeEnd,
                 instructor: s.instructorName,
                 venue: s.venueName,
                 status: s.statusName,
@@ -102,6 +98,7 @@ export default function TrainingSchedulerPage() {
                 maxParticipants: s.maxParticipants,
                 dept: s.targetDepartmentName,
                 note: s.note || '',
+                trainingAttendanceTypeId: s.trainingAttendanceTypeId,
             }
         })
     }
@@ -169,32 +166,47 @@ export default function TrainingSchedulerPage() {
 
     // Handlers
     function openAdd() { setEditSession(null); setForm(BLANK_FORM); setShowForm(true) }
-    function openEdit(s: Session) { setEditSession(s); setForm({ ...s }); setShowForm(true); setSelectedSession(null) }
+    async function openEdit(s: Session) {
+        try {
+            // Fetch full detail by ID for accurate data
+            const res = await getSchedulerById(s.id)
+            const detail = mapSchedulerDetailToSession(res.responseData)
+            // Map status from detail
+            const statusObj = statusOptions.find(st => st.id === res.responseData.trainingDataStatusesId)
+            const detailWithStatus = { ...detail, status: statusObj?.name || s.status }
+            setEditSession(detailWithStatus)
+            setForm({ ...detailWithStatus, note: res.responseData.note || '' })
+        } catch {
+            // Fallback to list data if API fails
+            setEditSession(s)
+            setForm({ ...s })
+        }
+        setShowForm(true)
+        setSelectedSession(null)
+    }
     async function handleSave() {
-        if (!form.dateStart || !form.courseId) return
+        if (!form.dateStart || !form.courseId || !form.instructor?.trim()) {
+            toast.error('Please fill in all required fields (Course, Start Date, Instructor)')
+            return
+        }
 
         try {
             const statusObj = statusOptions.find(s => s.name === form.status || s.code === form.status)
             const resolvedStatusId = statusObj ? statusObj.id : 1
 
-            // Convert local datetime → UTC ISO string
-            const toUTC = (dateStr: string, timeStr: string) => {
-                const local = new Date(`${dateStr}T${timeStr}:00`)
-                return local.toISOString()
-            }
-
+            // Send calendar datetime directly — no UTC conversion
             const reqData = {
                 trainingScheduleId: editSession ? editSession.id : 0,
                 courseId: parseInt(String(form.courseId)),
-                startDate: toUTC(form.dateStart, form.timeStart),
-                endDate: toUTC(form.dateEnd || form.dateStart, form.timeEnd),
+                startDate: `${form.dateStart}T${form.timeStart}:00`,
+                endDate: `${form.dateEnd || form.dateStart}T${form.timeEnd}:00`,
                 instructor: form.instructor,
                 venue: form.venue,
                 targetDepartmentId: 0,
                 trainingDataStatusesId: resolvedStatusId,
                 maxParticipants: form.maxParticipants,
                 note: form.note || '',
-                userName: users?.username || 'system',
+                courseObjective: form.objective || '',
                 trainingAttendanceTypeId: form.trainingAttendanceTypeId || 1
             }
 
@@ -220,7 +232,7 @@ export default function TrainingSchedulerPage() {
     }
     const handleDelete = async (id: number) => {
         try {
-            await deleteScheduler({ id, userName: users?.username || 'system' });
+            await deleteScheduler({ id });
             await queryClient.invalidateQueries({ queryKey: ['scheduler-list'] })
             await queryClient.invalidateQueries({ queryKey: ['scheduler-calendar'] });
             await queryClient.invalidateQueries({ queryKey: ['scheduler-dashboard-calendar'] });
@@ -237,6 +249,45 @@ export default function TrainingSchedulerPage() {
     }
     const prevMonth = () => { if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1) } else setCalMonth(m => m - 1) }
     const nextMonth = () => { if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1) } else setCalMonth(m => m + 1) }
+
+    const courseFilterSlot = (
+        <Popover open={courseOpen} onOpenChange={setCourseOpen}>
+            <PopoverTrigger asChild>
+                <button type="button" role="combobox" aria-expanded={courseOpen}
+                    className="flex items-center gap-2 px-3 py-1.5 text-xs border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 cursor-pointer w-[240px] justify-between">
+                    <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    <span className={cn('truncate flex-1 text-left', !filterCourseId && 'text-muted-foreground')}>
+                        {filterCourseId
+                            ? listCourses.find(c => c.id === filterCourseId)?.courseCode + ' — ' + listCourses.find(c => c.id === filterCourseId)?.courseName
+                            : 'All Courses'}
+                    </span>
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                </button>
+            </PopoverTrigger>
+            <PopoverContent className="p-0 w-[340px]" align="start">
+                <Command>
+                    <CommandInput placeholder="Search course..." className="text-xs" />
+                    <CommandList className="max-h-[280px] overflow-y-auto" data-vaul-no-drag>
+                        <CommandEmpty>No course found.</CommandEmpty>
+                        <CommandItem value="All Courses" onSelect={() => { setFilterCourseId(null); setCourseOpen(false) }}>
+                            <Check className={cn('mr-2 w-3.5 h-3.5', !filterCourseId ? 'opacity-100' : 'opacity-0')} />
+                            All Courses
+                        </CommandItem>
+                        {listCourses.map(c => (
+                            <CommandItem key={c.id} value={`${c.courseCode} ${c.courseName}`}
+                                onSelect={() => { setFilterCourseId(c.id); setCourseOpen(false) }}>
+                                <Check className={cn('mr-2 w-3.5 h-3.5', filterCourseId === c.id ? 'opacity-100' : 'opacity-0')} />
+                                <div className="flex flex-col items-start gap-1 w-full">
+                                    <span className="font-medium text-primary text-xs">{c.courseCode}</span>
+                                    <span className="text-sm text-muted-foreground">{c.courseName}</span>
+                                </div>
+                            </CommandItem>
+                        ))}
+                    </CommandList>
+                </Command>
+            </PopoverContent>
+        </Popover>
+    )
 
     return (
         <>
@@ -293,50 +344,7 @@ export default function TrainingSchedulerPage() {
                         {/* Filter Bar */}
                         {view === 'list' && (
                             <div className="flex items-center gap-3 flex-wrap">
-                                {/* Course combobox */}
-                                <Popover open={courseOpen} onOpenChange={setCourseOpen}>
-                                    <PopoverTrigger asChild>
-                                        <button
-                                            type="button"
-                                            role="combobox"
-                                            aria-expanded={courseOpen}
-                                            className="flex items-center gap-2 px-3 py-1.5 text-xs border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 cursor-pointer w-[180px] justify-between"
-                                        >
-                                            <span className={cn('truncate', !filterCourseId && 'text-muted-foreground')}>
-                                                {filterCourseId
-                                                    ? listCourses.find(c => c.id === filterCourseId)?.courseCode + ' ' + listCourses.find(c => c.id === filterCourseId)?.courseName
-                                                    : 'All Courses'}
-                                            </span>
-                                            <ChevronsUpDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                                        </button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="p-0 w-[340px]" align="start">
-                                        <Command>
-                                            <CommandInput placeholder="Search course..." className="text-xs" />
-                                            <CommandList className="max-h-[280px] overflow-y-auto" data-vaul-no-drag>
-                                                <CommandEmpty>No course found.</CommandEmpty>
-                                                <CommandItem value="All Courses" onSelect={() => { setFilterCourseId(null); setCourseOpen(false) }}>
-                                                    <Check className={cn('mr-2 w-3.5 h-3.5', !filterCourseId ? 'opacity-100' : 'opacity-0')} />
-                                                    All Courses
-                                                </CommandItem>
-                                                {listCourses.map(c => (
-                                                    <CommandItem
-                                                        key={c.id}
-                                                        value={`${c.courseCode} ${c.courseName}`}
-                                                        onSelect={() => { setFilterCourseId(c.id); setCourseOpen(false) }}
-                                                    >
-                                                        <Check className={cn('mr-2 w-3.5 h-3.5', filterCourseId === c.id ? 'opacity-100' : 'opacity-0')} />
-                                                        <div className="flex flex-col items-start gap-1  w-full">
-                                                            <span className="font-medium text-primary text-xs">{c.courseCode}</span>
-                                                            <span className="text-sm text-muted-foreground">{c.courseName}</span>
-                                                        </div>
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandList>
-                                        </Command>
-                                    </PopoverContent>
-                                </Popover>
-
+                                {courseFilterSlot}
                                 <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
                                     className="text-xs border border-border rounded-lg px-3 py-1.5 bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 cursor-pointer">
                                     {STATUSES.map(s => <option key={s} value={s}>{s === 'All' ? 'All Status' : s}</option>)}
@@ -418,10 +426,11 @@ export default function TrainingSchedulerPage() {
                                     <CalendarView
                                         calYear={calYear} calMonth={calMonth}
                                         prevMonth={prevMonth} nextMonth={nextMonth}
-                                        sessions={activeSessions}
+                                        sessions={filtered}
                                         today={today}
                                         onSelect={setSelectedSession}
                                         selectedSession={selectedSession}
+                                        filterSlot={courseFilterSlot}
                                     />
                                 )}
                                 {view === 'list' && (
@@ -430,7 +439,8 @@ export default function TrainingSchedulerPage() {
                                 {view === 'gantt' && (
                                     <GanttView sessions={filtered} calYear={calYear} calMonth={calMonth}
                                         setCalYear={setCalYear} setCalMonth={setCalMonth}
-                                        prevMonth={prevMonth} nextMonth={nextMonth} today={today} onSelect={setSelectedSession} />
+                                        prevMonth={prevMonth} nextMonth={nextMonth} today={today} onSelect={setSelectedSession}
+                                        filterSlot={courseFilterSlot} />
                                 )}
                             </div>
 

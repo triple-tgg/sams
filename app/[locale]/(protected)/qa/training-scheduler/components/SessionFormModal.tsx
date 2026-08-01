@@ -9,8 +9,11 @@ import { useQuery } from '@tanstack/react-query'
 import { getCourseList, type CourseData } from '@/lib/api/qa/course'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
-import { Check, ChevronsUpDown } from 'lucide-react'
+import { Calendar } from '@/components/ui/calendar'
+import { Check, ChevronsUpDown, CalendarIcon, Clock, Link2, MapPin } from 'lucide-react'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
+import { format, parse } from 'date-fns'
 import dynamic from 'next/dynamic'
 import type { TrainingDataStatus } from '@/lib/api/master/trainingDataStatuses'
 import 'react-quill-new/dist/quill.snow.css'
@@ -31,6 +34,7 @@ interface SessionFormModalProps {
 export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCourseSelect, statusOptions = [], attendanceTypes = [] }: SessionFormModalProps) {
     const [isOpen, setIsOpen] = useState(false)
     const [courseOpen, setCourseOpen] = useState(false)
+    const [submitted, setSubmitted] = useState(false)
 
     useEffect(() => {
         // Trigger smooth entry animation after conditional mounting
@@ -45,6 +49,8 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
     }
 
     const handleSaveAndClose = () => {
+        setSubmitted(true)
+        if (!form.courseId || !form.dateStart || !form.instructor?.trim()) return
         onSave()
         handleClose()
     }
@@ -74,7 +80,7 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
     const f = (k: string, v: string | number) => setForm(p => ({ ...p, [k]: v }))
 
     return (
-        <Drawer open={isOpen} onOpenChange={(val) => !val && handleClose()} direction="right">
+        <Drawer open={isOpen} onOpenChange={(val) => !val && handleClose()} direction="right" modal={false}>
             <DrawerContent className="fixed inset-y-0 right-0 left-auto mt-0 h-full w-[450px] sm:max-w-[540px] p-0 flex flex-col bg-card border-l border-border rounded-none rounded-l-[10px] [&>div:first-child]:hidden outline-none">
                 {/* Header */}
                 <div className="px-6 pt-6 pb-4 border-b border-border flex flex-col gap-1 sticky top-0 bg-card z-10 shrink-0">
@@ -99,7 +105,7 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
                                     type="button"
                                     role="combobox"
                                     aria-expanded={courseOpen}
-                                    className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 cursor-pointer flex items-center justify-between gap-2"
+                                    className={cn('w-full px-3 py-2 text-sm border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 cursor-pointer flex items-center justify-between gap-2', submitted && !form.courseId ? 'border-red-400' : 'border-border')}
                                 >
                                     <span className={cn('truncate', !selectedLabel && 'text-muted-foreground')}>
                                         {courseLoading ? 'Loading courses...' : selectedLabel || 'Select a course...'}
@@ -120,6 +126,8 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
                                                         value={`${c.courseCode} ${c.courseName}`}
                                                         onSelect={() => {
                                                             onCourseSelect(String(c.id))
+                                                            // Auto-fill objective from course data
+                                                            setForm(p => ({ ...p, objective: c.courseObjective || '' }))
                                                             setCourseOpen(false)
                                                         }}
                                                         className="flex items-start gap-2"
@@ -138,6 +146,7 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
                             </PopoverContent>
                         </Popover>
                     </div>
+                    {submitted && !form.courseId && <p className="text-[11px] text-red-500 -mt-2">Training course is required</p>}
 
                     {/* Dates + Time */}
                     <div className="grid grid-cols-2 gap-4">
@@ -145,36 +154,103 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
                             <label className="text-xs font-medium text-muted-foreground block mb-1.5">
                                 Start Date <span className="text-red-400">*</span>
                             </label>
-                            <input type="date" value={form.dateStart} onChange={e => f('dateStart', e.target.value)}
-                                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10" />
+                            <Popover modal={true}>
+                                <PopoverTrigger asChild>
+                                    <button type="button" className={cn('w-full px-3 py-2 text-sm border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 flex items-center justify-between gap-2 cursor-pointer', submitted && !form.dateStart ? 'border-red-400' : 'border-border', !form.dateStart && 'text-muted-foreground')}>
+                                        <span>{form.dateStart ? format(parse(form.dateStart, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy') : 'Pick a date'}</span>
+                                        <CalendarIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+                                    </button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar mode="single" selected={form.dateStart ? parse(form.dateStart, 'yyyy-MM-dd', new Date()) : undefined} onSelect={(d) => { if (d) f('dateStart', format(d, 'yyyy-MM-dd')) }} initialFocus />
+                                </PopoverContent>
+                            </Popover>
                         </div>
                         <div>
                             <label className="text-xs font-medium text-muted-foreground block mb-1.5">End Date</label>
-                            <input type="date" value={form.dateEnd} onChange={e => f('dateEnd', e.target.value)}
-                                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10" />
+                            <Popover modal={true}>
+                                <PopoverTrigger asChild>
+                                    <button type="button" className={cn('w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 flex items-center justify-between gap-2 cursor-pointer', !form.dateEnd && 'text-muted-foreground')}>
+                                        <span>{form.dateEnd ? format(parse(form.dateEnd, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy') : 'Pick a date'}</span>
+                                        <CalendarIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+                                    </button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar mode="single" selected={form.dateEnd ? parse(form.dateEnd, 'yyyy-MM-dd', new Date()) : undefined} onSelect={(d) => { if (d) f('dateEnd', format(d, 'yyyy-MM-dd')) }} initialFocus />
+                                </PopoverContent>
+                            </Popover>
                         </div>
                         <div>
                             <label className="text-xs font-medium text-muted-foreground block mb-1.5">Start Time</label>
-                            <input type="time" lang="en-GB" value={form.timeStart} onChange={e => f('timeStart', e.target.value)}
-                                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10" />
+                            <Popover modal={true}>
+                                <PopoverTrigger asChild>
+                                    <button type="button" className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 flex items-center justify-between gap-2 cursor-pointer">
+                                        <span>{form.timeStart || '09:00'}</span>
+                                        <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
+                                    </button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <div className="flex divide-x divide-border">
+                                        <ScrollArea className="h-52">
+                                            <div className="flex flex-col p-1">
+                                                {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => (
+                                                    <button key={h} type="button" onClick={() => f('timeStart', `${h}:${(form.timeStart || '09:00').split(':')[1]}`)} className={cn('px-3 py-1.5 text-sm rounded hover:bg-accent cursor-pointer text-center min-w-[48px]', (form.timeStart || '09:00').split(':')[0] === h && 'bg-primary text-primary-foreground hover:bg-primary/90')}>{h}</button>
+                                                ))}
+                                            </div>
+                                        </ScrollArea>
+                                        <ScrollArea className="h-52">
+                                            <div className="flex flex-col p-1">
+                                                {['00','15','30','45'].map(m => (
+                                                    <button key={m} type="button" onClick={() => f('timeStart', `${(form.timeStart || '09:00').split(':')[0]}:${m}`)} className={cn('px-3 py-1.5 text-sm rounded hover:bg-accent cursor-pointer text-center min-w-[48px]', (form.timeStart || '09:00').split(':')[1] === m && 'bg-primary text-primary-foreground hover:bg-primary/90')}>{m}</button>
+                                                ))}
+                                            </div>
+                                        </ScrollArea>
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
                         </div>
                         <div>
                             <label className="text-xs font-medium text-muted-foreground block mb-1.5">End Time</label>
-                            <input type="time" lang="en-GB" value={form.timeEnd} onChange={e => f('timeEnd', e.target.value)}
-                                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10" />
+                            <Popover modal={true}>
+                                <PopoverTrigger asChild>
+                                    <button type="button" className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 flex items-center justify-between gap-2 cursor-pointer">
+                                        <span>{form.timeEnd || '17:00'}</span>
+                                        <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
+                                    </button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <div className="flex divide-x divide-border">
+                                        <ScrollArea className="h-52">
+                                            <div className="flex flex-col p-1">
+                                                {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => (
+                                                    <button key={h} type="button" onClick={() => f('timeEnd', `${h}:${(form.timeEnd || '17:00').split(':')[1]}`)} className={cn('px-3 py-1.5 text-sm rounded hover:bg-accent cursor-pointer text-center min-w-[48px]', (form.timeEnd || '17:00').split(':')[0] === h && 'bg-primary text-primary-foreground hover:bg-primary/90')}>{h}</button>
+                                                ))}
+                                            </div>
+                                        </ScrollArea>
+                                        <ScrollArea className="h-52">
+                                            <div className="flex flex-col p-1">
+                                                {['00','15','30','45'].map(m => (
+                                                    <button key={m} type="button" onClick={() => f('timeEnd', `${(form.timeEnd || '17:00').split(':')[0]}:${m}`)} className={cn('px-3 py-1.5 text-sm rounded hover:bg-accent cursor-pointer text-center min-w-[48px]', (form.timeEnd || '17:00').split(':')[1] === m && 'bg-primary text-primary-foreground hover:bg-primary/90')}>{m}</button>
+                                                ))}
+                                            </div>
+                                        </ScrollArea>
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
                         </div>
                     </div>
 
                     {/* Instructor + Attendance Type */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="text-xs font-medium text-muted-foreground block mb-1.5">Instructor</label>
+                            <label className="text-xs font-medium text-muted-foreground block mb-1.5">Instructor <span className="text-red-400">*</span></label>
                             <input type="text" value={form.instructor} onChange={e => f('instructor', e.target.value)} placeholder="e.g. Captain Aphisit"
-                                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10" />
+                                className={cn('w-full px-3 py-2 text-sm border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10', submitted && !form.instructor?.trim() ? 'border-red-400' : 'border-border')} />
+                            {submitted && !form.instructor?.trim() && <p className="text-[11px] text-red-500 mt-1">Instructor is required</p>}
                         </div>
                         <div>
                             <label className="text-xs font-medium text-muted-foreground block mb-1.5">Attendance Type</label>
-                            <select value={form.trainingAttendanceTypeId || 1} onChange={e => f('trainingAttendanceTypeId', Number(e.target.value))}
+                            <select value={form.trainingAttendanceTypeId || 1} onChange={e => { f('trainingAttendanceTypeId', Number(e.target.value)); f('venue', '') }}
                                 className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 cursor-pointer">
                                 {attendanceTypes.length > 0 ? (
                                     attendanceTypes.map((at: AttendanceType) => (
@@ -189,13 +265,16 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
                     <div>
                         {attendanceTypes.find((at: AttendanceType) => at.id === form.trainingAttendanceTypeId)?.code === 'Online' ? (
                             <div>
-                                <label className="text-xs font-medium text-muted-foreground block mb-1.5">Meeting Link</label>
-                                <input type="text" value={form.link || ''} onChange={e => f('link', e.target.value)} placeholder="e.g. https://zoom.us/..."
-                                    className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10" />
+                                <label className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1"><Link2 className="w-3.5 h-3.5" />Meeting Link</label>
+                                <input type="url" value={form.venue} onChange={e => f('venue', e.target.value)} placeholder="e.g. https://zoom.us/..."
+                                    className={cn('w-full px-3 py-2 text-sm border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10', form.venue && !/^https?:\/\/.+/i.test(form.venue) ? 'border-red-400 focus:ring-red-200' : 'border-border')} />
+                                {form.venue && !/^https?:\/\/.+/i.test(form.venue) && (
+                                    <p className="text-[11px] text-red-500 mt-1">Please enter a valid URL (e.g. https://zoom.us/...)</p>
+                                )}
                             </div>
                         ) : (
                             <div>
-                                <label className="text-xs font-medium text-muted-foreground block mb-1.5">Location (Venue)</label>
+                                <label className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />Location (Venue)</label>
                                 <input type="text" value={form.venue} onChange={e => f('venue', e.target.value)} placeholder="e.g. BKK Base Room 1"
                                     className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10" />
                             </div>
@@ -222,6 +301,13 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
                             <input type="number" min={1} max={200} value={form.maxParticipants} onChange={e => f('maxParticipants', parseInt(e.target.value) || 1)}
                                 className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10" />
                         </div>
+                    </div>
+
+                    {/* Course Objective */}
+                    <div className="flex flex-col">
+                        <label className="text-xs font-medium text-muted-foreground block mb-1.5">Course Objective</label>
+                        <textarea value={form.objective || ''} onChange={e => f('objective', e.target.value)} placeholder="Course objective will auto-fill when you select a course..." rows={3}
+                            className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 resize-y" />
                     </div>
 
                     {/* Note */}

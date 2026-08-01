@@ -546,15 +546,15 @@ export default function ScheduleDetailPage() {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2 text-xs">
-                                        {session.trainingAttendanceTypeId === 2 ? (
+                                        {session.attendanceTypeName?.toLowerCase().includes('online') ? (
                                             <Video className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                                         ) : (
                                             <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                                         )}
                                         <div>
                                             <span className="text-muted-foreground/60 text-[9px] font-semibold uppercase block">Attendance Type</span>
-                                            <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-md mt-0.5 ${session.trainingAttendanceTypeId === 2 ? 'bg-violet-50 text-violet-600' : 'bg-sky-50 text-sky-600'}`}>
-                                                {session.trainingAttendanceTypeId === 2 ? 'Online' : 'Onsite'}
+                                            <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-md mt-0.5 ${session.attendanceTypeName?.toLowerCase().includes('online') ? 'bg-violet-50 text-violet-600' : 'bg-sky-50 text-sky-600'}`}>
+                                                {session.attendanceTypeName || 'Onsite'}
                                             </span>
                                         </div>
                                     </div>
@@ -562,16 +562,16 @@ export default function ScheduleDetailPage() {
 
                                 {/* Location / Meeting Link */}
                                 <div className="flex items-start gap-2 text-xs mt-1">
-                                    {session.trainingAttendanceTypeId === 2 ? (
+                                    {session.attendanceTypeName?.toLowerCase().includes('online') ? (
                                         <Video className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
                                     ) : (
                                         <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
                                     )}
                                     <div>
                                         <span className="text-muted-foreground/60 text-[9px] font-semibold uppercase block">
-                                            {session.trainingAttendanceTypeId === 2 ? 'Meeting Link' : 'Location'}
+                                            {session.attendanceTypeName?.toLowerCase().includes('online') ? 'Meeting Link' : 'Location'}
                                         </span>
-                                        {session.trainingAttendanceTypeId === 2 && session.link ? (
+                                        {session.attendanceTypeName?.toLowerCase().includes('online') && session.link ? (
                                             <a href={session.link} target="_blank" rel="noopener noreferrer"
                                                 className="text-primary font-medium hover:underline">
                                                 {session.link.replace(/^https?:\/\//, '').substring(0, 35)}{session.link.length > 42 ? '...' : ''}

@@ -13,9 +13,10 @@ interface CalendarViewProps {
     today: Date
     onSelect: (s: Session | null) => void
     selectedSession: Session | null
+    filterSlot?: React.ReactNode
 }
 
-export function CalendarView({ calYear, calMonth, prevMonth, nextMonth, sessions, today, onSelect, selectedSession }: CalendarViewProps) {
+export function CalendarView({ calYear, calMonth, prevMonth, nextMonth, sessions, today, onSelect, selectedSession, filterSlot }: CalendarViewProps) {
     const numDays = daysInMonth(calYear, calMonth)
     const firstDay = firstDayOfMonth(calYear, calMonth)
     const todayStr = toYMD(today)
@@ -138,7 +139,8 @@ export function CalendarView({ calYear, calMonth, prevMonth, nextMonth, sessions
                         <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">This month</span>
                     )}
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-2">
+                    {filterSlot}
                     <button onClick={prevMonth} className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors cursor-pointer border-none bg-transparent">
                         <ChevronLeft className="w-4 h-4" />
                     </button>

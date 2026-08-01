@@ -44,6 +44,20 @@ const AMEL_LICENSE_CATEGORIES = [
 
 // DOCUMENT_TYPES is now fetched from the API via useStaffDocumentTypes()
 
+// ── Calculate age/tenure from a date string ──
+function calcAge(dateStr: string | undefined | null): string {
+    if (!dateStr) return ''
+    const birth = new Date(dateStr)
+    if (isNaN(birth.getTime())) return ''
+    const today = new Date()
+    let years = today.getFullYear() - birth.getFullYear()
+    let months = today.getMonth() - birth.getMonth()
+    if (today.getDate() < birth.getDate()) months--
+    if (months < 0) { years--; months += 12 }
+    if (years < 1) return `${months} mo`
+    return months > 0 ? `${years} yr ${months} mo` : `${years} yr`
+}
+
 // ── Reusable Info Row ──
 function InfoRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
     return (
@@ -534,6 +548,9 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                             <InfoRow label="Full Name (Thai)" value={staff.name} />
                             <InfoRow label="Full Name (English)" value={staff.nameEn} />
                             <InfoRow label="Date of Birth" value={formatDate(staff.dob)} mono />
+                            {staff.dob && (
+                                <InfoRow label="Age" value={calcAge(staff.dob)} />
+                            )}
                             <InfoRow label="Place of Birth" value={staff.placeOfBirth} />
                             <InfoRow label="Thai ID Card No." value={staff.idCard} mono />
                             <InfoRow label="Nationality" value={staff.nationality} />
@@ -559,6 +576,10 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                             <InfoRow label="Position" value={staff.position} />
                             <InfoRow label="Department" value={staff.department} />
                             <InfoRow label="Start Date" value={staff.startDate ? formatDate(staff.startDate) : '-'} mono />
+                            <InfoRow label="End Date" value={staff.endDate ? formatDate(staff.endDate) : '-'} mono />
+                            {staff.startDate && (
+                                <InfoRow label="Tenure" value={calcAge(staff.startDate)} />
+                            )}
                         </div>
                     </Section>
 
