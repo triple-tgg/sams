@@ -6,6 +6,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { handleLogin } from '@/components/partials/auth/store'
 import { setPermissionsLoading, setPermissions, clearPermissions } from '@/components/partials/auth/permissionSlice'
 import { getFirstViewableRoute } from '@/lib/api/permission/getFirstViewableRoute'
+import { getMenuPermissions } from '@/lib/api/permission/getMenuPermissions'
 
 interface UseLoginOptions {
   onSuccess?: (data: LoginResponse) => void
@@ -15,7 +16,8 @@ interface UseLoginOptions {
 
 /**
  * Custom hook for user login - Redux only
- * Uses menuPermissions returned directly from login API response
+ * Fetches permissions from /permission/menus/{roleId} after login
+ * to get accurate canView values for redirect.
  * @param options - Configuration options for the mutation
  * @returns React Query mutation object
  */
@@ -65,18 +67,42 @@ export const useLogin = (options: UseLoginOptions = {}) => {
           users: userData
         }))
 
-        // Use menuPermissions from login response directly (no separate API call)
+        // Fetch permissions from dedicated API (login response menuPermissions
+        // may return incorrect canView values — the permission endpoint is
+        // the source of truth)
         dispatch(setPermissionsLoading())
-        const permissions = data.responseData.menuPermissions ?? []
-        console.log('[useLogin] permissions from login response:', permissions.length, 'items')
+        const roleId = data.responseData.roleObj?.id
+        let permissions = data.responseData.menuPermissions ?? []
+
+        if (roleId) {
+          try {
+            const permRes = await getMenuPermissions(roleId)
+            permissions = permRes.responseData ?? []
+            console.log('[useLogin] permissions from /permission/menus API:', permissions.length, 'items')
+          } catch (err) {
+            console.warn('[useLogin] Failed to fetch permissions from API, using login response fallback:', err)
+          }
+        }
+
         dispatch(setPermissions(permissions))
+
+        // Update localStorage with correct permissions for PermissionGuard cache
+        try {
+          const storedUser = JSON.parse(localStorage.getItem('user') || '{}')
+          storedUser.menuPermissions = permissions
+          localStorage.setItem('user', JSON.stringify(storedUser))
+        } catch (e) {}
 
         // Navigate to the first menu the user can view
         const firstRoute = getFirstViewableRoute(permissions)
         console.log('[useLogin] firstRoute resolved:', firstRoute)
-        const targetRoute = firstRoute ?? '/flight/list'
-        console.log('[useLogin] navigating to:', `/${locale}${targetRoute}`)
-        router.push(`/${locale}${targetRoute}`)
+        if (firstRoute) {
+          console.log('[useLogin] navigating to:', `/${locale}${firstRoute}`)
+          router.push(`/${locale}${firstRoute}`)
+        } else {
+          console.warn('[useLogin] No viewable route found — user has no permissions')
+          router.push(`/${locale}/flight/list`)
+        }
       }
 
       // Call custom success handler
