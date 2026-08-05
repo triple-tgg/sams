@@ -88,7 +88,7 @@ export function useSendEmailList(scheduleId: number) {
   });
 }
 
-/** Grade enrolled staff (Pass/Fail) via complete-certificate API */
+/** Grade enrolled staff (submit score) via complete-certificate API */
 export function useCompleteCertificate(scheduleId: number) {
   const qc = useQueryClient();
   return useMutation({

@@ -180,7 +180,7 @@ export default function ScheduleDetailPage() {
         if (status === 'Completed') {
             const ungradedStaff = enrolledStaff.filter(s => {
                 const r = (s.result ?? '').toLowerCase()
-                return r !== 'pass' && r !== 'passed' && r !== 'fail' && r !== 'failed'
+                return r === 'pending' || r === ''
             })
             if (ungradedStaff.length > 0) {
                 toast.warning(`There are ${ungradedStaff.length} staff member(s) without grading results. Please complete all grading before marking as Completed.`)
@@ -288,6 +288,7 @@ export default function ScheduleDetailPage() {
 
     const [removingId, setRemovingId] = useState<string | null>(null)
     const [gradingId, setGradingId] = useState<string | null>(null)
+    const [scoreInputs, setScoreInputs] = useState<Record<string, string>>({})
     const [confirmRemoveStaff, setConfirmRemoveStaff] = useState<StaffItem | null>(null)
 
     const handleRemove = (staff: any) => {
@@ -322,26 +323,40 @@ export default function ScheduleDetailPage() {
         }
     }
 
-    const handleUpdateResult = async (staffId: string, field: 'score' | 'result', value: string) => {
-        if (field !== 'result') return
+    const handleSubmitScore = async (staffId: string) => {
         const staff = enrolledStaff.find(s => s.id === staffId)
         if (!staff?.enrollmentId) return
 
+        const rawScore = scoreInputs[staffId]
+        if (rawScore === undefined || rawScore === '') {
+            toast.error('Please enter a score before submitting.')
+            return
+        }
+        const score = Number(rawScore)
+        if (isNaN(score) || score < 0 || score > 100) {
+            toast.error('Score must be between 0 and 100.')
+            return
+        }
+
         setGradingId(staffId)
-        const isPassed = value === 'Pass'
         try {
             const res = await completeCertMutation.mutateAsync({
                 enrollmentIds: [staff.enrollmentId],
-                isPassed,
+                score,
             })
-            const item = res.responseData?.[0]
-            if (item?.status === 'success') {
-                toast.success(`${staff.name || 'Staff'} marked as ${value}`)
+            if (!res.error) {
+                toast.success(`Score ${score} submitted for ${staff.name || 'Staff'}`)
+                // Clear the input after successful submission
+                setScoreInputs(prev => {
+                    const next = { ...prev }
+                    delete next[staffId]
+                    return next
+                })
             } else {
-                toast.error(item?.message || `Failed to update grading result. (${item?.status ?? 'unknown'})`)
+                toast.error(res.error || 'Failed to submit score.')
             }
         } catch {
-            toast.error('Failed to update grading result. Please try again.')
+            toast.error('Failed to submit score. Please try again.')
         } finally {
             setGradingId(null)
         }
@@ -943,33 +958,48 @@ export default function ScheduleDetailPage() {
                                                                 <Loader2 className="w-4 h-4 text-primary animate-spin" />
                                                             </div>
                                                         ) : staff.result === 'Pending' ? (
-                                                            <div className="flex bg-muted/50 p-0.5 rounded-md border border-border/50">
-                                                                <button
-                                                                    onClick={() => handleUpdateResult(staff.id, 'result', 'Pass')}
+                                                            <div className="flex items-center gap-1">
+                                                                <input
+                                                                    type="number"
+                                                                    min={0}
+                                                                    max={100}
+                                                                    step="any"
+                                                                    placeholder="Score"
+                                                                    value={scoreInputs[staff.id] ?? ''}
+                                                                    onChange={(e) => {
+                                                                        const val = e.target.value
+                                                                        if (val === '' || (Number(val) >= 0 && Number(val) <= 100)) {
+                                                                            setScoreInputs(prev => ({ ...prev, [staff.id]: val }))
+                                                                        }
+                                                                    }}
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key === 'Enter') {
+                                                                            handleSubmitScore(staff.id)
+                                                                        }
+                                                                    }}
                                                                     disabled={gradingId !== null}
-                                                                    className={`px-2 py-1 text-[10px] font-bold rounded-sm transition-colors cursor-pointer border-none text-emerald-700 hover:bg-emerald-100 bg-transparent ${gradingId !== null ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                                >
-                                                                    Pass
-                                                                </button>
+                                                                    className={`w-[60px] px-1.5 py-1 text-[11px] font-semibold text-center rounded-md border border-border bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${gradingId !== null ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                />
                                                                 <button
-                                                                    onClick={() => handleUpdateResult(staff.id, 'result', 'Fail')}
-                                                                    disabled={gradingId !== null}
-                                                                    className={`px-2 py-1 text-[10px] font-bold rounded-sm transition-colors cursor-pointer border-none text-red-700 hover:bg-red-100 bg-transparent ${gradingId !== null ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                    onClick={() => handleSubmitScore(staff.id)}
+                                                                    disabled={gradingId !== null || !scoreInputs[staff.id]}
+                                                                    className={`p-1 rounded-md transition-colors border-none cursor-pointer ${gradingId !== null || !scoreInputs[staff.id] ? 'text-slate-300 bg-transparent cursor-not-allowed' : 'text-emerald-600 hover:bg-emerald-50 bg-transparent'}`}
+                                                                    title="Submit Score"
                                                                 >
-                                                                    Fail
+                                                                    <CheckCircle className="w-4 h-4" />
                                                                 </button>
                                                             </div>
                                                         ) : (
-                                                            <span className={`px-2 py-1 text-[10px] font-bold rounded-md ${staff.result === 'Pass' || staff.result === 'Passed' ? 'bg-emerald-100 text-emerald-700' : staff.result === 'Fail' || staff.result === 'Failed' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-500'}`}>
+                                                            <span className={`px-2 py-1 text-[10px] font-bold rounded-md ${staff.result === 'Pass' || staff.result === 'Passed' ? 'bg-emerald-100 text-emerald-700' : staff.result === 'Fail' || staff.result === 'Failed' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
                                                                 {staff.result}
                                                             </span>
                                                         )
                                                     ) : sessionStatus === 'Completed' ? (
-                                                        <span className={`px-2 py-1 text-[10px] font-bold rounded-md ${staff.result === 'Pass' || staff.result === 'Passed' ? 'bg-emerald-100 text-emerald-700' : staff.result === 'Fail' || staff.result === 'Failed' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-500'}`}>
+                                                        <span className={`px-2 py-1 text-[10px] font-bold rounded-md ${staff.result === 'Pass' || staff.result === 'Passed' ? 'bg-emerald-100 text-emerald-700' : staff.result === 'Fail' || staff.result === 'Failed' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
                                                             {staff.result}
                                                         </span>
                                                     ) : (
-                                                        <span className="text-[10px] text-muted-foreground italic px-2 py-1 bg-slate-100 rounded-md border border-border" title="Result can be edited during Grading">
+                                                        <span className="text-[10px] text-muted-foreground italic px-2 py-1 bg-slate-100 rounded-md border border-border" title="Score can be entered during Grading">
                                                             {staff.result === 'Pending' ? 'Pending' : staff.result}
                                                         </span>
                                                     )}

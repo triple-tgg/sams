@@ -74,8 +74,9 @@ export const useLogin = (options: UseLoginOptions = {}) => {
         // Navigate to the first menu the user can view
         const firstRoute = getFirstViewableRoute(permissions)
         console.log('[useLogin] firstRoute resolved:', firstRoute)
-        console.log('[useLogin] navigating to:', `/${locale}${firstRoute}`)
-        router.push(`/${locale}${firstRoute}`)
+        const targetRoute = firstRoute ?? '/flight/list'
+        console.log('[useLogin] navigating to:', `/${locale}${targetRoute}`)
+        router.push(`/${locale}${targetRoute}`)
       }
 
       // Call custom success handler

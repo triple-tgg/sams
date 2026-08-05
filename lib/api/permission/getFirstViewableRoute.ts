@@ -18,14 +18,15 @@ function flattenItems(items: MenuPermissionItem[]): MenuPermissionItem[] {
  * Find the first viewable route from the permissions list.
  * Flattens nested children, sorts by `sortOrder`, and returns the route
  * of the first item with `canView === true`.
- * Falls back to '/flight/list' if nothing is viewable.
+ * Returns `null` if nothing is viewable (e.g. permissions not yet loaded
+ * or user has no access to any menu).
  */
-export function getFirstViewableRoute(permissions: MenuPermissionItem[]): string {
+export function getFirstViewableRoute(permissions: MenuPermissionItem[]): string | null {
     const flat = flattenItems(permissions);
     const firstViewable = flat
         .filter((item) => item.canView === true && item.route && item.route !== '#')
         .sort((a, b) => a.sortOrder - b.sortOrder)
         .at(0);
 
-    return firstViewable?.route ?? '/flight/list';
+    return firstViewable?.route ?? null;
 }

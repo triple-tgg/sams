@@ -100,9 +100,13 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
         // Handle root routes (/, /en, /ar)
         if (isRootRoute) {
             if (isAuth) {
-                // User is authenticated - redirect to dashboard
+                // Wait for permissions to load before redirecting
+                // so we navigate to the correct first viewable route
+                if (!isPermLoaded) return
                 const firstRoute = getFirstViewableRoute(permMenus)
-                router.push(`/${locale}${firstRoute}`)
+                if (firstRoute) {
+                    router.push(`/${locale}${firstRoute}`)
+                }
             } else {
                 // User is not authenticated - redirect to login
                 router.push(`/${locale}/auth/login`)
@@ -115,7 +119,9 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
         // navigate to the correct first viewable route
         if (isAuth && pathWithoutLocale === '/auth/login' && isPermLoaded) {
             const firstRoute = getFirstViewableRoute(permMenus)
-            router.push(`/${locale}${firstRoute}`)
+            if (firstRoute) {
+                router.push(`/${locale}${firstRoute}`)
+            }
             return
         }
 

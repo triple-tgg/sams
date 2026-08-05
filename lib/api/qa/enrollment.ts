@@ -66,19 +66,12 @@ export interface SendEmailResult {
 
 export interface CompleteCertificateRequest {
   enrollmentIds: number[];
-  isPassed: boolean;
-}
-
-export interface CompleteCertificateResultItem {
-  enrollmentId: number;
-  status: string;
-  certificateNo: string;
-  message: string;
+  score: number;
 }
 
 export interface CompleteCertificateResponse {
   message: string;
-  responseData: CompleteCertificateResultItem[];
+  responseData: string[];
   error: string;
 }
 
@@ -122,7 +115,7 @@ export const sendEmailList = async (data: SendEmailListRequest): Promise<SendEma
   return res.data?.responseData;
 };
 
-/** POST complete certificate (grade Pass/Fail) */
+/** POST complete certificate (submit score) */
 export const completeCertificate = async (data: CompleteCertificateRequest): Promise<CompleteCertificateResponse> => {
   const res = await axiosConfig.post("/training/enrollment/complete-certificate", data);
   return res.data;
