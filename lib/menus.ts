@@ -158,23 +158,32 @@ export function getMenuList(pathname: string, t: any): Group[] {
               permCode: "QA_MONITORING",
               href: "/qa/monitoring",
               label: t("training"),
-              active: pathname.includes("/qa/monitoring") || pathname.includes("/qa/course-management") || pathname.includes("/qa/training-scheduler"),
+              active: pathname.includes("/qa/monitoring") || pathname.includes("/qa/course-management") || pathname.includes("/qa/training-scheduler") || pathname.includes("/qa/instructor"),
               icon: "heroicons-outline:academic-cap",
               children: [
                 {
+                  permCode: "QA_MONITORING1",
                   href: "/qa/monitoring",
                   label: t("monitoring"),
                   active: pathname.includes("/qa/monitoring"),
                 },
                 {
+                  permCode: "QA_COURSE_MANAGEMENT",
                   href: "/qa/course-management",
                   label: t("courseManagement"),
                   active: pathname.includes("/qa/course-management"),
                 },
                 {
+                  permCode: "QA_TRAINING_SCHEDULER",
                   href: "/qa/training-scheduler",
                   label: t("trainingScheduler"),
                   active: pathname.includes("/qa/training-scheduler"),
+                },
+                {
+                  permCode: "QA_INSTRUCTOR",
+                  href: "/qa/instructor",
+                  label: t("instructor"),
+                  active: pathname.includes("/qa/instructor"),
                 },
               ],
             },
