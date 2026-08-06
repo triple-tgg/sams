@@ -1,16 +1,17 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { X, Award, Plus, Upload, FileText } from 'lucide-react'
-import { StaffData, StaffLicense } from '../types'
+import { useState, useEffect, useMemo } from 'react'
+import { X, Award, Search } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
+import { useCombinations } from '@/lib/api/master/aircraft-engine/aircraftEngine.hooks'
+import type { AircraftEngineCombination } from '@/lib/api/master/aircraft-engine/aircraftEngine.types'
 
 interface LicenseFormData {
     licenseNumber: string
     categoryId: string
     issuedDate: string
     expiryDate: string
-    limitations: string
-    aircraftRatings: string[]
+    selectedCombinationIds: Set<number>
 }
 
 interface EditLicenseModalProps {
@@ -37,19 +38,28 @@ function emptyForm(): LicenseFormData {
         categoryId: '',
         issuedDate: '',
         expiryDate: '',
-        limitations: '',
-        aircraftRatings: [],
+        selectedCombinationIds: new Set(),
     }
 }
 
 function fromLicense(license: any): LicenseFormData {
+    // Parse combinationIds from the license data (could be an array or comma-separated string)
+    let ids = new Set<number>()
+    if (license?.combinationIds) {
+        if (Array.isArray(license.combinationIds)) {
+            ids = new Set(license.combinationIds.map(Number).filter((n: number) => !isNaN(n)))
+        } else if (typeof license.combinationIds === 'string') {
+            ids = new Set(
+                license.combinationIds.split(',').map((s: string) => Number(s.trim())).filter((n: number) => !isNaN(n) && n > 0)
+            )
+        }
+    }
     return {
         licenseNumber: license?.licenseNumber || '',
         categoryId: license?.categoryId ? String(license.categoryId) : '',
         issuedDate: license?.issuedDate || '',
         expiryDate: license?.expiryDate || '',
-        limitations: license?.limitations || '',
-        aircraftRatings: license?.aircraftRatings ? license.aircraftRatings.split(',').map((r: string) => r.trim()).filter(Boolean) : [],
+        selectedCombinationIds: ids,
     }
 }
 
@@ -59,19 +69,19 @@ function toLicense(form: LicenseFormData): any {
         categoryId: form.categoryId ? Number(form.categoryId) : 0,
         issuedDate: form.issuedDate,
         expiryDate: form.expiryDate,
-        limitations: form.limitations || '',
-        aircraftRatings: form.aircraftRatings.join(','),
+        combinationIds: Array.from(form.selectedCombinationIds),
     }
 }
 
 export function EditLicenseModal({ isOpen, onClose, initialLicense, onSave }: EditLicenseModalProps) {
     const [form, setForm] = useState<LicenseFormData>(emptyForm())
-    const [newRating, setNewRating] = useState('')
+    const [comboSearch, setComboSearch] = useState('')
+    const { data: combinations = [] } = useCombinations()
 
     useEffect(() => {
         if (isOpen) {
             setForm(initialLicense ? fromLicense(initialLicense) : emptyForm())
-            setNewRating('')
+            setComboSearch('')
         }
     }, [isOpen, initialLicense])
 
@@ -79,26 +89,26 @@ export function EditLicenseModal({ isOpen, onClose, initialLicense, onSave }: Ed
         setForm(prev => ({ ...prev, [field]: value }))
     }
 
-    const addRating = () => {
-        const rating = newRating.trim().toUpperCase()
-        if (!rating || form.aircraftRatings.includes(rating)) return
-        setForm(prev => ({ ...prev, aircraftRatings: [...prev.aircraftRatings, rating] }))
-        setNewRating('')
+    const toggleCombination = (id: number) => {
+        setForm(prev => {
+            const next = new Set(prev.selectedCombinationIds)
+            next.has(id) ? next.delete(id) : next.add(id)
+            return { ...prev, selectedCombinationIds: next }
+        })
     }
 
-    const removeRating = (index: number) => {
-        setForm(prev => ({
-            ...prev,
-            aircraftRatings: prev.aircraftRatings.filter((_, i) => i !== index),
-        }))
-    }
-
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') {
-            e.preventDefault()
-            addRating()
+    // Group combinations by familyCode, filtered by search
+    const groupedCombos = useMemo(() => {
+        const q = comboSearch.toLowerCase()
+        const byFamily = new Map<string, AircraftEngineCombination[]>()
+        for (const c of combinations) {
+            if (q && !c.displayLabel.toLowerCase().includes(q) && !c.familyCode.toLowerCase().includes(q)) continue
+            const arr = byFamily.get(c.familyCode) ?? []
+            arr.push(c)
+            byFamily.set(c.familyCode, arr)
         }
-    }
+        return Array.from(byFamily.entries()).sort((a, b) => a[0].localeCompare(b[0]))
+    }, [combinations, comboSearch])
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
@@ -190,57 +200,54 @@ export function EditLicenseModal({ isOpen, onClose, initialLicense, onSave }: Ed
                             </div>
                         </div>
 
-                        {/* Limitations */}
-                        <div className="flex flex-col gap-1.5">
-                            <label className={labelClass}>Limitations</label>
-                            <textarea
-                                value={form.limitations}
-                                onChange={e => updateField('limitations', e.target.value)}
-                                placeholder="Limitations (if any)"
-                                rows={2}
-                                className={`${inputClass} resize-none`}
-                            />
-                        </div>
+                        {/* ── Aircraft License: Selected combinations ── */}
+                        <div className="flex flex-col gap-2.5">
+                            <label className={labelClass}>Aircraft License</label>
 
-                        {/* Aircraft Ratings */}
-                        <div className="flex flex-col gap-1.5">
-                            <label className={labelClass}>Aircraft Ratings</label>
-                            <div className="flex gap-2">
+                            {/* Search box */}
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 pointer-events-none" />
                                 <input
                                     type="text"
-                                    value={newRating}
-                                    onChange={e => setNewRating(e.target.value)}
-                                    onKeyDown={handleKeyDown}
-                                    placeholder="e.g. A320, B737"
-                                    className={`flex-1 ${inputClass}`}
+                                    value={comboSearch}
+                                    onChange={e => setComboSearch(e.target.value)}
+                                    placeholder="Search combination..."
+                                    className={`${inputClass} !pl-9`}
                                 />
-                                <button
-                                    type="button"
-                                    onClick={addRating}
-                                    className="px-4 py-2.5 text-sm font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg cursor-pointer transition-all duration-200 hover:bg-blue-100 hover:border-blue-300 flex items-center gap-1.5 shrink-0"
-                                >
-                                    <Plus className="h-3.5 w-3.5" /> Add
-                                </button>
                             </div>
-                            {form.aircraftRatings.length > 0 && (
-                                <div className="flex flex-wrap gap-2 mt-2">
-                                    {form.aircraftRatings.map((rating, i) => (
-                                        <span
-                                            key={i}
-                                            className="inline-flex items-center gap-1.5 text-[12px] font-semibold py-1.5 px-3 rounded-lg bg-blue-50 text-blue-700 border border-blue-200"
-                                        >
-                                            {rating}
-                                            <button
-                                                type="button"
-                                                onClick={() => removeRating(i)}
-                                                className="text-blue-400 hover:text-red-500 cursor-pointer bg-transparent border-none transition-colors ml-0.5"
-                                            >
-                                                <X className="h-3 w-3" />
-                                            </button>
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
+
+                            {/* Selected count */}
+                            <div className="flex items-center text-xs text-slate-400">
+                                <span>Selected {form.selectedCombinationIds.size} combinations</span>
+                            </div>
+
+                            {/* Grouped checkbox list */}
+                            <div className="min-h-[120px] max-h-[220px] overflow-y-auto rounded-lg border border-slate-200 p-3 space-y-3">
+                                {groupedCombos.map(([family, combos]) => (
+                                    <div key={family}>
+                                        <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                                            {family}
+                                        </div>
+                                        <div className="space-y-0.5">
+                                            {combos.map((c) => (
+                                                <label
+                                                    key={c.id}
+                                                    className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-slate-50 transition-colors duration-150"
+                                                >
+                                                    <Checkbox
+                                                        checked={form.selectedCombinationIds.has(c.id)}
+                                                        onCheckedChange={() => toggleCombination(c.id)}
+                                                    />
+                                                    <span className="text-xs text-slate-700">{c.displayLabel}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                                {groupedCombos.length === 0 && (
+                                    <p className="py-6 text-center text-xs text-slate-400">No combination found</p>
+                                )}
+                            </div>
                         </div>
 
                         {/* Attachments section removed per user request */}

@@ -52,7 +52,7 @@ function mapApiToStaffData(api: StaffByIdData, trainingApi?: TrainingDashboardRe
         department: api.departmentObj?.name || '-',
         status: api.isActive ? 'active' : 'inactive',
         startDate: api.startDate || null,
-        endDate: api.endDate || null,
+        endDate: api.endWorkingDate || null,
         initials,
         avatarBg: 'linear-gradient(135deg,#475569,#94a3b8)',
         profileImage: api.profileImagePath && api.profileImagePath !== 'string' ? api.profileImagePath : undefined,

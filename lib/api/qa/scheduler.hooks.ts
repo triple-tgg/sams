@@ -43,7 +43,10 @@ export function mapSchedulerDetailToSession(d: SchedulerSessionDetail): Session 
     dateEnd: endDate,
     timeStart: d.startDate?.split("T")[1]?.substring(0, 5) ?? "",
     timeEnd: d.endDate?.split("T")[1]?.substring(0, 5) ?? "",
-    instructor: d.instructor ?? "",
+    instructor: d.courseInstructorObj
+      ? `${d.courseInstructorObj.title ?? ''} ${d.courseInstructorObj.name ?? ''}`.trim()
+      : (d.instructor ?? ""),
+    courseInstructorId: d.courseInstructorObj?.id ?? d.courseInstructorId ?? 0,
     venue: d.venue ?? "",
     dept: "",
     maxParticipants: d.maxParticipants ?? 0,

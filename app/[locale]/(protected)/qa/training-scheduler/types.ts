@@ -11,6 +11,7 @@ export interface Session {
     timeStart: string
     timeEnd: string
     instructor: string
+    courseInstructorId: number
     venue: string
     dept: string
     maxParticipants: number
@@ -23,6 +24,7 @@ export interface Session {
     attendanceTypeName?: string
     trainingDataStatusesId?: number
     link?: string
+    totalHours?: number
 }
 
 export interface Instructor {
@@ -90,7 +92,7 @@ export function sessionDays(s: { dateStart: string; dateEnd: string }) {
 export const BLANK_FORM: SessionFormData = {
     courseId: '', courseName: '', courseCode: '', category: 'Core',
     dateStart: '', dateEnd: '', timeStart: '09:00', timeEnd: '17:00',
-    instructor: '', venue: '', dept: 'All Departments',
+    instructor: '', courseInstructorId: 0, venue: '', dept: 'All Departments',
     maxParticipants: 20, enrolled: 0, status: 'Scheduled', type: 'Initial',
-    note: '', trainingAttendanceTypeId: 1, link: ''
+    note: '', trainingAttendanceTypeId: 1, link: '', totalHours: 0
 }

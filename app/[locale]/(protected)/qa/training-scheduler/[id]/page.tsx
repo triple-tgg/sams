@@ -557,9 +557,34 @@ export default function ScheduleDetailPage() {
                                         <GraduationCap className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                                         <div>
                                             <span className="text-muted-foreground/60 text-[9px] font-semibold uppercase block">Instructor</span>
-                                            <span className="text-foreground font-medium">{session.instructor}</span>
+                                            <span className="text-foreground font-medium">{session.instructor || <span className="text-muted-foreground italic">Not assigned</span>}</span>
                                         </div>
                                     </div>
+
+                                    {/* Training Duration Info */}
+                                    {(() => {
+                                        const [sh, sm] = (session.timeStart || '09:00').split(':').map(Number)
+                                        const [eh, em] = (session.timeEnd || '17:00').split(':').map(Number)
+                                        const hoursPerDay = Math.max(0, Math.round(((eh + em / 60) - (sh + sm / 60)) * 100) / 100)
+                                        let days = 1
+                                        if (session.dateStart && session.dateEnd) {
+                                            const s = new Date(session.dateStart)
+                                            const e = new Date(session.dateEnd)
+                                            days = Math.max(1, Math.round((e.getTime() - s.getTime()) / 86400000) + 1)
+                                        }
+                                        const totalHours = Math.round(hoursPerDay * days * 100) / 100
+                                        return (
+                                            <div className="flex items-start gap-2.5 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50">
+                                                <Clock className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />
+                                                <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-blue-700 dark:text-blue-300">
+                                                    <span><span className="font-semibold">{days}</span> training day{days !== 1 ? 's' : ''}</span>
+                                                    <span><span className="font-semibold">{hoursPerDay}</span> hrs/day</span>
+                                                    <span>Total: <span className="font-semibold">{session.totalHours || totalHours}</span> hrs</span>
+                                                </div>
+                                            </div>
+                                        )
+                                    })()}
+
                                     <div className="flex items-center gap-2 text-xs">
                                         {session.attendanceTypeName?.toLowerCase().includes('online') ? (
                                             <Video className="w-3.5 h-3.5 text-muted-foreground shrink-0" />

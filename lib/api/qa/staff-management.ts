@@ -148,8 +148,7 @@ export interface UpsertAmelLicense {
     categoryId: number;
     issuedDate: string;
     expiryDate: string;
-    limitations: string;
-    aircraftRatings: string;
+    combinationIds: number[];
     attachmentFilePath: string;
     attachmentFileName: string;
 }
@@ -168,6 +167,7 @@ export interface UpsertStaffRequest {
     address: string;
     employeeId: string;
     startDate: string;
+    endWorkingDate: string | null;
     positionId: number;
     departmentId: number;
     staffstypeid: number;
@@ -323,6 +323,7 @@ export interface StaffAmelLicenseItem {
     expiryDate: string;
     limitations: string;
     aircraftRatings: string;
+    combinationIds: number[];
     attachmentFilePath: string;
     attachmentFileName: string;
     isdelete: boolean;
@@ -348,6 +349,7 @@ export interface StaffByIdData {
     employeeId: string | null;
     startDate: string | null;
     endDate: string | null;
+    endWorkingDate: string | null;
     positionObj: PositionObj | null;
     departmentObj: DepartmentObj | null;
     staffstypeObj: StaffTypeObj | null;
@@ -393,6 +395,7 @@ export const buildStaffUpsertRequest = (
     address: data.address || "",
     employeeId: data.employeeId || "",
     startDate: data.startDate || "",
+    endWorkingDate: data.endWorkingDate || null,
     positionId: data.positionObj?.id || 0,
     departmentId: data.departmentObj?.id || 0,
     staffstypeid: data.staffstypeObj?.id || 0,
@@ -423,8 +426,7 @@ export const buildStaffUpsertRequest = (
             categoryId: license.categoryId,
             issuedDate: license.issuedDate || "",
             expiryDate: license.expiryDate || "",
-            limitations: license.limitations || "",
-            aircraftRatings: license.aircraftRatings || "",
+            combinationIds: license.combinationIds || [],
             attachmentFilePath: license.attachmentFilePath || "",
             attachmentFileName: license.attachmentFileName || "",
         })),

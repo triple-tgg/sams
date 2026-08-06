@@ -377,6 +377,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
         const payload = buildUpsertPayload({
             employeeId: data.empId,
             startDate: data.startDate,
+            endWorkingDate: data.endWorkingDate || null,
             positionId: data.position ? Number(data.position) : (apiData?.positionObj?.id || 0),
             departmentId: data.department ? Number(data.department) : (apiData?.departmentObj?.id || 0),
         })
@@ -401,6 +402,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
             staffAmelLicenseList: [
                 {
                     ...amelLicense,
+                    combinationIds: amelLicense.combinationIds || [],
                     attachmentFilePath: '',
                     attachmentFileName: '',
                 }
@@ -455,8 +457,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                                     categoryId: currentLicense?.categoryId || 1,
                                     issuedDate: currentLicense?.issuedDate || new Date().toISOString().split('T')[0],
                                     expiryDate: currentLicense?.expiryDate || new Date().toISOString().split('T')[0],
-                                    limitations: currentLicense?.limitations || '',
-                                    aircraftRatings: currentLicense?.aircraftRatings || '',
+                                    combinationIds: currentLicense?.combinationIds || [],
                                     attachmentFilePath: filePath,
                                     attachmentFileName: fileName,
                                 }
@@ -505,8 +506,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                     categoryId: data.categoryId,
                     issuedDate: data.issuedDate,
                     expiryDate: data.expiryDate,
-                    limitations: data.limitations,
-                    aircraftRatings: data.aircraftRatings,
+                    combinationIds: data.combinationIds || [],
                     attachmentFilePath: amelLicense?.attachmentFilePath || '',
                     attachmentFileName: amelLicense?.attachmentFileName || '',
                 }
@@ -576,7 +576,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                             <InfoRow label="Position" value={staff.position} />
                             <InfoRow label="Department" value={staff.department} />
                             <InfoRow label="Start Date" value={staff.startDate ? formatDate(staff.startDate) : '-'} mono />
-                            <InfoRow label="End Date" value={staff.endDate ? formatDate(staff.endDate) : '-'} mono />
+                            <InfoRow label="End Working Date" value={staff.endDate ? formatDate(staff.endDate) : '-'} mono />
                             {staff.startDate && (
                                 <InfoRow label="Tenure" value={calcAge(staff.startDate)} />
                             )}

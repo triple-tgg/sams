@@ -92,6 +92,7 @@ export default function TrainingSchedulerPage() {
                 timeStart,
                 timeEnd,
                 instructor: s.instructorName,
+                courseInstructorId: s.courseInstructorId ?? 0,
                 venue: s.venueName,
                 status: s.statusName,
                 enrolled: s.enrolledCount,
@@ -185,7 +186,7 @@ export default function TrainingSchedulerPage() {
         setSelectedSession(null)
     }
     async function handleSave() {
-        if (!form.dateStart || !form.courseId || !form.instructor?.trim()) {
+        if (!form.dateStart || !form.courseId || !form.courseInstructorId) {
             toast.error('Please fill in all required fields (Course, Start Date, Instructor)')
             return
         }
@@ -200,13 +201,14 @@ export default function TrainingSchedulerPage() {
                 courseId: parseInt(String(form.courseId)),
                 startDate: `${form.dateStart}T${form.timeStart}:00`,
                 endDate: `${form.dateEnd || form.dateStart}T${form.timeEnd}:00`,
-                instructor: form.instructor,
+                totalHours: form.totalHours || 0,
+                courseInstructorId: form.courseInstructorId,
+                courseObjective: form.objective || '',
                 venue: form.venue,
                 targetDepartmentId: 0,
                 trainingDataStatusesId: resolvedStatusId,
                 maxParticipants: form.maxParticipants,
                 note: form.note || '',
-                courseObjective: form.objective || '',
                 trainingAttendanceTypeId: form.trainingAttendanceTypeId || 1
             }
 

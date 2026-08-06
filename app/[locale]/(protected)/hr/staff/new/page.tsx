@@ -449,6 +449,7 @@ export default function NewStaffPage() {
             address: form.address || '',
             employeeId: form.empId || '',
             startDate: form.startDate || '',
+            endWorkingDate: null,
             positionId,
             departmentId,
             staffstypeid,
@@ -489,8 +490,7 @@ export default function NewStaffPage() {
                     categoryId: AMEL_LICENSE_CATEGORIES.findIndex(c => c.code === amelLicense.selectedCategories[0]) + 1 || 0,
                     issuedDate: amelLicense.issuedDate || '',
                     expiryDate: amelLicense.expiryDate || '',
-                    limitations: amelLicense.limitations || '',
-                    aircraftRatings: amelLicense.aircraftRatings.join(','),
+                    combinationIds: [],
                     attachmentFilePath: amelLicense.attachmentFilePath || '',
                     attachmentFileName: amelLicense.attachmentFileName || '',
                 }]

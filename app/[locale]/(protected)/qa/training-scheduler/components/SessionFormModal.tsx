@@ -3,20 +3,21 @@
 import { useState, useEffect, useMemo } from 'react'
 import { SessionFormData, STATUS_CONFIG } from '../types'
 import type { AttendanceType } from '@/lib/api/master/attendanceTypes'
-import { INSTRUCTORS, VENUES } from '../data'
+import { VENUES } from '../data'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { useQuery } from '@tanstack/react-query'
 import { getCourseList, type CourseData } from '@/lib/api/qa/course'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Calendar } from '@/components/ui/calendar'
-import { Check, ChevronsUpDown, CalendarIcon, Clock, Link2, MapPin } from 'lucide-react'
+import { Check, ChevronsUpDown, CalendarIcon, Clock, Link2, MapPin, Info } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { format, parse } from 'date-fns'
 import dynamic from 'next/dynamic'
 import type { TrainingDataStatus } from '@/lib/api/master/trainingDataStatuses'
 import 'react-quill-new/dist/quill.snow.css'
+import { useInstructorList } from '@/lib/api/qa/instructor.hooks'
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false })
 
@@ -36,6 +37,39 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
     const [courseOpen, setCourseOpen] = useState(false)
     const [submitted, setSubmitted] = useState(false)
 
+    // Fetch instructor list from /master/courses-instructors
+    const { data: instructors = [] } = useInstructorList()
+
+    // Auto-calculate training days & total hours from date/time fields
+    const trainingCalc = useMemo(() => {
+        const timeStart = form.timeStart || '09:00'
+        const timeEnd = form.timeEnd || '17:00'
+
+        // Parse hours/minutes
+        const [sh, sm] = timeStart.split(':').map(Number)
+        const [eh, em] = timeEnd.split(':').map(Number)
+        const hoursPerDay = Math.max(0, (eh + em / 60) - (sh + sm / 60))
+
+        let days = 1
+        if (form.dateStart && form.dateEnd) {
+            const start = new Date(form.dateStart)
+            const end = new Date(form.dateEnd)
+            days = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1)
+        } else if (!form.dateStart) {
+            days = 0
+        }
+
+        const totalHours = Math.round(hoursPerDay * days * 100) / 100 // round to 2 decimals
+        return { days, hoursPerDay: Math.round(hoursPerDay * 100) / 100, totalHours }
+    }, [form.dateStart, form.dateEnd, form.timeStart, form.timeEnd])
+
+    // Auto-fill totalHours when calculation changes
+    useEffect(() => {
+        if (trainingCalc.totalHours > 0) {
+            setForm(p => ({ ...p, totalHours: trainingCalc.totalHours }))
+        }
+    }, [trainingCalc.totalHours])
+
     useEffect(() => {
         // Trigger smooth entry animation after conditional mounting
         const timer = setTimeout(() => setIsOpen(true), 10)
@@ -50,7 +84,7 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
 
     const handleSaveAndClose = () => {
         setSubmitted(true)
-        if (!form.courseId || !form.dateStart || !form.instructor?.trim()) return
+        if (!form.courseId || !form.dateStart || !form.courseInstructorId) return
         onSave()
         handleClose()
     }
@@ -240,13 +274,43 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
                         </div>
                     </div>
 
-                    {/* Instructor + Attendance Type */}
+                    {/* Training Duration Info */}
+                    {form.dateStart && (
+                        <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50">
+                            <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                            <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-blue-700 dark:text-blue-300">
+                                <span><span className="font-semibold">{trainingCalc.days}</span> training day{trainingCalc.days !== 1 ? 's' : ''}</span>
+                                <span><span className="font-semibold">{trainingCalc.hoursPerDay}</span> hrs/day</span>
+                                <span>Total: <span className="font-semibold">{trainingCalc.totalHours}</span> hrs</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Instructor (Select) + Attendance Type */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="text-xs font-medium text-muted-foreground block mb-1.5">Instructor <span className="text-red-400">*</span></label>
-                            <input type="text" value={form.instructor} onChange={e => f('instructor', e.target.value)} placeholder="e.g. Captain Aphisit"
-                                className={cn('w-full px-3 py-2 text-sm border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10', submitted && !form.instructor?.trim() ? 'border-red-400' : 'border-border')} />
-                            {submitted && !form.instructor?.trim() && <p className="text-[11px] text-red-500 mt-1">Instructor is required</p>}
+                            <select
+                                value={form.courseInstructorId || ''}
+                                onChange={e => {
+                                    const id = Number(e.target.value)
+                                    const inst = instructors.find(i => i.id === id)
+                                    setForm(p => ({
+                                        ...p,
+                                        courseInstructorId: id,
+                                        instructor: inst ? `${inst.title} ${inst.name}` : '',
+                                    }))
+                                }}
+                                className={cn('w-full px-3 py-2 text-sm border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 cursor-pointer', submitted && !form.courseInstructorId ? 'border-red-400' : 'border-border')}
+                            >
+                                <option value="">Select instructor...</option>
+                                {instructors.map(inst => (
+                                    <option key={inst.id} value={inst.id}>
+                                        {inst.title} {inst.name}
+                                    </option>
+                                ))}
+                            </select>
+                            {submitted && !form.courseInstructorId && <p className="text-[11px] text-red-500 mt-1">Instructor is required</p>}
                         </div>
                         <div>
                             <label className="text-xs font-medium text-muted-foreground block mb-1.5">Attendance Type</label>
@@ -281,8 +345,8 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
                         )}
                     </div>
 
-                    {/* Status + Max participants */}
-                    <div className="grid grid-cols-2 gap-4">
+                    {/* Status + Total Hours + Max participants */}
+                    <div className="grid grid-cols-3 gap-4">
                         <div>
                             <label className="text-xs font-medium text-muted-foreground block mb-1.5">Status</label>
                             <select value={form.status} onChange={e => f('status', e.target.value)}
@@ -295,6 +359,12 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
                                         : allowed.map(s => <option key={s}>{s}</option>)
                                 })()}
                             </select>
+                        </div>
+                        <div>
+                            <label className="text-xs font-medium text-muted-foreground block mb-1.5">Total Hours</label>
+                            <input type="number" min={0} step={0.5} value={form.totalHours || ''} disabled
+                                placeholder="Auto"
+                                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-muted/50 text-foreground cursor-not-allowed" />
                         </div>
                         <div>
                             <label className="text-xs font-medium text-muted-foreground block mb-1.5">Max Participants</label>

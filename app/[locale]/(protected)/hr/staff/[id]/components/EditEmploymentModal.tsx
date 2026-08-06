@@ -9,7 +9,7 @@ interface EmploymentFormData {
     position: string
     department: string
     startDate: string
-    endDate: string
+    endWorkingDate: string
 }
 
 const POSITIONS = [
@@ -101,7 +101,7 @@ export function EditEmploymentModal({ isOpen, onClose, staff, onSave }: EditEmpl
         position: POSITIONS.find(p => p.name === staff.position)?.id.toString() || '',
         department: DEPARTMENTS.find(d => d.name === staff.department)?.id.toString() || '',
         startDate: staff.startDate ?? '',
-        endDate: staff.endDate ?? '',
+        endWorkingDate: staff.endDate ?? '',
     })
 
     useEffect(() => {
@@ -111,7 +111,7 @@ export function EditEmploymentModal({ isOpen, onClose, staff, onSave }: EditEmpl
                 position: POSITIONS.find(p => p.name === staff.position)?.id.toString() || '',
                 department: DEPARTMENTS.find(d => d.name === staff.department)?.id.toString() || '',
                 startDate: staff.startDate ?? '',
-                endDate: staff.endDate ?? '',
+                endWorkingDate: staff.endDate ?? '',
             })
         }
     }, [isOpen, staff])
@@ -172,9 +172,9 @@ export function EditEmploymentModal({ isOpen, onClose, staff, onSave }: EditEmpl
                             type="date"
                         />
                         <FormField
-                            label="End Date"
-                            name="endDate"
-                            value={form.endDate}
+                            label="End Working Date"
+                            name="endWorkingDate"
+                            value={form.endWorkingDate}
                             onChange={handleChange}
                             type="date"
                         />

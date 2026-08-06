@@ -117,7 +117,7 @@ export default function InstructorPage() {
                         Manage training instructors and their qualifications
                     </p>
                 </div>
-                <Button className="gap-2" onClick={() => setShowAddModal(true)}>
+                <Button color='primary' className="gap-2" onClick={() => setShowAddModal(true)}>
                     <Plus className="w-4 h-4" />
                     Add Instructor
                 </Button>

@@ -20,7 +20,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2, UserPlus, Upload, X, Image as ImageIcon } from "lucide-react";
-import { uploadFile } from "@/lib/api/uploadFile/fileUpload";
+import { uploadStaffFile } from "@/lib/api/qa/staff-management";
+import { convertFileToBase64, getFileExtension } from "@/lib/api/uploadFile/fileUpload";
 
 export interface InstructorFormData {
   id: number;
@@ -96,7 +97,7 @@ export function InstructorFormModal({
     if (!file) return;
 
     // Validate file type
-    const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
+    const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp", "application/pdf"];
     if (!allowedTypes.includes(file.type)) {
       return;
     }
@@ -106,14 +107,27 @@ export function InstructorFormModal({
       return;
     }
 
-    // Show local preview immediately
-    const localPreview = URL.createObjectURL(file);
-    setSignaturePreview(localPreview);
+    // Show local preview immediately (only for images)
+    if (file.type.startsWith("image/")) {
+      const localPreview = URL.createObjectURL(file);
+      setSignaturePreview(localPreview);
+    } else {
+      setSignaturePreview("pdf"); // sentinel for non-image files
+    }
 
-    // Upload file to server
+    // Upload file to server via /master/staff-management/uploadfile
     setIsUploading(true);
     try {
-      const res = await uploadFile(file, "training_materials", `signature_${form.code || "instructor"}`);
+      const base64 = await convertFileToBase64(file);
+      const ext = getFileExtension(file.name);
+      const fileName = file.name.replace(/\.[^.]+$/, ""); // strip extension
+
+      const res = await uploadStaffFile({
+        FileBase64: base64,
+        FileType: "instructors_license",
+        ExtensionFile: ext,
+        FileName: fileName,
+      });
       const uploadedPath = res.responseData?.[0]?.filePath ?? "";
       handleChange("licenseLink", uploadedPath);
       // Replace local blob preview with server URL
@@ -243,7 +257,7 @@ export function InstructorFormModal({
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/png,image/jpeg,image/jpg,image/webp"
+              accept="image/png,image/jpeg,image/jpg,image/webp,application/pdf"
               onChange={handleSignatureUpload}
               className="hidden"
               id="signature-upload"
@@ -302,7 +316,7 @@ export function InstructorFormModal({
                     {isUploading ? "Uploading..." : "Click to upload signature"}
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">
-                    PNG, JPG or WebP (max 5MB)
+                    PNG, JPG, WebP or PDF (max 5MB)
                   </p>
                 </div>
               </button>

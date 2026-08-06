@@ -37,6 +37,7 @@ export interface SchedulerSessionData {
   startDate: string;
   endDate: string;
   instructorName: string;
+  courseInstructorId: number;
   venueName: string;
   targetDepartmentId: number;
   targetDepartmentName: string;
@@ -74,6 +75,7 @@ export interface SchedulerSessionDetail {
   startDate: string;
   endDate: string;
   instructor: string;
+  courseInstructorId: number;
   venue: string;
   targetDepartmentId: number;
   trainingDataStatusesId: number;
@@ -119,6 +121,13 @@ export interface SchedulerSessionDetail {
     id: number;
     name: string;
   };
+  courseInstructorObj?: {
+    id: number;
+    title: string;
+    name: string;
+    instructorCode: string | null;
+    isdelete: boolean;
+  };
 }
 
 export interface SchedulerSessionDetailResponse {
@@ -142,7 +151,9 @@ export interface SchedulerUpsertRequest {
   courseId: number;
   startDate: string;
   endDate: string;
-  instructor: string;
+  totalHours: number;
+  courseInstructorId: number;
+  courseObjective: string;
   venue: string;
   targetDepartmentId: number;
   trainingDataStatusesId: number;
