@@ -44,6 +44,7 @@ export const ROUTE_PERMISSION_MAP: RoutePermission[] = [
     // ── HR ───────────────────────────────────────────────────
     { path: "/hr/employee-income",                      menuCodes: ["HR_STAFF_INCOME"] },
     { path: "/hr/document-verification",                menuCodes: ["HR_DOCUMENT_VERIFICATION"] },
+    { path: "/hr/workload",                             menuCodes: ["HR_WORKLOAD"] },
     { path: "/hr/staff",                                menuCodes: ["HR_STAFF"] },
     { path: "/hr",                                      menuCodes: ["HR"] },
 
