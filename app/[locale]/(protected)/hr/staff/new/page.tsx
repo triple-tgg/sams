@@ -2,13 +2,16 @@
 
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, User, Phone, Briefcase, Save, UserPlus, Camera, Trash2, ChevronDown, GraduationCap, Plus, Loader2, FileText, Upload, X, CheckCircle2, Shield, Award } from 'lucide-react'
+import { ArrowLeft, User, Phone, Briefcase, Save, UserPlus, Camera, Trash2, ChevronDown, GraduationCap, Plus, Loader2, FileText, Upload, X, CheckCircle2, Shield, Award, Pencil, Plane } from 'lucide-react'
 import { useUpsertStaff, useUploadStaffFile } from '@/lib/api/hooks/useQAStaffManagement'
+import { useStaffDepartments, useStaffDepartmentPositions } from '@/lib/api/master/organization.hooks'
+import { useCombinations } from '@/lib/api/master/aircraft-engine/aircraftEngine.hooks'
 import { UpsertStaffRequest } from '@/lib/api/qa/staff-management'
 import { toast } from 'sonner'
 import { dateTimeUtils } from '@/lib/dayjs'
 import { useStaffDocumentTypes } from '@/lib/api/master/staff/staffDocumentTypes.hooks'
 import type { StaffDocumentType } from '@/lib/api/master/staff/staffDocumentTypes'
+import { groupCombinationDisplayLabels } from '@/lib/utils/aircraftEngineDisplay'
 
 // ── Form State ──
 interface StaffForm {
@@ -53,8 +56,6 @@ interface AmelLicenseForm {
     selectedCategories: string[]
     issuedDate: string
     expiryDate: string
-    limitations: string
-    aircraftRatings: string[]
     attachmentFile: File | null
     attachmentFilePath: string
     attachmentFileName: string
@@ -91,28 +92,7 @@ const INITIAL_FORM: StaffForm = {
     startDate: dateTimeUtils.todayLocal(),
 }
 
-const POSITIONS = [
-    { id: 1, name: 'Aircraft Mechanic' },
-    { id: 2, name: 'Aircraft Inspector' },
-    { id: 3, name: 'Certifying Staff (B1)' },
-    { id: 4, name: 'Certifying Staff (B2)' },
-    { id: 5, name: 'Certifying Staff (B1/B2)' },
-    { id: 6, name: 'Avionics Technician' },
-    { id: 7, name: 'Senior Engineer' },
-    { id: 8, name: 'Line Maintenance Engineer' },
-    { id: 9, name: 'Base Maintenance Engineer' },
-    { id: 10, name: 'Quality Assurance Inspector' },
-]
-
-const DEPARTMENTS = [
-    { id: 1, name: 'Line Maintenance' },
-    { id: 2, name: 'Base Maintenance' },
-    { id: 3, name: 'Quality Assurance' },
-    { id: 4, name: 'Engineering' },
-    { id: 5, name: 'Avionics' },
-    { id: 6, name: 'Structures' },
-    { id: 7, name: 'Planning' },
-]
+// POSITIONS and DEPARTMENTS are now fetched from the API via organization hooks
 
 const STAFF_TYPES = [
     { id: 1, name: 'MECH' },
@@ -125,17 +105,7 @@ const TITLE_NAMES = ['Mr.', 'Mrs.', 'Ms.', 'Miss']
 
 // DOCUMENT_TYPES is now fetched from the API via useStaffDocumentTypes()
 
-const AIRCRAFT_TYPE_LICENSES = [
-    'B737-600/700/800/900',
-    'B737-7/8/9',
-    'A318/A319/A320/A321',
-    'B777-200/300/300ER',
-    'A330-200/300/800/900',
-    'B787-8/9/10',
-    'B767-200/300',
-    'A350-900/1000',
-    'ERJ-190',
-]
+// AIRCRAFT_TYPE_LICENSES removed — now fetched from API via useCombinations()
 
 const AMEL_LICENSE_CATEGORIES = [
     { code: 'B1.1', label: 'B1.1 — Aeroplane Turbine' },
@@ -152,7 +122,7 @@ const VALIDATION_RULES: Record<string, { validate: (v: string) => string | null 
     nameEn: { validate: (v) => !v.trim() ? 'Full Name (English) is required' : !/^[a-zA-Z\s.'-]+$/.test(v.trim()) ? 'Please enter English characters only' : null },
     titleName: { validate: (v) => !v ? 'Title is required' : null },
     dob: { validate: (v) => !v ? 'Date of Birth is required' : null },
-    idCard: { validate: (v) => !v.trim() ? 'Thai ID Card No. is required' : !/^\d[\d-]{12,16}\d$/.test(v.replace(/\s/g, '')) ? 'Invalid ID Card format (e.g. 1-1234-12345-12-3)' : null },
+    idCard: { validate: () => null },
     nationality: { validate: (v) => !v.trim() ? 'Nationality is required' : null },
     phone: { validate: (v) => !v.trim() ? 'Phone is required' : !/^[0-9+\-()\s]{8,15}$/.test(v.trim()) ? 'Invalid phone number format' : null },
     email: { validate: (v) => !v.trim() ? 'Email is required' : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) ? 'Invalid email format' : null },
@@ -267,20 +237,79 @@ export default function NewStaffPage() {
         }
     }, [docTypesResp])
     const docInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
-    const [selectedLicenses, setSelectedLicenses] = useState<string[]>([])
+    const [selectedLicenseIds, setSelectedLicenseIds] = useState<number[]>([])
+    const [showLicenseModal, setShowLicenseModal] = useState(false)
+    const [tempLicenseIds, setTempLicenseIds] = useState<number[]>([])
     const [amelLicense, setAmelLicense] = useState<AmelLicenseForm>({
         licenseNumber: '', selectedCategories: [], issuedDate: '', expiryDate: '',
-        limitations: '', aircraftRatings: [], attachmentFile: null, attachmentFilePath: '', attachmentFileName: '', attachmentUploading: false,
+        attachmentFile: null, attachmentFilePath: '', attachmentFileName: '', attachmentUploading: false,
     })
     const amelAttachmentRef = useRef<HTMLInputElement>(null)
-    const [amelRatingInput, setAmelRatingInput] = useState('')
 
     // ── API Mutations ──
     const upsertMutation = useUpsertStaff()
     const uploadMutation = useUploadStaffFile()
 
+    // ── Fetch departments & positions from API ──
+    const { data: deptData } = useStaffDepartments()
+    const { data: posData } = useStaffDepartmentPositions()
+
+    // ── Fetch aircraft engine combinations from API ──
+    const { data: combinationsData } = useCombinations()
+    const combinations = useMemo(() => combinationsData || [], [combinationsData])
+    const [licenseSearch, setLicenseSearch] = useState('')
+
+    // Group combinations by familyCode, filtered by search
+    const groupedCombinations = useMemo(() => {
+        const filtered = licenseSearch.trim()
+            ? combinations.filter(c => c.displayLabel.toLowerCase().includes(licenseSearch.toLowerCase()))
+            : combinations
+        const groups: Record<string, typeof combinations> = {}
+        for (const c of filtered) {
+            if (!groups[c.familyCode]) groups[c.familyCode] = []
+            groups[c.familyCode].push(c)
+        }
+        return groups
+    }, [combinations, licenseSearch])
+
+    const departments = useMemo(() => {
+        return (deptData?.responseData || []).filter(d => !d.isdelete)
+    }, [deptData])
+
+    const allPositions = useMemo(() => {
+        return (posData?.responseData || []).filter(p => !p.isdelete)
+    }, [posData])
+
+    // Filter positions based on selected department
+    const filteredPositions = useMemo(() => {
+        if (!form.department) return allPositions
+        return allPositions.filter(p => p.staffDepartmentId === Number(form.department))
+    }, [allPositions, form.department])
+
     const update = (field: keyof StaffForm, value: string) => {
-        setForm(prev => ({ ...prev, [field]: value }))
+        if (field === 'department') {
+            // When department changes, reset position if it doesn't belong to the new department
+            setForm(prev => {
+                const currentPositionBelongs = allPositions.some(
+                    p => p.id.toString() === prev.position && p.staffDepartmentId === Number(value)
+                )
+                return {
+                    ...prev,
+                    department: value,
+                    position: currentPositionBelongs ? prev.position : '',
+                }
+            })
+        } else if (field === 'position') {
+            // When position is selected, auto-fill department
+            const selectedPosition = allPositions.find(p => p.id.toString() === value)
+            setForm(prev => ({
+                ...prev,
+                position: value,
+                department: selectedPosition ? selectedPosition.staffDepartmentId.toString() : prev.department,
+            }))
+        } else {
+            setForm(prev => ({ ...prev, [field]: value }))
+        }
     }
 
     const touch = useCallback((field: string) => {
@@ -430,10 +459,10 @@ export default function NewStaffPage() {
 
     // ── Build API request body ──
     const buildRequestBody = (): UpsertStaffRequest => {
-        // Map form position/department name → id
-        const positionId = POSITIONS.find(p => p.name === form.position)?.id ?? 0
-        const departmentId = DEPARTMENTS.find(d => d.name === form.department)?.id ?? 0
+        // Position/department are now stored as IDs
+        const positionId = form.position ? Number(form.position) : 0
         const staffstypeid = STAFF_TYPES.find(s => s.name === form.staffType)?.id ?? 1
+        const positionName = allPositions.find(p => p.id === positionId)?.name || ''
 
         return {
             staffId: 0, // new staff
@@ -450,10 +479,9 @@ export default function NewStaffPage() {
             employeeId: form.empId || '',
             startDate: form.startDate || '',
             endWorkingDate: null,
-            positionId,
-            departmentId,
+            staffDepartmentPositionId: positionId,
             staffstypeid,
-            jobTitle: form.jobTitle || form.position || '',
+            jobTitle: form.jobTitle || positionName || '',
             profileImagePath: profileImagePath,
             educations: educations.map((edu, idx) => ({
                 id: idx,
@@ -479,9 +507,10 @@ export default function NewStaffPage() {
                     filePath: d.filePath,
                     staffDocumentStatusId: 1,
                 })),
-            staffAircraftLicenseList: selectedLicenses.map((license, idx) => ({
-                id: idx,
-                aircraftTypeId: AIRCRAFT_TYPE_LICENSES.indexOf(license) + 1,
+            staffAircraftLicenseList: selectedLicenseIds.map((engineId) => ({
+                id: 0,
+                aircraftEngineId: engineId,
+                isDelete: false,
             })),
             staffAmelLicenseList: amelLicense.licenseNumber
                 ? [{
@@ -490,7 +519,6 @@ export default function NewStaffPage() {
                     categoryId: AMEL_LICENSE_CATEGORIES.findIndex(c => c.code === amelLicense.selectedCategories[0]) + 1 || 0,
                     issuedDate: amelLicense.issuedDate || '',
                     expiryDate: amelLicense.expiryDate || '',
-                    combinationIds: [],
                     attachmentFilePath: amelLicense.attachmentFilePath || '',
                     attachmentFileName: amelLicense.attachmentFileName || '',
                 }]
@@ -527,368 +555,501 @@ export default function NewStaffPage() {
     const saving = upsertMutation.isPending
 
     return (
-        <div className="p-8 min-h-screen rounded-xl">
-            <div className="bg-slate-50 rounded-xl p-8">
-                {/* ── Top Bar ── */}
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                        <button
-                            className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] border border-slate-200 bg-white text-slate-600 cursor-pointer transition-all duration-200 shrink-0 hover:border-slate-400 hover:text-slate-800 hover:shadow-sm"
-                            onClick={() => router.back()}
-                        >
-                            <ArrowLeft className="h-4 w-4" />
-                        </button>
-                        <div>
-                            <h1 className="text-xl font-bold text-slate-800">New Staff Registration</h1>
-                            <p className="text-sm text-slate-400">Fill in the information below to register a new staff member</p>
+        <>
+            <div className="p-8 min-h-screen rounded-xl">
+                <div className="bg-slate-50 rounded-xl p-8">
+                    {/* ── Top Bar ── */}
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                            <button
+                                className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] border border-slate-200 bg-white text-slate-600 cursor-pointer transition-all duration-200 shrink-0 hover:border-slate-400 hover:text-slate-800 hover:shadow-sm"
+                                onClick={() => router.back()}
+                            >
+                                <ArrowLeft className="h-4 w-4" />
+                            </button>
+                            <div>
+                                <h1 className="text-xl font-bold text-slate-800">New Staff Registration</h1>
+                                <p className="text-sm text-slate-400">Fill in the information below to register a new staff member</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => router.back()}
+                                className="px-5 py-2.5 text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg cursor-pointer transition-all duration-200 hover:bg-slate-50 hover:border-slate-300"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSubmit}
+                                disabled={saving || !isComplete}
+                                title={!isComplete ? `Please complete all required fields (${filled}/${total})` : ''}
+                                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-primary rounded-lg cursor-pointer transition-all duration-200 hover:bg-primary/80 border-none disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {saving ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        Saving...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Save className="h-4 w-4" />
+                                        Save Register
+                                    </>
+                                )}
+                            </button>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => router.back()}
-                            className="px-5 py-2.5 text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg cursor-pointer transition-all duration-200 hover:bg-slate-50 hover:border-slate-300"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleSubmit}
-                            disabled={saving || !isComplete}
-                            title={!isComplete ? `Please complete all required fields (${filled}/${total})` : ''}
-                            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-primary rounded-lg cursor-pointer transition-all duration-200 hover:bg-primary/80 border-none disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {saving ? (
-                                <>
-                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                    Saving...
-                                </>
-                            ) : (
-                                <>
-                                    <Save className="h-4 w-4" />
-                                    Save Register
-                                </>
-                            )}
-                        </button>
-                    </div>
-                </div>
 
-                <div className="grid grid-cols-12 gap-4">
-                    <div className="col-span-8">
-                        {/* ─── Section 1: Personal Info ─── */}
-                        <SectionCard
-                            icon={<User className="h-4 w-4" />}
-                            iconBg="#eff6ff"
-                            iconColor="#2563eb"
-                            title="Personal Info"
-                            description="Basic personal information of the staff member"
-                        >
-                            <div className="grid grid-cols-3 gap-x-5 gap-y-4">
-                                <Field label="Title" required error={getError('titleName')}>
-                                    <select value={form.titleName} onChange={e => update('titleName', e.target.value)} onBlur={() => touch('titleName')} className={selCls('titleName')}>
-                                        <option value="">Select Title</option>
-                                        {TITLE_NAMES.map(t => <option key={t} value={t}>{t}</option>)}
-                                    </select>
-                                </Field>
-                                <Field label="Full Name (Thai)" required error={getError('name')}>
-                                    <input type="text" value={form.name} onChange={e => update('name', e.target.value)} onBlur={() => touch('name')} placeholder="ชื่อ-นามสกุล ภาษาไทย" className={inputCls('name')} />
-                                </Field>
-                                <Field label="Full Name (English)" required error={getError('nameEn')}>
-                                    <input type="text" value={form.nameEn} onChange={e => update('nameEn', e.target.value)} onBlur={() => touch('nameEn')} placeholder="Full name in English" className={inputCls('nameEn')} />
-                                </Field>
-                                <Field label="Date of Birth" required error={getError('dob')}>
-                                    <input type="date" value={form.dob} onChange={e => update('dob', e.target.value)} onBlur={() => touch('dob')} className={inputCls('dob')} />
-                                </Field>
-                                <Field label="Place of Birth">
-                                    <input type="text" value={form.placeOfBirth} onChange={e => update('placeOfBirth', e.target.value)} placeholder="e.g. Bangkok" className={inputNormal} />
-                                </Field>
-                                <Field label="Nationality" required error={getError('nationality')}>
-                                    <input type="text" value={form.nationality} onChange={e => update('nationality', e.target.value)} onBlur={() => touch('nationality')} placeholder="e.g. Thai" className={inputCls('nationality')} />
-                                </Field>
-                                <div className="col-span-2">
-                                    <Field label="Thai ID Card No." required error={getError('idCard')}>
-                                        <input type="text" value={form.idCard} onChange={e => update('idCard', e.target.value)} onBlur={() => touch('idCard')} placeholder="x-xxxx-xxxxx-xx-x" className={inputCls('idCard')} />
+                    <div className="grid grid-cols-12 gap-4">
+                        <div className="col-span-8">
+                            {/* ─── Section 1: Personal Info ─── */}
+                            <SectionCard
+                                icon={<User className="h-4 w-4" />}
+                                iconBg="#eff6ff"
+                                iconColor="#2563eb"
+                                title="Personal Info"
+                                description="Basic personal information of the staff member"
+                            >
+                                <div className="grid grid-cols-3 gap-x-5 gap-y-4">
+                                    <Field label="Title" required error={getError('titleName')}>
+                                        <select value={form.titleName} onChange={e => update('titleName', e.target.value)} onBlur={() => touch('titleName')} className={selCls('titleName')}>
+                                            <option value="">Select Title</option>
+                                            {TITLE_NAMES.map(t => <option key={t} value={t}>{t}</option>)}
+                                        </select>
                                     </Field>
-                                </div>
-                            </div>
-                        </SectionCard>
-
-                        {/* ─── Section 2: Contact ─── */}
-                        <SectionCard
-                            icon={<Phone className="h-4 w-4" />}
-                            iconBg="#f0fdf4"
-                            iconColor="#16a34a"
-                            title="Contact"
-                            description="Contact details and address"
-                        >
-                            <div className="grid grid-cols-2 gap-x-5 gap-y-4">
-                                <Field label="Phone" required error={getError('phone')}>
-                                    <input type="tel" value={form.phone} onChange={e => update('phone', e.target.value)} onBlur={() => touch('phone')} placeholder="0xx-xxx-xxxx" className={inputCls('phone')} />
-                                </Field>
-                                <Field label="Email" required error={getError('email')}>
-                                    <input type="email" value={form.email} onChange={e => update('email', e.target.value)} onBlur={() => touch('email')} placeholder="name@company.com" className={inputCls('email')} />
-                                </Field>
-                                <div className="col-span-2">
-                                    <Field label="Address">
-                                        <textarea
-                                            value={form.address}
-                                            onChange={e => update('address', e.target.value)}
-                                            placeholder="Full address"
-                                            rows={3}
-                                            className={`${inputNormal} resize-none`}
-                                        />
+                                    <Field label="Full Name (Thai)" required error={getError('name')}>
+                                        <input type="text" value={form.name} onChange={e => update('name', e.target.value)} onBlur={() => touch('name')} placeholder="ชื่อ-นามสกุล ภาษาไทย" className={inputCls('name')} />
                                     </Field>
-                                </div>
-                            </div>
-                        </SectionCard>
-
-                        {/* ─── Section 3: Employment ─── */}
-                        <SectionCard
-                            icon={<Briefcase className="h-4 w-4" />}
-                            iconBg="#fef3c7"
-                            iconColor="#d97706"
-                            title="Employment"
-                            description="Job position and department assignment"
-                        >
-                            <div className="grid grid-cols-2 gap-x-5 gap-y-4">
-                                <Field label="Employee ID" required error={getError('empId')}>
-                                    <input type="text" value={form.empId} onChange={e => update('empId', e.target.value)} onBlur={() => touch('empId')} placeholder="e.g. EMP-0001" className={inputCls('empId')} />
-                                </Field>
-                                <Field label="Start Date" required error={getError('startDate')}>
-                                    <input type="date" value={form.startDate} onChange={e => update('startDate', e.target.value)} onBlur={() => touch('startDate')} className={inputCls('startDate')} />
-                                </Field>
-                                <Field label="Position" required error={getError('position')}>
-                                    <select value={form.position} onChange={e => update('position', e.target.value)} onBlur={() => touch('position')} className={selCls('position')}>
-                                        <option value="">Select Position</option>
-                                        {POSITIONS.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
-                                    </select>
-                                </Field>
-                                <Field label="Department" required error={getError('department')}>
-                                    <select value={form.department} onChange={e => update('department', e.target.value)} onBlur={() => touch('department')} className={selCls('department')}>
-                                        <option value="">Select Department</option>
-                                        {DEPARTMENTS.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-                                    </select>
-                                </Field>
-                                <Field label="Staff Type">
-                                    <select value={form.staffType} onChange={e => update('staffType', e.target.value)} className={selectNormal}>
-                                        <option value="">Select Staff Type</option>
-                                        {STAFF_TYPES.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-                                    </select>
-                                </Field>
-                                <Field label="Job Title">
-                                    <input type="text" value={form.jobTitle} onChange={e => update('jobTitle', e.target.value)} placeholder="e.g. Senior Aircraft Mechanic" className={inputNormal} />
-                                </Field>
-                            </div>
-                        </SectionCard>
-
-                        {/* ─── Section 4: Education ─── */}
-                        <SectionCard
-                            icon={<GraduationCap className="h-4 w-4" />}
-                            iconBg="#eff6ff"
-                            iconColor="#2563eb"
-                            title={`Education${educations.length > 0 ? ` (${educations.length})` : ''}`}
-                            description="Academic qualifications and certifications"
-                            defaultOpen={false}
-                        >
-                            <div className="space-y-4">
-                                {educations.map((edu, i) => (
-                                    <div key={i} className="relative border border-slate-200 rounded-xl p-5 bg-slate-50/50">
-                                        <button
-                                            type="button"
-                                            onClick={() => setEducations(prev => prev.filter((_, idx) => idx !== i))}
-                                            className="absolute top-3 right-3 w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 cursor-pointer transition-colors border-none bg-transparent"
-                                        >
-                                            <Trash2 className="h-3.5 w-3.5" />
-                                        </button>
-                                        <div className="grid grid-cols-2 gap-x-5 gap-y-3">
-                                            <Field label="Degree" required>
-                                                <input
-                                                    type="text"
-                                                    value={edu.degree}
-                                                    onChange={e => setEducations(prev => prev.map((item, idx) => idx === i ? { ...item, degree: e.target.value } : item))}
-                                                    placeholder="e.g. Bachelor of Engineering"
-                                                    className={inputNormal}
-                                                />
-                                            </Field>
-                                            <Field label="Institution" required>
-                                                <input
-                                                    type="text"
-                                                    value={edu.institution}
-                                                    onChange={e => setEducations(prev => prev.map((item, idx) => idx === i ? { ...item, institution: e.target.value } : item))}
-                                                    placeholder="e.g. Kasetsart University"
-                                                    className={inputNormal}
-                                                />
-                                            </Field>
-                                            <Field label="Field of Study">
-                                                <input
-                                                    type="text"
-                                                    value={edu.field}
-                                                    onChange={e => setEducations(prev => prev.map((item, idx) => idx === i ? { ...item, field: e.target.value } : item))}
-                                                    placeholder="e.g. Aeronautical Engineering"
-                                                    className={inputNormal}
-                                                />
-                                            </Field>
-                                            <Field label="Year" required>
-                                                <input
-                                                    type="text"
-                                                    value={edu.year}
-                                                    onChange={e => setEducations(prev => prev.map((item, idx) => idx === i ? { ...item, year: e.target.value } : item))}
-                                                    placeholder="e.g. 2020"
-                                                    className={inputNormal}
-                                                />
-                                            </Field>
-                                        </div>
+                                    <Field label="Full Name (English)" required error={getError('nameEn')}>
+                                        <input type="text" value={form.nameEn} onChange={e => update('nameEn', e.target.value)} onBlur={() => touch('nameEn')} placeholder="Full name in English" className={inputCls('nameEn')} />
+                                    </Field>
+                                    <Field label="Date of Birth" required error={getError('dob')}>
+                                        <input type="date" value={form.dob} onChange={e => update('dob', e.target.value)} onBlur={() => touch('dob')} className={inputCls('dob')} />
+                                    </Field>
+                                    <Field label="Place of Birth">
+                                        <input type="text" value={form.placeOfBirth} onChange={e => update('placeOfBirth', e.target.value)} placeholder="e.g. Bangkok" className={inputNormal} />
+                                    </Field>
+                                    <Field label="Nationality" required error={getError('nationality')}>
+                                        <input type="text" value={form.nationality} onChange={e => update('nationality', e.target.value)} onBlur={() => touch('nationality')} placeholder="e.g. Thai" className={inputCls('nationality')} />
+                                    </Field>
+                                    <div className="col-span-2">
+                                        <Field label="ID Card No." required error={getError('idCard')}>
+                                            <input type="text" value={form.idCard} onChange={e => update('idCard', e.target.value)} onBlur={() => touch('idCard')} placeholder="x-xxxx-xxxxx-xx-x" className={inputCls('idCard')} />
+                                        </Field>
                                     </div>
-                                ))}
-                                <button
-                                    type="button"
-                                    onClick={() => setEducations(prev => [...prev, { degree: '', institution: '', field: '', year: '' }])}
-                                    className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-slate-200 rounded-xl text-sm font-semibold text-slate-400 hover:border-blue-300 hover:text-blue-500 hover:bg-blue-50/30 cursor-pointer transition-all bg-transparent"
-                                >
-                                    <Plus className="h-4 w-4" />
-                                    Add Education
-                                </button>
-                            </div>
-                        </SectionCard>
+                                </div>
+                            </SectionCard>
 
-                        {/* ─── Section 5: Work Experience ─── */}
-                        <SectionCard
-                            icon={<Briefcase className="h-4 w-4" />}
-                            iconBg="#fef3c7"
-                            iconColor="#d97706"
-                            title={`Work Experience${experiences.length > 0 ? ` (${experiences.length})` : ''}`}
-                            description="Previous employment and work history"
-                            defaultOpen={false}
-                        >
-                            <div className="space-y-4">
-                                {experiences.map((exp, i) => (
-                                    <div key={i} className="relative border border-slate-200 rounded-xl p-5 bg-slate-50/50">
-                                        <button
-                                            type="button"
-                                            onClick={() => setExperiences(prev => prev.filter((_, idx) => idx !== i))}
-                                            className="absolute top-3 right-3 w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 cursor-pointer transition-colors border-none bg-transparent"
-                                        >
-                                            <Trash2 className="h-3.5 w-3.5" />
-                                        </button>
-                                        <div className="grid grid-cols-2 gap-x-5 gap-y-3">
-                                            <Field label="Job Title" required>
-                                                <input
-                                                    type="text"
-                                                    value={exp.title}
-                                                    onChange={e => setExperiences(prev => prev.map((item, idx) => idx === i ? { ...item, title: e.target.value } : item))}
-                                                    placeholder="e.g. Aircraft Mechanic"
-                                                    className={inputNormal}
-                                                />
-                                            </Field>
-                                            <Field label="Company" required>
-                                                <input
-                                                    type="text"
-                                                    value={exp.company}
-                                                    onChange={e => setExperiences(prev => prev.map((item, idx) => idx === i ? { ...item, company: e.target.value } : item))}
-                                                    placeholder="e.g. Thai Airways"
-                                                    className={inputNormal}
-                                                />
-                                            </Field>
-                                            <Field label="Period From" required>
-                                                <input
-                                                    type="date"
-                                                    value={exp.periodFrom}
-                                                    onChange={e => setExperiences(prev => prev.map((item, idx) => idx === i ? { ...item, periodFrom: e.target.value } : item))}
-                                                    className={inputNormal}
-                                                />
-                                            </Field>
-                                            <Field label="Period To">
-                                                <input
-                                                    type="date"
-                                                    value={exp.periodTo}
-                                                    onChange={e => setExperiences(prev => prev.map((item, idx) => idx === i ? { ...item, periodTo: e.target.value } : item))}
-                                                    className={inputNormal}
-                                                />
-                                            </Field>
-                                            <div className="col-span-2">
-                                                <Field label="Description">
-                                                    <textarea
-                                                        value={exp.description}
-                                                        onChange={e => setExperiences(prev => prev.map((item, idx) => idx === i ? { ...item, description: e.target.value } : item))}
-                                                        placeholder="Job responsibilities and achievements"
-                                                        rows={2}
-                                                        className={`${inputNormal} resize-none`}
+                            {/* ─── Section 2: Contact ─── */}
+                            <SectionCard
+                                icon={<Phone className="h-4 w-4" />}
+                                iconBg="#f0fdf4"
+                                iconColor="#16a34a"
+                                title="Contact"
+                                description="Contact details and address"
+                            >
+                                <div className="grid grid-cols-2 gap-x-5 gap-y-4">
+                                    <Field label="Phone" required error={getError('phone')}>
+                                        <input type="tel" value={form.phone} onChange={e => update('phone', e.target.value)} onBlur={() => touch('phone')} placeholder="0xx-xxx-xxxx" className={inputCls('phone')} />
+                                    </Field>
+                                    <Field label="Email" required error={getError('email')}>
+                                        <input type="email" value={form.email} onChange={e => update('email', e.target.value)} onBlur={() => touch('email')} placeholder="name@company.com" className={inputCls('email')} />
+                                    </Field>
+                                    <div className="col-span-2">
+                                        <Field label="Address">
+                                            <textarea
+                                                value={form.address}
+                                                onChange={e => update('address', e.target.value)}
+                                                placeholder="Full address"
+                                                rows={3}
+                                                className={`${inputNormal} resize-none`}
+                                            />
+                                        </Field>
+                                    </div>
+                                </div>
+                            </SectionCard>
+
+                            {/* ─── Section 3: Employment ─── */}
+                            <SectionCard
+                                icon={<Briefcase className="h-4 w-4" />}
+                                iconBg="#fef3c7"
+                                iconColor="#d97706"
+                                title="Employment"
+                                description="Job position and department assignment"
+                            >
+                                <div className="grid grid-cols-2 gap-x-5 gap-y-4">
+                                    <Field label="Employee ID" required error={getError('empId')}>
+                                        <input type="text" value={form.empId} onChange={e => update('empId', e.target.value)} onBlur={() => touch('empId')} placeholder="e.g. EMP-0001" className={inputCls('empId')} />
+                                    </Field>
+                                    <Field label="Start Date" required error={getError('startDate')}>
+                                        <input type="date" value={form.startDate} onChange={e => update('startDate', e.target.value)} onBlur={() => touch('startDate')} className={inputCls('startDate')} />
+                                    </Field>
+                                    <Field label="Department" required error={getError('department')}>
+                                        <select value={form.department} onChange={e => update('department', e.target.value)} onBlur={() => touch('department')} className={selCls('department')}>
+                                            <option value="">Select Department</option>
+                                            {departments.map(d => <option key={d.id} value={d.id.toString()}>{d.name}</option>)}
+                                        </select>
+                                    </Field>
+                                    <Field label="Position" required error={getError('position')}>
+                                        <select value={form.position} onChange={e => update('position', e.target.value)} onBlur={() => touch('position')} className={selCls('position')}>
+                                            <option value="">Select Position</option>
+                                            {filteredPositions.map(p => <option key={p.id} value={p.id.toString()}>{p.name}</option>)}
+                                        </select>
+                                    </Field>
+                                    <Field label="Staff Type">
+                                        <select value={form.staffType} onChange={e => update('staffType', e.target.value)} className={selectNormal}>
+                                            <option value="">Select Staff Type</option>
+                                            {STAFF_TYPES.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                                        </select>
+                                    </Field>
+                                    <Field label="Job Note">
+                                        <input type="text" value={form.jobTitle} onChange={e => update('jobTitle', e.target.value)} placeholder="e.g. Senior Aircraft Mechanic" className={inputNormal} />
+                                    </Field>
+                                </div>
+                            </SectionCard>
+
+                            {/* ─── Section 4: Education ─── */}
+                            <SectionCard
+                                icon={<GraduationCap className="h-4 w-4" />}
+                                iconBg="#eff6ff"
+                                iconColor="#2563eb"
+                                title={`Education${educations.length > 0 ? ` (${educations.length})` : ''}`}
+                                description="Academic qualifications and certifications"
+                                defaultOpen={false}
+                            >
+                                <div className="space-y-4">
+                                    {educations.map((edu, i) => (
+                                        <div key={i} className="relative border border-slate-200 rounded-xl p-5 bg-slate-50/50">
+                                            <button
+                                                type="button"
+                                                onClick={() => setEducations(prev => prev.filter((_, idx) => idx !== i))}
+                                                className="absolute top-3 right-3 w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 cursor-pointer transition-colors border-none bg-transparent"
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                            </button>
+                                            <div className="grid grid-cols-2 gap-x-5 gap-y-3">
+                                                <Field label="Degree" required>
+                                                    <input
+                                                        type="text"
+                                                        value={edu.degree}
+                                                        onChange={e => setEducations(prev => prev.map((item, idx) => idx === i ? { ...item, degree: e.target.value } : item))}
+                                                        placeholder="e.g. Bachelor of Engineering"
+                                                        className={inputNormal}
+                                                    />
+                                                </Field>
+                                                <Field label="Institution" required>
+                                                    <input
+                                                        type="text"
+                                                        value={edu.institution}
+                                                        onChange={e => setEducations(prev => prev.map((item, idx) => idx === i ? { ...item, institution: e.target.value } : item))}
+                                                        placeholder="e.g. Kasetsart University"
+                                                        className={inputNormal}
+                                                    />
+                                                </Field>
+                                                <Field label="Field of Study">
+                                                    <input
+                                                        type="text"
+                                                        value={edu.field}
+                                                        onChange={e => setEducations(prev => prev.map((item, idx) => idx === i ? { ...item, field: e.target.value } : item))}
+                                                        placeholder="e.g. Aeronautical Engineering"
+                                                        className={inputNormal}
+                                                    />
+                                                </Field>
+                                                <Field label="Year" required>
+                                                    <input
+                                                        type="text"
+                                                        value={edu.year}
+                                                        onChange={e => setEducations(prev => prev.map((item, idx) => idx === i ? { ...item, year: e.target.value } : item))}
+                                                        placeholder="e.g. 2020"
+                                                        className={inputNormal}
                                                     />
                                                 </Field>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
-                                <button
-                                    type="button"
-                                    onClick={() => setExperiences(prev => [...prev, { title: '', company: '', periodFrom: '', periodTo: '', description: '' }])}
-                                    className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-slate-200 rounded-xl text-sm font-semibold text-slate-400 hover:border-amber-300 hover:text-amber-600 hover:bg-amber-50/30 cursor-pointer transition-all bg-transparent"
-                                >
-                                    <Plus className="h-4 w-4" />
-                                    Add Work Experience
-                                </button>
-                            </div>
-                        </SectionCard>
-
-                        {/* ─── Section 6: Documents ─── */}
-                        <SectionCard
-                            icon={<FileText className="h-4 w-4" />}
-                            iconBg="#fce7f3"
-                            iconColor="#db2777"
-                            title={`Documents${documents.filter(d => d.filePath).length > 0 ? ` (${documents.filter(d => d.filePath).length}/${documents.length})` : ''}`}
-                            description="Upload required documents and certificates"
-                            defaultOpen={false}
-                        >
-                            <div className="grid grid-cols-2 gap-3">
-                                {documents.map((doc) => (
-                                    <div
-                                        key={doc.key}
-                                        className={`relative border rounded-xl p-4 transition-all duration-200 ${
-                                            doc.filePath
-                                                ? 'border-green-200 bg-green-50/40'
-                                                : 'border-slate-200 bg-slate-50/50 hover:border-blue-200 hover:bg-blue-50/20'
-                                        }`}
+                                    ))}
+                                    <button
+                                        type="button"
+                                        onClick={() => setEducations(prev => [...prev, { degree: '', institution: '', field: '', year: '' }])}
+                                        className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-slate-200 rounded-xl text-sm font-semibold text-slate-400 hover:border-blue-300 hover:text-blue-500 hover:bg-blue-50/30 cursor-pointer transition-all bg-transparent"
                                     >
+                                        <Plus className="h-4 w-4" />
+                                        Add Education
+                                    </button>
+                                </div>
+                            </SectionCard>
+
+                            {/* ─── Section 5: Work Experience ─── */}
+                            <SectionCard
+                                icon={<Briefcase className="h-4 w-4" />}
+                                iconBg="#fef3c7"
+                                iconColor="#d97706"
+                                title={`Work Experience${experiences.length > 0 ? ` (${experiences.length})` : ''}`}
+                                description="Previous employment and work history"
+                                defaultOpen={false}
+                            >
+                                <div className="space-y-4">
+                                    {experiences.map((exp, i) => (
+                                        <div key={i} className="relative border border-slate-200 rounded-xl p-5 bg-slate-50/50">
+                                            <button
+                                                type="button"
+                                                onClick={() => setExperiences(prev => prev.filter((_, idx) => idx !== i))}
+                                                className="absolute top-3 right-3 w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 cursor-pointer transition-colors border-none bg-transparent"
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                            </button>
+                                            <div className="grid grid-cols-2 gap-x-5 gap-y-3">
+                                                <Field label="Job Title Note" required>
+                                                    <input
+                                                        type="text"
+                                                        value={exp.title}
+                                                        onChange={e => setExperiences(prev => prev.map((item, idx) => idx === i ? { ...item, title: e.target.value } : item))}
+                                                        placeholder="e.g. Aircraft Mechanic"
+                                                        className={inputNormal}
+                                                    />
+                                                </Field>
+                                                <Field label="Company" required>
+                                                    <input
+                                                        type="text"
+                                                        value={exp.company}
+                                                        onChange={e => setExperiences(prev => prev.map((item, idx) => idx === i ? { ...item, company: e.target.value } : item))}
+                                                        placeholder="e.g. Thai Airways"
+                                                        className={inputNormal}
+                                                    />
+                                                </Field>
+                                                <Field label="Period From" required>
+                                                    <input
+                                                        type="date"
+                                                        value={exp.periodFrom}
+                                                        onChange={e => setExperiences(prev => prev.map((item, idx) => idx === i ? { ...item, periodFrom: e.target.value } : item))}
+                                                        className={inputNormal}
+                                                    />
+                                                </Field>
+                                                <Field label="Period To">
+                                                    <input
+                                                        type="date"
+                                                        value={exp.periodTo}
+                                                        onChange={e => setExperiences(prev => prev.map((item, idx) => idx === i ? { ...item, periodTo: e.target.value } : item))}
+                                                        className={inputNormal}
+                                                    />
+                                                </Field>
+                                                <div className="col-span-2">
+                                                    <Field label="Description">
+                                                        <textarea
+                                                            value={exp.description}
+                                                            onChange={e => setExperiences(prev => prev.map((item, idx) => idx === i ? { ...item, description: e.target.value } : item))}
+                                                            placeholder="Job responsibilities and achievements"
+                                                            rows={2}
+                                                            className={`${inputNormal} resize-none`}
+                                                        />
+                                                    </Field>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <button
+                                        type="button"
+                                        onClick={() => setExperiences(prev => [...prev, { title: '', company: '', periodFrom: '', periodTo: '', description: '' }])}
+                                        className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-slate-200 rounded-xl text-sm font-semibold text-slate-400 hover:border-amber-300 hover:text-amber-600 hover:bg-amber-50/30 cursor-pointer transition-all bg-transparent"
+                                    >
+                                        <Plus className="h-4 w-4" />
+                                        Add Work Experience
+                                    </button>
+                                </div>
+                            </SectionCard>
+
+                            {/* ─── Section 6: Documents ─── */}
+                            <SectionCard
+                                icon={<FileText className="h-4 w-4" />}
+                                iconBg="#fce7f3"
+                                iconColor="#db2777"
+                                title={`Documents${documents.filter(d => d.filePath).length > 0 ? ` (${documents.filter(d => d.filePath).length}/${documents.length})` : ''}`}
+                                description="Upload required documents and certificates"
+                                defaultOpen={false}
+                            >
+                                <div className="grid grid-cols-2 gap-3">
+                                    {documents.map((doc) => (
+                                        <div
+                                            key={doc.key}
+                                            className={`relative border rounded-xl p-4 transition-all duration-200 ${doc.filePath
+                                                    ? 'border-green-200 bg-green-50/40'
+                                                    : 'border-slate-200 bg-slate-50/50 hover:border-blue-200 hover:bg-blue-50/20'
+                                                }`}
+                                        >
+                                            <input
+                                                ref={(el) => { docInputRefs.current[doc.key] = el }}
+                                                type="file"
+                                                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                                className="hidden"
+                                                onChange={(e) => handleDocUpload(doc.key, e)}
+                                            />
+                                            <div className="flex items-start gap-3">
+                                                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${doc.filePath ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'
+                                                    }`}>
+                                                    {doc.uploading ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                    ) : doc.filePath ? (
+                                                        <CheckCircle2 className="h-4 w-4" />
+                                                    ) : (
+                                                        <FileText className="h-4 w-4" />
+                                                    )}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-xs font-semibold text-slate-700 leading-tight">{doc.label}</p>
+                                                    {doc.subtitle && (
+                                                        <p className="text-[10px] text-amber-500 font-medium mt-0.5">{doc.subtitle}</p>
+                                                    )}
+                                                    {doc.fileName ? (
+                                                        <p className="text-[10px] text-slate-400 mt-1 truncate" title={doc.fileName}>{doc.fileName}</p>
+                                                    ) : (
+                                                        <p className="text-[10px] text-slate-300 mt-1">No file uploaded</p>
+                                                    )}
+                                                </div>
+                                                {doc.filePath ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemoveDoc(doc.key)}
+                                                        className="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 cursor-pointer transition-colors border-none bg-transparent shrink-0"
+                                                    >
+                                                        <X className="h-3.5 w-3.5" />
+                                                    </button>
+                                                ) : !doc.uploading ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => docInputRefs.current[doc.key]?.click()}
+                                                        className="px-2.5 py-1 text-[10px] font-semibold text-blue-500 bg-blue-50 border border-blue-200 rounded-md cursor-pointer hover:bg-blue-100 transition-colors shrink-0"
+                                                    >
+                                                        <Upload className="h-3 w-3 inline mr-1" />
+                                                        Upload
+                                                    </button>
+                                                ) : null}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </SectionCard>
+
+                            {/* ─── Section 7: AMEL License ─── */}
+                            <SectionCard
+                                icon={<Award className="h-4 w-4" />}
+                                iconBg="#fef3c7"
+                                iconColor="#d97706"
+                                title="AMEL License"
+                                description="Aircraft Maintenance Engineer License details"
+                                defaultOpen={false}
+                            >
+                                <div className="space-y-4">
+                                    {/* Row 1: License Number + Category */}
+                                    <div className="grid grid-cols-2 gap-x-5 gap-y-4">
+                                        <Field label="License Number">
+                                            <input
+                                                type="text"
+                                                value={amelLicense.licenseNumber}
+                                                onChange={e => setAmelLicense(prev => ({ ...prev, licenseNumber: e.target.value }))}
+                                                placeholder="e.g. AMEL-TH-XXXX"
+                                                className={inputNormal}
+                                            />
+                                        </Field>
+                                        <Field label="Category">
+                                            <select
+                                                value={amelLicense.selectedCategories[0] || ''}
+                                                onChange={e => setAmelLicense(prev => ({ ...prev, selectedCategories: e.target.value ? [e.target.value] : [] }))}
+                                                className={selectNormal}
+                                            >
+                                                <option value="">Select Category</option>
+                                                {AMEL_LICENSE_CATEGORIES.map(cat => (
+                                                    <option key={cat.code} value={cat.code}>{cat.label}</option>
+                                                ))}
+                                            </select>
+                                        </Field>
+                                    </div>
+
+                                    {/* Row 2: Issued Date + Expiry Date */}
+                                    <div className="grid grid-cols-2 gap-x-5 gap-y-4">
+                                        <Field label="Issued Date">
+                                            <input
+                                                type="date"
+                                                value={amelLicense.issuedDate}
+                                                onChange={e => setAmelLicense(prev => ({ ...prev, issuedDate: e.target.value }))}
+                                                className={inputNormal}
+                                            />
+                                        </Field>
+                                        <Field label="Expiry Date">
+                                            <input
+                                                type="date"
+                                                value={amelLicense.expiryDate}
+                                                onChange={e => setAmelLicense(prev => ({ ...prev, expiryDate: e.target.value }))}
+                                                className={inputNormal}
+                                            />
+                                        </Field>
+                                    </div>
+
+                                    {/* Row 3: Attachments */}
+                                    <Field label="Attachments">
                                         <input
-                                            ref={(el) => { docInputRefs.current[doc.key] = el }}
+                                            ref={amelAttachmentRef}
                                             type="file"
                                             accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                                             className="hidden"
-                                            onChange={(e) => handleDocUpload(doc.key, e)}
+                                            onChange={async (e) => {
+                                                const file = e.target.files?.[0]
+                                                if (!file) return
+                                                setAmelLicense(prev => ({ ...prev, attachmentFile: file, attachmentFileName: file.name, attachmentUploading: true }))
+                                                const reader = new FileReader()
+                                                reader.onload = () => {
+                                                    const base64 = (reader.result as string).split(',')[1]
+                                                    const ext = file.name.split('.').pop() || 'pdf'
+                                                    const fname = file.name.replace(/\.[^/.]+$/, '')
+                                                    uploadMutation.mutate(
+                                                        { FileBase64: base64, FileType: 'amel_license', ExtensionFile: ext, FileName: fname },
+                                                        {
+                                                            onSuccess: (res) => {
+                                                                setAmelLicense(prev => ({ ...prev, attachmentFilePath: res.responseData?.[0]?.filePath || '', attachmentUploading: false }))
+                                                                toast.success('AMEL attachment uploaded')
+                                                            },
+                                                            onError: (err) => {
+                                                                setAmelLicense(prev => ({ ...prev, attachmentFile: null, attachmentFileName: '', attachmentUploading: false }))
+                                                                toast.error(err.message || 'Upload failed')
+                                                            },
+                                                        }
+                                                    )
+                                                }
+                                                reader.readAsDataURL(file)
+                                                if (amelAttachmentRef.current) amelAttachmentRef.current.value = ''
+                                            }}
                                         />
-                                        <div className="flex items-start gap-3">
-                                            <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
-                                                doc.filePath ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'
+                                        <div className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg border transition-all ${amelLicense.attachmentFilePath
+                                                ? 'border-green-200 bg-green-50/40'
+                                                : 'border-slate-200 bg-white'
                                             }`}>
-                                                {doc.uploading ? (
+                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${amelLicense.attachmentFilePath ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'
+                                                }`}>
+                                                {amelLicense.attachmentUploading ? (
                                                     <Loader2 className="h-4 w-4 animate-spin" />
-                                                ) : doc.filePath ? (
+                                                ) : amelLicense.attachmentFilePath ? (
                                                     <CheckCircle2 className="h-4 w-4" />
                                                 ) : (
                                                     <FileText className="h-4 w-4" />
                                                 )}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-xs font-semibold text-slate-700 leading-tight">{doc.label}</p>
-                                                {doc.subtitle && (
-                                                    <p className="text-[10px] text-amber-500 font-medium mt-0.5">{doc.subtitle}</p>
-                                                )}
-                                                {doc.fileName ? (
-                                                    <p className="text-[10px] text-slate-400 mt-1 truncate" title={doc.fileName}>{doc.fileName}</p>
+                                                {amelLicense.attachmentFileName ? (
+                                                    <p className="text-xs text-slate-600 truncate">{amelLicense.attachmentFileName}</p>
                                                 ) : (
-                                                    <p className="text-[10px] text-slate-300 mt-1">No file uploaded</p>
+                                                    <p className="text-xs text-slate-300">No file attached</p>
                                                 )}
                                             </div>
-                                            {doc.filePath ? (
+                                            {amelLicense.attachmentFilePath ? (
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleRemoveDoc(doc.key)}
+                                                    onClick={() => setAmelLicense(prev => ({ ...prev, attachmentFile: null, attachmentFilePath: '', attachmentFileName: '' }))}
                                                     className="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 cursor-pointer transition-colors border-none bg-transparent shrink-0"
                                                 >
                                                     <X className="h-3.5 w-3.5" />
                                                 </button>
-                                            ) : !doc.uploading ? (
+                                            ) : !amelLicense.attachmentUploading ? (
                                                 <button
                                                     type="button"
-                                                    onClick={() => docInputRefs.current[doc.key]?.click()}
+                                                    onClick={() => amelAttachmentRef.current?.click()}
                                                     className="px-2.5 py-1 text-[10px] font-semibold text-blue-500 bg-blue-50 border border-blue-200 rounded-md cursor-pointer hover:bg-blue-100 transition-colors shrink-0"
                                                 >
                                                     <Upload className="h-3 w-3 inline mr-1" />
@@ -896,373 +1057,294 @@ export default function NewStaffPage() {
                                                 </button>
                                             ) : null}
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </SectionCard>
-
-                        {/* ─── Section 7: License ─── */}
-                        <SectionCard
-                            icon={<Shield className="h-4 w-4" />}
-                            iconBg="#f0fdf4"
-                            iconColor="#16a34a"
-                            title={`License${selectedLicenses.length > 0 ? ` (${selectedLicenses.length})` : ''}`}
-                            description="Aircraft type licenses and certifications"
-                            defaultOpen={false}
-                        >
-                            <div className="space-y-3">
-                                <Field label="Aircraft Type License">
-                                    <div className="grid grid-cols-2 gap-2 mt-1">
-                                        {AIRCRAFT_TYPE_LICENSES.map((license) => {
-                                            const isSelected = selectedLicenses.includes(license)
-                                            return (
-                                                <label
-                                                    key={license}
-                                                    className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg border cursor-pointer transition-all duration-150 select-none ${
-                                                        isSelected
-                                                            ? 'border-green-300 bg-green-50/60 text-green-800'
-                                                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                                                    }`}
-                                                >
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={isSelected}
-                                                        onChange={(e) => {
-                                                            if (e.target.checked) {
-                                                                setSelectedLicenses(prev => [...prev, license])
-                                                            } else {
-                                                                setSelectedLicenses(prev => prev.filter(l => l !== license))
-                                                            }
-                                                        }}
-                                                        className="sr-only"
-                                                    />
-                                                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
-                                                        isSelected ? 'border-green-500 bg-green-500' : 'border-slate-300 bg-white'
-                                                    }`}>
-                                                        {isSelected && (
-                                                            <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                                            </svg>
-                                                        )}
-                                                    </div>
-                                                    <span className="text-xs font-medium">{license}</span>
-                                                </label>
-                                            )
-                                        })}
-                                    </div>
-                                </Field>
-                            </div>
-                        </SectionCard>
-
-                        {/* ─── Section 8: AMEL License ─── */}
-                        <SectionCard
-                            icon={<Award className="h-4 w-4" />}
-                            iconBg="#fef3c7"
-                            iconColor="#d97706"
-                            title="AMEL License"
-                            description="Aircraft Maintenance Engineer License details"
-                            defaultOpen={false}
-                        >
-                            <div className="space-y-4">
-                                {/* Row 1: License Number + Category */}
-                                <div className="grid grid-cols-2 gap-x-5 gap-y-4">
-                                    <Field label="License Number">
-                                        <input
-                                            type="text"
-                                            value={amelLicense.licenseNumber}
-                                            onChange={e => setAmelLicense(prev => ({ ...prev, licenseNumber: e.target.value }))}
-                                            placeholder="e.g. AMEL-TH-XXXX"
-                                            className={inputNormal}
-                                        />
-                                    </Field>
-                                    <Field label="Category">
-                                        <select
-                                            value={amelLicense.selectedCategories[0] || ''}
-                                            onChange={e => setAmelLicense(prev => ({ ...prev, selectedCategories: e.target.value ? [e.target.value] : [] }))}
-                                            className={selectNormal}
-                                        >
-                                            <option value="">Select Category</option>
-                                            {AMEL_LICENSE_CATEGORIES.map(cat => (
-                                                <option key={cat.code} value={cat.code}>{cat.label}</option>
-                                            ))}
-                                        </select>
                                     </Field>
                                 </div>
+                            </SectionCard>
 
-                                {/* Row 2: Issued Date + Expiry Date */}
-                                <div className="grid grid-cols-2 gap-x-5 gap-y-4">
-                                    <Field label="Issued Date">
-                                        <input
-                                            type="date"
-                                            value={amelLicense.issuedDate}
-                                            onChange={e => setAmelLicense(prev => ({ ...prev, issuedDate: e.target.value }))}
-                                            className={inputNormal}
-                                        />
-                                    </Field>
-                                    <Field label="Expiry Date">
-                                        <input
-                                            type="date"
-                                            value={amelLicense.expiryDate}
-                                            onChange={e => setAmelLicense(prev => ({ ...prev, expiryDate: e.target.value }))}
-                                            className={inputNormal}
-                                        />
-                                    </Field>
-                                </div>
-
-                                {/* Row 3: Limitations */}
-                                <Field label="Limitations">
-                                    <textarea
-                                        value={amelLicense.limitations}
-                                        onChange={e => setAmelLicense(prev => ({ ...prev, limitations: e.target.value }))}
-                                        placeholder="Enter any limitations or restrictions"
-                                        rows={2}
-                                        className={`${inputNormal} resize-none`}
-                                    />
-                                </Field>
-
-                                {/* Row 4: Aircraft Ratings */}
-                                <Field label="Aircraft Ratings">
-                                    <div className="flex gap-2 mb-2">
-                                        <input
-                                            type="text"
-                                            value={amelRatingInput}
-                                            onChange={e => setAmelRatingInput(e.target.value)}
-                                            onKeyDown={e => {
-                                                if (e.key === 'Enter' && amelRatingInput.trim()) {
-                                                    e.preventDefault()
-                                                    if (!amelLicense.aircraftRatings.includes(amelRatingInput.trim())) {
-                                                        setAmelLicense(prev => ({ ...prev, aircraftRatings: [...prev.aircraftRatings, amelRatingInput.trim()] }))
-                                                    }
-                                                    setAmelRatingInput('')
-                                                }
-                                            }}
-                                            placeholder="e.g. A320, B737"
-                                            className={inputNormal}
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                if (amelRatingInput.trim() && !amelLicense.aircraftRatings.includes(amelRatingInput.trim())) {
-                                                    setAmelLicense(prev => ({ ...prev, aircraftRatings: [...prev.aircraftRatings, amelRatingInput.trim()] }))
-                                                }
-                                                setAmelRatingInput('')
-                                            }}
-                                            disabled={!amelRatingInput.trim()}
-                                            className="px-4 py-2.5 text-sm font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
-                                        >
-                                            <Plus className="h-3.5 w-3.5" />
-                                            Add
-                                        </button>
-                                    </div>
-                                    {amelLicense.aircraftRatings.length > 0 && (
-                                        <div className="flex flex-wrap gap-1.5 mt-2">
-                                            {amelLicense.aircraftRatings.map((rating) => (
-                                                <span
-                                                    key={rating}
-                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg text-xs font-medium"
-                                                >
-                                                    {rating}
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setAmelLicense(prev => ({ ...prev, aircraftRatings: prev.aircraftRatings.filter(r => r !== rating) }))}
-                                                        className="w-4 h-4 rounded-full flex items-center justify-center text-amber-400 hover:text-red-500 hover:bg-red-50 cursor-pointer transition-colors border-none bg-transparent"
-                                                    >
-                                                        <X className="h-3 w-3" />
-                                                    </button>
-                                                </span>
-                                            ))}
+                            {/* ─── Section 8: Aircraft License ─── */}
+                            <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#f0fdf4', color: '#16a34a' }}>
+                                            <Shield className="h-4 w-4" />
                                         </div>
-                                    )}
-                                </Field>
-
-                                {/* Row 5: Attachments */}
-                                <Field label="Attachments">
-                                    <input
-                                        ref={amelAttachmentRef}
-                                        type="file"
-                                        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                                        className="hidden"
-                                        onChange={async (e) => {
-                                            const file = e.target.files?.[0]
-                                            if (!file) return
-                                            setAmelLicense(prev => ({ ...prev, attachmentFile: file, attachmentFileName: file.name, attachmentUploading: true }))
-                                            const reader = new FileReader()
-                                            reader.onload = () => {
-                                                const base64 = (reader.result as string).split(',')[1]
-                                                const ext = file.name.split('.').pop() || 'pdf'
-                                                const fname = file.name.replace(/\.[^/.]+$/, '')
-                                                uploadMutation.mutate(
-                                                    { FileBase64: base64, FileType: 'amel_license', ExtensionFile: ext, FileName: fname },
-                                                    {
-                                                        onSuccess: (res) => {
-                                                            setAmelLicense(prev => ({ ...prev, attachmentFilePath: res.responseData?.[0]?.filePath || '', attachmentUploading: false }))
-                                                            toast.success('AMEL attachment uploaded')
-                                                        },
-                                                        onError: (err) => {
-                                                            setAmelLicense(prev => ({ ...prev, attachmentFile: null, attachmentFileName: '', attachmentUploading: false }))
-                                                            toast.error(err.message || 'Upload failed')
-                                                        },
-                                                    }
-                                                )
-                                            }
-                                            reader.readAsDataURL(file)
-                                            if (amelAttachmentRef.current) amelAttachmentRef.current.value = ''
-                                        }}
-                                    />
-                                    <div className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg border transition-all ${
-                                        amelLicense.attachmentFilePath
-                                            ? 'border-green-200 bg-green-50/40'
-                                            : 'border-slate-200 bg-white'
-                                    }`}>
-                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                                            amelLicense.attachmentFilePath ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'
-                                        }`}>
-                                            {amelLicense.attachmentUploading ? (
-                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                            ) : amelLicense.attachmentFilePath ? (
-                                                <CheckCircle2 className="h-4 w-4" />
-                                            ) : (
-                                                <FileText className="h-4 w-4" />
+                                        <span className="text-base font-bold text-slate-800">
+                                            Aircraft License
+                                            {selectedLicenseIds.length > 0 && (
+                                                <span className="text-slate-400 font-medium ml-1.5">({selectedLicenseIds.length})</span>
                                             )}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            {amelLicense.attachmentFileName ? (
-                                                <p className="text-xs text-slate-600 truncate">{amelLicense.attachmentFileName}</p>
-                                            ) : (
-                                                <p className="text-xs text-slate-300">No file attached</p>
-                                            )}
-                                        </div>
-                                        {amelLicense.attachmentFilePath ? (
-                                            <button
-                                                type="button"
-                                                onClick={() => setAmelLicense(prev => ({ ...prev, attachmentFile: null, attachmentFilePath: '', attachmentFileName: '' }))}
-                                                className="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 cursor-pointer transition-colors border-none bg-transparent shrink-0"
-                                            >
-                                                <X className="h-3.5 w-3.5" />
-                                            </button>
-                                        ) : !amelLicense.attachmentUploading ? (
-                                            <button
-                                                type="button"
-                                                onClick={() => amelAttachmentRef.current?.click()}
-                                                className="px-2.5 py-1 text-[10px] font-semibold text-blue-500 bg-blue-50 border border-blue-200 rounded-md cursor-pointer hover:bg-blue-100 transition-colors shrink-0"
-                                            >
-                                                <Upload className="h-3 w-3 inline mr-1" />
-                                                Upload
-                                            </button>
-                                        ) : null}
-                                    </div>
-                                </Field>
-                            </div>
-                        </SectionCard>
-                    </div>
-                    <div className="col-span-4">
-                        <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 sticky top-8">
-                            <div className="flex items-center gap-2.5 text-base font-bold text-slate-800 mb-5 pb-3.5 border-b border-slate-100">
-                                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-slate-100 text-slate-500">
-                                    <UserPlus className="h-4 w-4" />
-                                </div>
-                                Preview
-                            </div>
-
-                            {/* Avatar Preview */}
-                            <div className="flex flex-col items-center mb-5">
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={handleImageUpload}
-                                />
-                                <div className="relative group mb-3">
-                                    <div
-                                        className="w-40 h-40 rounded-2xl bg-linear-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-xl font-bold overflow-hidden cursor-pointer relative"
-                                        onClick={() => !isUploading && fileInputRef.current?.click()}
-                                    >
-                                        {profileImage ? (
-                                            <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
-                                        ) : form.nameEn ? (
-                                            form.nameEn.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase()
-                                        ) : (
-                                            <User className="h-8 w-8 text-white/60" />
-                                        )}
-                                        {/* Uploading overlay */}
-                                        {isUploading && (
-                                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-2xl">
-                                                <Loader2 className="h-6 w-6 text-white animate-spin" />
-                                            </div>
-                                        )}
-                                        {/* Hover overlay */}
-                                        {!isUploading && (
-                                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-2xl">
-                                                <Camera className="h-5 w-5 text-white" />
-                                            </div>
-                                        )}
-                                    </div>
-                                    {profileImage && !isUploading && (
-                                        <button
-                                            type="button"
-                                            onClick={(e) => { e.stopPropagation(); handleRemovePhoto() }}
-                                            className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center border-2 border-white cursor-pointer hover:bg-red-600 transition-colors"
-                                        >
-                                            <Trash2 className="h-2.5 w-2.5" />
-                                        </button>
-                                    )}
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => !isUploading && fileInputRef.current?.click()}
-                                    className="text-[11px] font-semibold text-blue-500 hover:text-blue-700 cursor-pointer bg-transparent border-none mb-2 transition-colors"
-                                >
-                                    {isUploading ? 'Uploading...' : profileImage ? 'Change Photo' : 'Upload Photo'}
-                                </button>
-                                <span className="text-sm font-bold text-slate-800">
-                                    {form.name || 'ชื่อ-นามสกุล'}
-                                </span>
-                                <span className="text-xs text-slate-400">
-                                    {form.nameEn || 'Full Name'}
-                                </span>
-                            </div>
-
-                            {/* Info Preview */}
-                            <div className="space-y-3">
-                                {[
-                                    { label: 'Employee ID', value: form.empId },
-                                    { label: 'Position', value: form.position },
-                                    { label: 'Department', value: form.department },
-                                    { label: 'Phone', value: form.phone },
-                                    { label: 'Email', value: form.email },
-                                ].map(item => (
-                                    <div key={item.label} className="flex justify-between items-center py-1.5">
-                                        <span className="text-xs font-medium text-slate-400">{item.label}</span>
-                                        <span className={`text-xs font-medium ${item.value ? 'text-slate-700' : 'text-slate-300'}`}>
-                                            {item.value || '—'}
                                         </span>
                                     </div>
-                                ))}
-                            </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setTempLicenseIds([...selectedLicenseIds])
+                                            setLicenseSearch('')
+                                            setShowLicenseModal(true)
+                                        }}
+                                        className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer transition-all border-none bg-transparent"
+                                    >
+                                        <Pencil className="h-4 w-4" />
+                                    </button>
+                                </div>
 
-                            {/* Completion Progress */}
-                            <div className="mt-5 pt-4 border-t border-slate-100">
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-xs font-semibold text-slate-500">Completion</span>
-                                    <span className="text-xs font-bold text-slate-700">{filled}/{total} fields</span>
-                                </div>
-                                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                                    <div
-                                        className={`h-full rounded-full transition-all duration-500 ${pct === 100 ? 'bg-green-500' : pct > 50 ? 'bg-blue-500' : 'bg-amber-400'}`}
-                                        style={{ width: `${pct}%` }}
-                                    />
-                                </div>
-                                {!isComplete && (
-                                    <p className="text-[10px] text-amber-500 mt-2 font-medium">
-                                        ⚠ Complete all required fields to enable Save Register
-                                    </p>
+                                {/* Selected license chips */}
+                                {selectedLicenseIds.length > 0 ? (
+                                    <div className="flex flex-wrap gap-2">
+                                        {groupCombinationDisplayLabels(selectedLicenseIds, combinations).map(label => (
+                                            <span
+                                                key={label}
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 border border-green-200 rounded-lg text-xs font-medium"
+                                            >
+                                                <Plane className="h-3 w-3" />
+                                                {label}
+                                            </span>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-xs text-slate-400">No aircraft licenses selected. Click the edit button to add.</p>
                                 )}
+                            </div>
+                        </div>
+                        <div className="col-span-4">
+                            <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 sticky top-8">
+                                <div className="flex items-center gap-2.5 text-base font-bold text-slate-800 mb-5 pb-3.5 border-b border-slate-100">
+                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-slate-100 text-slate-500">
+                                        <UserPlus className="h-4 w-4" />
+                                    </div>
+                                    Preview
+                                </div>
+
+                                {/* Avatar Preview */}
+                                <div className="flex flex-col items-center mb-5">
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={handleImageUpload}
+                                    />
+                                    <div className="relative group mb-3">
+                                        <div
+                                            className="w-40 h-40 rounded-2xl bg-linear-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-xl font-bold overflow-hidden cursor-pointer relative"
+                                            onClick={() => !isUploading && fileInputRef.current?.click()}
+                                        >
+                                            {profileImage ? (
+                                                <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
+                                            ) : form.nameEn ? (
+                                                form.nameEn.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase()
+                                            ) : (
+                                                <User className="h-8 w-8 text-white/60" />
+                                            )}
+                                            {/* Uploading overlay */}
+                                            {isUploading && (
+                                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-2xl">
+                                                    <Loader2 className="h-6 w-6 text-white animate-spin" />
+                                                </div>
+                                            )}
+                                            {/* Hover overlay */}
+                                            {!isUploading && (
+                                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-2xl">
+                                                    <Camera className="h-5 w-5 text-white" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        {profileImage && !isUploading && (
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); handleRemovePhoto() }}
+                                                className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center border-2 border-white cursor-pointer hover:bg-red-600 transition-colors"
+                                            >
+                                                <Trash2 className="h-2.5 w-2.5" />
+                                            </button>
+                                        )}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => !isUploading && fileInputRef.current?.click()}
+                                        className="text-[11px] font-semibold text-blue-500 hover:text-blue-700 cursor-pointer bg-transparent border-none mb-2 transition-colors"
+                                    >
+                                        {isUploading ? 'Uploading...' : profileImage ? 'Change Photo' : 'Upload Photo'}
+                                    </button>
+                                    <span className="text-sm font-bold text-slate-800">
+                                        {form.name || 'ชื่อ-นามสกุล'}
+                                    </span>
+                                    <span className="text-xs text-slate-400">
+                                        {form.nameEn || 'Full Name'}
+                                    </span>
+                                </div>
+
+                                {/* Info Preview */}
+                                <div className="space-y-3">
+                                    {[
+                                        { label: 'Employee ID', value: form.empId },
+                                        { label: 'Department', value: departments.find(d => d.id.toString() === form.department)?.name || '' },
+                                        { label: 'Position', value: allPositions.find(p => p.id.toString() === form.position)?.name || '' },
+                                        { label: 'Phone', value: form.phone },
+                                        { label: 'Email', value: form.email },
+                                    ].map(item => (
+                                        <div key={item.label} className="flex justify-between items-center py-1.5">
+                                            <span className="text-xs font-medium text-slate-400">{item.label}</span>
+                                            <span className={`text-xs font-medium ${item.value ? 'text-slate-700' : 'text-slate-300'}`}>
+                                                {item.value || '—'}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Completion Progress */}
+                                <div className="mt-5 pt-4 border-t border-slate-100">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-xs font-semibold text-slate-500">Completion</span>
+                                        <span className="text-xs font-bold text-slate-700">{filled}/{total} fields</span>
+                                    </div>
+                                    <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                                        <div
+                                            className={`h-full rounded-full transition-all duration-500 ${pct === 100 ? 'bg-green-500' : pct > 50 ? 'bg-blue-500' : 'bg-amber-400'}`}
+                                            style={{ width: `${pct}%` }}
+                                        />
+                                    </div>
+                                    {!isComplete && (
+                                        <p className="text-[10px] text-amber-500 mt-2 font-medium">
+                                            ⚠ Complete all required fields to enable Save Register
+                                        </p>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
+
+            {/* ─── Aircraft License Selection Modal ─── */}
+            {showLicenseModal && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
+                    {/* Backdrop */}
+                    <div
+                        className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+                        style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+                        onClick={() => setShowLicenseModal(false)}
+                    />
+                    {/* Modal panel */}
+                    <div
+                        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col"
+                        style={{ maxHeight: '80vh', zIndex: 1 }}
+                    >
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-7 py-5 border-b border-slate-100 shrink-0">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-green-50 text-green-600">
+                                    <Shield className="h-4 w-4" />
+                                </div>
+                                <span className="text-base font-bold text-slate-800">Aircraft License</span>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowLicenseModal(false)}
+                                className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer transition-all border-none bg-transparent"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        {/* Body — scrollable */}
+                        <div className="px-7 py-5 flex-1 overflow-y-auto min-h-0">
+                            <div className="space-y-3">
+                                {/* Search */}
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        value={licenseSearch}
+                                        onChange={e => setLicenseSearch(e.target.value)}
+                                        placeholder="Search combination..."
+                                        className="w-full px-3.5 py-2.5 pl-9 text-sm text-slate-800 bg-slate-50 border border-slate-200 rounded-lg outline-none transition-all duration-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:bg-white placeholder:text-slate-400"
+                                    />
+                                    <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                </div>
+
+                                {/* Selected count */}
+                                {tempLicenseIds.length > 0 && (
+                                    <p className="text-xs font-medium text-slate-500">
+                                        Selected {tempLicenseIds.length} combination{tempLicenseIds.length !== 1 ? 's' : ''}
+                                    </p>
+                                )}
+
+                                {/* Grouped checkbox list */}
+                                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                                    {Object.keys(groupedCombinations).length === 0 ? (
+                                        <div className="px-4 py-6 text-center text-xs text-slate-400">
+                                            {licenseSearch ? 'No combinations found' : 'Loading combinations...'}
+                                        </div>
+                                    ) : (
+                                        Object.entries(groupedCombinations).map(([familyCode, combos]) => (
+                                            <div key={familyCode}>
+                                                <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 sticky top-0">
+                                                    <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">{familyCode}</span>
+                                                </div>
+                                                {combos.map(combo => {
+                                                    const isSelected = tempLicenseIds.includes(combo.id)
+                                                    return (
+                                                        <label
+                                                            key={combo.id}
+                                                            className={`flex items-center gap-3 px-4 py-2.5 border-b border-slate-50 cursor-pointer transition-colors select-none ${isSelected ? 'bg-green-50/60' : 'hover:bg-slate-50'
+                                                                }`}
+                                                        >
+                                                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'border-slate-700 bg-slate-700' : 'border-slate-300 bg-white'
+                                                                }`}>
+                                                                {isSelected && (
+                                                                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                                    </svg>
+                                                                )}
+                                                            </div>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={isSelected}
+                                                                onChange={(e) => {
+                                                                    if (e.target.checked) {
+                                                                        setTempLicenseIds(prev => [...prev, combo.id])
+                                                                    } else {
+                                                                        setTempLicenseIds(prev => prev.filter(id => id !== combo.id))
+                                                                    }
+                                                                }}
+                                                                className="sr-only"
+                                                            />
+                                                            <span className="text-sm font-medium text-slate-700">{combo.displayLabel}</span>
+                                                        </label>
+                                                    )
+                                                })}
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer — always at bottom */}
+                        <div className="flex items-center justify-end gap-3 px-7 py-4 border-t border-slate-100 bg-slate-50/50 shrink-0 rounded-b-2xl">
+                            <button
+                                type="button"
+                                onClick={() => setShowLicenseModal(false)}
+                                className="px-5 py-2.5 text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg cursor-pointer transition-all duration-200 hover:bg-slate-50 hover:border-slate-300"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSelectedLicenseIds([...tempLicenseIds])
+                                    setShowLicenseModal(false)
+                                }}
+                                className="px-5 py-2.5 text-sm font-semibold text-white bg-green-600 border border-green-600 rounded-lg cursor-pointer transition-all duration-200 hover:bg-green-700 hover:border-green-700 hover:shadow-md"
+                            >
+                                Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
     )
 }

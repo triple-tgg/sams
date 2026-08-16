@@ -16,20 +16,25 @@ export interface StaffTypeObj {
 
 export interface PositionObj {
     id: number;
+    code: string;
     name: string;
+    description: string | null;
+    staffDepartmentId: number;
     isdelete: boolean;
     createddate: string;
-    createdby: string;
+    createdby: string | null;
     updateddate: string | null;
     updatedby: string | null;
 }
 
 export interface DepartmentObj {
     id: number;
+    code: string;
     name: string;
+    description: string | null;
     isdelete: boolean;
     createddate: string;
-    createdby: string;
+    createdby: string | null;
     updateddate: string | null;
     updatedby: string | null;
 }
@@ -51,17 +56,18 @@ export interface QAStaffItem {
     address: string | null;
     employeeId: string | null;
     startDate: string | null;
+    endWorkingDate: string | null;
     positionObj: PositionObj | null;
     departmentObj: DepartmentObj | null;
     staffstypeObj: StaffTypeObj | null;
     jobTitle: string | null;
     profileImagePath: string | null;
     isActive: boolean;
-    educations: unknown[] | null;
-    workExperiences: unknown[] | null;
-    staffDocumentList: unknown[];
-    staffAircraftLicenseList: unknown[];
-    staffAmelLicenseList: unknown[];
+    educations: StaffEducation[] | null;
+    workExperiences: StaffWorkExperience[] | null;
+    staffDocumentList: StaffDocumentItem[];
+    staffAircraftLicenseList: StaffAircraftLicenseItem[];
+    staffAmelLicenseList: StaffAmelLicenseItem[];
     createddate: string;
     createdby: string;
     updateddate: string;
@@ -139,7 +145,8 @@ export interface UpsertStaffDocument {
 
 export interface UpsertAircraftLicense {
     id: number;
-    aircraftTypeId: string | number;
+    aircraftEngineId: number;
+    isDelete: boolean;
 }
 
 export interface UpsertAmelLicense {
@@ -148,7 +155,8 @@ export interface UpsertAmelLicense {
     categoryId: number;
     issuedDate: string;
     expiryDate: string;
-    combinationIds: number[];
+    limitations?: string;
+    aircraftRatings?: string;
     attachmentFilePath: string;
     attachmentFileName: string;
 }
@@ -168,8 +176,7 @@ export interface UpsertStaffRequest {
     employeeId: string;
     startDate: string;
     endWorkingDate: string | null;
-    positionId: number;
-    departmentId: number;
+    staffDepartmentPositionId: number;
     staffstypeid: number;
     jobTitle: string;
     profileImagePath: string;
@@ -274,39 +281,66 @@ export interface StaffWorkExperience {
     updatedby: string;
 }
 
+export interface StaffDocumentStatusObj {
+    id: number;
+    code: string;
+    name: string;
+    description: string | null;
+    isdelete: boolean;
+    createddate: string;
+    createdby: string | null;
+    updateddate: string | null;
+    updatedby: string | null;
+}
+
+export interface StaffDocumentTypeObj {
+    id: number;
+    code: string;
+    name: string;
+    description: string | null;
+    isdelete: boolean;
+    createddate: string;
+    createdby: string | null;
+    updateddate: string | null;
+    updatedby: string | null;
+}
+
 export interface StaffDocumentItem {
     id: number;
     staffId: number;
-    documentType: string;
     staffDocumentTypeId: number | null;
     fileName: string;
     filePath: string;
     uploadDate: string;
     staffDocumentStatusId: number | null;
+    approvedBy: string | null;
+    approvedDate: string | null;
     rejectedReason: string | null;
     isdelete: boolean;
     createddate: string;
     createdby: string;
     updateddate: string;
     updatedby: string;
+    staffDocumentStatusObj: StaffDocumentStatusObj | null;
+    staffDocumentTypeObj: StaffDocumentTypeObj | null;
+}
+
+export interface AircraftEngineObj {
+    id: number;
+    familyCode: string;
+    series: string | null;
+    engineCode: string;
+    validFrom: string | null;
+    validTo: string | null;
+    updatedBy: string | null;
+    updatedAtUtc: string | null;
 }
 
 export interface StaffAircraftLicenseItem {
     id: number;
     staffId: number;
-    aircraftTypeId?: string | number; // TODO: Migrate to string groupId based on new API spec
-    aircraftTypeLicensId: number;
-    aircraftTypeLicensObj?: {
-        id: number;
-        code: string;
-        name: string;
-        description: string | null;
-        isdelete: boolean;
-        createddate: string;
-        createdby: string;
-        updateddate: string | null;
-        updatedby: string | null;
-    };
+    aircraftEngineId: number;
+    aircraftEngineObj: AircraftEngineObj | null;
     isdelete: boolean;
     createddate: string;
     createdby: string;
@@ -323,7 +357,6 @@ export interface StaffAmelLicenseItem {
     expiryDate: string;
     limitations: string;
     aircraftRatings: string;
-    combinationIds: number[];
     attachmentFilePath: string;
     attachmentFileName: string;
     isdelete: boolean;
@@ -396,8 +429,7 @@ export const buildStaffUpsertRequest = (
     employeeId: data.employeeId || "",
     startDate: data.startDate || "",
     endWorkingDate: data.endWorkingDate || null,
-    positionId: data.positionObj?.id || 0,
-    departmentId: data.departmentObj?.id || 0,
+    staffDepartmentPositionId: data.positionObj?.id || 0,
     staffstypeid: data.staffstypeObj?.id || 0,
     jobTitle: data.jobTitle || "",
     profileImagePath: data.profileImagePath || "",
@@ -413,10 +445,10 @@ export const buildStaffUpsertRequest = (
             staffDocumentStatusId: document.staffDocumentStatusId ?? 1,
         })),
     staffAircraftLicenseList: (data.staffAircraftLicenseList || [])
-        .filter((license) => !license.isdelete)
         .map((license) => ({
             id: license.id,
-            aircraftTypeId: Number(license.aircraftTypeLicensId ?? license.aircraftTypeId ?? 0),
+            aircraftEngineId: license.aircraftEngineId,
+            isDelete: license.isdelete,
         })),
     staffAmelLicenseList: (data.staffAmelLicenseList || [])
         .filter((license) => !license.isdelete)
@@ -426,7 +458,8 @@ export const buildStaffUpsertRequest = (
             categoryId: license.categoryId,
             issuedDate: license.issuedDate || "",
             expiryDate: license.expiryDate || "",
-            combinationIds: license.combinationIds || [],
+            limitations: license.limitations || "",
+            aircraftRatings: license.aircraftRatings || "",
             attachmentFilePath: license.attachmentFilePath || "",
             attachmentFileName: license.attachmentFileName || "",
         })),

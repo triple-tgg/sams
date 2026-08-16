@@ -1,17 +1,13 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
-import { X, Award, Search } from 'lucide-react'
-import { Checkbox } from '@/components/ui/checkbox'
-import { useCombinations } from '@/lib/api/master/aircraft-engine/aircraftEngine.hooks'
-import type { AircraftEngineCombination } from '@/lib/api/master/aircraft-engine/aircraftEngine.types'
+import { useState, useEffect } from 'react'
+import { X, Award } from 'lucide-react'
 
 interface LicenseFormData {
     licenseNumber: string
     categoryId: string
     issuedDate: string
     expiryDate: string
-    selectedCombinationIds: Set<number>
 }
 
 interface EditLicenseModalProps {
@@ -20,8 +16,6 @@ interface EditLicenseModalProps {
     initialLicense: any // Maps to apiData.staffAmelLicenseList[0]
     onSave: (data: any) => void
 }
-
-
 
 const CATEGORY_OPTIONS = [
     { id: 1, label: 'B1.1 — Aeroplane Turbine' },
@@ -38,28 +32,15 @@ function emptyForm(): LicenseFormData {
         categoryId: '',
         issuedDate: '',
         expiryDate: '',
-        selectedCombinationIds: new Set(),
     }
 }
 
 function fromLicense(license: any): LicenseFormData {
-    // Parse combinationIds from the license data (could be an array or comma-separated string)
-    let ids = new Set<number>()
-    if (license?.combinationIds) {
-        if (Array.isArray(license.combinationIds)) {
-            ids = new Set(license.combinationIds.map(Number).filter((n: number) => !isNaN(n)))
-        } else if (typeof license.combinationIds === 'string') {
-            ids = new Set(
-                license.combinationIds.split(',').map((s: string) => Number(s.trim())).filter((n: number) => !isNaN(n) && n > 0)
-            )
-        }
-    }
     return {
         licenseNumber: license?.licenseNumber || '',
         categoryId: license?.categoryId ? String(license.categoryId) : '',
         issuedDate: license?.issuedDate || '',
         expiryDate: license?.expiryDate || '',
-        selectedCombinationIds: ids,
     }
 }
 
@@ -69,46 +50,25 @@ function toLicense(form: LicenseFormData): any {
         categoryId: form.categoryId ? Number(form.categoryId) : 0,
         issuedDate: form.issuedDate,
         expiryDate: form.expiryDate,
-        combinationIds: Array.from(form.selectedCombinationIds),
+        // Preserve combinationIds as empty or ignore, 
+        // actually we should probably not touch combinationIds from here if it belongs to Aircraft License
+        // But since the API definition might still have it, we return empty array for now.
+        combinationIds: [],
     }
 }
 
 export function EditLicenseModal({ isOpen, onClose, initialLicense, onSave }: EditLicenseModalProps) {
     const [form, setForm] = useState<LicenseFormData>(emptyForm())
-    const [comboSearch, setComboSearch] = useState('')
-    const { data: combinations = [] } = useCombinations()
 
     useEffect(() => {
         if (isOpen) {
             setForm(initialLicense ? fromLicense(initialLicense) : emptyForm())
-            setComboSearch('')
         }
     }, [isOpen, initialLicense])
 
     const updateField = (field: keyof LicenseFormData, value: any) => {
         setForm(prev => ({ ...prev, [field]: value }))
     }
-
-    const toggleCombination = (id: number) => {
-        setForm(prev => {
-            const next = new Set(prev.selectedCombinationIds)
-            next.has(id) ? next.delete(id) : next.add(id)
-            return { ...prev, selectedCombinationIds: next }
-        })
-    }
-
-    // Group combinations by familyCode, filtered by search
-    const groupedCombos = useMemo(() => {
-        const q = comboSearch.toLowerCase()
-        const byFamily = new Map<string, AircraftEngineCombination[]>()
-        for (const c of combinations) {
-            if (q && !c.displayLabel.toLowerCase().includes(q) && !c.familyCode.toLowerCase().includes(q)) continue
-            const arr = byFamily.get(c.familyCode) ?? []
-            arr.push(c)
-            byFamily.set(c.familyCode, arr)
-        }
-        return Array.from(byFamily.entries()).sort((a, b) => a[0].localeCompare(b[0]))
-    }, [combinations, comboSearch])
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
@@ -159,7 +119,7 @@ export function EditLicenseModal({ isOpen, onClose, initialLicense, onSave }: Ed
                                 value={form.licenseNumber}
                                 onChange={e => updateField('licenseNumber', e.target.value)}
                                 placeholder="e.g. TCAR-66.B1.1-XXXX"
-                                className={`${inputClass}`}
+                                className={inputClass}
                             />
                         </div>
 
@@ -199,58 +159,6 @@ export function EditLicenseModal({ isOpen, onClose, initialLicense, onSave }: Ed
                                 />
                             </div>
                         </div>
-
-                        {/* ── Aircraft License: Selected combinations ── */}
-                        <div className="flex flex-col gap-2.5">
-                            <label className={labelClass}>Aircraft License</label>
-
-                            {/* Search box */}
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                                <input
-                                    type="text"
-                                    value={comboSearch}
-                                    onChange={e => setComboSearch(e.target.value)}
-                                    placeholder="Search combination..."
-                                    className={`${inputClass} !pl-9`}
-                                />
-                            </div>
-
-                            {/* Selected count */}
-                            <div className="flex items-center text-xs text-slate-400">
-                                <span>Selected {form.selectedCombinationIds.size} combinations</span>
-                            </div>
-
-                            {/* Grouped checkbox list */}
-                            <div className="min-h-[120px] max-h-[220px] overflow-y-auto rounded-lg border border-slate-200 p-3 space-y-3">
-                                {groupedCombos.map(([family, combos]) => (
-                                    <div key={family}>
-                                        <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                                            {family}
-                                        </div>
-                                        <div className="space-y-0.5">
-                                            {combos.map((c) => (
-                                                <label
-                                                    key={c.id}
-                                                    className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-slate-50 transition-colors duration-150"
-                                                >
-                                                    <Checkbox
-                                                        checked={form.selectedCombinationIds.has(c.id)}
-                                                        onCheckedChange={() => toggleCombination(c.id)}
-                                                    />
-                                                    <span className="text-xs text-slate-700">{c.displayLabel}</span>
-                                                </label>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
-                                {groupedCombos.length === 0 && (
-                                    <p className="py-6 text-center text-xs text-slate-400">No combination found</p>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Attachments section removed per user request */}
                     </div>
 
                     {/* Footer */}

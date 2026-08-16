@@ -80,7 +80,7 @@ describe('Customer Authorization API', () => {
               currentIssueDate: '2026-05-19T00:00:00',
               expiryDate: '2027-05-19T00:00:00',
               aircrafts: [
-                { id: 6, aircraftTypeLicensId: 1, code: 'A319', name: 'A319' },
+                { id: 6, aircraftEngineId: 1, code: 'A319', name: 'A319' },
               ],
             },
           ],
@@ -157,11 +157,11 @@ describe('Customer Authorization API', () => {
   it('uses /list aircraft IDs with master labels instead of conflicting /listdata labels', () => {
     expect(resolveCustomerAuthAircrafts(
       [{ code: 'A319', name: 'A319' }],
-      [{ id: 46, aircraftTypeLicensId: 1, isdelete: false }],
+      [{ id: 46, aircraftEngineId: 1, isdelete: false }],
       [{ id: 1, code: 'B737-600/700/800/900', name: 'B737-600/700/800/900' }],
     )).toEqual([{
       id: 46,
-      aircraftTypeLicensId: 1,
+      aircraftEngineId: 1,
       code: 'B737-600/700/800/900',
       name: 'B737-600/700/800/900',
     }])

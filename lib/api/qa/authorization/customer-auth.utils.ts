@@ -7,7 +7,7 @@ export type CustomerAuthUiStatus =
 
 interface CustomerAuthAircraft {
   id?: number
-  aircraftTypeLicensId?: number
+  aircraftEngineId?: number
   code?: string | null
   name?: string | null
 }
@@ -35,7 +35,7 @@ export interface CustomerAuthRecordSource extends CustomerAuthRecordIdentity {
 
 interface CustomerAuthAircraftLicenseRef {
   id: number
-  aircraftTypeLicensId: number
+  aircraftEngineId: number
   isdelete?: boolean
 }
 
@@ -105,11 +105,11 @@ export function resolveCustomerAuthAircrafts(
   return recordLicenses
     .filter(license => !license.isdelete)
     .map(license => {
-      const option = aircraftOptions.find(item => item.id === license.aircraftTypeLicensId)
+      const option = aircraftOptions.find(item => item.id === license.aircraftEngineId)
       if (!option) return null
       return {
         id: license.id,
-        aircraftTypeLicensId: license.aircraftTypeLicensId,
+        aircraftEngineId: license.aircraftEngineId,
         code: option.code,
         name: option.name,
       }
@@ -148,10 +148,16 @@ export function getCustomerAuthCellData(source: CustomerAuthCellSource | null | 
       .map(aircraft => aircraft.code?.trim() || aircraft.name?.trim() || '')
       .filter(Boolean),
   ))
+  const aircraftEngineIds = Array.from(new Set(
+    (source?.aircrafts || [])
+      .map(aircraft => aircraft.aircraftEngineId)
+      .filter((id): id is number => typeof id === 'number' && id > 0),
+  ))
 
   return {
     status: mapCustomerAuthStatus(source?.status),
     aircraftLabels,
+    aircraftEngineIds,
     initialIssueDate: source?.initialIssueDate || '',
     currentIssueDate: source?.currentIssueDate || '',
     expiryDate: source?.expiryDate || '',

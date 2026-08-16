@@ -11,10 +11,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false })
+import Select from 'react-select'
 
 import { upsertCourse, getCourseCategories, getCourseDepartmentSubList, getCourseById } from '@/lib/api/qa/course'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useReduxAuth } from '@/lib/api/hooks/useReduxAuth'
+import { useCombinations } from '@/lib/api/master/aircraft-engine/aircraftEngine.hooks'
 
 interface AddCourseModalProps {
     course?: import('../types').Course
@@ -36,10 +38,13 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
         recurrentYears: course?.recurrentYears || 2,
         note: course?.note || '',
         requiredRoles: initialRoles as number[],
-        aircraftTypeLicense: '',
+        aircraftTypeLicenseId: null as number | null,
         courseObjective: '',
     })
     const [submitted, setSubmitted] = useState(false)
+
+    const { data: combinations } = useCombinations()
+    const activeCombinations = combinations || []
 
     const { data: categoryListResp } = useQuery({
         queryKey: ['course-categories'],
@@ -70,7 +75,7 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                 recurrentYears: data.course.recurrenceIntervalYears || 2,
                 note: data.course.additionalNote || '',
                 requiredRoles: data.requirements.filter(r => r.isRequired).map(r => r.courseDepartmentSubId),
-                aircraftTypeLicense: data.course.aircraftTypeLicenseId ? 'B737-600/700/800/900' : '', // Mock default mapping since there's no reverse mapping logic yet
+                aircraftTypeLicenseId: data.course.aircraftTypeLicenseId || null,
                 courseObjective: data.course.courseObjective || ''
             })
         }
@@ -90,7 +95,7 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
     const onSaveClick = () => {
         setSubmitted(true)
         if (form.requiredRoles.length === 0) return
-        if (form.category === 'Type Course' && !form.aircraftTypeLicense) return
+        if (form.category === 'Type Course' && !form.aircraftTypeLicenseId) return
 
         const selectedCat = apiCategories.find(c => c.name === form.category)
         const catId = selectedCat?.id || 1
@@ -109,20 +114,12 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
             courseType: form.recurrent ? 'Recurrence' : 'Initial',
             recurrenceIntervalYears: form.recurrent ? form.recurrentYears : null,
             additionalNote: form.note || '',
-            aircraftTypeLicenseId: form.aircraftTypeLicense ? 0 : null, // Assuming 0 as placeholder since no ID mapping is provided yet
+            aircraftTypeLicenseId: form.aircraftTypeLicenseId,
             courseObjective: form.courseObjective || '',
             requirements: requirements
         })
     }
 
-    const toggleRole = (index: number) => {
-        setForm(prev => {
-            const roles = prev.requiredRoles.includes(index)
-                ? prev.requiredRoles.filter(r => r !== index)
-                : [...prev.requiredRoles, index]
-            return { ...prev, requiredRoles: roles }
-        })
-    }
 
     return (
         <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -221,37 +218,27 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
 
                             {/* Required For */}
                             <div>
-                                <div className="flex items-center justify-between mb-1.5">
-                                    <label className="text-xs font-semibold text-muted-foreground block">Required For <span className="text-red-400">*</span></label>
-                                    <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{form.requiredRoles.length} selected</span>
-                                </div>
-                                <div className={`flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-2.5 bg-muted/20 border rounded-lg ${submitted && form.requiredRoles.length === 0 ? 'border-red-400' : 'border-border/50'}`}>
-                                    <TooltipProvider delayDuration={200}>
-                                        {apiRoles.map((role) => {
-                                            const isSelected = form.requiredRoles.includes(role.id)
-                                            return (
-                                                <Tooltip key={role.id}>
-                                                    <TooltipTrigger asChild>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => toggleRole(role.id)}
-                                                            className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-1.5 rounded-md border transition-all cursor-pointer ${isSelected
-                                                                ? 'bg-primary/90 border-primary text-white shadow-sm'
-                                                                : 'bg-card border-border text-foreground hover:border-primary/40'
-                                                                }`}
-                                                        >
-                                                            <Users className={`h-3 w-3 ${isSelected ? 'text-white' : 'text-muted-foreground'}`} />
-                                                            {role.code}
-                                                        </button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent className="text-xs font-medium">
-                                                        {role.name}
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            )
-                                        })}
-                                    </TooltipProvider>
-                                </div>
+                                <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Required For <span className="text-red-400">*</span></label>
+                                <Select
+                                    isMulti
+                                    options={apiRoles.map(role => ({ value: role.id, label: `${role.code} - ${role.name}` }))}
+                                    value={apiRoles.filter(role => form.requiredRoles.includes(role.id)).map(role => ({ value: role.id, label: `${role.code} - ${role.name}` }))}
+                                    onChange={(selectedOptions: any) => {
+                                        setForm({ ...form, requiredRoles: selectedOptions ? selectedOptions.map((opt: any) => opt.value) : [] })
+                                    }}
+                                    placeholder="Select required roles..."
+                                    className="text-sm"
+                                    styles={{
+                                        control: (base, state) => ({
+                                            ...base,
+                                            borderColor: (submitted && form.requiredRoles.length === 0) ? '#f87171' : '#e2e8f0',
+                                            boxShadow: state.isFocused ? '0 0 0 1px #3b82f6' : 'none',
+                                            '&:hover': {
+                                                borderColor: state.isFocused ? '#3b82f6' : '#cbd5e1'
+                                            }
+                                        })
+                                    }}
+                                />
                                 {submitted && form.requiredRoles.length === 0 && <p className="text-[11px] text-red-500 mt-1">Please select at least one role</p>}
                             </div>
 
@@ -259,27 +246,27 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                             {form.category === 'Type Course' && (
                                 <div>
                                     <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Aircraft Type License <span className="text-red-400">*</span></label>
-                                    <select
-                                        className={`w-full px-3 py-2 text-sm border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary cursor-pointer ${submitted && !form.aircraftTypeLicense ? 'border-red-400' : 'border-border'}`}
-                                        value={form.aircraftTypeLicense}
-                                        onChange={e => setForm({ ...form, aircraftTypeLicense: e.target.value })}
-                                    >
-                                        <option value="">Select Aircraft Type</option>
-                                        {[
-                                            'B737-600/700/800/900',
-                                            'B737-7/8/9',
-                                            'A318/A319/A320/A321',
-                                            'B777-200/300/300ER',
-                                            'A330-200/300/800/900',
-                                            'B787-8/9/10',
-                                            'B767-200/300',
-                                            'A350-900/1000',
-                                            'ERJ-190',
-                                        ].map(acType => (
-                                            <option key={acType} value={acType}>{acType}</option>
-                                        ))}
-                                    </select>
-                                    {submitted && !form.aircraftTypeLicense && <p className="text-[11px] text-red-500 mt-1">Aircraft Type License is required</p>}
+                                    <Select
+                                        options={activeCombinations.map(combo => ({ value: combo.id, label: combo.displayLabel }))}
+                                        value={activeCombinations.filter(combo => combo.id === form.aircraftTypeLicenseId).map(combo => ({ value: combo.id, label: combo.displayLabel }))[0] || null}
+                                        onChange={(selectedOption: any) => {
+                                            setForm({ ...form, aircraftTypeLicenseId: selectedOption ? selectedOption.value : null })
+                                        }}
+                                        placeholder="Select Aircraft Type"
+                                        className="text-sm"
+                                        isClearable
+                                        styles={{
+                                            control: (base, state) => ({
+                                                ...base,
+                                                borderColor: (submitted && !form.aircraftTypeLicenseId) ? '#f87171' : '#e2e8f0',
+                                                boxShadow: state.isFocused ? '0 0 0 1px #3b82f6' : 'none',
+                                                '&:hover': {
+                                                    borderColor: state.isFocused ? '#3b82f6' : '#cbd5e1'
+                                                }
+                                            })
+                                        }}
+                                    />
+                                    {submitted && !form.aircraftTypeLicenseId && <p className="text-[11px] text-red-500 mt-1">Aircraft Type License is required</p>}
                                 </div>
                             )}
 

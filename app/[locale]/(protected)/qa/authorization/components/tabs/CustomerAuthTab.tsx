@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useRef, useCallback, useEffect } from 'react'
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, FileText, Filter, Loader2, Plane, Search, ShieldCheck, User, X } from 'lucide-react'
+import { TransferBox } from '@/components/ui/transfer-box'
 import {
   Select,
   SelectContent,
@@ -42,10 +43,11 @@ import { AircraftEngineRefPanel } from "@/components/aircraft-engine/AircraftEng
 import { toast } from "sonner"
 
 import { useDebounce } from '@/hooks/useDebounce'
-import { useAircraftTypeLicenses } from "@/lib/api/master/aircraft-type-licenses.hooks"
+import { useCombinations } from "@/lib/api/master/aircraft-engine/aircraftEngine.hooks"
 import { useStaffAuthorizationAirlineStatuses } from '@/lib/api/master/staff-authorization/staff-authorization-airline-statuses.hooks'
 import type { StaffAuthorizationAirlineStatus } from '@/lib/api/master/staff-authorization/staff-authorization-airline-statuses'
 import { buildCustomerAuthRecordMap, formatCustomerAuthDate, getCustomerAuthCellData, getCustomerAuthCellKey, getCustomerAuthDateValue, getCustomerAuthPageItems, mapCustomerAuthStatus, resolveCustomerAuthAircrafts, resolveCustomerAuthCell, shouldShowCustomerAuthDates } from '@/lib/api/qa/authorization/customer-auth.utils'
+import { groupCombinationDisplayLabels } from '@/lib/utils/aircraftEngineDisplay'
 
 // ─── Date Formatting Helper ─────────────────────────────────────────────────
 
@@ -110,12 +112,14 @@ interface TooltipInfo {
   cellTop: number  // cell top
 }
 
-function CellTooltip({ info }: { info: TooltipInfo }) {
+function CellTooltip({ info, combinations }: { info: TooltipInfo, combinations: any[] }) {
   const { staff, airlineCode, airlineName, airlineColor, status } = info
   const meta = CUST_STATUS_META[status]
   const airlineAuthorization = staff.airlineStatuses?.find(item => item.airlineCode === airlineCode)
   const cellData = getCustomerAuthCellData(airlineAuthorization)
-  const aircraftLicense = cellData.aircraftLabels.join(', ') || '—'
+  const aircraftLicense = (cellData.aircraftEngineIds.length > 0 && combinations.length > 0)
+    ? groupCombinationDisplayLabels(cellData.aircraftEngineIds, combinations)
+    : (cellData.aircraftLabels.length > 0 ? cellData.aircraftLabels : null)
   const ref = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{ left: number; top: number }>({ left: info.x, top: info.y + 8 })
 
@@ -178,9 +182,13 @@ function CellTooltip({ info }: { info: TooltipInfo }) {
           <span className="text-muted-foreground">Date of Expire</span>
           <span className="font-semibold text-foreground">{formatCustomerAuthDate(cellData.expiryDate)}</span>
         </div>
-        <div className="flex justify-between">
+        <div className="flex flex-col gap-1">
           <span className="text-muted-foreground">Aircraft License</span>
-          <span className="font-semibold text-foreground text-right" style={{ maxWidth: 160 }}>{aircraftLicense}</span>
+          <div className="font-semibold text-foreground break-words space-y-0.5">
+            {aircraftLicense ? aircraftLicense.map((lic, i) => (
+              <div key={i}>- {lic}</div>
+            )) : '—'}
+          </div>
         </div>
         {staff.note && (
           <div className="pt-1.5 mt-1 border-t border-border/50">
@@ -277,6 +285,14 @@ function MatrixView() {
   const [search, setSearch] = useState('')
   const [debouncedSearch] = useDebounce(search, 500)
   const [statusFilter, setStatusFilter] = useState<number | 'all'>('all')
+  const [aircraftLicenseSearch, setAircraftLicenseSearch] = useState('')
+
+  const [selectedCell, setSelectedCell] = useState<{ staff: Staff; airlineCode: string; status: CustomerAuthValue } | null>(null)
+  const [editInitDate, setEditInitDate] = useState('')
+  const [editCurrDate, setEditCurrDate] = useState('')
+  const [editSamsExp, setEditSamsExp] = useState('')
+  const [editRating, setEditRating] = useState<Set<string>>(new Set())
+  const [showDateValidation, setShowDateValidation] = useState(false)
 
   const { data: airlinesRes, isLoading: airlinesLoading } = useAirlines()
   const { data: authorizationStatuses = [] } = useStaffAuthorizationAirlineStatuses()
@@ -297,25 +313,18 @@ function MatrixView() {
     return map
   }, [apiAirlines])
 
-  const { data: aircraftOptions = [], isLoading: aircraftOptionsLoading } = useAircraftTypeLicenses()
-  const [selectedCell, setSelectedCell] = useState<{ staff: Staff, airlineCode: string, status: CustomerAuthValue } | null>(null)
-  const [editInitDate, setEditInitDate] = useState('')
-  const [editCurrDate, setEditCurrDate] = useState('')
-  const [editSamsExp, setEditSamsExp] = useState('')
-  const [editRating, setEditRating] = useState<Set<string>>(new Set())
-  const [aircraftLicenseSearch, setAircraftLicenseSearch] = useState('')
-  const [showDateValidation, setShowDateValidation] = useState(false)
-  const [, setVersion] = useState(0)
+  const { data: combinations = [], isLoading: aircraftOptionsLoading } = useCombinations()
   
-  const updateAuthMutation = useUpdateCustomerAuth()
+  const aircraftOptions = useMemo(() => {
+    return combinations.map(combo => ({
+      id: combo.id,
+      code: combo.displayLabel,
+      name: combo.displayLabel,
+      groupKey: combo.familyCode
+    }))
+  }, [combinations])
 
-  const filteredAircraftOptions = useMemo(() => {
-    const keyword = aircraftLicenseSearch.trim().toLowerCase()
-    if (!keyword) return aircraftOptions
-    return aircraftOptions.filter(option =>
-      option.name.toLowerCase().includes(keyword) || option.code.toLowerCase().includes(keyword)
-    )
-  }, [aircraftLicenseSearch, aircraftOptions])
+
 
   const licenseDateErrors = useMemo(
     () => validateLicenseDates(editInitDate, editCurrDate, editSamsExp),
@@ -432,6 +441,7 @@ function MatrixView() {
     status: apiStatus,
     airlineId: null,
   })
+  const updateAuthMutation = useUpdateCustomerAuth()
   const authorizationRecordByCell = useMemo(() => buildCustomerAuthRecordMap(
     (authRecordsRes?.responseData || []).map(item => item.authorizationCustomer),
   ), [authRecordsRes])
@@ -468,7 +478,7 @@ function MatrixView() {
           aircraftOptions,
         )
         const aircraftTypeIds = aircrafts
-          .map(item => item.aircraftTypeLicensId)
+          .map(item => item.aircraftEngineId)
           .filter((id): id is number => typeof id === 'number' && id > 0)
         custRecord[as.airlineCode as AirlineKey] = mapCustomerAuthStatus(resolvedCell.status)
         return {
@@ -871,7 +881,7 @@ function MatrixView() {
       </div>
 
       {/* Floating Tooltip */}
-      {tooltip && <CellTooltip info={tooltip} />}
+      {tooltip && <CellTooltip info={tooltip} combinations={combinations} />}
 
       {/* Legend — dot style */}
       <div className="flex items-center gap-5 px-4 py-2.5 bg-white rounded-xl border border-border">
@@ -1029,118 +1039,46 @@ function MatrixView() {
                       </div>
                     </section>
 
-                    {/* Right Column: Aircraft checkboxes */}
-                    <section className="flex min-h-[248px] flex-col rounded-xl border border-slate-200 bg-white p-3 lg:col-span-8">
-                      <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                            <Plane className="h-4 w-4" />
-                          </span>
-                          <h3 className="text-xs font-bold text-slate-700">Aircraft License</h3>
-                        </div>
-                        <div className="relative w-full sm:w-56">
-                          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                          <input
-                            type="search"
-                            value={aircraftLicenseSearch}
-                            onChange={event => setAircraftLicenseSearch(event.target.value)}
-                            placeholder="Search license..."
-                            className="h-8 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs outline-none transition-colors focus:border-blue-500"
-                          />
-                        </div>
+                    {/* Right Column: Aircraft Transfer Box */}
+                    <section className="flex flex-col rounded-xl border border-slate-200 bg-white p-3 lg:col-span-8">
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                          <Plane className="h-4 w-4" />
+                        </span>
+                        <h3 className="text-xs font-bold text-slate-700">Aircraft License</h3>
                       </div>
-                      <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-slate-200 p-1.5">
-                        <div className="space-y-0.5 pr-1">
-                          {filteredAircraftOptions.map(opt => {
-                            const isSelected = editRating.has(opt.name)
-                            return (
-                              <button
-                                key={opt.id}
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  setEditRating(prev => {
-                                    const next = new Set(prev)
-                                    if (next.has(opt.name)) next.delete(opt.name)
-                                    else next.add(opt.name)
-                                    return next
-                                  })
-                                }}
-                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-left transition-all text-sm ${isSelected ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-700 hover:bg-slate-100'
-                                  }`}
-                              >
-                                <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all ${isSelected ? 'bg-blue-600 border-blue-600' : 'bg-white border-slate-300'
-                                  }`}>
-                                  {isSelected && (
-                                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                  )}
-                                </div>
-                                <span className="truncate text-xs font-medium leading-tight">{opt.name}</span>
-                              </button>
-                            )
-                          })}
-                          {filteredAircraftOptions.length === 0 && (
-                            <p className="px-3 py-8 text-center text-xs text-slate-400">No aircraft licenses found</p>
-                          )}
-                        </div>
-                      </div>
+                      <TransferBox
+                        items={aircraftOptions}
+                        selected={editRating}
+                        onSelectedChange={setEditRating}
+                        emptyIcon={<Plane className="h-8 w-8 mb-2 opacity-30" />}
+                        emptyLabel="No items selected"
+                        height={270}
+                        renderSelectedGroupLabel={(_groupKey, groupItems) => {
+                          const subGroups = new Map<string, { familyCode: string; engineCode: string; seriesList: string[] }>()
+                          for (const item of groupItems) {
+                            const combo = combinations.find(c => c.displayLabel === item.name)
+                            if (!combo) continue
+                            const key = `${combo.familyCode}|${combo.engineCode}`
+                            const existing = subGroups.get(key)
+                            if (existing) {
+                              if (combo.series && !existing.seriesList.includes(combo.series)) existing.seriesList.push(combo.series)
+                            } else {
+                              subGroups.set(key, { familyCode: combo.familyCode, engineCode: combo.engineCode, seriesList: combo.series ? [combo.series] : [] })
+                            }
+                          }
+                          return Array.from(subGroups.values())
+                            .map(g => {
+                              const seriesPart = g.seriesList.length > 0 ? ` - ${g.seriesList.join('/')}` : ''
+                              return `${g.familyCode}${seriesPart} (${g.engineCode})`
+                            })
+                            .join(', ')
+                        }}
+                      />
                     </section>
                 </div>
 
-                {/* CR-6: read-only reference to the authorization group(s) in scope */}
-                {editRating.size > 0 && (
-                  <section className="rounded-xl border border-slate-200 bg-white p-3">
-                    <div className="mb-2 flex items-center gap-2">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                        <ShieldCheck className="h-4 w-4" />
-                      </span>
-                      <h3 className="text-xs font-bold text-slate-700">
-                        Authorization group reference ({editRating.size})
-                      </h3>
-                    </div>
 
-                    <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
-                      {Array.from(editRating).map((scope) => (
-                        <Collapsible
-                          key={scope}
-                          defaultOpen
-                          className="overflow-hidden rounded-xl border border-slate-200 bg-white"
-                        >
-                          <CollapsibleTrigger asChild>
-                            <button
-                              type="button"
-                              className="flex w-full items-center gap-2 bg-blue-50/70 px-4 py-3 text-left transition-colors hover:bg-blue-50 [&[data-state=open]>svg]:rotate-180"
-                            >
-                              <span className="h-2 w-2 shrink-0 rounded-full bg-blue-600" aria-hidden="true" />
-                              <span className="min-w-0 flex-1">
-                                <span className="block truncate text-xs font-bold text-slate-800">
-                                  Authorization type group — อ้างอิง
-                                </span>
-                                <span className="mt-0.5 block truncate text-[10px] font-medium text-slate-500">
-                                  {scope}
-                                </span>
-                              </span>
-                              <span className="shrink-0 rounded-md bg-slate-200/70 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-slate-500">
-                                Read-only
-                              </span>
-                              <ChevronDown className="h-4 w-4 shrink-0 text-slate-500 transition-transform" />
-                            </button>
-                          </CollapsibleTrigger>
-                          <CollapsibleContent className="overflow-hidden border-t border-blue-100 data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
-                            <AircraftEngineRefPanel
-                              context="authorization"
-                              refId={scope}
-                              hideHeader
-                              className="rounded-none border-0"
-                            />
-                          </CollapsibleContent>
-                        </Collapsible>
-                      ))}
-                    </div>
-                  </section>
-                )}
               </div>
 
               <DialogFooter className="px-5 py-4 border-t border-border/60 bg-slate-50">
@@ -1152,12 +1090,8 @@ function MatrixView() {
                         color="destructive"
                         disabled={updateAuthMutation.isPending || authRecordsLoading}
                         onClick={async () => {
-                          setShowDateValidation(true)
-                          if (hasLicenseDateErrors) {
-                            toast.error("Please correct the license dates before continuing")
-                            return
-                          }
                           try {
+                            const todayStr = new Date().toISOString()
                             const currentStatusObj = selectedCell.staff.airlineStatuses?.find(a => a.airlineCode === selectedCell.airlineCode)
                             if (!notApprovedStatusId) {
                               toast.error("Not Approved status is unavailable")
@@ -1172,9 +1106,9 @@ function MatrixView() {
                               staffId: selectedCell.staff.dbId || 0,
                               airlineId: currentStatusObj?.airlineId || apiAirlines.find(a => a.code === selectedCell.airlineCode)?.id || 0,
                               authorizationStatusId: notApprovedStatusId,
-                              initialIssueDate: getCustomerAuthDateValue(editInitDate),
-                              currentIssueDate: getCustomerAuthDateValue(editCurrDate),
-                              expiryDate: getCustomerAuthDateValue(editSamsExp),
+                              initialIssueDate: getCustomerAuthDateValue(editInitDate) || todayStr,
+                              currentIssueDate: getCustomerAuthDateValue(editCurrDate) || todayStr,
+                              expiryDate: getCustomerAuthDateValue(editSamsExp) || todayStr,
                               aircraftTypeIds: []
                             })
                             toast.success("Authorization rejected successfully")

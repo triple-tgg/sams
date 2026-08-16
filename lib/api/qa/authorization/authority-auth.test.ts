@@ -38,7 +38,36 @@ describe("authority authorization API", () => {
   });
 
   it("gets a license detail by record id", async () => {
-    const response = { message: "success", responseData: {}, error: "" };
+    const response = {
+      message: "success",
+      responseData: {
+        id: 32,
+        staffId: 163,
+        staffName: "Aleks Reymer",
+        employeeId: "EMP-0163",
+        authorizationAuthorityMasterId: 1,
+        aviationAuthorityCode: "CAAT",
+        aviationAuthorityName: "Civil Aviation Authority of Thailand",
+        licenseNo: "112233",
+        licenseLevel: "1",
+        initialIssueDate: null,
+        currentIssueDate: null,
+        expireDate: null,
+        aircrafts: [
+          {
+            id: 40,
+            aircraftEngineId: 1,
+            code: "B767",
+            name: "B767"
+          }
+        ],
+        createddate: "2026-08-16T09:25:46.73741",
+        createdby: "navee",
+        updateddate: "2026-08-16T09:25:46.737423",
+        updatedby: "navee"
+      },
+      error: ""
+    };
     axiosMock.get.mockResolvedValueOnce({ data: response });
 
     await expect(getAuthorityLicenseDetail(1)).resolves.toBe(response);
@@ -55,10 +84,29 @@ describe("authority authorization API", () => {
       initialIssueDate: "2026-07-16",
       currentIssueDate: "2026-07-16",
       expireDate: "2026-07-16",
-      aircraftTypeLicenseIds: [1],
+      aircraftEngineIds: [1],
       authorizationStatusId: 1,
     };
-    const response = { message: "success", responseData: "Saved successfully.", error: "" };
+    const response = { 
+      message: "success", 
+      responseData: {
+        id: 32,
+        staffId: 163,
+        authorizationAuthorityMasterId: 1,
+        licenseNo: "112233",
+        licenseLevel: "1",
+        initialIssueDate: "2026-07-16",
+        currentIssueDate: "2026-07-16",
+        expireDate: "2026-07-16",
+        isdelete: false,
+        createddate: "2026-08-16T09:25:46.73741+00:00",
+        createdby: "navee",
+        updateddate: "2026-08-16T09:25:46.7374238+00:00",
+        updatedby: "navee",
+        authorizationStatusId: 1
+      }, 
+      error: "" 
+    };
     axiosMock.post.mockResolvedValueOnce({ data: response });
 
     await expect(upsertAuthorityLicense(request)).resolves.toBe(response);
@@ -75,10 +123,29 @@ describe("authority authorization API", () => {
       initialIssueDate: null,
       currentIssueDate: null,
       expireDate: null,
-      aircraftTypeLicenseIds: [],
+      aircraftEngineIds: [],
       authorizationStatusId: 2,
     };
-    const response = { message: "success", responseData: "Saved successfully.", error: "" };
+    const response = { 
+      message: "success", 
+      responseData: {
+        id: 33,
+        staffId: 163,
+        authorizationAuthorityMasterId: 5,
+        licenseNo: null,
+        licenseLevel: null,
+        initialIssueDate: null,
+        currentIssueDate: null,
+        expireDate: null,
+        isdelete: false,
+        createddate: "2026-08-16T09:25:46.73741+00:00",
+        createdby: "navee",
+        updateddate: "2026-08-16T09:25:46.7374238+00:00",
+        updatedby: "navee",
+        authorizationStatusId: 2
+      }, 
+      error: "" 
+    };
     axiosMock.post.mockResolvedValueOnce({ data: response });
 
     await expect(upsertAuthorityLicense(request)).resolves.toBe(response);

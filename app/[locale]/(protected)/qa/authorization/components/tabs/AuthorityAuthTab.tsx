@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useRef, useCallback, useEffect } from 'react'
 import { CalendarDays, FileText, Filter, Globe2, Loader2, Plane, Search, User, X } from 'lucide-react'
+import { TransferBox } from '@/components/ui/transfer-box'
 import {
   Select,
   SelectContent,
@@ -28,8 +29,8 @@ import { CUST_STATUS_META } from '../../types-v2'
 import type { CustomerAuthValue } from '../../types-v2'
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
 import { AircraftEngineRefPanel } from "@/components/aircraft-engine/AircraftEngineRefPanel"
-import { useAircraftTypeLicenses } from "@/lib/api/master/aircraft-type-licenses.hooks"
-import type { AircraftTypeLicense } from "@/lib/api/master/aircraft-type-licenses"
+import { useCombinations } from "@/lib/api/master/aircraft-engine/aircraftEngine.hooks"
+import { groupCombinationDisplayLabels } from "@/lib/utils/aircraftEngineDisplay"
 import { useStaffAuthorizationAirlineStatuses } from "@/lib/api/master/staff-authorization/staff-authorization-airline-statuses.hooks"
 import {
   useAuthorityAuthList,
@@ -96,13 +97,13 @@ interface TooltipInfo {
   authorityColor: string
   status: CustomerAuthValue
   licenseItem: AuthorityLicenseCell | undefined
-  aircraftOptions: AircraftTypeLicense[]
+  aircraftOptions: { id: number; code: string; name: string; groupKey: string }[]
   x: number
   y: number       // cell bottom
   cellTop: number  // cell top
 }
 
-function CellTooltip({ info }: { info: TooltipInfo }) {
+function CellTooltip({ info, combinations }: { info: TooltipInfo, combinations: any[] }) {
   const { staff, authCode, authorityName, authorityColor, status, licenseItem, aircraftOptions } = info
   const meta = CUST_STATUS_META[status] || CUST_STATUS_META.pending
   const ref = useRef<HTMLDivElement>(null)
@@ -132,13 +133,15 @@ function CellTooltip({ info }: { info: TooltipInfo }) {
   }, [info.x, info.y, info.cellTop])
   
   const mappedAircrafts = useMemo(() => {
-    if (!licenseItem?.aviationAuthorityLicenseAircrafts) return '—';
-    const names = licenseItem.aviationAuthorityLicenseAircrafts.map(a => {
-      const found = aircraftOptions.find(o => o.id === a.aircraftTypeLicenseId)
-      return found ? found.name : a.aircraftTypeLicenseId
-    })
-    return names.length > 0 ? names.join(', ') : '—'
-  }, [licenseItem, aircraftOptions])
+    if (!licenseItem?.aviationAuthorityLicenseAircrafts || licenseItem.aviationAuthorityLicenseAircrafts.length === 0) return '—';
+    const engineIds = licenseItem.aviationAuthorityLicenseAircrafts
+      .map(a => a.aircraftEngineId)
+      .filter((id): id is number => typeof id === 'number' && id > 0);
+    if (combinations && combinations.length > 0) {
+      return groupCombinationDisplayLabels(engineIds, combinations)
+    }
+    return engineIds.map(String)
+  }, [licenseItem, combinations])
 
   return (
     <div
@@ -157,9 +160,13 @@ function CellTooltip({ info }: { info: TooltipInfo }) {
         </span>
       </div>
       <div className="space-y-1.5 text-[11px]">
-        <div className="flex justify-between">
+        <div className="flex flex-col gap-0.5">
           <span className="text-muted-foreground">Authority</span>
           <span className="font-bold" style={{ color: authorityColor }}>{authCode} — {authorityName}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Authorization No.</span>
+          <span className="font-semibold text-foreground">{licenseItem?.licenseNo || licenseItem?.aviationAuthorityLicense?.licenseNo || '—'}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">Date of Initial Issue</span>
@@ -173,15 +180,15 @@ function CellTooltip({ info }: { info: TooltipInfo }) {
           <span className="text-muted-foreground">Date of Expire</span>
           <span className="font-semibold text-foreground">{formatShortDate(licenseItem?.expireDate)}</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Aircraft</span>
-          <span className="font-semibold text-foreground text-right" style={{ maxWidth: 160 }}>
-            {mappedAircrafts}
-          </span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">License</span>
-          <span className="font-semibold text-foreground">{licenseItem?.licenseNo || licenseItem?.aviationAuthorityLicense?.licenseNo || '—'}</span>
+        <div className="flex flex-col gap-1">
+          <span className="text-muted-foreground">Aircraft License</span>
+          <div className="font-semibold text-foreground break-words space-y-0.5">
+            {typeof mappedAircrafts === 'string' ? (
+              mappedAircrafts
+            ) : mappedAircrafts.length > 0 ? (
+              mappedAircrafts.map((lic, i) => <div key={i}>- {lic}</div>)
+            ) : '—'}
+          </div>
         </div>
       </div>
     </div>
@@ -257,7 +264,7 @@ function MatrixView() {
     return apiAuthorities.map(authority => authority._key)
   }, [apiAuthorities])
 
-  const { data: aircraftOptions = [] } = useAircraftTypeLicenses()
+  const { data: combinations = [] } = useCombinations()
   const { data: authorizationStatuses = [] } = useStaffAuthorizationAirlineStatuses()
   const [selectedCell, setSelectedCell] = useState<{
     staff: AuthorityStaffRow
@@ -297,18 +304,45 @@ function MatrixView() {
   useEffect(() => {
     const detail = detailQuery.data?.responseData
     if (!detail || detail.id !== selectedLicenseId) return
-    setEditInitDate((detail.initialIssueDate || '').split('T')[0])
-    setEditCurrDate((detail.currentIssueDate || '').split('T')[0])
-    setEditSamsExp((detail.expireDate || '').split('T')[0])
-    setEditRating(new Set(detail.aircrafts.map(aircraft => aircraft.name || aircraft.code || String(aircraft.aircraftTypeLicenseId))))
-  }, [detailQuery.data, selectedLicenseId])
+    // Only overwrite form fields when the detail API returns actual values.
+    // The handleCellClick already populates from matrix data; don't clear
+    // those with null from the detail endpoint.
+    if (detail.initialIssueDate) setEditInitDate(detail.initialIssueDate.split('T')[0])
+    if (detail.currentIssueDate) setEditCurrDate(detail.currentIssueDate.split('T')[0])
+    if (detail.expireDate) setEditSamsExp(detail.expireDate.split('T')[0])
+    if (detail.aircrafts?.length > 0) {
+      // Map aircraftEngineId → displayLabel from combinations (same logic as handleCellClick)
+      const ratings = detail.aircrafts.map(aircraft => {
+        const found = combinations.find(c => c.id === aircraft.aircraftEngineId)
+        return found ? found.displayLabel : String(aircraft.aircraftEngineId)
+      })
+      setEditRating(new Set(ratings))
+    }
+  }, [detailQuery.data, selectedLicenseId, combinations])
 
-  const filteredAircraftOptions = useMemo(() => {
+  const aircraftOptions = useMemo(() => {
+    return combinations.map(combo => ({
+      id: combo.id,
+      code: combo.displayLabel,
+      name: combo.displayLabel,
+      groupKey: combo.familyCode
+    }))
+  }, [combinations])
+
+  const groupedAircraftOptions = useMemo(() => {
     const keyword = aircraftLicenseSearch.trim().toLowerCase()
-    if (!keyword) return aircraftOptions
-    return aircraftOptions.filter(option =>
-      option.name.toLowerCase().includes(keyword) || option.code.toLowerCase().includes(keyword)
-    )
+    const options = keyword
+      ? aircraftOptions.filter(opt => opt.name.toLowerCase().includes(keyword) || opt.code.toLowerCase().includes(keyword))
+      : aircraftOptions
+
+    const grouped = new Map<string, typeof aircraftOptions[0][]>()
+    options.forEach(opt => {
+      if (!grouped.has(opt.groupKey)) {
+        grouped.set(opt.groupKey, [])
+      }
+      grouped.get(opt.groupKey)!.push(opt)
+    })
+    return Array.from(grouped.entries()).sort((a, b) => a[0].localeCompare(b[0]))
   }, [aircraftLicenseSearch, aircraftOptions])
 
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null)
@@ -372,8 +406,8 @@ function MatrixView() {
     setEditSamsExp(expireDate)
     
     const ratings = licenseItem?.aviationAuthorityLicenseAircrafts?.map(a => {
-      const found = aircraftOptions.find(o => o.id === a.aircraftTypeLicenseId)
-      return found ? found.name : String(a.aircraftTypeLicenseId)
+      const found = aircraftOptions.find(o => o.id === a.aircraftEngineId)
+      return found ? found.name : String(a.aircraftEngineId)
     }) || []
     setEditRating(new Set(ratings))
     setTooltip(null) // Hide tooltip when opening modal
@@ -695,7 +729,7 @@ function MatrixView() {
       </div>
 
       {/* Floating Tooltip */}
-      {tooltip && <CellTooltip info={tooltip} />}
+      {tooltip && <CellTooltip info={tooltip} combinations={combinations} />}
 
       {/* Legend — dot style */}
       <div className="flex items-center gap-5 px-4 py-2.5 bg-white rounded-xl border border-border">
@@ -853,66 +887,44 @@ function MatrixView() {
                       </div>
                     </section>
 
-                    {/* Right Column: Aircraft checkboxes */}
-                    <section className="flex min-h-[248px] flex-col rounded-xl border border-slate-200 bg-white p-3 lg:col-span-8">
-                      <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                            <Plane className="h-4 w-4" />
-                          </span>
-                          <h3 className="text-xs font-bold text-slate-700">Aircraft License</h3>
-                        </div>
-                        <div className="relative w-full sm:w-56">
-                          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                          <input
-                            type="search"
-                            value={aircraftLicenseSearch}
-                            onChange={event => setAircraftLicenseSearch(event.target.value)}
-                            placeholder="Search license..."
-                            className="h-8 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs outline-none transition-colors focus:border-blue-500"
-                          />
-                        </div>
+                    {/* Right Column: Aircraft Transfer Box */}
+                    <section className="flex flex-col rounded-xl border border-slate-200 bg-white p-3 lg:col-span-8">
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                          <Plane className="h-4 w-4" />
+                        </span>
+                        <h3 className="text-xs font-bold text-slate-700">Aircraft License</h3>
                       </div>
-                      <div className={cn(
-                        "min-h-0 flex-1 overflow-y-auto rounded-lg border p-1.5",
-                        showAircraftValidation && aircraftValidationError ? "border-red-400 ring-1 ring-red-100" : "border-slate-200",
-                      )}>
-                        <div className="space-y-0.5 pr-1">
-                          {filteredAircraftOptions.map(opt => {
-                            const isSelected = editRating.has(opt.name)
-                            return (
-                              <button
-                                key={opt.id}
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  setEditRating(prev => {
-                                    const next = new Set(prev)
-                                    if (next.has(opt.name)) next.delete(opt.name)
-                                    else next.add(opt.name)
-                                    return next
-                                  })
-                                }}
-                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-left transition-all text-sm ${isSelected ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-700 hover:bg-slate-100'
-                                  }`}
-                              >
-                                <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all ${isSelected ? 'bg-blue-600 border-blue-600' : 'bg-white border-slate-300'
-                                  }`}>
-                                  {isSelected && (
-                                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                  )}
-                                </div>
-                                <span className="truncate text-xs font-medium leading-tight">{opt.name}</span>
-                              </button>
-                            )
-                          })}
-                          {filteredAircraftOptions.length === 0 && (
-                            <p className="px-3 py-8 text-center text-xs text-slate-400">No aircraft licenses found</p>
-                          )}
-                        </div>
-                      </div>
+                      <TransferBox
+                        items={aircraftOptions}
+                        selected={editRating}
+                        onSelectedChange={setEditRating}
+                        emptyIcon={<Plane className="h-8 w-8 mb-2 opacity-30" />}
+                        emptyLabel="No items selected"
+                        hasError={showAircraftValidation && !!aircraftValidationError}
+                        height={260}
+                        renderSelectedGroupLabel={(_groupKey, groupItems) => {
+                          // Group by familyCode + engineCode and merge series
+                          const subGroups = new Map<string, { familyCode: string; engineCode: string; seriesList: string[] }>()
+                          for (const item of groupItems) {
+                            const combo = combinations.find(c => c.displayLabel === item.name)
+                            if (!combo) continue
+                            const key = `${combo.familyCode}|${combo.engineCode}`
+                            const existing = subGroups.get(key)
+                            if (existing) {
+                              if (combo.series && !existing.seriesList.includes(combo.series)) existing.seriesList.push(combo.series)
+                            } else {
+                              subGroups.set(key, { familyCode: combo.familyCode, engineCode: combo.engineCode, seriesList: combo.series ? [combo.series] : [] })
+                            }
+                          }
+                          return Array.from(subGroups.values())
+                            .map(g => {
+                              const seriesPart = g.seriesList.length > 0 ? ` - ${g.seriesList.join('/')}` : ''
+                              return `${g.familyCode}${seriesPart} (${g.engineCode})`
+                            })
+                            .join(', ')
+                        }}
+                      />
                       {showAircraftValidation && aircraftValidationError && (
                         <p className="mt-1.5 text-[10px] font-medium text-red-600">{aircraftValidationError}</p>
                       )}
@@ -934,20 +946,21 @@ function MatrixView() {
                             return
                           }
                           const license = selectedCell.licenseItem
-                          const aircraftTypeLicenseIds = Array.from(editRating)
+                          const aircraftEngineIds = Array.from(editRating)
                             .map(rating => aircraftOptions.find(option => option.name === rating || option.code === rating)?.id ?? 0)
                             .filter(id => id > 0)
                           try {
+                            const todayStr = new Date().toISOString()
                             await upsertMutation.mutateAsync({
                               authorizationAuthorityId: license?.authorizationAuthorityId ?? license?.aviationAuthorityId ?? license?.aviationAuthorityLicense?.id ?? 0,
                               staffId: selectedCell.staff.staffId,
                               authorizationAuthorityMasterId: selectedCell.masterId ?? 0,
                               licenseNo: detailQuery.data?.responseData.licenseNo ?? license?.licenseNo ?? null,
                               licenseLevel: detailQuery.data?.responseData.licenseLevel ?? license?.licenseLevel ?? null,
-                              initialIssueDate: editInitDate || null,
-                              currentIssueDate: editCurrDate || null,
-                              expireDate: editSamsExp || null,
-                              aircraftTypeLicenseIds,
+                              initialIssueDate: editInitDate || todayStr,
+                              currentIssueDate: editCurrDate || todayStr,
+                              expireDate: editSamsExp || todayStr,
+                              aircraftEngineIds,
                               authorizationStatusId: notApprovedStatusId,
                             })
                             toast.success('Authority authorization rejected successfully')
@@ -978,7 +991,7 @@ function MatrixView() {
                             return
                           }
                           const license = selectedCell.licenseItem
-                          const aircraftTypeLicenseIds = Array.from(editRating)
+                          const aircraftEngineIds = Array.from(editRating)
                             .map(rating => aircraftOptions.find(option => option.name === rating || option.code === rating)?.id ?? 0)
                             .filter(id => id > 0)
                           try {
@@ -991,7 +1004,7 @@ function MatrixView() {
                               initialIssueDate: editInitDate || null,
                               currentIssueDate: editCurrDate || null,
                               expireDate: editSamsExp || null,
-                              aircraftTypeLicenseIds,
+                              aircraftEngineIds,
                               authorizationStatusId: license?.authorizationStatusId ?? validStatusId,
                             })
                             toast.success('Authority authorization updated successfully')

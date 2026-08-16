@@ -10,8 +10,9 @@ import { EditEmploymentModal } from './EditEmploymentModal'
 import { EditLicenseModal } from './EditLicenseModal'
 import { EditAircraftModal } from './EditAircraftModal'
 import { useUpsertStaff, useUploadStaffFile } from '@/lib/api/hooks/useQAStaffManagement'
-import { useAircraftTypeLicenses } from '@/lib/api/master/aircraft-type-licenses.hooks'
+
 import { buildStaffUpsertRequest, StaffByIdData, UpsertStaffRequest } from '@/lib/api/qa/staff-management'
+import { groupAircraftEngineDisplayLabels } from '@/lib/utils/aircraftEngineDisplay'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
@@ -170,7 +171,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
 
     const queryClient = useQueryClient()
     const upsertMutation = useUpsertStaff()
-    const { data: licenses = [] } = useAircraftTypeLicenses()
+
     const uploadMutation = useUploadStaffFile()
 
     // Derived data from API
@@ -374,12 +375,14 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
     }
 
     const handleSaveEmployment = (data: any) => {
+        const staffTypeIdMap: Record<string, number> = { 'MECH': 1, 'CS': 2, 'Operational Staff': 3, 'Back Office': 4 }
         const payload = buildUpsertPayload({
             employeeId: data.empId,
             startDate: data.startDate,
             endWorkingDate: data.endWorkingDate || null,
-            positionId: data.position ? Number(data.position) : (apiData?.positionObj?.id || 0),
-            departmentId: data.department ? Number(data.department) : (apiData?.departmentObj?.id || 0),
+            staffDepartmentPositionId: data.position ? Number(data.position) : (apiData?.positionObj?.id || 0),
+            jobTitle: data.jobNote || '',
+            staffstypeid: staffTypeIdMap[data.staffType] || (apiData?.staffstypeObj?.id || 0),
         })
         if (!payload) return
 
@@ -402,7 +405,8 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
             staffAmelLicenseList: [
                 {
                     ...amelLicense,
-                    combinationIds: amelLicense.combinationIds || [],
+                    limitations: amelLicense.limitations || '',
+                                    aircraftRatings: amelLicense.aircraftRatings || '',
                     attachmentFilePath: '',
                     attachmentFileName: '',
                 }
@@ -457,7 +461,8 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                                     categoryId: currentLicense?.categoryId || 1,
                                     issuedDate: currentLicense?.issuedDate || new Date().toISOString().split('T')[0],
                                     expiryDate: currentLicense?.expiryDate || new Date().toISOString().split('T')[0],
-                                    combinationIds: currentLicense?.combinationIds || [],
+                                    limitations: currentLicense?.limitations || '',
+                                    aircraftRatings: currentLicense?.aircraftRatings || '',
                                     attachmentFilePath: filePath,
                                     attachmentFileName: fileName,
                                 }
@@ -506,7 +511,8 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                     categoryId: data.categoryId,
                     issuedDate: data.issuedDate,
                     expiryDate: data.expiryDate,
-                    combinationIds: data.combinationIds || [],
+                    limitations: amelLicense?.limitations || '',
+                    aircraftRatings: amelLicense?.aircraftRatings || '',
                     attachmentFilePath: amelLicense?.attachmentFilePath || '',
                     attachmentFileName: amelLicense?.attachmentFileName || '',
                 }
@@ -529,12 +535,10 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
         return cat ? cat.label : `Category ${categoryId}`
     }
 
-    const getAircraftTypeName = (typeId: string | number | undefined) => {
-        if (typeId === undefined) return "Unknown Type"
-        
-        const license = licenses.find(l => l.id === Number(typeId))
-        return license ? license.name : `Type ${typeId}`
-    }
+    const groupedAircraftLabels = useMemo(
+        () => groupAircraftEngineDisplayLabels(aircraftLicenses),
+        [aircraftLicenses]
+    )
 
     const uploadedCount = docSlots.filter(s => s.filePath).length
 
@@ -573,13 +577,17 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                     <Section icon={<Briefcase className="h-4 w-4" />} iconBg="#fef3c7" iconColor="#d97706" title="Employment" onEdit={() => setShowEditEmployment(true)}>
                         <div className="grid grid-cols-3 gap-y-5 gap-x-8 max-md:grid-cols-1">
                             <InfoRow label="Employee ID" value={staff.empId} mono />
-                            <InfoRow label="Position" value={staff.position} />
+                            <InfoRow label="Staff Type" value={staff.staffType || '-'} />
                             <InfoRow label="Department" value={staff.department} />
+                            <InfoRow label="Position" value={staff.position} />
                             <InfoRow label="Start Date" value={staff.startDate ? formatDate(staff.startDate) : '-'} mono />
                             <InfoRow label="End Working Date" value={staff.endDate ? formatDate(staff.endDate) : '-'} mono />
                             {staff.startDate && (
                                 <InfoRow label="Tenure" value={calcAge(staff.startDate)} />
                             )}
+                            <div className="col-span-3 max-md:col-span-1">
+                                <InfoRow label="Job Note" value={staff.jobNote || '-'} />
+                            </div>
                         </div>
                     </Section>
 
@@ -780,61 +788,6 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                     </div>
                 </div>
                 <div className="col-span-4 min-w-0">
-                    {/* ── Aircraft Type License ── */}
-                    <div className="min-w-0 bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 mb-4">
-                        <div className="flex items-center justify-between mb-5 pb-3.5 border-b border-slate-100">
-                            <div className="flex items-center gap-2.5 text-base font-bold text-slate-800">
-                                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-green-50 text-green-600">
-                                    <Shield className="h-4 w-4" />
-                                </div>
-                                Aircraft License
-                                {aircraftLicenses.length > 0 && (
-                                    <span className="text-xs font-semibold text-slate-400 ml-1">({aircraftLicenses.length})</span>
-                                )}
-                            </div>
-                            <PermissionActionGuard menuCode="QA_STAFF" action="canEdit">
-                                <button
-                                    className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 cursor-pointer transition-all duration-200 hover:border-blue-400 hover:text-blue-600 hover:shadow-sm"
-                                    onClick={() => setShowEditAircraft(true)}
-                                    title="Edit Aircraft License"
-                                >
-                                    <Pencil className="h-3.5 w-3.5" />
-                                </button>
-                            </PermissionActionGuard>
-                        </div>
-
-                        {aircraftLicenses.length > 0 ? (
-                            <div className="flex flex-wrap gap-1.5">
-                                {aircraftLicenses.map((lic) => (
-                                    <span
-                                        key={lic.id}
-                                        className="inline-flex items-center gap-1.5 text-[11px] font-semibold py-1.5 px-3 rounded-lg bg-green-50 text-green-700 border border-green-200"
-                                    >
-                                        <Plane className="h-3 w-3" />
-                                        {getAircraftTypeName(lic.aircraftTypeId ?? lic.aircraftTypeLicensId)}
-                                    </span>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="flex flex-col items-center justify-center py-8 text-center">
-                                <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
-                                    <Shield className="h-6 w-6 text-slate-300" />
-                                </div>
-                                <p className="text-sm font-semibold text-slate-500 mb-1">No Aircraft License</p>
-                                <p className="text-xs text-slate-400 mb-4">No aircraft type license has been assigned.</p>
-                                <PermissionActionGuard menuCode="QA_STAFF" action="canCreate">
-                                    <button
-                                        onClick={() => setShowEditAircraft(true)}
-                                        className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-green-600 rounded-lg cursor-pointer hover:bg-green-700 transition-colors border-none"
-                                    >
-                                        <Shield className="h-3.5 w-3.5" />
-                                        Add License
-                                    </button>
-                                </PermissionActionGuard>
-                            </div>
-                        )}
-                    </div>
-
                     {/* ── AMEL License ── */}
                     <div className="min-w-0 bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 mb-4">
                         <div className="flex items-center justify-between mb-5 pb-3.5 border-b border-slate-100">
@@ -856,6 +809,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                         </div>
 
                         {amelLicense ? (
+                            <>
                             <div className="min-w-0 bg-linear-to-br from-slate-50 to-blue-50/40 border border-slate-200 rounded-xl p-5 space-y-4">
                                 {/* License Number */}
                                 <div className="flex items-center gap-3 pb-3.5 border-b border-slate-200/80">
@@ -901,54 +855,58 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                                         </div>
                                     </div>
                                 )}
-
-                                {/* Attachment */}
-                                <div className="min-w-0">
-                                    <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider block mb-2">Attachment</span>
-                                    {amelLicense.attachmentFilePath ? (
-                                        <div className="flex min-w-0 items-center gap-2">
-                                            <a
-                                                href={amelLicense.attachmentFilePath}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden px-3 py-2.5 rounded-lg bg-white border border-slate-200 hover:border-blue-300 hover:bg-blue-50/30 cursor-pointer transition-all duration-200 text-left group no-underline"
-                                            >
-                                                <FileText className="h-4 w-4 text-blue-500 shrink-0" />
-                                                <span className="min-w-0 flex-1 truncate text-sm text-slate-700 group-hover:text-blue-700">
-                                                    {amelLicense.attachmentFileName || 'License Document'}
-                                                </span>
-                                                <ExternalLink className="h-3.5 w-3.5 text-slate-400 group-hover:text-blue-500 shrink-0" />
-                                            </a>
-                                            <button
-                                                type="button"
-                                                onClick={() => setConfirmDeleteAmelDoc(true)}
-                                                className="w-10 h-10 rounded-lg flex items-center justify-center border border-slate-200 bg-white text-slate-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 cursor-pointer transition-all duration-200 shrink-0"
-                                            >
-                                                <X className="h-4 w-4" />
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div>
-                                            <button
-                                                type="button"
-                                                onClick={() => amelInputRef.current?.click()}
-                                                disabled={isUploadingAmel}
-                                                className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors disabled:opacity-50"
-                                            >
-                                                {isUploadingAmel ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                                                Upload Attachment
-                                            </button>
-                                            <input
-                                                type="file"
-                                                ref={amelInputRef}
-                                                className="hidden"
-                                                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                                                onChange={handleUploadAmelDoc}
-                                            />
-                                        </div>
-                                    )}
-                                </div>
                             </div>
+
+                            {/* Attachment — below the license card, inside the outer white card */}
+                            <div className="mt-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <FileText className="h-3.5 w-3.5 text-slate-400" />
+                                    <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Attachment</span>
+                                </div>
+                                {amelLicense.attachmentFilePath ? (
+                                    <div className="flex min-w-0 items-center gap-2">
+                                        <a
+                                            href={amelLicense.attachmentFilePath}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden px-3 py-2.5 rounded-lg bg-slate-50 border border-slate-200 hover:border-blue-300 hover:bg-blue-50/30 cursor-pointer transition-all duration-200 text-left group no-underline"
+                                        >
+                                            <FileText className="h-4 w-4 text-blue-500 shrink-0" />
+                                            <span className="min-w-0 flex-1 truncate text-sm text-slate-700 group-hover:text-blue-700">
+                                                {amelLicense.attachmentFileName || 'License Document'}
+                                            </span>
+                                            <ExternalLink className="h-3.5 w-3.5 text-slate-400 group-hover:text-blue-500 shrink-0" />
+                                        </a>
+                                        <button
+                                            type="button"
+                                            onClick={() => setConfirmDeleteAmelDoc(true)}
+                                            className="w-10 h-10 rounded-lg flex items-center justify-center border border-slate-200 bg-white text-slate-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 cursor-pointer transition-all duration-200 shrink-0"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <button
+                                            type="button"
+                                            onClick={() => amelInputRef.current?.click()}
+                                            disabled={isUploadingAmel}
+                                            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors disabled:opacity-50"
+                                        >
+                                            {isUploadingAmel ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                                            Upload Attachment
+                                        </button>
+                                        <input
+                                            type="file"
+                                            ref={amelInputRef}
+                                            className="hidden"
+                                            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                            onChange={handleUploadAmelDoc}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                            </>
                         ) : (
                             <div className="flex flex-col items-center justify-center py-10 text-center">
                                 <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
@@ -966,6 +924,61 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                             </div>
                         )}
                     </div>
+                    {/* ── Aircraft Type License ── */}
+                    <div className="min-w-0 bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 mb-4">
+                        <div className="flex items-center justify-between gap-2 mb-5 pb-3.5 border-b border-slate-100">
+                            <div className="flex items-center gap-2 min-w-0 text-sm font-bold text-slate-800">
+                                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-green-50 text-green-600">
+                                    <Shield className="h-4 w-4" />
+                                </div>
+                                <span className="truncate">Aircraft License</span>
+                                {aircraftLicenses.length > 0 && (
+                                    <span className="text-xs font-semibold text-slate-400 shrink-0">({aircraftLicenses.length})</span>
+                                )}
+                            </div>
+                            <PermissionActionGuard menuCode="QA_STAFF" action="canEdit">
+                                <button
+                                    className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 cursor-pointer transition-all duration-200 hover:border-blue-400 hover:text-blue-600 hover:shadow-sm shrink-0"
+                                    onClick={() => setShowEditAircraft(true)}
+                                    title="Edit Aircraft License"
+                                >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                </button>
+                            </PermissionActionGuard>
+                        </div>
+
+                        {groupedAircraftLabels.length > 0 ? (
+                            <div className="flex flex-wrap gap-1.5">
+                                {groupedAircraftLabels.map((label) => (
+                                    <span
+                                        key={label}
+                                        className="inline-flex items-center gap-1.5 text-[11px] font-semibold py-1.5 px-3 rounded-lg bg-green-50 text-green-700 border border-green-200"
+                                    >
+                                        <Plane className="h-3 w-3" />
+                                        {label}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center py-8 text-center">
+                                <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
+                                    <Shield className="h-6 w-6 text-slate-300" />
+                                </div>
+                                <p className="text-sm font-semibold text-slate-500 mb-1">No Aircraft License</p>
+                                <p className="text-xs text-slate-400 mb-4">No aircraft type license has been assigned.</p>
+                                <PermissionActionGuard menuCode="QA_STAFF" action="canCreate">
+                                    <button
+                                        onClick={() => setShowEditAircraft(true)}
+                                        className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-green-600 rounded-lg cursor-pointer hover:bg-green-700 transition-colors border-none"
+                                    >
+                                        <Shield className="h-3.5 w-3.5" />
+                                        Add License
+                                    </button>
+                                </PermissionActionGuard>
+                            </div>
+                        )}
+                    </div>
+
                 </div>
             </div>
 
@@ -994,7 +1007,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                                 <button
                                     type="button"
                                     onClick={() => {
-                                        handleRemoveDoc(confirmDeleteDoc)
+                                        if (confirmDeleteDoc) handleRemoveDoc(confirmDeleteDoc)
                                         setConfirmDeleteDoc(null)
                                     }}
                                     className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-red-500 border-none rounded-xl cursor-pointer hover:bg-red-600 transition-colors"
@@ -1070,16 +1083,41 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
             <EditAircraftModal
                 isOpen={showEditAircraft}
                 onClose={() => setShowEditAircraft(false)}
-                initialSelection={aircraftLicenses.map(l => l.aircraftTypeLicensId).filter((id): id is number => id !== undefined)}
+                initialSelection={aircraftLicenses.map(l => l.aircraftEngineId).filter((id): id is number => id !== undefined && id > 0)}
                 isSaving={savingAircraft}
                 onSave={(selection) => {
                     if (!apiData) return
                     setSavingAircraft(true)
+
+                    const existingList = apiData.staffAircraftLicenseList || [];
+                    const newList = [];
+                    
+                    for (const existing of existingList) {
+                        const engineId = existing.aircraftEngineId;
+                        const isSelected = selection.includes(engineId);
+                        
+                        newList.push({
+                            id: existing.id,
+                            aircraftEngineId: engineId,
+                            isDelete: !isSelected,
+                        });
+                    }
+                    
+                    for (const engineId of selection) {
+                        const exists = existingList.some(
+                            ex => ex.aircraftEngineId === engineId
+                        );
+                        if (!exists) {
+                            newList.push({
+                                id: 0,
+                                aircraftEngineId: engineId,
+                                isDelete: false,
+                            });
+                        }
+                    }
+
                     const payload = buildUpsertPayload({
-                        staffAircraftLicenseList: selection.map((typeId) => ({
-                            id: aircraftLicenses.find(l => l.aircraftTypeLicensId === typeId)?.id || 0,
-                            aircraftTypeId: typeId,
-                        })),
+                        staffAircraftLicenseList: newList,
                     })
                     if (!payload) { setSavingAircraft(false); return }
                     upsertMutation.mutate(payload, {

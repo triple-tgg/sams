@@ -65,7 +65,7 @@ Retrieves a paginated list of staff members along with their customer authorizat
           "aircrafts": [
             {
               "id": 6,
-              "aircraftTypeLicensId": 1,
+              "aircraftEngineId": 1,
               "code": "A319",
               "name": "A319"
             }
@@ -116,7 +116,7 @@ Compatibility rules:
 - `/listdata` supplies the Matrix roster and airline columns.
 - `/list` is authoritative for existing records: `authorizationCustomerId`, status, dates, and aircraft type license IDs.
 - Join key: `authorizationCustomer.staffId + authorizationCustomer.airlineId` to `/listdata.staffId + airlineStatuses[].airlineId`.
-- `authorizationCustomerAircraftTypeLicenses[].aircraftTypeLicensId` matches `/listdata.airlineStatuses[].aircrafts[].aircraftTypeLicensId`.
+- `authorizationCustomerAircraftTypeLicenses[].aircraftEngineId` matches `/listdata.airlineStatuses[].aircrafts[].aircraftEngineId`.
 - Aircraft labels are resolved from `/master/aircraft-type-licenses` by ID so Matrix, tooltip, modal, and upsert use the same value. If `/listdata` returns a conflicting label for the same ID, the master label wins.
 - Current observed `/listdata` response reports `perPage: 134` after requesting `perPage: 20`; the frontend applies defensive client-side pagination until the API honors the requested page size.
 

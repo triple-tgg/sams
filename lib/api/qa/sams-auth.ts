@@ -1,4 +1,5 @@
 import axiosConfig from "@/lib/axios.config";
+import type { StaffAircraftLicenseItem } from "./staff-management";
 
 export interface SamsAuthListRequest {
   searchKeyword: string;
@@ -20,7 +21,7 @@ export interface SamsAuthItem {
   samsExpiryDate: string | null;
   samsAuthStatus: string;
   daysToExpiry: number;
-  staffAircraftLicenseList: StaffAircraftLicense[];
+  staffAircraftLicenseList: StaffAircraftLicenseItem[];
   profileImagePath?: string | null;
 }
 
@@ -41,29 +42,7 @@ export const getSamsAuthList = async (data: SamsAuthListRequest): Promise<SamsAu
 
 // ── Detail by ID ──────────────────────────────────────────────
 
-export interface AircraftTypeLicenseObj {
-  id: number;
-  code: string;
-  name: string;
-  description: string | null;
-  isdelete: boolean;
-  createddate: string;
-  createdby: string;
-  updateddate: string | null;
-  updatedby: string | null;
-}
 
-export interface StaffAircraftLicense {
-  id: number;
-  staffId: number;
-  isdelete: boolean;
-  createddate: string;
-  createdby: string;
-  updateddate: string | null;
-  updatedby: string | null;
-  aircraftTypeLicensId: number;
-  aircraftTypeLicensObj: AircraftTypeLicenseObj | null;
-}
 
 export interface AuthorizationSamsRecord {
   id: number;
@@ -139,7 +118,7 @@ export const getSamsAuthById = async (id: number): Promise<SamsAuthDetailRespons
 
 export interface SamsAuthUpsertRequest {
   authorizationSamses: AuthorizationSamsRecord;
-  authorizationSamsAircraftTypeLicenId: number[];
+  aircraftEngineIds: number[];
 }
 
 export interface SamsAuthUpsertResponse {

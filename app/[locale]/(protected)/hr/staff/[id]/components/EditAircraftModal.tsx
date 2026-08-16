@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { X, Shield, Plane, Check, Loader2 } from 'lucide-react'
-import { useAircraftTypeLicenses } from '@/lib/api/master/aircraft-type-licenses.hooks'
+import { useState, useEffect, useMemo } from 'react'
+import { X, Shield, Search } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
+import { useCombinations } from '@/lib/api/master/aircraft-engine/aircraftEngine.hooks'
+import type { AircraftEngineCombination } from '@/lib/api/master/aircraft-engine/aircraftEngine.types'
 
 interface EditAircraftModalProps {
     isOpen: boolean
@@ -13,21 +15,48 @@ interface EditAircraftModalProps {
 }
 
 export function EditAircraftModal({ isOpen, onClose, initialSelection, onSave, isSaving }: EditAircraftModalProps) {
-    const [selection, setSelection] = useState<number[]>([])
-    const { data: licenses = [], isLoading } = useAircraftTypeLicenses()
+    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+    const [comboSearch, setComboSearch] = useState('')
+    
+    // We fetch combinations here instead of aircraft type licenses
+    const { data: combinations = [], isLoading } = useCombinations()
 
     useEffect(() => {
         if (isOpen) {
-            setSelection(initialSelection)
+            setSelectedIds(new Set(initialSelection))
+            setComboSearch('')
         }
     }, [isOpen, initialSelection])
 
+    const toggleCombination = (id: number) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev)
+            next.has(id) ? next.delete(id) : next.add(id)
+            return next
+        })
+    }
+
+    // Group combinations by familyCode, filtered by search
+    const groupedCombos = useMemo(() => {
+        const q = comboSearch.toLowerCase()
+        const byFamily = new Map<string, AircraftEngineCombination[]>()
+        for (const c of combinations) {
+            if (q && !c.displayLabel.toLowerCase().includes(q) && !c.familyCode.toLowerCase().includes(q)) continue
+            const arr = byFamily.get(c.familyCode) ?? []
+            arr.push(c)
+            byFamily.set(c.familyCode, arr)
+        }
+        return Array.from(byFamily.entries()).sort((a, b) => a[0].localeCompare(b[0]))
+    }, [combinations, comboSearch])
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
-        onSave(selection)
+        onSave(Array.from(selectedIds))
     }
 
     if (!isOpen) return null
+
+    const inputClass = 'w-full px-3.5 py-2.5 text-sm text-slate-800 bg-white border border-slate-200 rounded-lg outline-none transition-all duration-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 placeholder:text-slate-300'
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -57,53 +86,55 @@ export function EditAircraftModal({ isOpen, onClose, initialSelection, onSave, i
 
                 {/* Form Body */}
                 <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-                    <div className="px-7 py-5 overflow-y-auto flex-1 max-h-[60vh]">
-                        <p className="text-sm font-medium text-slate-500 mb-4">Select aircraft types to assign to this staff member.</p>
+                    <div className="px-7 py-5 overflow-y-auto flex-1 max-h-[60vh] space-y-4">
                         
-                        {isLoading ? (
-                            <div className="flex justify-center items-center py-10">
-                                <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 gap-2.5">
-                                {licenses.map((license) => {
-                                    const typeId = license.id
-                                    const isSelected = selection.includes(typeId)
-                                    return (
-                                        <label
-                                            key={typeId}
-                                            className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all duration-150 select-none ${
-                                                isSelected
-                                                    ? 'border-green-300 bg-green-50/60 text-green-800 shadow-sm'
-                                                    : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                                            }`}
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={isSelected}
-                                                onChange={(e) => {
-                                                    if (e.target.checked) {
-                                                        setSelection(prev => [...prev, typeId])
-                                                    } else {
-                                                        setSelection(prev => prev.filter(id => id !== typeId))
-                                                    }
-                                                }}
-                                                className="sr-only"
-                                            />
-                                            <div className={`w-4.5 h-4.5 rounded md border-2 flex items-center justify-center shrink-0 transition-colors ${
-                                                isSelected ? 'border-green-500 bg-green-500' : 'border-slate-300 bg-white'
-                                            }`}>
-                                                {isSelected && (
-                                                    <Check className="w-3 h-3 text-white" strokeWidth={3} />
-                                                )}
-                                            </div>
-                                            <Plane className="h-4 w-4 shrink-0" />
-                                            <span className="text-sm font-semibold">{license.name}</span>
-                                        </label>
-                                    )
-                                })}
-                            </div>
-                        )}
+                        {/* Search box */}
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                            <input
+                                type="text"
+                                value={comboSearch}
+                                onChange={e => setComboSearch(e.target.value)}
+                                placeholder="Search combination..."
+                                className={`${inputClass} !pl-9`}
+                            />
+                        </div>
+
+                        {/* Selected count */}
+                        <div className="flex items-center text-xs text-slate-400">
+                            <span>Selected {selectedIds.size} combinations</span>
+                        </div>
+
+                        {/* Grouped checkbox list */}
+                        <div className="min-h-[120px] max-h-[300px] overflow-y-auto rounded-lg border border-slate-200 p-3 space-y-3">
+                            {isLoading ? (
+                                <div className="py-6 text-center text-xs text-slate-400">Loading...</div>
+                            ) : groupedCombos.length === 0 ? (
+                                <p className="py-6 text-center text-xs text-slate-400">No combination found</p>
+                            ) : (
+                                groupedCombos.map(([family, combos]) => (
+                                    <div key={family}>
+                                        <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                                            {family}
+                                        </div>
+                                        <div className="space-y-0.5">
+                                            {combos.map((c) => (
+                                                <label
+                                                    key={c.id}
+                                                    className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-slate-50 transition-colors duration-150"
+                                                >
+                                                    <Checkbox
+                                                        checked={selectedIds.has(c.id)}
+                                                        onCheckedChange={() => toggleCombination(c.id)}
+                                                    />
+                                                    <span className="text-xs text-slate-700">{c.displayLabel}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
                     </div>
 
                     {/* Footer */}
@@ -121,7 +152,7 @@ export function EditAircraftModal({ isOpen, onClose, initialSelection, onSave, i
                             disabled={isSaving || isLoading}
                             className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-green-600 border border-green-600 rounded-lg cursor-pointer transition-all duration-200 hover:bg-green-700 hover:border-green-700 hover:shadow-md disabled:opacity-50"
                         >
-                            {isSaving ? 'Saving...' : 'Save Changes'}
+                            {isSaving ? "Saving..." : "Save Changes"}
                         </button>
                     </div>
                 </form>
@@ -129,4 +160,3 @@ export function EditAircraftModal({ isOpen, onClose, initialSelection, onSave, i
         </div>
     )
 }
-

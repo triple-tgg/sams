@@ -38,12 +38,12 @@ describe("staff profile image API flow", () => {
             endDate: null,
             endWorkingDate: null,
             positionObj: {
-                id: 4, name: "Commercial Manager", isdelete: false,
-                createddate: "2026-01-01", createdby: "system", updateddate: null, updatedby: null,
+                id: 4, code: "CM", name: "Commercial Manager", description: null, staffDepartmentId: 2,
+                isdelete: false, createddate: "2026-01-01", createdby: "system", updateddate: null, updatedby: null,
             },
             departmentObj: {
-                id: 2, name: "Commercial", isdelete: false,
-                createddate: "2026-01-01", createdby: "system", updateddate: null, updatedby: null,
+                id: 2, code: "Commercial", name: "Commercial", description: null,
+                isdelete: false, createddate: "2026-01-01", createdby: "system", updateddate: null, updatedby: null,
             },
             staffstypeObj: {
                 id: 1, code: "STAFF", name: "Staff", description: "Staff",

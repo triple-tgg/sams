@@ -38,8 +38,11 @@ export function resolveAuthorityLicenseCell(
   return {
     ...matrixCell,
     ...record,
-    authorizationStatus: record.authorizationStatus ?? matrixCell.authorizationStatus,
-    status: record.status ?? matrixCell.status,
+    // The matrix API (/authority-auth/listdata) is the authoritative source for
+    // status. The /authority/list record is supplementary data (record IDs,
+    // aircraft, etc.) and must NOT overwrite the matrix's computed status.
+    authorizationStatus: matrixCell.authorizationStatus ?? record.authorizationStatus,
+    status: matrixCell.status ?? record.status,
     aviationAuthorityLicense: record.aviationAuthorityLicense ?? matrixCell.aviationAuthorityLicense,
     aviationAuthorityLicenseAircrafts:
       record.aviationAuthorityLicenseAircrafts ?? matrixCell.aviationAuthorityLicenseAircrafts,

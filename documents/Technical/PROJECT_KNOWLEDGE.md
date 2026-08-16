@@ -387,8 +387,7 @@ customer authorization, authority authorization, and mechanic views.
   use `GET /authorization/sams-auth/byid/{id}` and return nested
   `authorizationSamses`, `authorizationSamsAircraftTypeLicens` (backend spelling),
   and `staff` objects. Upserts use `POST /authorization/sams-auth/upsert` with a
-  nested `authorizationSamses` object and the selected ID array named
-  `authorizationSamsAircraftTypeLicenId` (a different backend spelling).
+  payload mapping aircrafts directly as an array of IDs in `aircraftEngineIds`.
 - Customer Authorization: API-backed list/detail/upsert, with airline and
   aircraft-license master data; currently under active development
 - Mechanic view: staff API-backed

@@ -17,7 +17,7 @@ export interface AuthorityColumnHeader {
 export interface AviationAuthorityLicense {
   id: number;
   staffId: number | null;
-  aviationAuthorityId: number | null;
+  authorizationAuthorityMasterId: number | null;
   licenseNo: string | null;
   licenseLevel: string | null;
   initialIssueDate: string | null;
@@ -34,7 +34,7 @@ export interface AviationAuthorityLicense {
 export interface AviationAuthorityLicenseAircraft {
   id: number;
   authorizationAuthoritieId: number | null;
-  aircraftTypeLicenseId: number | null;
+  aircraftEngineId: number | null;
   isdelete: boolean;
   createddate: string | null;
   createdby: string | null;
@@ -55,30 +55,30 @@ export interface AuthorizationAuthorityMasterObj {
 }
 
 export interface AuthorityLicenseCell {
-  // New API fields
-  authorizationAuthorityId: number;
-  staffId: number;
+  authorityId: number;
   authorizationAuthorityMasterId: number;
-  authorizationAuthorityMaster?: AuthorizationAuthorityMasterObj | null;
-  authorizationStatusId: number;
-  authorizationStatus?: AuthorizationStatusObj | null;
-  initialIssueDate: string | null;
+  authorizationAuthorityId: number | null;
+  authorityCode: string;
   currentIssueDate: string | null;
   expireDate: string | null;
-  isdelete: boolean;
-  licenseNo: string | null;
-  licenseLevel: string | null;
-  createdby: string | null;
-  createddate: string | null;
-  updatedby: string | null;
-  updateddate: string | null;
-  // Legacy fields (kept for backward compat)
-  authorityId?: number;
+  status: string | null;
+  aviationAuthorityLicense: AviationAuthorityLicense | null;
+  aviationAuthorityLicenseAircrafts: AviationAuthorityLicenseAircraft[] | null;
+  
+  // Legacy / optional fields
+  staffId?: number;
+  authorizationAuthorityMaster?: AuthorizationAuthorityMasterObj | null;
+  authorizationStatusId?: number;
+  authorizationStatus?: AuthorizationStatusObj | null;
+  initialIssueDate?: string | null;
+  isdelete?: boolean;
+  licenseNo?: string | null;
+  licenseLevel?: string | null;
+  createdby?: string | null;
+  createddate?: string | null;
+  updatedby?: string | null;
+  updateddate?: string | null;
   aviationAuthorityId?: number;
-  authorityCode?: string;
-  status?: string | null;
-  aviationAuthorityLicense?: AviationAuthorityLicense | null;
-  aviationAuthorityLicenseAircrafts?: AviationAuthorityLicenseAircraft[] | null;
 }
 
 export interface AuthorityStaffRow {
@@ -106,7 +106,7 @@ export interface AuthorityAuthResponse {
 
 export interface AuthorityLicenseDetailAircraft {
   id: number;
-  aircraftTypeLicenseId: number;
+  aircraftEngineId: number;
   code: string | null;
   name: string | null;
 }
@@ -116,7 +116,7 @@ export interface AuthorityLicenseDetail {
   staffId: number;
   staffName: string | null;
   employeeId: string | null;
-  aviationAuthorityId: number;
+  authorizationAuthorityMasterId: number;
   aviationAuthorityCode: string | null;
   aviationAuthorityName: string | null;
   licenseNo: string | null;
@@ -146,13 +146,13 @@ export interface AuthorityLicenseUpsertRequest {
   initialIssueDate: string | null;
   currentIssueDate: string | null;
   expireDate: string | null;
-  aircraftTypeLicenseIds: number[];
+  aircraftEngineIds: number[];
   authorizationStatusId: number | null;
 }
 
 export interface AuthorityActionResponse {
   message: string;
-  responseData: string;
+  responseData: AviationAuthorityLicense;
   error: string;
 }
 

@@ -3,7 +3,7 @@ import { Briefcase, GraduationCap, Pencil } from 'lucide-react'
 import { StaffData } from '../types'
 import { EditWorkExperienceModal } from './EditWorkExperienceModal'
 import { EditEducationModal } from './EditEducationModal'
-import { StaffByIdData, UpsertStaffRequest, UpsertEducation, UpsertWorkExperience } from '@/lib/api/qa/staff-management'
+import { StaffByIdData, UpsertStaffRequest, UpsertEducation, UpsertWorkExperience, buildStaffUpsertRequest } from '@/lib/api/qa/staff-management'
 import { useUpsertStaff } from '@/lib/api/hooks/useQAStaffManagement'
 import { toast } from 'sonner'
 
@@ -20,51 +20,7 @@ export function ExperienceTab({ staff, apiData }: { staff: StaffData, apiData?: 
             return null
         }
         
-        return {
-            staffId: apiData.id,
-            title: apiData.title || '',
-            fullNameTh: apiData.name || '',
-            fullNameEn: apiData.fullNameEn || '',
-            dateOfBirth: apiData.dateOfBirth || '',
-            placeOfBirth: apiData.placeOfBirth || '',
-            nationality: apiData.nationality || '',
-            idCardNo: apiData.idCardNo || '',
-            phone: apiData.phone || '',
-            email: apiData.email || '',
-            address: apiData.address || '',
-            employeeId: apiData.employeeId || '',
-            startDate: apiData.startDate || '',
-            endWorkingDate: apiData.endWorkingDate || null,
-            positionId: apiData.positionObj?.id || 0,
-            departmentId: apiData.departmentObj?.id || 0,
-            staffstypeid: apiData.staffstypeObj?.id || 0,
-            jobTitle: apiData.jobTitle || '',
-            profileImagePath: apiData.profileImagePath || '',
-            educations: (apiData.educations || []) as UpsertEducation[],
-            workExperiences: (apiData.workExperiences || []) as UpsertWorkExperience[],
-            staffDocumentList: (apiData.staffDocumentList || []).filter(d => !d.isdelete).map(d => ({
-                id: d.id,
-                staffDocumentTypeId: d.staffDocumentTypeId || 0,
-                fileName: d.fileName,
-                filePath: d.filePath,
-                staffDocumentStatusId: d.staffDocumentStatusId ?? 1
-            })),
-            staffAircraftLicenseList: (apiData.staffAircraftLicenseList || []).filter(l => !l.isdelete).map(l => ({
-                id: l.id,
-                aircraftTypeId: l.aircraftTypeId ?? 0,
-            })),
-            staffAmelLicenseList: (apiData.staffAmelLicenseList || []).filter(l => !l.isdelete).map(l => ({
-                id: l.id,
-                licenseNumber: l.licenseNumber,
-                categoryId: l.categoryId,
-                issuedDate: l.issuedDate,
-                expiryDate: l.expiryDate,
-                combinationIds: l.combinationIds || [],
-                attachmentFilePath: l.attachmentFilePath,
-                attachmentFileName: l.attachmentFileName,
-            })),
-            ...overrideFields,
-        }
+        return buildStaffUpsertRequest(apiData, overrideFields)
     }
 
     const handleSaveWorkExperience = (data: any[]) => {

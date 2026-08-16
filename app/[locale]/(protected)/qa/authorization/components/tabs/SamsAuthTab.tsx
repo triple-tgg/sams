@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react'
 import { BadgeCheck, CalendarDays, ChevronLeft, ChevronRight, Edit2, FileText, Filter, Plane, RotateCw, Search, User } from 'lucide-react'
+import { TransferBox } from '@/components/ui/transfer-box'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,10 +41,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useStaffAuthorizationAirlineStatuses } from "@/lib/api/master/staff-authorization/staff-authorization-airline-statuses.hooks"
 import type { StaffAuthorizationAirlineStatus } from "@/lib/api/master/staff-authorization/staff-authorization-airline-statuses"
 import { useSamsAuthList, useSamsAuthById, useUpsertSamsAuth } from "@/lib/api/qa/sams-auth.hooks"
+import { groupAircraftEngineDisplayLabels } from "@/lib/utils/aircraftEngineDisplay"
 import type { SamsAuthItem, SamsAuthDetail } from "@/lib/api/qa/sams-auth"
 import { useDebounce } from "@/hooks/useDebounce"
 import { toast } from "sonner"
-import { useAircraftTypeLicenses } from "@/lib/api/master/aircraft-type-licenses.hooks"
+import { useCombinations } from "@/lib/api/master/aircraft-engine/aircraftEngine.hooks"
 
 type FilterStatus = string
 
@@ -55,7 +57,7 @@ export function SamsAuthTab() {
   const debouncedSearch = useDebounce(search, 500)
   const [filter, setFilter] = useState<FilterStatus>('all')
   
-  const { data: aircraftOptions = [] } = useAircraftTypeLicenses()
+  const { data: combinations = [] } = useCombinations()
   const { data: statusOptions = [] } = useStaffAuthorizationAirlineStatuses()
 
   // Pagination states
@@ -83,29 +85,31 @@ export function SamsAuthTab() {
   const upsertMutation = useUpsertSamsAuth()
 
   const [editAuthNo, setEditAuthNo] = useState('')
-  const [editRating, setEditRating] = useState<Set<number>>(new Set())
+  const [editRating, setEditRating] = useState<Set<string>>(new Set())
   const [editAmelExp, setEditAmelExp] = useState('')
   const [editInitDate, setEditInitDate] = useState('')
   const [editCurrDate, setEditCurrDate] = useState('')
   const [editSamsExp, setEditSamsExp] = useState('')
-  const [aircraftLicenseSearch, setAircraftLicenseSearch] = useState('')
 
-  const filteredAircraftOptions = useMemo(() => {
-    const keyword = aircraftLicenseSearch.trim().toLowerCase()
-    if (!keyword) return aircraftOptions
-    return aircraftOptions.filter(option =>
-      option.name.toLowerCase().includes(keyword) || option.code.toLowerCase().includes(keyword)
-    )
-  }, [aircraftLicenseSearch, aircraftOptions])
+  const aircraftOptions = useMemo(() => {
+    return combinations.map(combo => ({
+      id: combo.id,
+      name: combo.displayLabel,
+      groupKey: combo.familyCode,
+    }))
+  }, [combinations])
 
   // Populate form when detail data arrives or reset if add mode
   useEffect(() => {
     if (detailData && authorizationDetail && editAuthId !== null) {
       setEditAuthNo(authorizationDetail.authNo || '')
-      setEditRating(new Set(
-        detailData.authorizationSamsAircraftTypeLicens
+      const selectedIds = new Set(
+        (targetStaff?.staffAircraftLicenseList || [])
           .filter((item) => !item.isdelete)
-          .map((item) => item.aircraftTypeId),
+          .map((item) => item.aircraftEngineId || (item as any).aircraftTypeId),
+      )
+      setEditRating(new Set(
+        combinations.filter(c => selectedIds.has(c.id)).map(c => c.displayLabel)
       ))
       setEditAmelExp(targetStaff?.amelExpiryDate?.split('T')[0] || '')
       setEditInitDate(authorizationDetail.initialIssueDate?.split('T')[0] || '')
@@ -119,10 +123,9 @@ export function SamsAuthTab() {
       setEditCurrDate('')
       setEditSamsExp('')
     }
-  }, [detailData, authorizationDetail, targetStaff, editAuthId])
+  }, [detailData, authorizationDetail, targetStaff, editAuthId, combinations])
 
   const handleEditClick = (staff: SamsAuthItem) => {
-    setAircraftLicenseSearch('')
     setTargetStaff(staff)
   }
 
@@ -134,7 +137,6 @@ export function SamsAuthTab() {
     setEditInitDate('')
     setEditCurrDate('')
     setEditSamsExp('')
-    setAircraftLicenseSearch('')
   }
 
   const handleSave = async () => {
@@ -157,7 +159,9 @@ export function SamsAuthTab() {
           updateddate: nowUtc,
           updatedby: authorizationDetail?.updatedby ?? '',
         },
-        authorizationSamsAircraftTypeLicenId: Array.from(editRating),
+        aircraftEngineIds: Array.from(editRating)
+          .map(name => combinations.find(c => c.displayLabel === name)?.id ?? 0)
+          .filter(id => id > 0),
       })
       toast.success(editAuthId === null ? "Added successfully" : "Updated successfully")
       handleCloseEdit()
@@ -272,13 +276,11 @@ export function SamsAuthTab() {
               {paginatedStaff.map((s: SamsAuthItem, ri: number) => {
                 const uiStatus = getUiStatus(s.samsAuthStatus)
                 const meta = EXTENDED_SAMS_STATUS_META[uiStatus] || EXTENDED_SAMS_STATUS_META.valid
-                const aircraftLicenseNames = (s.staffAircraftLicenseList || [])
-                  .map((license) => license.aircraftTypeLicensObj?.name)
-                  .filter((name): name is string => Boolean(name))
+                const aircraftLicenseNames = groupAircraftEngineDisplayLabels(s.staffAircraftLicenseList || [])
 
                 return (
                   <tr
-                    key={s.staffId}
+                    key={s.authorizationSamsId ? `${s.staffId}-${s.authorizationSamsId}` : `${s.staffId}-new-${ri}`}
                     className={`border-b border-border/50 transition-colors hover:bg-blue-50 group ${
                       ri % 2 === 0 ? 'bg-white' : 'bg-slate-50'
                     }`}
@@ -508,65 +510,42 @@ export function SamsAuthTab() {
                     </div>
                   </section>
 
-                  {/* Right Column: Aircraft checkboxes */}
-                  <section className="flex min-h-[314px] flex-col rounded-xl border border-slate-200 bg-white p-3 lg:col-span-8">
-                    <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                          <Plane className="h-4 w-4" />
-                        </span>
-                        <h3 className="text-xs font-bold text-slate-700">Aircraft License</h3>
-                      </div>
-                      <div className="relative w-full sm:w-56">
-                        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                        <input
-                          type="search"
-                          value={aircraftLicenseSearch}
-                          onChange={event => setAircraftLicenseSearch(event.target.value)}
-                          placeholder="Search license..."
-                          className="h-8 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs outline-none transition-colors focus:border-blue-500"
-                        />
-                      </div>
+                  {/* Right Column: Aircraft Transfer Box */}
+                  <section className="flex flex-col rounded-xl border border-slate-200 bg-white p-3 lg:col-span-8">
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                        <Plane className="h-4 w-4" />
+                      </span>
+                      <h3 className="text-xs font-bold text-slate-700">Aircraft License</h3>
                     </div>
-                    <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-slate-200 p-1.5">
-                      <div className="space-y-0.5 pr-1">
-                        {filteredAircraftOptions.map(opt => {
-                          const isSelected = editRating.has(opt.id)
-                          return (
-                            <button
-                              key={opt.id}
-                              type="button"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                setEditRating(prev => {
-                                  const next = new Set(prev)
-                                  if (next.has(opt.id)) next.delete(opt.id)
-                                  else next.add(opt.id)
-                                  return next
-                                })
-                              }}
-                              className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-left transition-all text-sm ${
-                                isSelected ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-700 hover:bg-slate-100'
-                              }`}
-                            >
-                              <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all ${
-                                isSelected ? 'bg-blue-600 border-blue-600' : 'bg-white border-slate-300'
-                              }`}>
-                                {isSelected && (
-                                  <svg viewBox="0 0 14 14" fill="none" className="w-3 h-3 text-white">
-                                    <path d="M3 7.5L5.5 10L11 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                  </svg>
-                                )}
-                              </div>
-                              <span className="truncate text-xs font-medium leading-tight">{opt.name}</span>
-                            </button>
-                          )
-                        })}
-                        {filteredAircraftOptions.length === 0 && (
-                          <p className="px-3 py-8 text-center text-xs text-slate-400">No aircraft licenses found</p>
-                        )}
-                      </div>
-                    </div>
+                    <TransferBox
+                      items={aircraftOptions}
+                      selected={editRating}
+                      onSelectedChange={setEditRating}
+                      emptyIcon={<Plane className="h-8 w-8 mb-2 opacity-30" />}
+                      emptyLabel="No items selected"
+                      height={290}
+                      renderSelectedGroupLabel={(_groupKey, groupItems) => {
+                        const subGroups = new Map<string, { familyCode: string; engineCode: string; seriesList: string[] }>()
+                        for (const item of groupItems) {
+                          const combo = combinations.find(c => c.displayLabel === item.name)
+                          if (!combo) continue
+                          const key = `${combo.familyCode}|${combo.engineCode}`
+                          const existing = subGroups.get(key)
+                          if (existing) {
+                            if (combo.series && !existing.seriesList.includes(combo.series)) existing.seriesList.push(combo.series)
+                          } else {
+                            subGroups.set(key, { familyCode: combo.familyCode, engineCode: combo.engineCode, seriesList: combo.series ? [combo.series] : [] })
+                          }
+                        }
+                        return Array.from(subGroups.values())
+                          .map(g => {
+                            const seriesPart = g.seriesList.length > 0 ? ` - ${g.seriesList.join('/')}` : ''
+                            return `${g.familyCode}${seriesPart} (${g.engineCode})`
+                          })
+                          .join(', ')
+                      }}
+                    />
                   </section>
                 </div>
               </div>

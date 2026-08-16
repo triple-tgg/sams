@@ -23,6 +23,7 @@ export interface CustomerAuthRecord {
   initialIssueDate: string | null;
   currentIssueDate: string | null;
   expiryDate: string | null;
+  daysUntilExpiry?: number;
   staff: CustomerAuthStaffItem['staff'];
   airline: {
     id: number;
@@ -38,11 +39,11 @@ export interface CustomerAuthRecord {
     name: string;
     color: string | null;
     [key: string]: any;
-  };
+  } | null;
   authorizationCustomerAircraftTypeLicenses: Array<{
     id: number;
     authorizationCustomerId: number;
-    aircraftTypeLicensId: number;
+    aircraftEngineId: number;
     isdelete: boolean;
     [key: string]: any;
   }>;
@@ -95,7 +96,7 @@ export interface CustomerAuthStaffItem {
     expiryDate: string | null;
     aircrafts: Array<{
       id: number;
-      aircraftTypeLicensId: number;
+      aircraftEngineId: number;
       code: string;
       name: string;
     }>;

@@ -64,6 +64,8 @@ function mapApiToStaffData(api: StaffByIdData, trainingApi?: TrainingDashboardRe
         email: api.email || '-',
         address: api.address || '-',
         placeOfBirth: api.placeOfBirth || '-',
+        jobNote: api.jobTitle || '',
+        staffType: api.staffstypeObj?.name || ({ 1: 'MECH', 2: 'CS', 3: 'Operational Staff', 4: 'Back Office' } as Record<number, string>)[api.staffstypeObj?.id ?? 0] || '',
         ratings: [],
         training: (trainingApi?.records || []).map(t => ({
             course: t.courseName || '-',

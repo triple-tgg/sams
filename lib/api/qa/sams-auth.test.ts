@@ -46,8 +46,8 @@ describe("SAMs Authorization API", () => {
               createdby: "navee",
               updateddate: null,
               updatedby: null,
-              aircraftTypeLicensId: 1,
-              aircraftTypeLicensObj: {
+              aircraftEngineId: 1,
+              aircraftEngineObj: {
                 id: 1,
                 code: "B737-600/700/800/900",
                 name: "B737-600/700/800/900",
@@ -176,7 +176,7 @@ describe("SAMs Authorization API", () => {
         updateddate: "2026-07-19T12:30:28.553Z",
         updatedby: "navee",
       },
-      authorizationSamsAircraftTypeLicenId: [1, 2],
+      aircraftEngineIds: [1, 2],
     };
     const response = {
       message: "success",

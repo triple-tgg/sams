@@ -108,6 +108,8 @@ export interface StaffData {
     previousTraining?: PreviousTrainingRecord[]
     currentTraining?: CurrentTrainingRecord[]
     previousEmployment?: PreviousEmployment[]
+    jobNote?: string
+    staffType?: string
 }
 
 export type TabName = 'Profile' | 'Training' | 'Experience' | 'Logbook Records'

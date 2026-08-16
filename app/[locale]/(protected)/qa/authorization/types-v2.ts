@@ -50,7 +50,7 @@ export interface Staff {
     airlineStatus: { id: number; code: string; name: string; [key: string]: any } | null;
     aircrafts?: Array<{
       id?: number;
-      aircraftTypeLicensId?: number;
+      aircraftEngineId?: number;
       aircraftTypeId?: number;
       code?: string | null;
       name?: string | null;
