@@ -559,8 +559,8 @@ export const getStaffTrainingDashboard = async (
 export interface WorkExperiencePreviewResponse {
     message: string;
     responseData: {
-        profile: StaffByIdData;
-        training: TrainingDashboardResponseData;
+        profile: QAStaffItem;
+        training: PrintPreviewTraining;
     };
     error: string;
 }
@@ -851,21 +851,57 @@ export const upsertLogbookRecord = async (
 
 // ── Print Preview ──
 
+export interface PrintPreviewTrainingRecord {
+    id: number;
+    courseName: string;
+    completedDate: string | null;
+    expiryDate: string | null;
+    status: string;
+    isPermanent: boolean;
+    dateFrom: string | null;
+    dateTo: string | null;
+    validUntil: string | null;
+    providedBy: string | null;
+}
+
+export interface PrintPreviewNeedsMatrixCourse {
+    courseName: string;
+    isRequired: boolean;
+    status: string;
+}
+
+export interface PrintPreviewNeedsMatrix {
+    completionPercentage: number;
+    validCount: number;
+    totalRequired: number;
+    courses: PrintPreviewNeedsMatrixCourse[];
+}
+
+export interface PrintPreviewTrainingHistory {
+    id: number;
+    courseName: string;
+    academyName: string;
+    dateFrom: string | null;
+    dateTo: string | null;
+}
+
+export interface PrintPreviewTraining {
+    summary: {
+        totalCourses: number;
+        expired: number;
+        permanent: number;
+        expiringSoon: number;
+    };
+    records: PrintPreviewTrainingRecord[];
+    needsMatrix: PrintPreviewNeedsMatrix;
+    histories: PrintPreviewTrainingHistory[];
+}
+
 export interface StaffPrintPreviewResponse {
     message: string;
     responseData: {
         profile: QAStaffItem;
-        training: {
-            summary: {
-                totalCourses: number;
-                expired: number;
-                permanent: number;
-                expiringSoon: number;
-            };
-            records: any[];
-            needsMatrix: any;
-            histories: any[];
-        };
+        training: PrintPreviewTraining;
     };
     error: string;
 }

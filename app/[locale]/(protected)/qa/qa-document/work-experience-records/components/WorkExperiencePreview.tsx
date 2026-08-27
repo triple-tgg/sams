@@ -3,6 +3,7 @@
 import { X, Download, Printer } from 'lucide-react'
 import { useWorkExperiencePreview } from '@/lib/api/hooks/useQAStaffManagement'
 import { formatDate } from '@/app/[locale]/(protected)/hr/staff/[id]/utils'
+import { groupCombinationDisplayLabels } from '@/lib/utils/aircraftEngineDisplay'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import { useState } from 'react'
@@ -60,6 +61,21 @@ export function WorkExperiencePreview({ isOpen, onClose, staffId }: WorkExperien
     const amelLicenses = (api?.staffAmelLicenseList || []).filter(l => !l.isdelete)
     const employments = (api?.workExperiences || []).filter(w => !w.isdelete)
 
+    // Build aircraft ratings from staffAircraftLicenseList using group display labels
+    const aircraftLicenseList = (api?.staffAircraftLicenseList || []).filter(l => !l.isdelete)
+    const aircraftCombinations = aircraftLicenseList
+        .filter((l: any) => l.aircraftEngineObj)
+        .map((l: any) => ({
+            id: l.aircraftEngineId || l.aircraftEngineObj.id,
+            familyCode: l.aircraftEngineObj.familyCode || '',
+            series: l.aircraftEngineObj.series || '',
+            engineCode: l.aircraftEngineObj.engineCode || '',
+        }))
+    const aircraftRatingLabels = groupCombinationDisplayLabels(
+        aircraftCombinations.map((c: any) => c.id),
+        aircraftCombinations
+    )
+
     const previousTrainings = trainingResp?.histories || []
     const currentTrainings = trainingResp?.records || []
 
@@ -74,38 +90,40 @@ export function WorkExperiencePreview({ isOpen, onClose, staffId }: WorkExperien
         toast.info("Generating PDF... Please wait.");
 
         try {
-            // Add a small delay to ensure rendering is complete
             await new Promise(resolve => setTimeout(resolve, 300));
-            
-            const canvas = await html2canvas(input, {
-                scale: 2, // Higher resolution
-                useCORS: true,
-                logging: false,
-                backgroundColor: '#ffffff'
-            });
 
-            const imgData = canvas.toDataURL('image/png');
+            const pages = Array.from(input.querySelectorAll<HTMLElement>('.wep-page'));
+            if (pages.length === 0) {
+                toast.error("No pages found to export");
+                return;
+            }
+
             const pdf = new jsPDF({
                 orientation: 'portrait',
                 unit: 'mm',
                 format: 'a4'
             });
 
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-            
-            let heightLeft = pdfHeight;
-            let position = 0;
+            const pageWidth = pdf.internal.pageSize.getWidth();
             const pageHeight = pdf.internal.pageSize.getHeight();
-            
-            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-            heightLeft -= pageHeight;
-            
-            while (heightLeft >= 0) {
-                position = heightLeft - pdfHeight;
-                pdf.addPage();
-                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-                heightLeft -= pageHeight;
+
+            for (let i = 0; i < pages.length; i++) {
+                const canvas = await html2canvas(pages[i], {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    backgroundColor: '#ffffff'
+                });
+
+                const imgWidth = pageWidth;
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                const scale = Math.min(1, pageHeight / imgHeight);
+                const finalWidth = imgWidth * scale;
+                const finalHeight = imgHeight * scale;
+                const offsetX = (pageWidth - finalWidth) / 2;
+
+                if (i > 0) pdf.addPage('a4', 'portrait');
+                pdf.addImage(canvas.toDataURL('image/png'), 'PNG', offsetX, 0, finalWidth, finalHeight);
             }
             
             const fileName = `Employee_Profile_${api?.idCardNo || nameEn}.pdf`;
@@ -125,10 +143,6 @@ export function WorkExperiencePreview({ isOpen, onClose, staffId }: WorkExperien
             <div className="wep-toolbar">
                 <span className="wep-toolbar-title">Employee Profile and Training Record (Preview)</span>
                 <div className="wep-toolbar-actions">
-                    <button className="wep-btn wep-btn-primary" onClick={handleDownloadPDF} disabled={isDownloading}>
-                        <Download className="h-4 w-4" />
-                        {isDownloading ? 'Generating...' : 'Download'}
-                    </button>
                     <button className="wep-btn wep-btn-primary" onClick={() => window.print()}>
                         <Printer className="h-4 w-4" />
                         Print
@@ -141,7 +155,7 @@ export function WorkExperiencePreview({ isOpen, onClose, staffId }: WorkExperien
 
             {/* Pages Container */}
             <div className="wep-pages-container" id="wep-content-to-print">
-                {/* Single continuous page view for web, printed as multiple via CSS */}
+                {/* ── Page 1: Personal Info, Education, AMEL, Employment ── */}
                 <div className="wep-page">
                     <FormHeader />
                     
@@ -240,8 +254,14 @@ export function WorkExperiencePreview({ isOpen, onClose, staffId }: WorkExperien
                             {amelLicenses.length > 0 ? amelLicenses.map((lic, i) => (
                                 <tr key={i}>
                                     <td style={{ textAlign: 'center' }}>{lic.licenseNumber || '-'}</td>
-                                    <td style={{ whiteSpace: 'pre-line' }}>
-                                        {lic.aircraftRatings ? lic.aircraftRatings.split(',').map(r => `${r.trim()}`).join('\n') : '-'}
+                                    <td style={{ padding: 0 }}>
+                                        {aircraftRatingLabels.length > 0
+                                            ? aircraftRatingLabels.map((label, idx) => (
+                                                <div key={idx} style={{ padding: '4px 8px', borderBottom: idx < aircraftRatingLabels.length - 1 ? '1px solid #ccc' : 'none' }}>
+                                                    {label}
+                                                </div>
+                                            ))
+                                            : <div style={{ padding: '4px 8px', textAlign: 'center' }}>-</div>}
                                     </td>
                                     <td style={{ textAlign: 'center' }}>{lic.issuedDate ? formatDate(lic.issuedDate) : '-'}</td>
                                     <td style={{ textAlign: 'center' }}>{lic.expiryDate ? formatDate(lic.expiryDate) : '-'}</td>
@@ -286,8 +306,15 @@ export function WorkExperiencePreview({ isOpen, onClose, staffId }: WorkExperien
                         </tbody>
                     </table>
 
+                    <FormFooter page={1} total={2} />
+                </div>
+
+                {/* ── Page 2: Training Records, Signature ── */}
+                <div className="wep-page">
+                    <FormHeader />
+
                     {/* Previous Training Records */}
-                    <table className="wep-table" style={{ marginTop: '20px' }}>
+                    <table className="wep-table">
                         <thead>
                             <tr>
                                 <th colSpan={4} className="wep-table-header">Previous Training Records</th>
@@ -318,17 +345,17 @@ export function WorkExperiencePreview({ isOpen, onClose, staffId }: WorkExperien
                     <table className="wep-table" style={{ marginTop: '20px' }}>
                         <thead>
                             <tr>
-                                <th colSpan={4} className="wep-table-header-green">Current Training Records</th>
+                                <th colSpan={5} className="wep-table-header-green">Current Training Records</th>
                             </tr>
                             <tr>
-                                <th colSpan={2}>Training Date</th>
-                                <th rowSpan={2} style={{ width: '15%' }}>Valid Until</th>
-                                <th rowSpan={2} style={{ width: '40%' }}>Training Course</th>
-                                <th rowSpan={2} style={{ width: '15%' }}>By</th>
+                                <th colSpan={2} className="wep-table-header-green">Training Date</th>
+                                <th rowSpan={2} style={{ width: '15%' }} className="wep-table-header-green">Valid Until</th>
+                                <th rowSpan={2} style={{ width: '40%' }} className="wep-table-header-green">Training Course</th>
+                                <th rowSpan={2} style={{ width: '15%' }} className="wep-table-header-green">By</th>
                             </tr>
                             <tr>
-                                <th style={{ width: '15%' }}>From</th>
-                                <th style={{ width: '15%' }}>To</th>
+                                <th style={{ width: '15%' }} className="wep-table-header-green">From</th>
+                                <th style={{ width: '15%' }} className="wep-table-header-green">To</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -369,7 +396,8 @@ export function WorkExperiencePreview({ isOpen, onClose, staffId }: WorkExperien
                         </div>
                     </div>
 
-                    <FormFooter page={1} total={1} />
+                    <div style={{ marginTop: '40px' }} />
+                    <FormFooter page={2} total={2} />
                 </div>
             </div>
         </div>

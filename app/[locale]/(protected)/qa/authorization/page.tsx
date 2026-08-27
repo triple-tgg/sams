@@ -19,7 +19,7 @@ type TabKey = 'dashboard' | 'monitoring' | 'sams' | 'customer' | 'authority'
 const TABS: { key: TabKey; label: string; icon: ReactNode }[] = [
     { key: 'dashboard',   label: 'Dashboard',       icon: <BarChart3 className="w-3.5 h-3.5" /> },
     { key: 'monitoring',  label: 'Monitoring CRS',  icon: <Shield className="w-3.5 h-3.5" /> },
-    { key: 'sams',        label: 'SAMs Auth',       icon: <Building2 className="w-3.5 h-3.5" /> },
+    // { key: 'sams',        label: 'SAMs Auth',       icon: <Building2 className="w-3.5 h-3.5" /> },  // Hidden — not active yet
     { key: 'customer',    label: 'Customer',        icon: <Plane className="w-3.5 h-3.5" /> },
     { key: 'authority',   label: 'Authority',       icon: <Globe className="w-3.5 h-3.5" /> },
     // { key: 'mech',        label: 'Mech',            icon: <Wrench className="w-3.5 h-3.5" /> },
@@ -72,7 +72,7 @@ export default function AuthorizationPage() {
                     <div>
                         {activeTab === 'dashboard' && <OverviewTab onNavigate={setActiveTab} />}
                         {activeTab === 'monitoring' && <MonitoringCrsTab />}
-                        {activeTab === 'sams' && <SamsAuthTab />}
+                        {/* {activeTab === 'sams' && <SamsAuthTab />} */}
                         {activeTab === 'customer' && <CustomerAuthTab />}
                         {activeTab === 'authority' && <AuthorityAuthTab />}
                         {/* {activeTab === 'mech' && <MechAuthTab />} */}

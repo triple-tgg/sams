@@ -25,7 +25,7 @@
 }
 
 .csp-toolbar-title {
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 600;
 }
 
@@ -42,7 +42,7 @@
     padding: 8px 16px;
     border: none;
     border-radius: 6px;
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.15s;
@@ -102,7 +102,7 @@
     flex-direction: column;
     align-items: center;
     gap: 12px;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 600;
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
 }
@@ -113,7 +113,7 @@
 
 .csp-preview-status small {
     color: #64748b;
-    font-size: 12px;
+    font-size: 10px;
     font-weight: 400;
     text-align: center;
 }
@@ -128,7 +128,7 @@
     position: relative;
     box-sizing: border-box;
     font-family: Arial, Helvetica, sans-serif;
-    font-size: 14px;
+    font-size: 12px;
     color: #000;
     display: flex;
     flex-direction: column;
@@ -153,13 +153,13 @@
 }
 
 .csp-title {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: bold;
     margin: 0;
 }
 
 .csp-employee-id {
-    font-size: 14px;
+    font-size: 12px;
     text-align: right;
     margin-bottom: 8px;
     margin-top: 15px;
@@ -171,7 +171,7 @@
 
 /* Section Title */
 .csp-section-title {
-    font-size: 14px;
+    font-size: 12px;
     font-weight: bold;
     margin-top: 25px;
     margin-bottom: 10px;
@@ -186,8 +186,8 @@
 
 .csp-table td, .csp-table th {
     border: 1px solid #000;
-    padding: 8px 12px;
-    font-size: 14px;
+    padding: 6px 6px;
+    font-size: 12px;
 }
 
 .csp-table th {
@@ -222,7 +222,7 @@
 
 .csp-notes li {
     margin-bottom: 8px;
-    line-height: 1.5;
+    line-height: 1.2;
 }
 
 .csp-divider {
@@ -274,12 +274,12 @@
 /* Footer */
 .csp-footer {
     position: absolute;
-    bottom: 20mm;
+    bottom: 10mm;
     left: 18mm;
     right: 18mm;
     display: flex;
     justify-content: space-between;
-    font-size: 10px;
+    font-size: 8px;
 }
 
 /* Print CSS */

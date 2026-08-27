@@ -316,8 +316,8 @@ export default function StaffProfilePage() {
                                 onUpload={handleProfileImageUpload}
                             />
                             <div className="flex-1 min-w-0">
-                                <div className="text-xl font-bold text-slate-800 mb-0.5">{staff.name}</div>
-                                <div className="text-sm text-slate-500 mb-2.5">{staff.nameEn}</div>
+                                <div className="text-xl font-bold text-slate-800 mb-0.5">{staff.nameEn}</div>
+                                <div className="text-sm text-slate-500 mb-2.5">{staff.name}</div>
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-lg whitespace-nowrap bg-blue-50 text-blue-600 border border-blue-200">
                                         {staff.position}

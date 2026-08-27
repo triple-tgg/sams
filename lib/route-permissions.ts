@@ -68,6 +68,7 @@ export const ROUTE_PERMISSION_MAP: RoutePermission[] = [
     { path: "/master-data/aircraft-type",               menuCodes: ["MASTER_DATA_AIRCRAFT_TYPE"] },
     { path: "/master-data/aircraft-group",              menuCodes: ["MASTER_DATA_AIRCRAFT_GROUP"] },
     { path: "/master-data/aircraft-engine",             menuCodes: ["MASTER_DATA_AIRCRAFT_ENGINE"] },
+    { path: "/master-data/customer-airline/authority",  menuCodes: ["MASTER_DATA_AUTHORITY"] },
     { path: "/master-data/customer-airline",            menuCodes: ["MASTER_DATA_CUSTOMER_AIRLINE"] },
     { path: "/master-data/station",                     menuCodes: ["MASTER_DATA_STATION"] },
     { path: "/master-data/user-login",                  menuCodes: ["MASTER_DATA_USER_LOGIN"] },

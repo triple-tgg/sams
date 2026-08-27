@@ -36,6 +36,17 @@ export const getEmailLogDatalist = async (data: EmailLogRequest): Promise<EmailL
   return res.data?.responseData ?? [];
 };
 
+export interface EmailLogDepartmentRequest {
+  trainingScheduleId?: number;
+  staffId?: number;
+}
+
+/** POST fetch email log department list */
+export const getEmailLogDepartmentList = async (data: EmailLogDepartmentRequest): Promise<EmailLogItem[]> => {
+  const res = await axiosConfig.post("/training/email-log-department-list", data);
+  return res.data?.responseData ?? [];
+};
+
 // ──────────────────────────────────────────────────────────────
 // Preview Email
 // ──────────────────────────────────────────────────────────────
@@ -97,4 +108,41 @@ export interface SendEmailDepartmentResponse {
 export const sendEmailDepartment = async (data: SendEmailDepartmentRequest): Promise<SendEmailDepartmentResponse> => {
   const res = await axiosConfig.post("/training/send-email-department-list", data);
   return res.data;
+};
+
+// ──────────────────────────────────────────────────────────────
+// Instructor Email Report
+// ──────────────────────────────────────────────────────────────
+
+export interface InstructorEmailRequest {
+  scheduleId: number;
+}
+
+/** POST preview instructor email HTML */
+export const previewEmailInstructor = async (data: InstructorEmailRequest): Promise<string> => {
+  const res = await axiosConfig.post("/training/preview-email-instructor", data);
+  return res.data?.responseData ?? "";
+};
+
+export interface SendEmailInstructorRequest {
+  scheduleId: number;
+  subject: string;
+  emailFrom: string | null;
+  emailCc: string | null;
+}
+
+/** POST send instructor email */
+export const sendEmailInstructor = async (data: SendEmailInstructorRequest): Promise<SendEmailDepartmentResponse> => {
+  const res = await axiosConfig.post("/training/send-email-instructor", data);
+  return res.data;
+};
+
+export interface EmailLogInstructorRequest {
+  trainingScheduleId?: number;
+}
+
+/** POST fetch email log instructor list */
+export const getEmailLogInstructorList = async (data: EmailLogInstructorRequest): Promise<EmailLogItem[]> => {
+  const res = await axiosConfig.post("/training/email-log-instructor-list", data);
+  return res.data?.responseData ?? [];
 };

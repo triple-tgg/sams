@@ -332,7 +332,7 @@ export function getMenuList(pathname: string, t: any): Group[] {
             },
             {
               href: "/master-data/customer-airline",
-              label: t("Customer Airline"),
+              label: t("airlineAndAuthority"),
               active: pathname.includes("/master-data/customer-airline"),
               icon: "heroicons-outline:identification",
               children: [
@@ -340,7 +340,14 @@ export function getMenuList(pathname: string, t: any): Group[] {
                   permCode: "MASTER_DATA_CUSTOMER_AIRLINE",
                   href: "/master-data/customer-airline",
                   label: t("customer-airline"),
-                  active: pathname.includes("/master-data/customer-airline"),
+                  active: pathname.includes("/master-data/customer-airline") && !pathname.includes("/authority"),
+                  children: [],
+                },
+                {
+                  permCode: "MASTER_DATA_AUTHORITY",
+                  href: "/master-data/customer-airline/authority",
+                  label: t("authorityMaster"),
+                  active: pathname.includes("/master-data/customer-airline/authority"),
                   children: [],
                 },
               ]

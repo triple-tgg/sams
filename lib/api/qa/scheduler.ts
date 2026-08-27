@@ -82,6 +82,7 @@ export interface SchedulerSessionDetail {
   maxParticipants: number;
   enrolledCount: number;
   note: string | null;
+  totalHours: number | null;
   isdelete: boolean;
   createddate: string;
   createdby: string | null;

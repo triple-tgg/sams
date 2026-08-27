@@ -175,6 +175,8 @@
     "Staff": "Staff",
     "System Function": "System Function",
     "Customer Airline": "Customer Airline",
+    "airlineAndAuthority": "Airline & Authority",
+    "authorityMaster": "Authority",
     "banking": "Banking",
     "crm": "Crm",
     "ecommerce": "Ecommerce",

@@ -111,12 +111,7 @@ const StaffPickerDialog = ({
                     </span>
                   </TableCell>
                   <TableCell>
-                    <div>
-                      <p className="text-sm font-medium">{staff.fullNameEn}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {staff.fullNameTh}
-                      </p>
-                    </div>
+                    <p className="text-sm font-medium">{staff.fullNameEn}</p>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {staff.position}

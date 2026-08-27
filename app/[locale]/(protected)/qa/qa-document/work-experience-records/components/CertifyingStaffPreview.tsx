@@ -7,6 +7,7 @@ import jsPDF from 'jspdf'
 import { toast } from 'sonner'
 import { useStaffPrintPreview } from '@/lib/api/hooks/useQAStaffManagement'
 import { formatDate } from '@/app/[locale]/(protected)/hr/staff/[id]/utils'
+import { groupCombinationDisplayLabels } from '@/lib/utils/aircraftEngineDisplay'
 import './certifying-staff-preview.css'
 
 /* eslint-disable @next/next/no-img-element */
@@ -71,6 +72,21 @@ export function CertifyingStaffPreview({ isOpen, onClose, staffId }: CertifyingS
     // Use any as type because the API typing in QAStaffItem for these arrays is unknown[] currently
     const amelLicenses = (api?.staffAmelLicenseList as any[] || []).filter(l => !l.isdelete)
     const workExperiences = (api?.workExperiences as any[] || []).filter(w => !w.isdelete)
+
+    // Build aircraft ratings from staffAircraftLicenseList using group display labels
+    const aircraftLicenseList = (api?.staffAircraftLicenseList as any[] || []).filter(l => !l.isdelete)
+    const aircraftCombinations = aircraftLicenseList
+        .filter((l: any) => l.aircraftEngineObj)
+        .map((l: any) => ({
+            id: l.aircraftEngineId || l.aircraftEngineObj.id,
+            familyCode: l.aircraftEngineObj.familyCode || '',
+            series: l.aircraftEngineObj.series || '',
+            engineCode: l.aircraftEngineObj.engineCode || '',
+        }))
+    const aircraftRatingLabels = groupCombinationDisplayLabels(
+        aircraftCombinations.map((c: any) => c.id),
+        aircraftCombinations
+    )
 
     // Derived values
     const expStartDate = workExperiences.length > 0 && workExperiences[workExperiences.length - 1].periodFrom 
@@ -158,14 +174,6 @@ export function CertifyingStaffPreview({ isOpen, onClose, staffId }: CertifyingS
                 <div className="csp-toolbar-actions">
                     <button
                         className="csp-btn csp-btn-primary"
-                        onClick={handleDownloadPdf}
-                        disabled={!isPreviewReady || isBusy}
-                    >
-                        {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                        {isDownloading ? 'Generating PDF...' : 'Download PDF'}
-                    </button>
-                    <button
-                        className="csp-btn csp-btn-primary"
                         onClick={handlePrint}
                         disabled={!isPreviewReady || isBusy}
                     >
@@ -228,8 +236,14 @@ export function CertifyingStaffPreview({ isOpen, onClose, staffId }: CertifyingS
                                     <td style={{ textAlign: 'center' }}>{lic.licenseNumber || '-'}</td>
                                     <td style={{ textAlign: 'center' }}>{lic.issuedDate ? formatDate(lic.issuedDate) : '-'}</td>
                                     <td style={{ textAlign: 'center' }}>{lic.expiryDate ? formatDate(lic.expiryDate) : '-'}</td>
-                                    <td style={{ whiteSpace: 'pre-line' }}>
-                                        {lic.aircraftRatings ? lic.aircraftRatings.split(',').map((r: string) => `-${r.trim()}`).join('\n') : '-'}
+                                    <td style={{ padding: 0 }}>
+                                        {aircraftRatingLabels.length > 0
+                                            ? aircraftRatingLabels.map((label, idx) => (
+                                                <div key={idx} style={{ padding: '4px 8px', borderBottom: idx < aircraftRatingLabels.length - 1 ? '1px solid #ccc' : 'none' }}>
+                                                    {label}
+                                                </div>
+                                            ))
+                                            : <div style={{ padding: '4px 8px', textAlign: 'center' }}>-</div>}
                                     </td>
                                 </tr>
                             )) : (

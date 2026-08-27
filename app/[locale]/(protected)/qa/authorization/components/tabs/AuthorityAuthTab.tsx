@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState, useRef, useCallback, useEffect } from 'react'
-import { CalendarDays, FileText, Filter, Globe2, Loader2, Plane, Search, User, X } from 'lucide-react'
+import { CalendarDays, Edit2, FileText, Filter, Globe2, Loader2, Plane, Search, User, X } from 'lucide-react'
 import { TransferBox } from '@/components/ui/transfer-box'
 import {
   Select,
@@ -44,6 +44,8 @@ import type {
   AuthorityLicenseCell,
   AuthorityStaffRow,
 } from "@/lib/api/qa/authorization/authority-auth"
+import { useSamsAuthList, useSamsAuthById, useUpsertSamsAuth } from '@/lib/api/qa/sams-auth.hooks'
+import type { SamsAuthItem } from '@/lib/api/qa/sams-auth'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import {
@@ -220,6 +222,100 @@ function MatrixView() {
   }), [])
   const { data: authData, isLoading } = useAuthorityAuthList(listRequest)
   const { data: authorityRecordsData, isLoading: authorityRecordsLoading } = useAuthorityAll()
+
+  // Fetch SAMS auth data for AUTHORIZATION columns
+  const samsAuthRequest = useMemo(() => ({
+    searchKeyword: '',
+    status: '',
+    page: 1,
+    perPage: 9999,
+  }), [])
+  const { data: samsAuthData } = useSamsAuthList(samsAuthRequest)
+  const samsAuthByStaffId = useMemo(() => {
+    const map = new Map<number, SamsAuthItem>()
+    if (samsAuthData?.responseData) {
+      samsAuthData.responseData.forEach(item => {
+        map.set(item.staffId, item)
+      })
+    }
+    return map
+  }, [samsAuthData])
+
+  // ── SAMS Auth Edit state ──
+  const [samsEditTarget, setSamsEditTarget] = useState<SamsAuthItem | null>(null)
+  const samsEditAuthId = samsEditTarget?.authorizationSamsId ?? null
+  const { data: samsDetailResp, isPending: isSamsDetailPending, isFetching: isSamsDetailFetching } = useSamsAuthById(samsEditAuthId)
+  const samsDetailData = samsDetailResp?.responseData ?? null
+  const samsAuthorizationDetail = samsDetailData?.authorizationSamses ?? null
+  const isSamsDetailLoading = samsEditAuthId !== null && (isSamsDetailPending || isSamsDetailFetching)
+  const upsertSamsMutation = useUpsertSamsAuth()
+
+  const [samsEditAuthNo, setSamsEditAuthNo] = useState('')
+  const [samsEditInitDate, setSamsEditInitDate] = useState('')
+  const [samsEditCurrDate, setSamsEditCurrDate] = useState('')
+  const [samsEditExpDate, setSamsEditExpDate] = useState('')
+
+  const toUtcIsoDate = (date: string): string | null =>
+    date ? new Date(`${date}T00:00:00.000Z`).toISOString() : null
+
+  useEffect(() => {
+    if (samsDetailData && samsAuthorizationDetail && samsEditAuthId !== null) {
+      setSamsEditAuthNo(samsAuthorizationDetail.authNo || '')
+      setSamsEditInitDate(samsAuthorizationDetail.initialIssueDate?.split('T')[0] || '')
+      setSamsEditCurrDate(samsAuthorizationDetail.currentIssueDate?.split('T')[0] || '')
+      setSamsEditExpDate(samsAuthorizationDetail.expiryDate?.split('T')[0] || '')
+    } else if (samsEditTarget && samsEditAuthId === null) {
+      setSamsEditAuthNo(samsEditTarget.authorizationNo || '')
+      setSamsEditInitDate(samsEditTarget.initialIssueDate?.split('T')[0] || '')
+      setSamsEditCurrDate(samsEditTarget.currentIssueDate?.split('T')[0] || '')
+      setSamsEditExpDate(samsEditTarget.samsExpiryDate?.split('T')[0] || '')
+    }
+  }, [samsDetailData, samsAuthorizationDetail, samsEditTarget, samsEditAuthId])
+
+  const handleSamsEditClick = (staffId: number) => {
+    const samsItem = samsAuthByStaffId.get(staffId)
+    if (samsItem) setSamsEditTarget(samsItem)
+  }
+
+  const handleSamsEditClose = () => {
+    setSamsEditTarget(null)
+    setSamsEditAuthNo('')
+    setSamsEditInitDate('')
+    setSamsEditCurrDate('')
+    setSamsEditExpDate('')
+  }
+
+  const handleSamsEditSave = async () => {
+    if (!samsEditTarget) return
+    try {
+      const nowUtc = new Date().toISOString()
+      await upsertSamsMutation.mutateAsync({
+        authorizationSamses: {
+          id: samsEditTarget.authorizationSamsId ?? 0,
+          staffId: samsEditTarget.staffId,
+          authNo: samsEditAuthNo,
+          initialIssueDate: toUtcIsoDate(samsEditInitDate),
+          currentIssueDate: toUtcIsoDate(samsEditCurrDate),
+          expiryDate: toUtcIsoDate(samsEditExpDate),
+          staffAmelLicenseId: samsAuthorizationDetail?.staffAmelLicenseId ?? 0,
+          isCrs: samsAuthorizationDetail?.isCrs ?? true,
+          isdelete: false,
+          createddate: samsAuthorizationDetail?.createddate ?? nowUtc,
+          createdby: samsAuthorizationDetail?.createdby ?? '',
+          updateddate: nowUtc,
+          updatedby: samsAuthorizationDetail?.updatedby ?? '',
+        },
+        aircraftEngineIds: samsEditTarget.staffAircraftLicenseList
+          ?.filter(a => !a.isdelete)
+          .map(a => a.aircraftEngineId || (a as any).aircraftTypeId)
+          .filter((id): id is number => typeof id === 'number' && id > 0) || [],
+      })
+      toast.success('Authorization updated successfully')
+      handleSamsEditClose()
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Failed to update authorization')
+    }
+  }
   const authorityRecordByCell = useMemo(
     () => buildAuthorityAuthRecordMap(authorityRecordsData?.responseData || []),
     [authorityRecordsData],
@@ -600,9 +696,45 @@ function MatrixView() {
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-xs" style={{ minWidth: '100%' }}>
             <thead>
-              <tr className="bg-slate-50 border-b-2 border-border">
-                <th className="px-3 py-2 text-left text-muted-foreground font-bold whitespace-nowrap sticky left-0 bg-slate-50 z-10 border-r border-border" style={{ minWidth: 200 }}>
+              {/* ── Row 1: Group Headers ── */}
+              <tr className="bg-slate-50 border-b border-border">
+                <th
+                  className="px-3 py-2 text-left text-muted-foreground font-bold whitespace-nowrap sticky left-0 bg-slate-50 z-10 border-r border-border"
+                  style={{ minWidth: 200 }}
+                  rowSpan={2}
+                >
                   Employee Name
+                </th>
+                <th
+                  colSpan={4}
+                  className="px-2 py-1.5 text-center font-bold text-[10px] uppercase tracking-wider text-white border-l border-r border-border"
+                  style={{ background: '#2c5282' }}
+                >
+                  Authorization
+                </th>
+                {visibleAuthoritys.length > 0 && (
+                  <th
+                    colSpan={visibleAuthoritys.length}
+                    className="px-2 py-1.5 text-center font-bold text-[10px] uppercase tracking-wider text-white border-l border-border"
+                    style={{ background: '#2c5282' }}
+                  >
+                    Authority
+                  </th>
+                )}
+              </tr>
+              {/* ── Row 2: Sub-Headers ── */}
+              <tr className="bg-slate-50 border-b-2 border-border">
+                <th className="px-2 py-1.5 text-center text-[9px] font-bold text-muted-foreground border-l border-border whitespace-nowrap" style={{ minWidth: 100 }}>
+                  Authorization No.
+                </th>
+                <th className="px-2 py-1.5 text-center text-[9px] font-bold text-muted-foreground border-l border-border whitespace-nowrap" style={{ minWidth: 90 }}>
+                  Date<br/>of Initial Issue
+                </th>
+                <th className="px-2 py-1.5 text-center text-[9px] font-bold text-muted-foreground border-l border-border whitespace-nowrap" style={{ minWidth: 90 }}>
+                  Date<br/>of Current Issue
+                </th>
+                <th className="px-2 py-1.5 text-center text-[9px] font-bold text-muted-foreground border-l border-r border-border whitespace-nowrap" style={{ minWidth: 90 }}>
+                  Date<br/>of Expire
                 </th>
               <TooltipProvider>
                 {visibleAuthoritys.map((authority, idx) => {
@@ -629,6 +761,8 @@ function MatrixView() {
             </thead>
             <tbody>
               {filteredStaff.map((s, ri) => {
+                // Resolve SAMS auth data for AUTHORIZATION columns
+                const samsAuth = samsAuthByStaffId.get(s.staffId)
                 return (
                   <tr
                     key={s.staffId || `staff-${ri}`}
@@ -646,6 +780,43 @@ function MatrixView() {
                           <p className="text-[10px] font-bold text-slate-400">{s.employeeId}</p>
                         </div>
                       </div>
+                    </td>
+                    {/* AUTHORIZATION — Authorization No. + Edit Button */}
+                    <td className="px-2 py-1.5 text-center text-[10px] font-semibold text-slate-700 border-l border-border/50 whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-1">
+                        <span>{samsAuth?.authorizationNo || '—'}</span>
+                        {samsAuth && (
+                          <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
+                            <button
+                              onClick={() => handleSamsEditClick(s.staffId)}
+                              className="inline-flex items-center justify-center w-5 h-5 rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                              title="Edit Authorization"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </button>
+                          </PermissionActionGuard>
+                        )}
+                      </div>
+                    </td>
+                    {/* AUTHORIZATION — Date of Initial Issue */}
+                    <td className="px-2 py-1.5 text-center text-[10px] text-muted-foreground border-l border-border/50 whitespace-nowrap">
+                      {formatShortDate(samsAuth?.initialIssueDate)}
+                    </td>
+                    {/* AUTHORIZATION — Date of Current Issue */}
+                    <td className="px-2 py-1.5 text-center text-[10px] text-muted-foreground border-l border-border/50 whitespace-nowrap">
+                      {formatShortDate(samsAuth?.currentIssueDate)}
+                    </td>
+                    {/* AUTHORIZATION — Date of Expire */}
+                    <td className="px-2 py-1.5 text-center text-[10px] font-semibold border-l border-r border-border/50 whitespace-nowrap" style={{
+                      color: (() => {
+                        const days = getDaysRemaining(samsAuth?.samsExpiryDate)
+                        if (days === null) return undefined
+                        if (days < 0) return '#dc2626'
+                        if (days <= 90) return '#ea580c'
+                        return '#059669'
+                      })()
+                    }}>
+                      {formatShortDate(samsAuth?.samsExpiryDate)}
                     </td>
                     {/* Customer Auth Cells — dot style */}
                     {visibleAuthoritys.map((authority, idx) => {
@@ -1023,6 +1194,99 @@ function MatrixView() {
               </DialogFooter>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* SAMS Auth Edit Dialog */}
+      <Dialog open={!!samsEditTarget} onOpenChange={(open) => !open && handleSamsEditClose()}>
+        <DialogContent
+          size="sm"
+          className="max-w-[420px] gap-0 overflow-hidden border-border/60 p-0 shadow-2xl [&>button]:right-3 [&>button]:top-3 [&>button]:rounded-md [&>button]:border [&>button]:border-slate-200 [&>button]:bg-white [&>button]:p-1.5"
+        >
+          {isSamsDetailLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <DialogTitle className="sr-only">Loading</DialogTitle>
+              <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+            </div>
+          ) : samsEditTarget ? (
+            <>
+              <DialogTitle className="sr-only">Edit Authorization</DialogTitle>
+              <div className="px-5 pt-5 pb-4 space-y-4">
+                {/* Staff Info */}
+                <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                    <User className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-800">{samsEditTarget.employeeName}</p>
+                    <p className="text-[10px] font-semibold text-slate-400">{samsEditTarget.employeeId}</p>
+                  </div>
+                </div>
+
+                {/* Authorization No. */}
+                <div>
+                  <span className="block text-xs font-semibold text-slate-600 mb-1.5">Authorization No.</span>
+                  <input
+                    type="text"
+                    value={samsEditAuthNo}
+                    onChange={e => setSamsEditAuthNo(e.target.value)}
+                    placeholder="Enter authorization number"
+                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-800 outline-none transition-colors placeholder:font-medium placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  />
+                </div>
+
+                {/* Date Fields — 1 row each */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5">
+                    <span className="text-[11px] font-semibold text-slate-500 w-[130px] shrink-0">Date of Initial Issue</span>
+                    <input
+                      type="date"
+                      value={samsEditInitDate}
+                      onChange={e => setSamsEditInitDate(e.target.value)}
+                      disabled={samsEditAuthId !== null}
+                      className={cn(
+                        "w-full bg-transparent text-xs font-bold outline-none",
+                        samsEditAuthId !== null ? "cursor-not-allowed text-slate-400" : "text-slate-800",
+                      )}
+                    />
+                  </label>
+                  <label className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5">
+                    <span className="text-[11px] font-semibold text-slate-500 w-[130px] shrink-0">Date of Current Issue</span>
+                    <input
+                      type="date"
+                      value={samsEditCurrDate}
+                      onChange={e => setSamsEditCurrDate(e.target.value)}
+                      className="w-full bg-transparent text-xs font-bold text-slate-800 outline-none"
+                    />
+                  </label>
+                  <label className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5">
+                    <span className="text-[11px] font-semibold text-slate-500 w-[130px] shrink-0">Date of Expire</span>
+                    <input
+                      type="date"
+                      value={samsEditExpDate}
+                      onChange={e => setSamsEditExpDate(e.target.value)}
+                      className="w-full bg-transparent text-xs font-bold text-slate-800 outline-none"
+                    />
+                  </label>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
+                <Button variant="outline" size="sm" onClick={handleSamsEditClose} className="text-xs font-bold">
+                  Cancel
+                </Button>
+                <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
+                  <Button
+                    size="sm"
+                    onClick={handleSamsEditSave}
+                    disabled={upsertSamsMutation.isPending}
+                    className="text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    {upsertSamsMutation.isPending ? 'Saving...' : 'Save'}
+                  </Button>
+                </PermissionActionGuard>
+              </div>
+            </>
+          ) : null}
         </DialogContent>
       </Dialog>
     </div>

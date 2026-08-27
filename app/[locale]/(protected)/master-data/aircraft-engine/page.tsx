@@ -91,12 +91,12 @@ export default function AircraftEnginePage() {
               >
                 Aircraft-Engine combinations <TabCount n={combinations.length} />
               </TabsTrigger>
-              <TabsTrigger
+              {/* <TabsTrigger
                 value="group"
                 className="flex items-center gap-2 px-4 py-2.5 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent text-muted-foreground"
               >
                 Authorization type groups <TabCount n={authGroups.length} />
-              </TabsTrigger>
+              </TabsTrigger> */}
               <TabsTrigger
                 value="sys"
                 className="flex items-center gap-2 px-4 py-2.5 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent text-muted-foreground"
@@ -112,7 +112,7 @@ export default function AircraftEnginePage() {
             </TabsList>
 
             <TabsContent value="combo" className="mt-5"><CombinationsTab /></TabsContent>
-            <TabsContent value="group" className="mt-5"><AuthGroupsTab /></TabsContent>
+            {/* <TabsContent value="group" className="mt-5"><AuthGroupsTab /></TabsContent> */}
             <TabsContent value="sys" className="mt-5"><SystemConfigTab /></TabsContent>
             <TabsContent value="engine" className="mt-5"><EngineMasterTab /></TabsContent>
           </Tabs>

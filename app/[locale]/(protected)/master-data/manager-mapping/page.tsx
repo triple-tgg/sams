@@ -40,7 +40,7 @@ import type {
 import type { DepartmentItem } from "@/lib/api/master/department/department.interface";
 import { useStaffDepartments, useStaffDepartmentChiefs, useUpsertStaffDepartmentChief } from "@/lib/api/master/organization.hooks";
 import type { StaffDepartment, StaffDepartmentChief } from "@/lib/api/master/organization";
-import { useStaffList } from "@/lib/api/hooks/useStaffOperations";
+import { useQAStaffList } from "@/lib/api/hooks/useQAStaffManagement";
 import { useStaffById } from "@/lib/api/hooks/useQAStaffManagement";
 
 import StaffPickerDialog from "./components/StaffPickerDialog";
@@ -67,7 +67,7 @@ const ManagerMappingPage = () => {
   const mappings: ManagerMappingItem[] = useMemo(() => {
     const raw: StaffDepartmentChief[] = chiefsResp?.responseData ?? [];
     return raw
-      .filter((c) => c.staffDepartmentId !== null)
+      .filter((c) => c.staffDepartmentId !== null && !c.isdelete)
       .map((c) => ({
         chiefId: c.id,
         departmentId: String(c.staffDepartmentId),
@@ -76,20 +76,28 @@ const ManagerMappingPage = () => {
   }, [chiefsResp]);
 
   // Data — staff list for picker dialog
-  const { data: staffResp } = useStaffList({ page: 1, perPage: 9999 });
+  const { data: staffResp } = useQAStaffList({
+    name: "",
+    employeeId: "",
+    positionId: 0,
+    departmentId: 0,
+    staffstypeId: 0,
+    page: 1,
+    perPage: 9999,
+  });
   const staffList: StaffOption[] = useMemo(() => {
     const raw = staffResp?.responseData ?? [];
     return raw.map((s) => ({
       id: s.id,
-      employeeId: s.code,
+      employeeId: s.employeeId ?? s.code,
       fullNameTh: s.name,
-      fullNameEn: s.name,
-      nationality: "",
-      phone: "",
+      fullNameEn: s.fullNameEn ?? s.name,
+      nationality: s.nationality ?? "",
+      phone: s.phone ?? "",
       email: s.email ?? "",
-      department: "",
-      position: s.jobTitle ?? "",
-      startDate: s.createddate,
+      department: s.departmentObj?.name ?? "",
+      position: s.jobTitle ?? s.positionObj?.name ?? "",
+      startDate: s.startDate ?? s.createddate,
     }));
   }, [staffResp]);
 
@@ -112,7 +120,7 @@ const ManagerMappingPage = () => {
   );
 
   // Fetch staff detail by ID when a mapping is found
-  const { data: staffDetailResp, isLoading: isLoadingStaffDetail } = useStaffById(
+  const { data: staffDetailResp, isLoading: isLoadingStaffDetail, isError: isStaffError } = useStaffById(
     currentMapping?.staffId ?? 0,
     !!currentMapping
   );
@@ -133,7 +141,7 @@ const ManagerMappingPage = () => {
       position: s.jobTitle ?? s.positionObj?.name ?? "",
       startDate: s.startDate ?? s.createddate,
     };
-  }, [staffDetailResp]);
+  }, [staffDetailResp, currentMapping]);
 
   // Selected department object
   const selectedDept = useMemo(
@@ -176,12 +184,21 @@ const ManagerMappingPage = () => {
     [selectedDeptId, upsertChiefMutation]
   );
 
-  const handleRemove = useCallback(() => {
-    if (!selectedDeptId) return;
-    // TODO: connect remove chief API
-    toast.info("Remove manager — API not connected yet");
-    setShowDeleteConfirm(false);
-  }, [selectedDeptId]);
+  const handleRemove = useCallback(async () => {
+    if (!selectedDeptId || !currentMapping) return;
+    try {
+      await upsertChiefMutation.mutateAsync({
+        id: currentMapping.chiefId,
+        staffId: currentMapping.staffId,
+        staffDepartmentId: Number(selectedDeptId),
+        isdelete: true,
+      });
+      toast.success("Manager removed successfully");
+      setShowDeleteConfirm(false);
+    } catch {
+      toast.error("Failed to remove manager");
+    }
+  }, [selectedDeptId, currentMapping, upsertChiefMutation]);
 
   // Check if dept has mapping (for indicator dot)
   const hasMappingFor = useCallback(
@@ -306,6 +323,33 @@ const ManagerMappingPage = () => {
                 /* Loading staff detail */
                 <div className="flex items-center justify-center h-full py-16">
                   <Loader2 className="w-6 h-6 text-primary animate-spin" />
+                </div>
+              ) : currentMapping && (isStaffError || (!isLoadingStaffDetail && !currentStaff)) ? (
+                /* Mapping exists but staff detail not found */
+                <div className="flex flex-col items-center justify-center h-full py-16 text-center">
+                  <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center mb-4">
+                    <AlertTriangle className="h-7 w-7 text-red-500" />
+                  </div>
+                  <p className="text-sm font-medium mb-1">
+                    Staff data not found
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-4 max-w-[280px]">
+                    Department{" "}
+                    <span className="font-medium text-foreground">
+                      {selectedDept?.name}
+                    </span>{" "}
+                    has a manager assigned (Staff ID: {currentMapping.staffId}) but the staff record could not be loaded.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" color="primary" onClick={() => setShowPicker(true)}>
+                      <Pencil className="h-4 w-4 mr-1.5" />
+                      Change
+                    </Button>
+                    <Button variant="outline" color="destructive" onClick={() => setShowDeleteConfirm(true)}>
+                      <Trash2 className="h-4 w-4 mr-1.5" />
+                      Remove
+                    </Button>
+                  </div>
                 </div>
               ) : !currentStaff ? (
                 /* Department selected but no mapping */

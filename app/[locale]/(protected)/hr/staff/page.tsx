@@ -16,12 +16,13 @@ import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import {
-    ChevronLeft, ChevronRight, Plus, MoreHorizontal, Eye, Search, Users, RefreshCw, AlertCircle, User,
+    ChevronLeft, ChevronRight, Plus, MoreHorizontal, Eye, Search, Users, RefreshCw, AlertCircle, User, FileUp,
 } from 'lucide-react'
 import { useQAStaffList } from '@/lib/api/hooks/useQAStaffManagement'
 import type { QAStaffItem } from '@/lib/api/qa/staff-management'
 import { useStaffDepartments, useStaffDepartmentPositions } from '@/lib/api/master/organization.hooks'
 import { PermissionActionGuard } from '@/components/partials/auth/PermissionActionGuard'
+import { StaffExcelImportModal } from './components/StaffExcelImportModal'
 import './hr-staff.css'
 
 const staffTypeColors: Record<string, string> = {
@@ -41,6 +42,7 @@ export default function HRStaffListPage() {
 
     const [filterPosition, setFilterPosition] = useState<string>("0")
     const [filterDepartment, setFilterDepartment] = useState<string>("0")
+    const [showImportModal, setShowImportModal] = useState(false)
     const [filterStatus, setFilterStatus] = useState<string>("all")
 
     const { data: departmentData, isLoading: isLoadingDepartments } = useStaffDepartments()
@@ -116,7 +118,15 @@ export default function HRStaffListPage() {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-green-300 text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-400 dark:hover:bg-green-900/20"
+                            onClick={() => setShowImportModal(true)}
+                        >
+                            <FileUp className="h-4 w-4 mr-1.5" />
+                            Import Excel
+                        </Button>
                         <PermissionActionGuard menuCode="HR_STAFF" action="canCreate">
                             <Button
                                 size="sm"
@@ -281,7 +291,7 @@ export default function HRStaffListPage() {
                                                         </div>
                                                         <div>
                                                             <div className="font-medium text-sm">
-                                                                {staff.title ? `${staff.title} ` : ''}{staff.name}
+                                                                {staff.fullNameEn || (`${staff.title ? `${staff.title} ` : ''}${staff.name}`)}
                                                             </div>
                                                             <div className="text-xs text-muted-foreground">{staff.code}</div>
                                                         </div>
@@ -406,6 +416,13 @@ export default function HRStaffListPage() {
                     )}
                 </CardContent>
             </Card>
+
+            {/* Staff Excel Import Modal */}
+            <StaffExcelImportModal
+                isOpen={showImportModal}
+                onClose={() => setShowImportModal(false)}
+                onImportSuccess={() => refetch()}
+            />
         </div>
     )
 }

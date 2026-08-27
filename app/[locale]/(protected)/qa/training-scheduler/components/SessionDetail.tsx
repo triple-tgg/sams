@@ -47,12 +47,14 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
     const timeStart = detail?.startDate ? detail.startDate.split('T')[1]?.substring(0, 5) : s.timeStart
     const timeEnd = detail?.endDate ? detail.endDate.split('T')[1]?.substring(0, 5) : s.timeEnd
 
+    // Use totalHours from API detail response, fallback to session prop
+    const computedTotalHours = detail?.totalHours ?? s.totalHours ?? 0
+
     const INFO_ROWS = [
-        { key: 'start', icon: Calendar, label: 'Start', val: formatDate(dateStart) },
-        { key: 'start-time', icon: Clock, label: 'Time', val: timeStart },
-        { key: 'end', icon: Calendar, label: 'End', val: formatDate(dateEnd) },
-        { key: 'end-time', icon: Clock, label: 'Time', val: timeEnd },
+        { key: 'date', icon: Calendar, label: 'Date', val: `${formatDate(dateStart)} - ${formatDate(dateEnd)}` },
+        { key: 'time', icon: Clock, label: 'Time', val: `${timeStart} - ${timeEnd}` },
         { key: 'category', icon: Tag, label: 'Category', val: detail?.categoryObj?.name },
+        { key: 'total-hours', icon: Clock, label: 'Total Hours', val: computedTotalHours > 0 ? `${computedTotalHours} hrs` : '—' },
         { key: 'instructor', icon: User, label: 'Instructor', val: instructor },
         { key: 'training-type', icon: Tag, label: 'Training Type', val: detail?.courseObj?.courseType },
         { key: 'format', icon: isOnline ? Video : MapPin, label: 'Attendance Type', val: attendanceTypeName, isBadge: true },

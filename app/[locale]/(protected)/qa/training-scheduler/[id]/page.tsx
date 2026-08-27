@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Clock, MapPin, Search, UserPlus, Trash2, Calendar as CalendarIcon, AlertCircle, Users, GraduationCap, Mail, Printer, Lock, MoreVertical, CheckCircle, FileEdit, Unlock, PlayCircle, Edit3, XCircle, Award, File, Video, Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Clock, MapPin, Search, UserPlus, Trash2, Calendar as CalendarIcon, AlertCircle, Users, GraduationCap, Mail, Printer, Lock, MoreVertical, CheckCircle, FileEdit, Unlock, PlayCircle, Edit3, XCircle, Award, File, Video, Loader2, ChevronLeft, ChevronRight, UserRoundCog, Eye, FileText, CheckCircle2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { PrintAttendanceModal } from '../components/PrintAttendanceModal'
 import { EvidenceUploadModal } from '../components/EvidenceUploadModal'
@@ -18,8 +18,9 @@ import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { useStaffForEnrollment, useEnrolledStaffList, useEnrollStaff, useUnenrollStaff, useSendEmailList, useCompleteCertificate } from '@/lib/api/qa/enrollment.hooks'
-import { useInvalidateEmailLogs, usePreviewEmailDepartment, useSendEmailDepartment } from '@/lib/api/qa/email-log.hooks'
+import { useInvalidateEmailLogs, usePreviewEmailDepartment, useSendEmailDepartment, useEmailLogDepartmentList, usePreviewEmailInstructor, useSendEmailInstructor, useEmailLogInstructorList } from '@/lib/api/qa/email-log.hooks'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import type { StaffForEnrollmentItem } from '@/lib/api/qa/enrollment'
 import { toast } from 'sonner'
 
@@ -65,7 +66,7 @@ export default function ScheduleDetailPage() {
     const { data: availableStaffRaw = [], isLoading: isLoadingStaff } = useStaffForEnrollment(sessionId)
     const availableStaff: StaffItem[] = availableStaffRaw.map((s: StaffForEnrollmentItem) => ({
         id: String(s.staffId),
-        name: `${s.title ?? ''} ${s.name ?? ''}`.trim(),
+        name: s.fullNameEn || `${s.title ?? ''} ${s.name ?? ''}`.trim(),
         code: s.code ?? '',
         license: '',
         dept: s.departmentName ?? '',
@@ -137,8 +138,14 @@ export default function ScheduleDetailPage() {
     const [showManagerReport, setShowManagerReport] = useState(false)
     const [managerReportHtml, setManagerReportHtml] = useState('')
     const previewDeptMutation = usePreviewEmailDepartment()
-
     const sendDeptMutation = useSendEmailDepartment()
+    const { data: deptEmailLogs, isLoading: isLoadingDeptEmailLogs } = useEmailLogDepartmentList(sessionId, undefined, showManagerReport)
+
+    const [showInstructorReport, setShowInstructorReport] = useState(false)
+    const [instructorReportHtml, setInstructorReportHtml] = useState('')
+    const previewInstructorMutation = usePreviewEmailInstructor()
+    const sendInstructorMutation = useSendEmailInstructor()
+    const { data: instructorEmailLogs, isLoading: isLoadingInstructorEmailLogs } = useEmailLogInstructorList(sessionId, showInstructorReport)
 
     const handleManagerReport = async () => {
         try {
@@ -173,6 +180,42 @@ export default function ScheduleDetailPage() {
             setShowManagerReport(false)
         } catch {
             toast.error('Failed to send Managers Report email. Please try again.')
+        }
+    }
+
+    const handleInstructorReport = async () => {
+        try {
+            const html = await previewInstructorMutation.mutateAsync(sessionId)
+            if (html) {
+                setInstructorReportHtml(html)
+                setShowInstructorReport(true)
+            } else {
+                toast.error('No report data returned from the server.')
+            }
+        } catch {
+            toast.error('Failed to load Instructor Report. Please try again.')
+        }
+    }
+
+    const handleSendInstructorReport = async () => {
+        try {
+            const res = await sendInstructorMutation.mutateAsync({
+                scheduleId: sessionId,
+                subject: `Instructor Assignment ${session?.courseName ?? 'Training'}`,
+                emailFrom: null,
+                emailCc: null,
+            })
+            const { totalSent, totalFailed } = res.responseData ?? {}
+            if (totalFailed > 0) {
+                toast.warning(`Email sent: ${totalSent} success, ${totalFailed} failed.`)
+            } else if (totalSent > 0) {
+                toast.success(`Instructor Report email sent successfully to ${totalSent} recipient(s).`)
+            } else {
+                toast.warning('No emails were sent. Check if instructors have email addresses configured.')
+            }
+            setShowInstructorReport(false)
+        } catch {
+            toast.error('Failed to send Instructor Report email. Please try again.')
         }
     }
 
@@ -557,7 +600,25 @@ export default function ScheduleDetailPage() {
                                         <GraduationCap className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                                         <div>
                                             <span className="text-muted-foreground/60 text-[9px] font-semibold uppercase block">Instructor</span>
-                                            <span className="text-foreground font-medium">{session.instructor || <span className="text-muted-foreground italic">Not assigned</span>}</span>
+                                            <span className="flex items-center gap-2 text-foreground font-medium">
+                                                {session.instructor || <span className="text-muted-foreground italic">Not assigned</span>}
+                                                {session.instructor && (
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <button
+                                                                    onClick={handleInstructorReport}
+                                                                    disabled={previewInstructorMutation.isPending}
+                                                                    className="p-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors border-none cursor-pointer flex items-center justify-center"
+                                                                >
+                                                                    {previewInstructorMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
+                                                                </button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent><p>Preview & Send Email to Instructor</p></TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                )}
+                                            </span>
                                         </div>
                                     </div>
 
@@ -657,14 +718,14 @@ export default function ScheduleDetailPage() {
                                     </div>
                                 </div>
 
-                                {/* Regulatory Notes */}
+                                {/* Additional Note */}
                                 <div className="pt-2">
-                                    <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Regulatory Notes</h4>
-                                    <div className="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 leading-relaxed border border-slate-100">
+                                    <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Additional Note <span className="normal-case font-normal text-muted-foreground">(optional)</span></h4>
+                                    <div className="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 leading-relaxed border border-slate-100 [&_ul]:list-disc [&_ul]:ml-4 [&_ol]:list-decimal [&_ol]:ml-4">
                                         {session.note ? (
-                                            <p className="whitespace-pre-line">{session.note}</p>
+                                            <div dangerouslySetInnerHTML={{ __html: session.note }} />
                                         ) : (
-                                            <p className="text-muted-foreground italic">No additional notes</p>
+                                            <p className="text-muted-foreground italic">No additional note</p>
                                         )}
                                     </div>
                                 </div>
@@ -795,277 +856,295 @@ export default function ScheduleDetailPage() {
 
                         {/* Right — Enrolled Staff List */}
                         <div className="bg-white rounded-xl border border-border overflow-hidden">
-                            <div className="p-4 bg-slate-50/80 border-b border-border flex items-center gap-3">
-                                <Users className="w-4 h-4 text-primary" />
-                                <span className="text-sm font-bold text-foreground">Enrolled Staff</span>
-                                <span className="text-[11px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full ml-1">
-                                    {enrolledCount}
-                                </span>
-                                <div className="relative ml-auto w-48">
-                                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                                    <input
-                                        type="text"
-                                        value={enrolledSearch}
-                                        onChange={e => setEnrolledSearch(e.target.value)}
-                                        onKeyDown={e => {
-                                            if (e.key === 'Enter') {
-                                                setEnrolledPage(1)
-                                            }
-                                        }}
-                                        placeholder="Search enrolled..."
-                                        className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-white text-xs placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
-                                    />
+                            <div className="p-4 bg-slate-50/80 border-b border-border flex flex-col gap-3">
+                                <div className="flex items-center gap-3">
+                                    <Users className="w-4 h-4 text-primary shrink-0" />
+                                    <span className="text-sm font-bold text-foreground whitespace-nowrap">Enrolled Staff</span>
+                                    <span className="text-[11px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full shrink-0">
+                                        {enrolledCount}
+                                    </span>
                                 </div>
-
-                                {/* Send email notification */}
-                                {selectedEnrolledIds.size > 0 && (
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button size="sm" onClick={handleSendAll} disabled={sendEmailMutation.isPending}>
-                                                    {sendEmailMutation.isPending ? <Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> : <Mail className="w-3 h-3 mr-1.5" />}
-                                                    Send All ({selectedEnrolledIds.size})
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Send Registration Reminder</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                )}
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button size="sm" color="primary" onClick={handleManagerReport} disabled={previewDeptMutation.isPending} className="cursor-pointer">
-                                                {previewDeptMutation.isPending ? (
-                                                    <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
-                                                ) : (
-                                                    <Mail className="w-3 h-3 mr-1.5" />
-                                                )}
-                                                Managers Report
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>Send Report to Managers</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button size="icon" color="secondary" onClick={() => setShowPrintModal(true)} className='cursor-pointer transition-all duration-200 hover:scale-120'>
-                                                <Printer className="w-4 h-4" />
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>Print Attendance Form</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <div className="relative w-full sm:w-48">
+                                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                                        <input
+                                            type="text"
+                                            value={enrolledSearch}
+                                            onChange={e => setEnrolledSearch(e.target.value)}
+                                            onKeyDown={e => {
+                                                if (e.key === 'Enter') {
+                                                    setEnrolledPage(1)
+                                                }
+                                            }}
+                                            placeholder="Search enrolled..."
+                                            className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-white text-xs placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
+                                        />
+                                    </div>
+                                    <div className="ml-auto flex gap-1 items-center">
+                                        {/* Send email notification */}
+                                        {selectedEnrolledIds.size > 0 && (
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button size="icon" className="relative" onClick={handleSendAll} disabled={sendEmailMutation.isPending}>
+                                                            {sendEmailMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserRoundCog className="w-4 h-4" />}
+                                                            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm border border-white">
+                                                                {selectedEnrolledIds.size}
+                                                            </span>
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Send Registration Reminder</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        )}
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button size="icon" color="primary" onClick={handleManagerReport} disabled={previewDeptMutation.isPending} className="cursor-pointer">
+                                                        {previewDeptMutation.isPending ? (
+                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                        ) : (
+                                                            <Mail className="w-4 h-4" />
+                                                        )}
+                                                        {/* Managers Report */}
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Send Report to Managers</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button size="icon" color="secondary" onClick={() => setShowPrintModal(true)} className='cursor-pointer transition-all duration-200 hover:scale-120'>
+                                                        <Printer className="w-4 h-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Print Attendance Form</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </div>
+                                </div>
                             </div>
 
                             <div className="max-h-[500px] overflow-auto">
-                                <div className="min-w-[780px]">
-                                    <div className="grid grid-cols-[32px_minmax(150px,1fr)_120px_130px_110px_100px_70px] gap-3 px-4 py-2.5 bg-muted/30 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border sticky top-0 z-10">
-                                        <span className="flex items-center justify-center">
-                                            <input
-                                                type="checkbox"
-                                                checked={enrolledStaff.length > 0 && selectedEnrolledIds.size === enrolledStaff.length}
-                                                onChange={(e) => {
-                                                    if (e.target.checked) {
-                                                        setSelectedEnrolledIds(new Set(enrolledStaff.map(s => s.id)))
-                                                    } else {
-                                                        setSelectedEnrolledIds(new Set())
-                                                    }
-                                                }}
-                                                className="w-3.5 h-3.5 rounded border-border cursor-pointer accent-primary"
-                                            />
-                                        </span>
-                                        <span>Employee Name</span>
-                                        <span>License</span>
-                                        <span>Department</span>
-                                        <span>Status</span>
-                                        <span>Result</span>
-                                        <span className="text-center">Action</span>
-                                    </div>
-                                    {isLoadingEnrolled ? (
-                                        <div className="p-12 text-center">
-                                            <Loader2 className="w-6 h-6 text-primary animate-spin mx-auto mb-2" />
-                                            <p className="text-xs text-muted-foreground">Loading enrolled staff...</p>
-                                        </div>
-                                    ) : enrolledStaff.length === 0 ? (
-                                        <div className="p-12 text-center">
-                                            <Users className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-                                            <p className="text-xs text-muted-foreground">
-                                                {enrolledSearch ? 'No matching enrolled staff' : 'No staff enrolled yet. Add staff from the left panel.'}
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        enrolledStaff.map((staff, idx) => (
-                                            <div
-                                                key={staff.id + '-' + idx}
-                                                className={`grid grid-cols-[32px_minmax(150px,1fr)_120px_130px_110px_100px_70px] gap-3 px-4 py-3 items-center border-b border-border/50 hover:bg-muted/20 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-muted/10'
-                                                    }`}
-                                            >
-                                                <div className="flex items-center justify-center">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedEnrolledIds.has(staff.id)}
-                                                        onChange={(e) => {
-                                                            setSelectedEnrolledIds(prev => {
-                                                                const next = new Set(prev)
-                                                                if (e.target.checked) {
-                                                                    next.add(staff.id)
-                                                                } else {
-                                                                    next.delete(staff.id)
-                                                                }
-                                                                return next
-                                                            })
-                                                        }}
-                                                        className="w-3.5 h-3.5 rounded border-border cursor-pointer accent-primary"
-                                                    />
-                                                </div>
-                                                <TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <button type="button" title={`${staff.name} (${staff.code})`} className="min-w-0 text-left w-full bg-transparent border-none p-0 cursor-default outline-none">
-                                                                <p className="text-xs font-semibold text-foreground truncate">{staff.name}</p>
-                                                                <p className="text-[10px] text-slate-400 font-bold truncate">{staff.code}</p>
-                                                            </button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent side="top">
-                                                            <p>{staff.name}</p>
-                                                            <p className="text-muted-foreground">{staff.code}</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                                <div className="min-w-0 overflow-hidden">
-                                                    <TooltipProvider>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <button type="button" title={staff.license} className="w-full text-left bg-transparent border-none p-0 cursor-default outline-none text-xs font-semibold text-foreground truncate block">
-                                                                    {staff.license}
-                                                                </button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent side="top">
-                                                                <p>{staff.license}</p>
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                    </TooltipProvider>
-                                                </div>
-                                                <div className="min-w-0 overflow-hidden">
-                                                    <TooltipProvider>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <button type="button" title={staff.dept} className="w-full text-left bg-transparent border-none p-0 cursor-default outline-none text-[11px] text-muted-foreground font-medium truncate block">
-                                                                    {staff.dept}
-                                                                </button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent side="top">
-                                                                <p>{staff.dept}</p>
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                    </TooltipProvider>
-                                                </div>
-                                                <div className="flex">
-                                                    <span
-                                                        className="inline-flex items-center gap-1 w-fit px-1.5 py-0.5 rounded text-[9px] font-bold capitalize"
-                                                        style={{ background: '#dbeafe', color: '#1e40af' }}
-                                                    >
-                                                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#3b82f6' }} />
-                                                        {staff.status}
-                                                    </span>
-                                                </div>
-                                                <div className="flex items-center">
-                                                    {sessionStatus === 'Grading' ? (
-                                                        gradingId === staff.id ? (
-                                                            <div className="flex items-center justify-center w-full">
-                                                                <Loader2 className="w-4 h-4 text-primary animate-spin" />
-                                                            </div>
-                                                        ) : staff.result === 'Pending' ? (
-                                                            <div className="flex items-center gap-1">
-                                                                <input
-                                                                    type="number"
-                                                                    min={0}
-                                                                    max={100}
-                                                                    step="any"
-                                                                    placeholder="Score"
-                                                                    value={scoreInputs[staff.id] ?? ''}
-                                                                    onChange={(e) => {
-                                                                        const val = e.target.value
-                                                                        if (val === '' || (Number(val) >= 0 && Number(val) <= 100)) {
-                                                                            setScoreInputs(prev => ({ ...prev, [staff.id]: val }))
-                                                                        }
-                                                                    }}
-                                                                    onKeyDown={(e) => {
-                                                                        if (e.key === 'Enter') {
-                                                                            handleSubmitScore(staff.id)
-                                                                        }
-                                                                    }}
-                                                                    disabled={gradingId !== null}
-                                                                    className={`w-[60px] px-1.5 py-1 text-[11px] font-semibold text-center rounded-md border border-border bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${gradingId !== null ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                                />
-                                                                <button
-                                                                    onClick={() => handleSubmitScore(staff.id)}
-                                                                    disabled={gradingId !== null || !scoreInputs[staff.id]}
-                                                                    className={`p-1 rounded-md transition-colors border-none cursor-pointer ${gradingId !== null || !scoreInputs[staff.id] ? 'text-slate-300 bg-transparent cursor-not-allowed' : 'text-emerald-600 hover:bg-emerald-50 bg-transparent'}`}
-                                                                    title="Submit Score"
-                                                                >
-                                                                    <CheckCircle className="w-4 h-4" />
-                                                                </button>
-                                                            </div>
-                                                        ) : (
+                                <table className="w-full border-collapse" style={{ minWidth: 780 }}>
+                                    <thead>
+                                        <tr className="bg-slate-50 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border sticky top-0 z-20">
+                                            <th className="sticky left-0 z-30 bg-slate-50 w-[48px] min-w-[48px] px-0 py-2.5 text-center">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={enrolledStaff.length > 0 && selectedEnrolledIds.size === enrolledStaff.length}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            setSelectedEnrolledIds(new Set(enrolledStaff.map(s => s.id)))
+                                                        } else {
+                                                            setSelectedEnrolledIds(new Set())
+                                                        }
+                                                    }}
+                                                    className="w-3.5 h-3.5 rounded border-border cursor-pointer accent-primary"
+                                                />
+                                            </th>
+                                            <th className="sticky left-[48px] z-30 bg-slate-50 px-2 py-2.5 text-left min-w-[150px]">Employee Name</th>
+                                            <th className="px-2 py-2.5 text-left w-[120px]">License</th>
+                                            <th className="px-2 py-2.5 text-left w-[130px]">Department</th>
+                                            <th className="px-2 py-2.5 text-left w-[110px]">Status</th>
+                                            <th className="px-2 py-2.5 text-left w-[100px]">Result</th>
+                                            <th className="px-2 py-2.5 text-center w-[70px]">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {isLoadingEnrolled ? (
+                                            <tr>
+                                                <td colSpan={7} className="p-12 text-center">
+                                                    <Loader2 className="w-6 h-6 text-primary animate-spin mx-auto mb-2" />
+                                                    <p className="text-xs text-muted-foreground">Loading enrolled staff...</p>
+                                                </td>
+                                            </tr>
+                                        ) : enrolledStaff.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={7} className="p-12 text-center">
+                                                    <Users className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {enrolledSearch ? 'No matching enrolled staff' : 'No staff enrolled yet. Add staff from the left panel.'}
+                                                    </p>
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            enrolledStaff.map((staff, idx) => (
+                                                <tr
+                                                    key={staff.id + '-' + idx}
+                                                    className={`border-b border-border/50 hover:bg-muted/20 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-muted/10'}`}
+                                                >
+                                                    <td className="sticky left-0 z-10 bg-white w-[48px] min-w-[48px] px-0 py-3 text-center align-middle">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedEnrolledIds.has(staff.id)}
+                                                            onChange={(e) => {
+                                                                setSelectedEnrolledIds(prev => {
+                                                                    const next = new Set(prev)
+                                                                    if (e.target.checked) {
+                                                                        next.add(staff.id)
+                                                                    } else {
+                                                                        next.delete(staff.id)
+                                                                    }
+                                                                    return next
+                                                                })
+                                                            }}
+                                                            className="w-3.5 h-3.5 rounded border-border cursor-pointer accent-primary"
+                                                        />
+                                                    </td>
+                                                    <td className="sticky left-[48px] z-10 bg-white px-2 py-3 align-middle">
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <button type="button" title={`${staff.name} (${staff.code})`} className="min-w-0 text-left w-full bg-transparent border-none p-0 cursor-default outline-none">
+                                                                        <p className="text-xs font-semibold text-foreground truncate">{staff.name}</p>
+                                                                        <p className="text-[10px] text-slate-400 font-bold truncate">{staff.code}</p>
+                                                                    </button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent side="top">
+                                                                    <p>{staff.name}</p>
+                                                                    <p className="text-muted-foreground">{staff.code}</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    </td>
+                                                    <td className="px-2 py-3 align-middle">
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <button type="button" title={staff.license} className="w-full text-left bg-transparent border-none p-0 cursor-default outline-none text-xs font-semibold text-foreground truncate block">
+                                                                        {staff.license}
+                                                                    </button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent side="top">
+                                                                    <p>{staff.license}</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    </td>
+                                                    <td className="px-2 py-3 align-middle">
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <button type="button" title={staff.dept} className="w-full text-left bg-transparent border-none p-0 cursor-default outline-none text-[11px] text-muted-foreground font-medium truncate block">
+                                                                        {staff.dept}
+                                                                    </button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent side="top">
+                                                                    <p>{staff.dept}</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    </td>
+                                                    <td className="px-2 py-3 align-middle">
+                                                        <span
+                                                            className="inline-flex items-center gap-1 w-fit px-1.5 py-0.5 rounded text-[9px] font-bold capitalize"
+                                                            style={{ background: '#dbeafe', color: '#1e40af' }}
+                                                        >
+                                                            <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#3b82f6' }} />
+                                                            {staff.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-2 py-3 align-middle">
+                                                        {sessionStatus === 'Grading' ? (
+                                                            gradingId === staff.id ? (
+                                                                <div className="flex items-center justify-center w-full">
+                                                                    <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                                                                </div>
+                                                            ) : staff.result === 'Pending' ? (
+                                                                <div className="flex items-center gap-1">
+                                                                    <input
+                                                                        type="number"
+                                                                        min={0}
+                                                                        max={100}
+                                                                        step="any"
+                                                                        placeholder="Score"
+                                                                        value={scoreInputs[staff.id] ?? ''}
+                                                                        onChange={(e) => {
+                                                                            const val = e.target.value
+                                                                            if (val === '' || (Number(val) >= 0 && Number(val) <= 100)) {
+                                                                                setScoreInputs(prev => ({ ...prev, [staff.id]: val }))
+                                                                            }
+                                                                        }}
+                                                                        onKeyDown={(e) => {
+                                                                            if (e.key === 'Enter') {
+                                                                                handleSubmitScore(staff.id)
+                                                                            }
+                                                                        }}
+                                                                        disabled={gradingId !== null}
+                                                                        className={`w-[60px] px-1.5 py-1 text-[11px] font-semibold text-center rounded-md border border-border bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${gradingId !== null ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                    />
+                                                                    <button
+                                                                        onClick={() => handleSubmitScore(staff.id)}
+                                                                        disabled={gradingId !== null || !scoreInputs[staff.id]}
+                                                                        className={`p-1 rounded-md transition-colors border-none cursor-pointer ${gradingId !== null || !scoreInputs[staff.id] ? 'text-slate-300 bg-transparent cursor-not-allowed' : 'text-emerald-600 hover:bg-emerald-50 bg-transparent'}`}
+                                                                        title="Submit Score"
+                                                                    >
+                                                                        <CheckCircle className="w-4 h-4" />
+                                                                    </button>
+                                                                </div>
+                                                            ) : (
+                                                                <span className={`px-2 py-1 text-[10px] font-bold rounded-md ${staff.result === 'Pass' || staff.result === 'Passed' ? 'bg-emerald-100 text-emerald-700' : staff.result === 'Fail' || staff.result === 'Failed' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
+                                                                    {staff.result}
+                                                                </span>
+                                                            )
+                                                        ) : sessionStatus === 'Completed' ? (
                                                             <span className={`px-2 py-1 text-[10px] font-bold rounded-md ${staff.result === 'Pass' || staff.result === 'Passed' ? 'bg-emerald-100 text-emerald-700' : staff.result === 'Fail' || staff.result === 'Failed' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
                                                                 {staff.result}
                                                             </span>
-                                                        )
-                                                    ) : sessionStatus === 'Completed' ? (
-                                                        <span className={`px-2 py-1 text-[10px] font-bold rounded-md ${staff.result === 'Pass' || staff.result === 'Passed' ? 'bg-emerald-100 text-emerald-700' : staff.result === 'Fail' || staff.result === 'Failed' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
-                                                            {staff.result}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-[10px] text-muted-foreground italic px-2 py-1 bg-slate-100 rounded-md border border-border" title="Score can be entered during Grading">
-                                                            {staff.result === 'Pending' ? 'Pending' : staff.result}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <div className="flex items-center justify-center gap-1">
-                                                    {sessionStatus === 'Completed' && (staff.result === 'Pass' || staff.result === 'Passed') && (
-                                                        <button
-                                                            onClick={() => openCertificateModal(staff)}
-                                                            className="p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors cursor-pointer border-none bg-transparent"
-                                                            title="Issue Certificate"
-                                                        >
-                                                            <Award className="w-4 h-4" />
-                                                        </button>
-                                                    )}
-                                                    <button
-                                                        className="relative p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer border-none bg-transparent"
-                                                        title="Send Email"
-                                                        onClick={() => {
-                                                            setEmailPreviewStaff(staff)
-                                                        }}
-                                                    >
-                                                        <Mail className="w-4 h-4" />
-                                                        {staff.emailCount > 0 && (
-                                                            <Badge color="primary" className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center rounded-full text-[10px]">
-                                                                {staff.emailCount}
-                                                            </Badge>
+                                                        ) : (
+                                                            <span className="text-[10px] text-muted-foreground italic px-2 py-1 bg-slate-100 rounded-md border border-border" title="Score can be entered during Grading">
+                                                                {staff.result === 'Pending' ? 'Pending' : staff.result}
+                                                            </span>
                                                         )}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleRemove(staff)}
-                                                        disabled={staff.status !== 'Draft' || removingId === staff.id}
-                                                        className={`p-1.5 rounded-lg transition-colors border-none bg-transparent ${staff.status !== 'Draft' || removingId === staff.id ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-red-600 hover:bg-red-50 cursor-pointer'}`}
-                                                        title={staff.status !== 'Draft' ? 'Can only remove staff with Draft status' : 'Remove Staff'}
-                                                    >
-                                                        {removingId === staff.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
+                                                    </td>
+                                                    <td className="px-2 py-3 align-middle">
+                                                        <div className="flex items-center justify-center gap-1">
+                                                            {sessionStatus === 'Completed' && (staff.result === 'Pass' || staff.result === 'Passed') && (
+                                                                <button
+                                                                    onClick={() => openCertificateModal(staff)}
+                                                                    className="p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors cursor-pointer border-none bg-transparent"
+                                                                    title="Issue Certificate"
+                                                                >
+                                                                    <Award className="w-4 h-4" />
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                className="relative p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer border-none bg-transparent"
+                                                                title="Send Email"
+                                                                onClick={() => {
+                                                                    setEmailPreviewStaff(staff)
+                                                                }}
+                                                            >
+                                                                <Mail className="w-4 h-4" />
+                                                                {staff.emailCount > 0 && (
+                                                                    <Badge color="primary" className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center rounded-full text-[10px]">
+                                                                        {staff.emailCount}
+                                                                    </Badge>
+                                                                )}
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleRemove(staff)}
+                                                                disabled={staff.status !== 'Draft' || removingId === staff.id}
+                                                                className={`p-1.5 rounded-lg transition-colors border-none bg-transparent ${staff.status !== 'Draft' || removingId === staff.id ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-red-600 hover:bg-red-50 cursor-pointer'}`}
+                                                                title={staff.status !== 'Draft' ? 'Can only remove staff with Draft status' : 'Remove Staff'}
+                                                            >
+                                                                {removingId === staff.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
                             </div>
 
                             {/* Pagination */}
@@ -1165,13 +1244,69 @@ export default function ScheduleDetailPage() {
                             Managers Report Preview
                         </DialogTitle>
                     </DialogHeader>
-                    <div className="flex-1 min-h-0 p-6 flex flex-col">
-                        <iframe
-                            srcDoc={managerReportHtml}
-                            className="flex-1 w-full border border-border rounded-xl bg-white"
-                            sandbox="allow-same-origin"
-                            title="Managers Report Preview"
-                        />
+                    <div className="flex-1 min-h-0 px-6 pt-2 pb-6 flex flex-col">
+                        <Tabs defaultValue="preview" className="flex-1 flex flex-col min-h-0">
+                            <TabsList className="mb-4 w-fit bg-slate-100/50 p-1">
+                                <TabsTrigger value="preview" className="text-xs flex items-center gap-1.5 rounded-md px-3">
+                                    <Eye className="w-3.5 h-3.5" />
+                                    Preview
+                                </TabsTrigger>
+                                <TabsTrigger value="log" className="text-xs flex items-center gap-1.5 rounded-md px-3">
+                                    <FileText className="w-3.5 h-3.5" />
+                                    Log
+                                    {deptEmailLogs && deptEmailLogs.length > 0 && (
+                                        <span className="ml-0.5 bg-slate-200/70 text-slate-600 px-1.5 py-0.5 rounded-full text-[10px] font-semibold">{deptEmailLogs.length}</span>
+                                    )}
+                                </TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="preview" className="flex-1 min-h-0 m-0 data-[state=active]:flex flex-col">
+                                <iframe
+                                    srcDoc={managerReportHtml}
+                                    className="flex-1 w-full border border-border rounded-xl bg-white"
+                                    sandbox="allow-same-origin"
+                                    title="Managers Report Preview"
+                                />
+                            </TabsContent>
+                            <TabsContent value="log" className="flex-1 min-h-0 m-0 data-[state=active]:flex flex-col overflow-auto bg-white border border-border rounded-xl p-4">
+                                {isLoadingDeptEmailLogs ? (
+                                    <div className="flex flex-col items-center justify-center p-8">
+                                        <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />
+                                        <p className="text-xs text-muted-foreground">Loading logs...</p>
+                                    </div>
+                                ) : !deptEmailLogs || deptEmailLogs.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center p-8">
+                                        <p className="text-xs text-muted-foreground">No email logs found.</p>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col gap-3">
+                                        {deptEmailLogs.map((log) => (
+                                            <div key={log.id} className={`border rounded-xl p-4 flex flex-col gap-2 relative ${log.isSuccess ? 'bg-emerald-50/30 border-emerald-100' : 'bg-red-50/30 border-red-100'}`}>
+                                                <div className="flex justify-between items-start">
+                                                    <div className={`flex items-center gap-2 font-semibold text-sm ${log.isSuccess ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                        {log.isSuccess ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                                                        {log.isSuccess ? 'Sent Successfully' : 'Failed'}
+                                                    </div>
+                                                    <div className="text-[11px] text-muted-foreground font-medium mt-0.5">
+                                                        {new Date(log.sentDate).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                    </div>
+                                                </div>
+                                                <div className="text-xs flex flex-col gap-1 mt-1 text-slate-600">
+                                                    <div><span className="font-medium text-slate-400 w-[60px] inline-block">To:</span> <span className="text-slate-700">{log.emailTo || '-'}</span></div>
+                                                    <div><span className="font-medium text-slate-400 w-[60px] inline-block">From:</span> <span className="text-slate-700">{log.emailFrom || 'mcc@sams.aero'}</span></div>
+                                                    <div><span className="font-medium text-slate-400 w-[60px] inline-block">Subject:</span> <span className="text-slate-700">{log.subject}</span></div>
+                                                </div>
+                                                {!log.isSuccess && log.errorMessage && (
+                                                    <div className="mt-2 text-[11px] text-red-600 bg-red-100/50 p-2.5 rounded-lg border border-red-100">
+                                                        <span className="font-semibold block mb-0.5">Error message:</span>
+                                                        <span className="whitespace-pre-wrap">{log.errorMessage}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </TabsContent>
+                        </Tabs>
                     </div>
                     <div className="px-6 py-4 border-t border-border bg-slate-50/50 flex justify-end gap-2">
                         <Button variant="outline" size="sm" onClick={() => setShowManagerReport(false)} className="text-xs">
@@ -1184,6 +1319,95 @@ export default function ScheduleDetailPage() {
                                 <Mail className="w-3.5 h-3.5" />
                             )}
                             {sendDeptMutation.isPending ? 'Sending...' : 'Send Report'}
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Instructor Report Preview Dialog */}
+            <Dialog open={showInstructorReport} onOpenChange={(open) => { if (!open) setShowInstructorReport(false) }}>
+                <DialogContent size="lg" className="p-0 gap-0 overflow-hidden min-h-[90vh] max-h-[90vh] flex flex-col">
+                    <DialogHeader className="px-6 pt-5 pb-4 border-b border-border">
+                        <DialogTitle className="flex items-center gap-2 text-base">
+                            <Mail className="w-4 h-4 text-primary" />
+                            Instructor Notification Preview
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="flex-1 min-h-0 px-6 pt-2 pb-6 flex flex-col">
+                        <Tabs defaultValue="preview" className="flex-1 flex flex-col min-h-0">
+                            <TabsList className="mb-4 w-fit bg-slate-100/50 p-1">
+                                <TabsTrigger value="preview" className="text-xs flex items-center gap-1.5 rounded-md px-3">
+                                    <Eye className="w-3.5 h-3.5" />
+                                    Preview
+                                </TabsTrigger>
+                                <TabsTrigger value="log" className="text-xs flex items-center gap-1.5 rounded-md px-3">
+                                    <FileText className="w-3.5 h-3.5" />
+                                    Log
+                                    {instructorEmailLogs && instructorEmailLogs.length > 0 && (
+                                        <span className="ml-0.5 bg-slate-200/70 text-slate-600 px-1.5 py-0.5 rounded-full text-[10px] font-semibold">{instructorEmailLogs.length}</span>
+                                    )}
+                                </TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="preview" className="flex-1 min-h-0 m-0 data-[state=active]:flex flex-col">
+                                <iframe
+                                    srcDoc={instructorReportHtml}
+                                    className="flex-1 w-full border border-border rounded-xl bg-white"
+                                    sandbox="allow-same-origin"
+                                    title="Instructor Notification Preview"
+                                />
+                            </TabsContent>
+                            <TabsContent value="log" className="flex-1 min-h-0 m-0 data-[state=active]:flex flex-col overflow-auto bg-white border border-border rounded-xl p-4">
+                                {isLoadingInstructorEmailLogs ? (
+                                    <div className="flex flex-col items-center justify-center p-8">
+                                        <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />
+                                        <p className="text-xs text-muted-foreground">Loading logs...</p>
+                                    </div>
+                                ) : !instructorEmailLogs || instructorEmailLogs.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center p-8">
+                                        <p className="text-xs text-muted-foreground">No email logs found.</p>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col gap-3">
+                                        {instructorEmailLogs.map((log) => (
+                                            <div key={log.id} className={`border rounded-xl p-4 flex flex-col gap-2 relative ${log.isSuccess ? 'bg-emerald-50/30 border-emerald-100' : 'bg-red-50/30 border-red-100'}`}>
+                                                <div className="flex justify-between items-start">
+                                                    <div className={`flex items-center gap-2 font-semibold text-sm ${log.isSuccess ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                        {log.isSuccess ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                                                        {log.isSuccess ? 'Sent Successfully' : 'Failed'}
+                                                    </div>
+                                                    <div className="text-[11px] text-muted-foreground font-medium mt-0.5">
+                                                        {new Date(log.sentDate).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                    </div>
+                                                </div>
+                                                <div className="text-xs flex flex-col gap-1 mt-1 text-slate-600">
+                                                    <div><span className="font-medium text-slate-400 w-[60px] inline-block">To:</span> <span className="text-slate-700">{log.emailTo || '-'}</span></div>
+                                                    <div><span className="font-medium text-slate-400 w-[60px] inline-block">From:</span> <span className="text-slate-700">{log.emailFrom || 'mcc@sams.aero'}</span></div>
+                                                    <div><span className="font-medium text-slate-400 w-[60px] inline-block">Subject:</span> <span className="text-slate-700">{log.subject}</span></div>
+                                                </div>
+                                                {!log.isSuccess && log.errorMessage && (
+                                                    <div className="mt-2 text-[11px] text-red-600 bg-red-100/50 p-2.5 rounded-lg border border-red-100">
+                                                        <span className="font-semibold block mb-0.5">Error message:</span>
+                                                        <span className="whitespace-pre-wrap">{log.errorMessage}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </TabsContent>
+                        </Tabs>
+                    </div>
+                    <div className="px-6 py-4 border-t border-border bg-slate-50/50 flex justify-end gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setShowInstructorReport(false)} className="text-xs">
+                            Close
+                        </Button>
+                        <Button size="sm" onClick={handleSendInstructorReport} disabled={sendInstructorMutation.isPending} className="text-xs gap-1.5">
+                            {sendInstructorMutation.isPending ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                                <Mail className="w-3.5 h-3.5" />
+                            )}
+                            {sendInstructorMutation.isPending ? 'Sending...' : 'Send Notification'}
                         </Button>
                     </div>
                 </DialogContent>
