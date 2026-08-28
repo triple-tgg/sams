@@ -59,6 +59,8 @@ export interface AircraftEngineCombination extends Temporal {
   engineCode: string;
   /** Derived + persisted: `{family}{-series?} ({engineName})`. Read-only in the UI. */
   displayLabel: string;
+  /** Similar Technology grouping (Group 1, Group 2, Group 3). */
+  similarTechnology?: string;
   updatedBy: string;
   updatedAtUtc: string;
 }
@@ -135,10 +137,8 @@ export interface AircraftSystemConfig {
 // ── Data-quality findings ─────────────────────────────────────
 
 export type DataQualityCategory =
-  | "ORPHAN" // combination not in any authorization group
   | "MISSING_CONFIG" // family in combinations but absent from system config (or reverse)
-  | "NAMING" // engine label elsewhere doesn't match engine_master exactly
-  | "STALE_GROUP"; // group stuck below `complete` — escalates to red past the SLA (CR-1)
+  | "NAMING"; // engine label elsewhere doesn't match engine_master exactly
 
 /** Banner severity. A single `red` finding escalates the whole banner (CR-1). */
 export type DataQualitySeverity = "amber" | "red";

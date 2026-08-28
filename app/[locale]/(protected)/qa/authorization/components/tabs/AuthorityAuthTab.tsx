@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState, useRef, useCallback, useEffect } from 'react'
-import { CalendarDays, Edit2, FileText, Filter, Globe2, Loader2, Plane, Search, User, X } from 'lucide-react'
+import { CalendarDays, Edit2, FileText, Filter, Globe2, Loader2, Plane, Plus, Search, User, X } from 'lucide-react'
 import { TransferBox } from '@/components/ui/transfer-box'
 import {
   Select,
@@ -166,10 +166,7 @@ function CellTooltip({ info, combinations }: { info: TooltipInfo, combinations: 
           <span className="text-muted-foreground">Authority</span>
           <span className="font-bold" style={{ color: authorityColor }}>{authCode} — {authorityName}</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Authorization No.</span>
-          <span className="font-semibold text-foreground">{licenseItem?.licenseNo || licenseItem?.aviationAuthorityLicense?.licenseNo || '—'}</span>
-        </div>
+
         <div className="flex justify-between">
           <span className="text-muted-foreground">Date of Initial Issue</span>
           <span className="font-semibold text-foreground">{formatShortDate(licenseItem?.initialIssueDate || licenseItem?.aviationAuthorityLicense?.initialIssueDate)}</span>
@@ -275,6 +272,25 @@ function MatrixView() {
   const handleSamsEditClick = (staffId: number) => {
     const samsItem = samsAuthByStaffId.get(staffId)
     if (samsItem) setSamsEditTarget(samsItem)
+  }
+
+  const handleSamsAddClick = (staff: { staffId: number; staffName: string; employeeId: string }) => {
+    // Create a blank SamsAuthItem so the edit modal opens for a new record (id=0)
+    setSamsEditTarget({
+      authorizationSamsId: 0,
+      staffId: staff.staffId,
+      employeeName: staff.staffName,
+      employeeId: staff.employeeId,
+      authorizationNo: '',
+      ratingAmel: [],
+      amelExpiryDate: null,
+      initialIssueDate: null,
+      currentIssueDate: null,
+      samsExpiryDate: null,
+      samsAuthStatus: '',
+      daysToExpiry: 0,
+      staffAircraftLicenseList: [],
+    } as SamsAuthItem)
   }
 
   const handleSamsEditClose = () => {
@@ -724,17 +740,17 @@ function MatrixView() {
               </tr>
               {/* ── Row 2: Sub-Headers ── */}
               <tr className="bg-slate-50 border-b-2 border-border">
-                <th className="px-2 py-1.5 text-center text-[9px] font-bold text-muted-foreground border-l border-border whitespace-nowrap" style={{ minWidth: 100 }}>
-                  Authorization No.
-                </th>
                 <th className="px-2 py-1.5 text-center text-[9px] font-bold text-muted-foreground border-l border-border whitespace-nowrap" style={{ minWidth: 90 }}>
                   Date<br/>of Initial Issue
                 </th>
                 <th className="px-2 py-1.5 text-center text-[9px] font-bold text-muted-foreground border-l border-border whitespace-nowrap" style={{ minWidth: 90 }}>
                   Date<br/>of Current Issue
                 </th>
-                <th className="px-2 py-1.5 text-center text-[9px] font-bold text-muted-foreground border-l border-r border-border whitespace-nowrap" style={{ minWidth: 90 }}>
+                <th className="px-2 py-1.5 text-center text-[9px] font-bold text-muted-foreground border-l border-border whitespace-nowrap" style={{ minWidth: 90 }}>
                   Date<br/>of Expire
+                </th>
+                <th className="px-2 py-1.5 text-center text-[9px] font-bold text-muted-foreground border-l border-r border-border whitespace-nowrap" style={{ minWidth: 100 }}>
+                  Authorization No.
                 </th>
               <TooltipProvider>
                 {visibleAuthoritys.map((authority, idx) => {
@@ -747,7 +763,7 @@ function MatrixView() {
                           style={{ minWidth: 90 }}
                         >
                           <div className="text-[10px] leading-snug font-bold" style={{ color: localAuth.color }}>{authority.code}</div>
-                          <div className="text-[9px] text-muted-foreground/60 font-medium">Auth</div>
+                          <div className="text-[9px] text-muted-foreground/60 font-medium">License</div>
                         </th>
                       </TooltipTrigger>
                       <TooltipContent side="top" className="text-xs font-semibold bg-white border border-border text-foreground px-2.5 py-1.5 shadow-md">
@@ -781,43 +797,60 @@ function MatrixView() {
                         </div>
                       </div>
                     </td>
-                    {/* AUTHORIZATION — Authorization No. + Edit Button */}
-                    <td className="px-2 py-1.5 text-center text-[10px] font-semibold text-slate-700 border-l border-border/50 whitespace-nowrap">
-                      <div className="flex items-center justify-center gap-1">
-                        <span>{samsAuth?.authorizationNo || '—'}</span>
-                        {samsAuth && (
-                          <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
-                            <button
-                              onClick={() => handleSamsEditClick(s.staffId)}
-                              className="inline-flex items-center justify-center w-5 h-5 rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                              title="Edit Authorization"
-                            >
-                              <Edit2 className="w-3 h-3" />
-                            </button>
-                          </PermissionActionGuard>
-                        )}
-                      </div>
-                    </td>
-                    {/* AUTHORIZATION — Date of Initial Issue */}
-                    <td className="px-2 py-1.5 text-center text-[10px] text-muted-foreground border-l border-border/50 whitespace-nowrap">
-                      {formatShortDate(samsAuth?.initialIssueDate)}
-                    </td>
-                    {/* AUTHORIZATION — Date of Current Issue */}
-                    <td className="px-2 py-1.5 text-center text-[10px] text-muted-foreground border-l border-border/50 whitespace-nowrap">
-                      {formatShortDate(samsAuth?.currentIssueDate)}
-                    </td>
-                    {/* AUTHORIZATION — Date of Expire */}
-                    <td className="px-2 py-1.5 text-center text-[10px] font-semibold border-l border-r border-border/50 whitespace-nowrap" style={{
-                      color: (() => {
-                        const days = getDaysRemaining(samsAuth?.samsExpiryDate)
-                        if (days === null) return undefined
-                        if (days < 0) return '#dc2626'
-                        if (days <= 90) return '#ea580c'
-                        return '#059669'
-                      })()
-                    }}>
-                      {formatShortDate(samsAuth?.samsExpiryDate)}
-                    </td>
+                    {/* AUTHORIZATION columns */}
+                    {samsAuth ? (
+                      <>
+                        {/* Date of Initial Issue */}
+                        <td className="px-2 py-1.5 text-center text-[10px] text-muted-foreground border-l border-border/50 whitespace-nowrap">
+                          {formatShortDate(samsAuth.initialIssueDate)}
+                        </td>
+                        {/* Date of Current Issue */}
+                        <td className="px-2 py-1.5 text-center text-[10px] text-muted-foreground border-l border-border/50 whitespace-nowrap">
+                          {formatShortDate(samsAuth.currentIssueDate)}
+                        </td>
+                        {/* Date of Expire */}
+                        <td className="px-2 py-1.5 text-center text-[10px] font-semibold border-l border-border/50 whitespace-nowrap" style={{
+                          color: (() => {
+                            const days = getDaysRemaining(samsAuth.samsExpiryDate)
+                            if (days === null) return undefined
+                            if (days < 0) return '#dc2626'
+                            if (days <= 90) return '#ea580c'
+                            return '#059669'
+                          })()
+                        }}>
+                          {formatShortDate(samsAuth.samsExpiryDate)}
+                        </td>
+                        {/* Authorization No. + Edit Button */}
+                        <td className="px-2 py-1.5 text-center text-[10px] font-semibold text-slate-700 border-l border-r border-border/50 whitespace-nowrap">
+                          <div className="relative flex items-center justify-center w-full min-h-[20px]">
+                            <span>{samsAuth.authorizationNo || '—'}</span>
+                            <div className="absolute right-0 flex items-center">
+                              <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
+                                <button
+                                  onClick={() => handleSamsEditClick(s.staffId)}
+                                  className="inline-flex items-center justify-center w-5 h-5 rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                  title="Edit Authorization"
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </button>
+                              </PermissionActionGuard>
+                            </div>
+                          </div>
+                        </td>
+                      </>
+                    ) : (
+                      <td colSpan={4} className="px-2 py-1.5 text-center border-l border-r border-border/50">
+                        <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
+                          <button
+                            onClick={() => handleSamsAddClick(s)}
+                            className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[10px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
+                          >
+                            <Plus className="w-3 h-3" />
+                            Add Authorization
+                          </button>
+                        </PermissionActionGuard>
+                      </td>
+                    )}
                     {/* Customer Auth Cells — dot style */}
                     {visibleAuthoritys.map((authority, idx) => {
                       const licenseItem = s.licenses?.find(l => {
@@ -945,7 +978,7 @@ function MatrixView() {
                       {selectedCell.staff.staffName}
                     </DialogTitle>
                     <p className="mt-1 text-xs font-semibold text-slate-500">
-                      {selectedCell.staff.employeeId} • License {selectedCell.licenseItem?.licenseNo || selectedCell.licenseItem?.aviationAuthorityLicense?.licenseNo || '—'}
+                      {selectedCell.staff.employeeId} • License {selectedCell.licenseItem?.licenseNo || selectedCell.licenseItem?.aviationAuthorityLicense?.licenseNo || '—'} • Authority {selectedCell.authCode}
                     </p>
                   </div>
                   <span

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Search, Plus, Edit2, Trash2, RotateCw, AlertTriangle, Check, Minus } from "lucide-react";
+import { Search, Plus, Edit2, Trash2, RotateCw, AlertTriangle, Check, Minus, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,93 +10,162 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandInput, CommandList, CommandEmpty, CommandItem } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard";
 import {
-  useSystemConfigs, useFamilies, useUpsertSystemConfig, useDeleteSystemConfig,
-} from "@/lib/api/master/aircraft-engine/aircraftEngine.hooks";
-import type { AircraftSystemConfig, ClassicNeo, AircraftFamily } from "@/lib/api/master/aircraft-engine/aircraftEngine.types";
+  useAircraftTypes,
+  useUpsertAircraftType,
+  useDeleteAircraftType,
+} from "@/lib/api/master/aircraft-types/aircraft-types.hooks";
+import { useAircraftFamilyCodes } from "@/lib/api/master/aircraft-family/aircraft-family.hooks";
+import type { AircraftType } from "@/lib/api/master/aircraft-types/aircraft-types";
+import type { AircraftFamilyCode } from "@/lib/api/master/aircraft-family/aircraft-family";
 import { AE_MENU, UpdatedMeta, th } from "./shared";
 
+// ── Form ─────────────────────────────────────────────────────────
+
 interface FormState {
-  icaoCode: string;
+  id?: number;
+  code: string;
+  name: string;
+  modelName: string;
+  modelSubName: string;
+  classicOrNeo: string;
   familyCode: string;
-  modelVariant: string;
-  classicNeo: ClassicNeo;
-  engineCount: number;
-  generatorCount: number;
-  hydraulicCount: number;
-  hasApu: boolean;
+  flagEnging1: boolean;
+  flagEnging2: boolean;
+  flagEnging3: boolean;
+  flagEnging4: boolean;
+  flagCsd1: boolean;
+  flagCsd2: boolean;
+  flagCsd3: boolean;
+  flagCsd4: boolean;
+  flagHydrolicGreen: boolean;
+  flagHydrolicBlue: boolean;
+  flagHydrolicYellow: boolean;
+  flagApu: boolean;
 }
 
 const emptyForm: FormState = {
-  icaoCode: "", familyCode: "", modelVariant: "", classicNeo: "CLASSIC",
-  engineCount: 2, generatorCount: 2, hydraulicCount: 3, hasApu: true,
+  code: "", name: "", modelName: "", modelSubName: "", classicOrNeo: "CLASSIC", familyCode: "",
+  flagEnging1: true, flagEnging2: true, flagEnging3: false, flagEnging4: false,
+  flagCsd1: true, flagCsd2: true, flagCsd3: false, flagCsd4: false,
+  flagHydrolicGreen: true, flagHydrolicBlue: true, flagHydrolicYellow: true,
+  flagApu: true,
 };
 
-const CountField = ({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) => (
-  <div>
-    <Label className="text-xs font-medium text-slate-600">{label}</Label>
-    <Input type="number" min={0} max={8} value={value} onChange={(e) => onChange(Math.max(0, Number(e.target.value) || 0))} className="mt-1 h-9 text-sm" />
-  </div>
-);
+// ── Helpers ──────────────────────────────────────────────────────
 
-const YesNo = ({ value }: { value: boolean }) =>
+const FlagIcon = ({ value }: { value: boolean }) =>
   value
-    ? <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-600"><Check className="h-3 w-3" /></span>
+    ? <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary/80 text-white/80 "><Check className="h-3 w-3" /></span>
     : <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-slate-400"><Minus className="h-3 w-3" /></span>;
 
+// ── Grouped header styles ────────────────────────────────────────
+
+const groupHeaderClass = "px-2 py-1.5 text-center text-[10px] font-bold uppercase tracking-wider text-white bg-slate-700 border-x border-slate-600";
+const subHeaderClass = "px-2 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground bg-slate-100 border-x border-border/50";
+const subCellClass = "px-2 py-2 text-center border-x border-border/30";
+
+// Sticky column styles (left-pinned on horizontal scroll)
+const stickyBase = "sticky z-10";
+const sticky0 = cn(stickyBase, "left-0");           // Family
+const sticky1 = cn(stickyBase, "left-[80px]");       // Model
+const sticky2 = cn(stickyBase, "left-[220px]");      // Type
+const sticky3 = cn(stickyBase, "left-[310px]");      // ICAO
+const stickyHeadBg = "bg-slate-50";
+const stickyBodyBg = "bg-white";
+const stickyBodyAltBg = "bg-slate-50";
+
+// ── Component ────────────────────────────────────────────────────
+
 export function SystemConfigTab() {
-  const { data: configs = [], isFetching } = useSystemConfigs();
-  const { data: families = [] } = useFamilies();
-  const upsert = useUpsertSystemConfig();
-  const del = useDeleteSystemConfig();
+  const { data: configs = [], isFetching } = useAircraftTypes();
+  const { data: families = [] } = useAircraftFamilyCodes();
+  const upsert = useUpsertAircraftType();
+  const del = useDeleteAircraftType();
 
   const [search, setSearch] = useState("");
   const [modalMode, setModalMode] = useState<"closed" | "add" | "edit">("closed");
   const [form, setForm] = useState<FormState>(emptyForm);
-  const [deleteTarget, setDeleteTarget] = useState<AircraftSystemConfig | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AircraftType | null>(null);
+  const [familyOpen, setFamilyOpen] = useState(false);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return configs.filter((c: AircraftSystemConfig) => `${c.icaoCode} ${c.familyCode} ${c.modelVariant} ${c.classicNeo}`.toLowerCase().includes(q));
+    return configs.filter((c: AircraftType) =>
+      `${c.code} ${c.modelName} ${c.modelSubName} ${c.classicOrNeo} ${c.familyCode ?? ""}`.toLowerCase().includes(q),
+    );
   }, [configs, search]);
 
   const openAdd = () => { setForm(emptyForm); setModalMode("add"); };
-  const openEdit = (c: AircraftSystemConfig) => {
+  const openEdit = (c: AircraftType) => {
     setForm({
-      icaoCode: c.icaoCode, familyCode: c.familyCode, modelVariant: c.modelVariant, classicNeo: c.classicNeo,
-      engineCount: c.engineCount, generatorCount: c.generatorCount, hydraulicCount: c.hydraulicCount, hasApu: c.hasApu,
+      id: c.id,
+      code: c.code ?? "", name: c.name ?? "",
+      modelName: c.modelName ?? "", modelSubName: c.modelSubName ?? "",
+      classicOrNeo: c.classicOrNeo ?? "CLASSIC", familyCode: c.familyCode ?? "",
+      flagEnging1: c.flagEnging1, flagEnging2: c.flagEnging2,
+      flagEnging3: c.flagEnging3, flagEnging4: c.flagEnging4,
+      flagCsd1: c.flagCsd1, flagCsd2: c.flagCsd2,
+      flagCsd3: c.flagCsd3, flagCsd4: c.flagCsd4,
+      flagHydrolicGreen: c.flagHydrolicGreen, flagHydrolicBlue: c.flagHydrolicBlue,
+      flagHydrolicYellow: c.flagHydrolicYellow,
+      flagApu: c.flagApu,
     });
     setModalMode("edit");
   };
   const closeModal = () => { setModalMode("closed"); setForm(emptyForm); };
 
-  const canSave = !!form.icaoCode.trim() && !!form.familyCode && !!form.modelVariant.trim();
+  const isDuplicateIcao = modalMode === "add" && configs.some(
+    (c: AircraftType) => c.code.toUpperCase() === (form.code ?? "").trim().toUpperCase(),
+  ) && (form.code ?? "").trim().length > 0;
+
+  const canSave = !!(form.code ?? "").trim() && !!(form.modelName ?? "").trim() && !isDuplicateIcao;
 
   const handleSave = async () => {
     try {
-      await upsert.mutateAsync({ ...form, icaoCode: form.icaoCode.trim().toUpperCase(), isNew: modalMode === "add" });
-      toast.success(modalMode === "add" ? "Added system config successfully" : "Updated system config successfully");
+      await upsert.mutateAsync({
+        id: form.id,
+        code: (form.code ?? "").trim().toUpperCase(),
+        name: (form.name ?? "").trim() || (form.code ?? "").trim().toUpperCase(),
+        modelName: (form.modelName ?? "").trim(),
+        modelSubName: (form.modelSubName ?? "").trim(),
+        classicOrNeo: form.classicOrNeo,
+        familyCode: form.familyCode || null,
+        flagEnging1: form.flagEnging1, flagEnging2: form.flagEnging2,
+        flagEnging3: form.flagEnging3, flagEnging4: form.flagEnging4,
+        flagCsd1: form.flagCsd1, flagCsd2: form.flagCsd2,
+        flagCsd3: form.flagCsd3, flagCsd4: form.flagCsd4,
+        flagHydrolicGreen: form.flagHydrolicGreen, flagHydrolicBlue: form.flagHydrolicBlue,
+        flagHydrolicYellow: form.flagHydrolicYellow,
+        flagApu: form.flagApu,
+      });
+      toast.success(modalMode === "add" ? "Added successfully" : "Updated successfully");
       closeModal();
-    } catch (e) {
-      toast.error(e instanceof Error && e.message === "DUPLICATE" ? "This ICAO code already exists" : e instanceof Error ? e.message : "An error occurred");
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || (e instanceof Error ? e.message : "An error occurred"));
     }
   };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      await del.mutateAsync(deleteTarget.icaoCode);
-      toast.success("Deleted system config successfully");
+      await del.mutateAsync(deleteTarget.id);
+      toast.success("Deleted successfully");
       setDeleteTarget(null);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "An error occurred");
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || (e instanceof Error ? e.message : "An error occurred"));
     }
   };
 
+  const totalCols = 17;
+
   return (
     <div className="space-y-4">
+      {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative min-w-[220px] flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -110,37 +179,67 @@ export function SystemConfigTab() {
         </PermissionActionGuard>
       </div>
 
+      {/* Table */}
       <div className={cn("overflow-hidden rounded-xl border border-border bg-white transition-opacity", isFetching && "opacity-60")}>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm">
             <thead>
-              <tr className="border-b-2 border-border bg-slate-50">
-                <th className={th}>Family</th>
-                <th className={th}>Model</th>
-                <th className={th}>Type</th>
-                <th className={th}>ICAO</th>
-                <th className={cn(th, "text-center")}>Eng</th>
-                <th className={cn(th, "text-center")}>Gen</th>
-                <th className={cn(th, "text-center")}>Hyd</th>
-                <th className={cn(th, "text-center")}>APU</th>
-                <th className={th}>Updated</th>
-                <th className={cn(th, "text-center")}>Action</th>
+              {/* Row 1: Group headers */}
+              <tr className="border-b border-border">
+                <th rowSpan={2} className={cn(th, sticky0, stickyHeadBg, "z-20 min-w-[80px]")}>Family</th>
+                <th rowSpan={2} className={cn(th, sticky1, stickyHeadBg, "z-20 min-w-[140px]")}>Model</th>
+                <th rowSpan={2} className={cn(th, sticky2, stickyHeadBg, "z-20 min-w-[90px]")}>Type</th>
+                <th rowSpan={2} className={cn(th, sticky3, stickyHeadBg, "z-20 min-w-[70px] border-r border-border")}>ICAO</th>
+                <th colSpan={4} className={groupHeaderClass}>ENG (Engine)</th>
+                <th colSpan={4} className={groupHeaderClass}>GEN (CSD)</th>
+                <th colSpan={3} className={groupHeaderClass}>HYD (Hydraulic)</th>
+                <th rowSpan={2} className={cn(th, groupHeaderClass, "text-center")}>APU</th>
+                <th rowSpan={2} className={cn(th, groupHeaderClass)}>Updated</th>
+                <th rowSpan={2} className={cn(th, "text-center", groupHeaderClass)}>Action</th>
+              </tr>
+              {/* Row 2: Sub-column headers */}
+              <tr className="border-b-2 border-border">
+                <th className={subHeaderClass}>Engine 1</th>
+                <th className={subHeaderClass}>Engine 2</th>
+                <th className={subHeaderClass}>Engine 3</th>
+                <th className={subHeaderClass}>Engine 4</th>
+                <th className={subHeaderClass}>CSD 1</th>
+                <th className={subHeaderClass}>CSD 2</th>
+                <th className={subHeaderClass}>CSD 3</th>
+                <th className={subHeaderClass}>CSD 4</th>
+                <th className={subHeaderClass}>Green</th>
+                <th className={subHeaderClass}>Blue</th>
+                <th className={subHeaderClass}>Yellow</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((c: AircraftSystemConfig, i: number) => (
-                <tr key={c.icaoCode} className={cn("border-b border-border/50 hover:bg-blue-50/50", i % 2 && "bg-slate-50/50")}>
-                  <td className="px-3 py-2.5  font-semibold text-slate-800">{c.familyCode}</td>
-                  <td className="px-3 py-2.5 text-slate-700">{c.modelVariant}</td>
-                  <td className="px-3 py-2.5">
-                    <Badge color={c.classicNeo === "NEO" ? "info" : "secondary"} className=" text-[10px]">{c.classicNeo}</Badge>
+              {filtered.map((c: AircraftType, i: number) => (
+                <tr key={c.id} className={cn("border-b border-border/50 hover:bg-blue-50/50", i % 2 && "bg-slate-50/50")}>
+                  <td className={cn("px-3 py-2.5 font-semibold text-slate-800 min-w-[80px]", sticky0, i % 2 ? stickyBodyAltBg : stickyBodyBg)}>{c.modelName}</td>
+                  <td className={cn("px-3 py-2.5 text-slate-700 min-w-[140px]", sticky1, i % 2 ? stickyBodyAltBg : stickyBodyBg)}>{c.modelSubName || <span className="text-slate-300">—</span>}</td>
+                  <td className={cn("px-3 py-2.5 min-w-[90px]", sticky2, i % 2 ? stickyBodyAltBg : stickyBodyBg)}>
+                    {c.classicOrNeo ? (
+                      <Badge color={c.classicOrNeo === "NEO" ? "primary" : "secondary"} className="text-[10px]">{c.classicOrNeo}</Badge>
+                    ) : <span className="text-slate-300">—</span>}
                   </td>
-                  <td className="px-3 py-2.5  text-slate-700">{c.icaoCode}</td>
-                  <td className="px-3 py-2.5 text-center  text-slate-600">{c.engineCount}</td>
-                  <td className="px-3 py-2.5 text-center  text-slate-600">{c.generatorCount}</td>
-                  <td className="px-3 py-2.5 text-center  text-slate-600">{c.hydraulicCount}</td>
-                  <td className="px-3 py-2.5 text-center"><YesNo value={c.hasApu} /></td>
-                  <td className="px-3 py-2.5"><UpdatedMeta by={c.updatedBy} atUtc={c.updatedAtUtc} /></td>
+                  <td className={cn("px-3 py-2.5 text-slate-700 min-w-[70px] border-r border-border", sticky3, i % 2 ? stickyBodyAltBg : stickyBodyBg)}>{c.code}</td>
+                  {/* Engine flags */}
+                  <td className={subCellClass}><FlagIcon value={c.flagEnging1} /></td>
+                  <td className={subCellClass}><FlagIcon value={c.flagEnging2} /></td>
+                  <td className={subCellClass}><FlagIcon value={c.flagEnging3} /></td>
+                  <td className={subCellClass}><FlagIcon value={c.flagEnging4} /></td>
+                  {/* CSD flags */}
+                  <td className={subCellClass}><FlagIcon value={c.flagCsd1} /></td>
+                  <td className={subCellClass}><FlagIcon value={c.flagCsd2} /></td>
+                  <td className={subCellClass}><FlagIcon value={c.flagCsd3} /></td>
+                  <td className={subCellClass}><FlagIcon value={c.flagCsd4} /></td>
+                  {/* Hydraulic flags */}
+                  <td className={subCellClass}><FlagIcon value={c.flagHydrolicGreen} /></td>
+                  <td className={subCellClass}><FlagIcon value={c.flagHydrolicBlue} /></td>
+                  <td className={subCellClass}><FlagIcon value={c.flagHydrolicYellow} /></td>
+                  {/* APU */}
+                  <td className="px-3 py-2.5 text-center"><FlagIcon value={c.flagApu} /></td>
+                  <td className="px-3 py-2.5"><UpdatedMeta by={c.updatedBy ?? c.createdBy} atUtc={c.updatedDate ?? c.createdDate} /></td>
                   <td className="px-3 py-2.5">
                     <div className="flex items-center justify-center gap-1">
                       <PermissionActionGuard menuCode={AE_MENU} action="canEdit">
@@ -154,61 +253,132 @@ export function SystemConfigTab() {
                 </tr>
               ))}
               {filtered.length === 0 && !isFetching && (
-                <tr><td colSpan={10} className="px-4 py-12 text-center text-sm text-muted-foreground">No data found</td></tr>
+                <tr><td colSpan={totalCols} className="px-4 py-12 text-center text-sm text-muted-foreground">No data found</td></tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Add / Edit */}
+      {/* Add / Edit Modal */}
       <Dialog open={modalMode !== "closed"} onOpenChange={(o) => !o && closeModal()}>
-        <DialogContent className="max-w-[480px] bg-white">
+        <DialogContent className="max-w-[640px] bg-white max-h-[90vh] overflow-y-auto">
           <DialogTitle className="text-base font-bold text-slate-800">
-            {modalMode === "add" ? "Add Aircraft system config" : `Edit ${form.icaoCode}`}
+            {modalMode === "add" ? "Add Aircraft system config" : `Edit ${form.code}`}
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">Tied to ICAO code — 1 row per variant</DialogDescription>
 
           <div className="space-y-4 py-1">
+            {/* Basic info */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs font-medium text-slate-600">ICAO code *</Label>
-                <Input value={form.icaoCode} disabled={modalMode === "edit"} onChange={(e) => setForm((f) => ({ ...f, icaoCode: e.target.value }))} placeholder="e.g. A20N" className="mt-1 h-9  text-sm disabled:opacity-60" />
+                <Input value={form.code} disabled={modalMode === "edit"} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value, name: e.target.value }))} placeholder="e.g. A20N" className={cn("mt-1 h-9 text-sm uppercase disabled:opacity-60", isDuplicateIcao && "border-red-400 focus-visible:ring-red-400")} />
+                {isDuplicateIcao && (
+                  <p className="mt-1 text-xs text-red-500">ICAO code "{(form.code ?? "").trim().toUpperCase()}" already exists</p>
+                )}
               </div>
               <div>
-                <Label className="text-xs font-medium text-slate-600">Aircraft family *</Label>
-                <Select value={form.familyCode} onValueChange={(v) => setForm((f) => ({ ...f, familyCode: v }))}>
-                  <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    {families.map((fam: AircraftFamily) => <SelectItem key={fam.familyCode} value={fam.familyCode}>{fam.familyCode}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Label className="text-xs font-medium text-slate-600">Aircraft family</Label>
+                <Popover open={familyOpen} onOpenChange={setFamilyOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" aria-expanded={familyOpen} className="mt-1 h-9 w-full justify-between text-sm font-normal">
+                      {form.familyCode || <span className="text-muted-foreground">Select family</span>}
+                      <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[200px] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search family..." className="h-8 text-sm" />
+                      <CommandList>
+                        <CommandEmpty>No family found.</CommandEmpty>
+                        {families.map((fam: AircraftFamilyCode) => (
+                          <CommandItem
+                            key={fam.id}
+                            value={fam.code}
+                            onSelect={(v) => {
+                              setForm((f) => ({ ...f, familyCode: v.toUpperCase() }));
+                              setFamilyOpen(false);
+                            }}
+                          >
+                            <Check className={cn("mr-2 h-3.5 w-3.5", form.familyCode === fam.code ? "opacity-100" : "opacity-0")} />
+                            {fam.code}
+                          </CommandItem>
+                        ))}
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs font-medium text-slate-600">Model variant *</Label>
-                <Input value={form.modelVariant} onChange={(e) => setForm((f) => ({ ...f, modelVariant: e.target.value }))} placeholder="e.g. A320neo" className="mt-1 h-9 text-sm" />
+                <Label className="text-xs font-medium text-slate-600">Model Name *</Label>
+                <Input value={form.modelName} onChange={(e) => setForm((f) => ({ ...f, modelName: e.target.value }))} placeholder="e.g. A320" className="mt-1 h-9 text-sm" />
               </div>
               <div>
-                <Label className="text-xs font-medium text-slate-600">Classic / NEO</Label>
-                <Select value={form.classicNeo} onValueChange={(v) => setForm((f) => ({ ...f, classicNeo: v as ClassicNeo }))}>
-                  <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="CLASSIC">CLASSIC</SelectItem>
-                    <SelectItem value="NEO">NEO</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label className="text-xs font-medium text-slate-600">Model Sub Name</Label>
+                <Input value={form.modelSubName} onChange={(e) => setForm((f) => ({ ...f, modelSubName: e.target.value }))} placeholder="e.g. A320neo" className="mt-1 h-9 text-sm" />
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              <CountField label="Engine count" value={form.engineCount} onChange={(n) => setForm((f) => ({ ...f, engineCount: n }))} />
-              <CountField label="Generator count" value={form.generatorCount} onChange={(n) => setForm((f) => ({ ...f, generatorCount: n }))} />
-              <CountField label="Hydraulic count" value={form.hydraulicCount} onChange={(n) => setForm((f) => ({ ...f, hydraulicCount: n }))} />
+            <div>
+              <Label className="text-xs font-medium text-slate-600">Classic / NEO</Label>
+              <Select value={form.classicOrNeo} onValueChange={(v) => setForm((f) => ({ ...f, classicOrNeo: v }))}>
+                <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CLASSIC">CLASSIC</SelectItem>
+                  <SelectItem value="NEO">NEO</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+
+            {/* Engine flags */}
+            <div>
+              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">Engine</p>
+              <div className="grid grid-cols-2 gap-3">
+                {(["flagEnging1", "flagEnging2", "flagEnging3", "flagEnging4"] as const).map((key, idx) => (
+                  <div key={key} className="flex items-center justify-between rounded-lg border border-border bg-slate-50 px-3 py-2">
+                    <Label className="text-xs text-slate-600">Engine {idx + 1}</Label>
+                    <Switch checked={form[key]} onCheckedChange={(v) => setForm((f) => ({ ...f, [key]: v }))} />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* CSD flags */}
+            <div>
+              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">CSD (Generator)</p>
+              <div className="grid grid-cols-2 gap-3">
+                {(["flagCsd1", "flagCsd2", "flagCsd3", "flagCsd4"] as const).map((key, idx) => (
+                  <div key={key} className="flex items-center justify-between rounded-lg border border-border bg-slate-50 px-3 py-2">
+                    <Label className="text-xs text-slate-600">CSD {idx + 1}</Label>
+                    <Switch checked={form[key]} onCheckedChange={(v) => setForm((f) => ({ ...f, [key]: v }))} />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Hydraulic flags */}
+            <div>
+              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">Hydraulic</p>
+              <div className="grid grid-cols-3 gap-3">
+                {([
+                  ["flagHydrolicGreen", "Green"],
+                  ["flagHydrolicBlue", "Blue"],
+                  ["flagHydrolicYellow", "Yellow"],
+                ] as const).map(([key, label]) => (
+                  <div key={key} className="flex items-center justify-between rounded-lg border border-border bg-slate-50 px-3 py-2">
+                    <Label className="text-xs text-slate-600">{label}</Label>
+                    <Switch checked={form[key]} onCheckedChange={(v) => setForm((f) => ({ ...f, [key]: v }))} />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* APU */}
             <div className="flex items-center justify-between rounded-lg border border-border bg-slate-50 px-3 py-2.5">
               <Label className="text-sm font-medium text-slate-700">Has APU</Label>
-              <Switch checked={form.hasApu} onCheckedChange={(v) => setForm((f) => ({ ...f, hasApu: v }))} />
+              <Switch checked={form.flagApu} onCheckedChange={(v) => setForm((f) => ({ ...f, flagApu: v }))} />
             </div>
           </div>
 
@@ -221,13 +391,13 @@ export function SystemConfigTab() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete */}
+      {/* Delete Confirm */}
       <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <DialogContent className="max-w-sm bg-white text-center">
           <DialogTitle className="sr-only">Confirm Delete</DialogTitle>
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100"><AlertTriangle className="h-6 w-6 text-red-500" /></div>
           <h3 className="text-base font-bold text-slate-800">Confirm Delete</h3>
-          <p className="text-sm text-muted-foreground">Delete system config <b className="">{deleteTarget?.icaoCode}</b>?</p>
+          <p className="text-sm text-muted-foreground">Delete <b>{deleteTarget?.code}</b> ({deleteTarget?.modelSubName})?</p>
           <div className="flex justify-center gap-2 pt-2">
             <Button variant="outline" size="sm" onClick={() => setDeleteTarget(null)}>Cancel</Button>
             <Button size="sm" onClick={handleDelete} disabled={del.isPending} className="gap-2 bg-red-600 text-white hover:bg-red-700">

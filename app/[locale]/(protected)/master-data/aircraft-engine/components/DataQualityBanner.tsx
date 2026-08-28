@@ -6,17 +6,13 @@ import { ChevronDown, ShieldCheck, AlertTriangle } from "lucide-react";
 import type { DataQualityCategory, DataQualityFinding } from "@/lib/api/master/aircraft-engine/aircraftEngine.types";
 
 const TAG_STYLE: Record<DataQualityCategory, string> = {
-  ORPHAN: "bg-amber-400 text-amber-950",
   MISSING_CONFIG: "bg-orange-400 text-orange-950",
   NAMING: "bg-rose-400 text-rose-950",
-  STALE_GROUP: "bg-red-500 text-white",
 };
 
 const TAG_LABEL: Record<DataQualityCategory, string> = {
-  ORPHAN: "ORPHAN",
   MISSING_CONFIG: "MISSING",
   NAMING: "NAMING",
-  STALE_GROUP: "GROUP",
 };
 
 export function DataQualityBanner({ findings }: { findings: DataQualityFinding[] }) {

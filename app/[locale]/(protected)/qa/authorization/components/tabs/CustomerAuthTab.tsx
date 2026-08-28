@@ -293,6 +293,7 @@ function MatrixView() {
   const [editSamsExp, setEditSamsExp] = useState('')
   const [editRating, setEditRating] = useState<Set<string>>(new Set())
   const [showDateValidation, setShowDateValidation] = useState(false)
+  const [showAircraftValidation, setShowAircraftValidation] = useState(false)
 
   const { data: airlinesRes, isLoading: airlinesLoading } = useAirlines()
   const { data: authorizationStatuses = [] } = useStaffAuthorizationAirlineStatuses()
@@ -402,6 +403,7 @@ function MatrixView() {
     setEditSamsExp(getCustomerAuthDateValue(cellData.expiryDate))
     setAircraftLicenseSearch('')
     setShowDateValidation(false)
+    setShowAircraftValidation(false)
     const ratingsFromIds = (airlineAuthorization?.aircraftTypeIds || [])
       .map(id => aircraftOptions.find(option => option.id === id)?.name)
       .filter((name): name is string => Boolean(name))
@@ -926,7 +928,7 @@ function MatrixView() {
                       {selectedCell.staff.name}
                     </DialogTitle>
                     <p className="mt-1 text-xs font-semibold text-slate-500">
-                      {selectedCell.staff.id} • License
+                      {selectedCell.staff.id} • License — • Customer {selectedCell.airlineCode}
                     </p>
                   </div>
                   <span
@@ -1054,6 +1056,7 @@ function MatrixView() {
                         emptyIcon={<Plane className="h-8 w-8 mb-2 opacity-30" />}
                         emptyLabel="No items selected"
                         height={270}
+                        hasError={showAircraftValidation && editRating.size === 0}
                         renderSelectedGroupLabel={(_groupKey, groupItems) => {
                           const subGroups = new Map<string, { familyCode: string; engineCode: string; seriesList: string[] }>()
                           for (const item of groupItems) {
@@ -1075,6 +1078,9 @@ function MatrixView() {
                             .join(', ')
                         }}
                       />
+                      {showAircraftValidation && editRating.size === 0 && (
+                        <p className="mt-1.5 text-[10px] font-medium text-red-600 whitespace-nowrap">Please select at least one Aircraft License</p>
+                      )}
                     </section>
                 </div>
 
@@ -1134,6 +1140,11 @@ function MatrixView() {
                         disabled={updateAuthMutation.isPending || authRecordsLoading}
                         onClick={async () => {
                           setShowDateValidation(true)
+                          setShowAircraftValidation(true)
+                          if (editRating.size === 0) {
+                            toast.error("Please select at least one Aircraft License")
+                            return
+                          }
                           if (hasLicenseDateErrors) {
                             toast.error("Please correct the license dates before saving")
                             return

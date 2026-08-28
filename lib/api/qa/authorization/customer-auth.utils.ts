@@ -133,11 +133,24 @@ export function getCustomerAuthPageItems<T>(items: T[], page: number, perPage: n
 
 export function mapCustomerAuthStatus(statusCode: string | null | undefined): CustomerAuthUiStatus {
   switch ((statusCode || '').trim().toUpperCase()) {
-    case 'VAL': return 'valid'
-    case 'NAP': return 'not_approve'
-    case 'NCP': return 'not_complete'
-    case 'SUS': return 'suspended'
+    case 'VAL':
+    case 'VALID': return 'valid'
+    case 'NAP':
+    case 'NOT APPROVED':
+    case 'NOT_APPROVE':
+    case 'REJECTED':
+    case 'REJ': return 'not_approve'
+    case 'NCP':
+    case 'FXP':
+    case 'EXG':
+    case 'EXPIRING': return 'not_complete'
+    case 'SUS':
+    case 'EXP':
+    case 'EXD':
+    case 'EXPIRED':
+    case 'SUSPENDED': return 'suspended'
     case 'PEN':
+    case 'PENDING':
     default: return 'pending'
   }
 }

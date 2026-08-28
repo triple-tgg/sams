@@ -60,9 +60,12 @@ export function mapAuthorityApiStatus(
       return "valid";
     case "expired":
     case "exp":
+    case "exd":
       return "suspended";
     case "expiring":
     case "expi":
+    case "fxp":
+    case "exg":
       return "not_complete";
     case "not approved":
     case "not_approve":

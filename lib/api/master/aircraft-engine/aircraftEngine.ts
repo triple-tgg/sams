@@ -16,6 +16,7 @@ export interface CombinationInput {
   familyCode: string;
   series: string;
   engineCode: string;
+  similarTechnology?: string;
 }
 
 export interface FetchAuthGroupsOptions {
@@ -220,6 +221,7 @@ export function normalizeCombination(record: UnknownRecord): AircraftEngineCombi
       ["displayLabel", "display_label"],
       `${series ? `${familyCode}-${series}` : familyCode} (${engineCode})`,
     ),
+    similarTechnology: nullableStringAt(record, ["similarTechnology", "similar_technology"]) ?? undefined,
     validFrom: stringAt(record, ["validFrom", "validFromUtc", "valid_from"], updatedAtUtc(record)),
     validTo: nullableStringAt(record, ["validTo", "validToUtc", "valid_to"]),
     updatedBy: updatedBy(record),
@@ -336,8 +338,8 @@ export async function fetchCombinations(asOf?: string): Promise<AircraftEngineCo
 
 export async function upsertCombination(input: CombinationInput): Promise<void> {
   const body = input.id == null
-    ? { familyCode: input.familyCode, series: input.series, engineCode: input.engineCode }
-    : input;
+    ? { familyCode: input.familyCode, series: input.series, engineCode: input.engineCode, similarTechnology: input.similarTechnology || null }
+    : { ...input, similarTechnology: input.similarTechnology || null };
   await writeRequest(
     () => axiosConfig.post("/master/aircraft-engine-combination", body),
     "Failed to save aircraft-engine combination",

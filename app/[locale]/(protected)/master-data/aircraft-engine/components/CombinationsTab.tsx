@@ -2,19 +2,23 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Search, Plus, Edit2, Trash2, RotateCw, AlertTriangle, Ban } from "lucide-react";
+import { Search, Plus, Edit2, Trash2, RotateCw, AlertTriangle, Ban, ChevronsUpDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandInput, CommandList, CommandEmpty, CommandItem } from "@/components/ui/command";
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard";
 import {
-  useAuthGroups, useCombinations, useEngines, useFamilies, useUpsertCombination, useDeleteCombination,
+  useCombinations, useEngines, useUpsertCombination, useDeleteCombination,
 } from "@/lib/api/master/aircraft-engine/aircraftEngine.hooks";
+import { useAircraftFamilyCodes } from "@/lib/api/master/aircraft-family/aircraft-family.hooks";
+import type { AircraftFamilyCode } from "@/lib/api/master/aircraft-family/aircraft-family";
 import { buildDisplayLabel, checkCombinationReferences } from "@/lib/api/master/aircraft-engine/aircraftEngine.validation";
-import type { AircraftEngineCombination, EngineMaster, AircraftFamily } from "@/lib/api/master/aircraft-engine/aircraftEngine.types";
+import type { AircraftEngineCombination, EngineMaster } from "@/lib/api/master/aircraft-engine/aircraftEngine.types";
 import { AE_MENU, Chip, UpdatedMeta, th } from "./shared";
 
 interface FormState {
@@ -22,15 +26,17 @@ interface FormState {
   familyCode: string;
   series: string;
   engineCode: string;
+  similarTechnology: string;
 }
 
-const emptyForm: FormState = { familyCode: "", series: "", engineCode: "" };
+const emptyForm: FormState = { familyCode: "", series: "", engineCode: "", similarTechnology: "" };
+
+const SIMILAR_TECHNOLOGY_OPTIONS = ["Group 1", "Group 2", "Group 3"];
 
 export function CombinationsTab() {
   const { data: combinations = [], isFetching } = useCombinations();
   const { data: engines = [] } = useEngines();
-  const { data: families = [] } = useFamilies();
-  const { data: groups = [] } = useAuthGroups();
+  const { data: families = [] } = useAircraftFamilyCodes();
   const upsert = useUpsertCombination();
   const del = useDeleteCombination();
 
@@ -39,6 +45,7 @@ export function CombinationsTab() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [deleteTarget, setDeleteTarget] = useState<AircraftEngineCombination | null>(null);
   const [blockInfo, setBlockInfo] = useState<{ label: string; references: string[] } | null>(null);
+  const [familyOpen, setFamilyOpen] = useState(false);
 
   const engineName = (code: string) => engines.find((e: EngineMaster) => e.engineCode === code)?.engineName ?? code;
 
@@ -58,7 +65,7 @@ export function CombinationsTab() {
 
   const openAdd = () => { setForm(emptyForm); setModalMode("add"); };
   const openEdit = (c: AircraftEngineCombination) => {
-    setForm({ id: c.id, familyCode: c.familyCode, series: c.series, engineCode: c.engineCode });
+    setForm({ id: c.id, familyCode: c.familyCode, series: c.series, engineCode: c.engineCode, similarTechnology: c.similarTechnology || "" });
     setModalMode("edit");
   };
   const closeModal = () => { setModalMode("closed"); setForm(emptyForm); };
@@ -67,7 +74,7 @@ export function CombinationsTab() {
 
   const handleSave = async () => {
     try {
-      await upsert.mutateAsync({ id: form.id, familyCode: form.familyCode, series: form.series.trim(), engineCode: form.engineCode });
+      await upsert.mutateAsync({ id: form.id, familyCode: form.familyCode, series: form.series.trim(), engineCode: form.engineCode, similarTechnology: form.similarTechnology || undefined });
       toast.success(modalMode === "add" ? "Added combination successfully" : "Updated combination successfully");
       closeModal();
     } catch (e) {
@@ -76,7 +83,7 @@ export function CombinationsTab() {
   };
 
   const requestDelete = (c: AircraftEngineCombination) => {
-    const ref = checkCombinationReferences(c.id, groups);
+    const ref = checkCombinationReferences(c.id, []);
     if (ref.blocked) setBlockInfo({ label: c.displayLabel, references: ref.references });
     else setDeleteTarget(c);
   };
@@ -118,6 +125,7 @@ export function CombinationsTab() {
                 <th className={th}>Series</th>
                 <th className={th}>Engine</th>
                 <th className={th}>Display label</th>
+                <th className={th}>Similar Technology</th>
                 <th className={th}>Updated</th>
                 <th className={cn(th, "text-center")}>Action</th>
               </tr>
@@ -129,6 +137,7 @@ export function CombinationsTab() {
                   <td className="px-3 py-2.5  text-slate-600">{c.series || <span className="text-slate-300">—</span>}</td>
                   <td className="px-3 py-2.5"><Chip>{engineName(c.engineCode)}</Chip></td>
                   <td className="px-3 py-2.5  text-slate-700">{c.displayLabel}</td>
+                  <td className="px-3 py-2.5  text-slate-600">{c.similarTechnology || <span className="text-slate-300">—</span>}</td>
                   <td className="px-3 py-2.5"><UpdatedMeta by={c.updatedBy} atUtc={c.updatedAtUtc} /></td>
                   <td className="px-3 py-2.5">
                     <div className="flex items-center justify-center gap-1">
@@ -143,7 +152,7 @@ export function CombinationsTab() {
                 </tr>
               ))}
               {filtered.length === 0 && !isFetching && (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-muted-foreground">No data found</td></tr>
+                <tr><td colSpan={7} className="px-4 py-12 text-center text-sm text-muted-foreground">No data found</td></tr>
               )}
             </tbody>
           </table>
@@ -161,25 +170,55 @@ export function CombinationsTab() {
           </DialogDescription>
 
           <div className="space-y-4 py-1">
-            <div>
-              <Label className="text-xs font-medium text-slate-600">Aircraft family *</Label>
-              <Select value={form.familyCode} onValueChange={(v) => setForm((f) => ({ ...f, familyCode: v }))}>
-                <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue placeholder="Select family" /></SelectTrigger>
-                <SelectContent>
-                  {families.map((fam: AircraftFamily) => (
-                    <SelectItem key={fam.familyCode} value={fam.familyCode}>
-                      {fam.familyCode} — {fam.familyName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="mt-1 text-[11px] text-muted-foreground">Family list is derived from existing API data. The supplied API has no Aircraft Family create endpoint.</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs font-medium text-slate-600">Similar Technology</Label>
+                <Select value={form.similarTechnology} onValueChange={(v) => setForm((f) => ({ ...f, similarTechnology: v }))}>
+                  <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue placeholder="Select group" /></SelectTrigger>
+                  <SelectContent>
+                    {SIMILAR_TECHNOLOGY_OPTIONS.map((opt) => (
+                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-slate-600">Aircraft family *</Label>
+                <Popover open={familyOpen} onOpenChange={setFamilyOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" aria-expanded={familyOpen} className="mt-1 h-9 w-full justify-between text-sm font-normal">
+                      {form.familyCode || <span className="text-muted-foreground">Select family</span>}
+                      <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[200px] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search family..." className="h-8 text-sm" />
+                      <CommandList>
+                        <CommandEmpty>No family found.</CommandEmpty>
+                        {families.map((fam: AircraftFamilyCode) => (
+                          <CommandItem
+                            key={fam.code}
+                            value={fam.code}
+                            onSelect={(v) => {
+                              setForm((f) => ({ ...f, familyCode: v.toUpperCase() }));
+                              setFamilyOpen(false);
+                            }}
+                          >
+                            <Check className={cn("mr-2 h-3.5 w-3.5", form.familyCode === fam.code ? "opacity-100" : "opacity-0")} />
+                            {fam.code}
+                          </CommandItem>
+                        ))}
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
 
             <div>
               <Label className="text-xs font-medium text-slate-600">Series / variant</Label>
               <Input value={form.series} onChange={(e) => setForm((f) => ({ ...f, series: e.target.value }))} placeholder="e.g. 600, 8200, 300ER" className="mt-1 h-9 text-sm" />
-              <p className="mt-1 text-[11px] text-muted-foreground">Can be empty if the family has no series, e.g. A318</p>
             </div>
 
             <div>
@@ -192,7 +231,6 @@ export function CombinationsTab() {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="mt-1 text-[11px] text-muted-foreground">Pulled from Engine master only, preventing mismatching engine names.</p>
             </div>
 
             <div>

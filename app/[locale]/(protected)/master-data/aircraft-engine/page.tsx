@@ -5,14 +5,16 @@ import { useSearchParams } from "next/navigation";
 import { AlertTriangle, Loader2, Plane } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
-  useCombinations, useAuthGroups, useSystemConfigs, useEngines,
+  useCombinations, useEngines,
 } from "@/lib/api/master/aircraft-engine/aircraftEngine.hooks";
+import { useAircraftFamilyCodes } from "@/lib/api/master/aircraft-family/aircraft-family.hooks";
+import { useAircraftTypes } from "@/lib/api/master/aircraft-types/aircraft-types.hooks";
 import { computeDataQuality } from "@/lib/api/master/aircraft-engine/aircraftEngine.validation";
 import { DataQualityBanner } from "./components/DataQualityBanner";
 import { CombinationsTab } from "./components/CombinationsTab";
-import { AuthGroupsTab } from "./components/AuthGroupsTab";
 import { SystemConfigTab } from "./components/SystemConfigTab";
 import { EngineMasterTab } from "./components/EngineMasterTab";
+import { AircraftFamilyTab } from "./components/AircraftFamilyTab";
 import { Card, CardContent } from "@/components/ui/card";
 
 const TabCount = ({ n }: { n: number }) => (
@@ -21,26 +23,26 @@ const TabCount = ({ n }: { n: number }) => (
 
 export default function AircraftEnginePage() {
   const combinationsQuery = useCombinations();
-  const authGroupsQuery = useAuthGroups();
-  const systemConfigsQuery = useSystemConfigs();
+  const aircraftTypesQuery = useAircraftTypes();
   const enginesQuery = useEngines();
+  const familyCodesQuery = useAircraftFamilyCodes();
   const combinations = combinationsQuery.data ?? [];
-  const authGroups = authGroupsQuery.data ?? [];
-  const systemConfigs = systemConfigsQuery.data ?? [];
+  const aircraftTypes = aircraftTypesQuery.data ?? [];
   const engines = enginesQuery.data ?? [];
-  const queries = [combinationsQuery, authGroupsQuery, systemConfigsQuery, enginesQuery];
+  const familyCodes = familyCodesQuery.data ?? [];
+  const queries = [combinationsQuery, aircraftTypesQuery, enginesQuery];
   const isMasterDataPending = queries.some((query) => query.isPending);
   const masterDataError = queries.find((query) => query.error)?.error;
-  // Honor deep links from the shared reference panel (CR-6), e.g. ?tab=group.
+  // Honor deep links from the shared reference panel (CR-6), e.g. ?tab=sys.
   const searchParams = useSearchParams();
   const requestedTab = searchParams.get("tab");
   const [tab, setTab] = useState(
-    ["combo", "group", "sys", "engine"].includes(requestedTab ?? "") ? (requestedTab as string) : "combo",
+    ["combo", "sys", "engine", "family"].includes(requestedTab ?? "") ? (requestedTab as string) : "combo",
   );
 
   const findings = useMemo(
-    () => computeDataQuality({ engines, combinations, authGroups, systemConfigs }),
-    [engines, combinations, authGroups, systemConfigs],
+    () => computeDataQuality({ engines, combinations, aircraftTypes, familyCodes }),
+    [engines, combinations, aircraftTypes, familyCodes],
   );
 
   return (
@@ -91,17 +93,12 @@ export default function AircraftEnginePage() {
               >
                 Aircraft-Engine combinations <TabCount n={combinations.length} />
               </TabsTrigger>
-              {/* <TabsTrigger
-                value="group"
-                className="flex items-center gap-2 px-4 py-2.5 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent text-muted-foreground"
-              >
-                Authorization type groups <TabCount n={authGroups.length} />
-              </TabsTrigger> */}
+
               <TabsTrigger
                 value="sys"
                 className="flex items-center gap-2 px-4 py-2.5 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent text-muted-foreground"
               >
-                Aircraft system config <TabCount n={systemConfigs.length} />
+                Aircraft system config <TabCount n={aircraftTypes.length} />
               </TabsTrigger>
               <TabsTrigger
                 value="engine"
@@ -109,12 +106,18 @@ export default function AircraftEnginePage() {
               >
                 Engine master <TabCount n={engines.length} />
               </TabsTrigger>
+              <TabsTrigger
+                value="family"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent text-muted-foreground"
+              >
+                Aircraft Family <TabCount n={familyCodes.length} />
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="combo" className="mt-5"><CombinationsTab /></TabsContent>
-            {/* <TabsContent value="group" className="mt-5"><AuthGroupsTab /></TabsContent> */}
             <TabsContent value="sys" className="mt-5"><SystemConfigTab /></TabsContent>
             <TabsContent value="engine" className="mt-5"><EngineMasterTab /></TabsContent>
+            <TabsContent value="family" className="mt-5"><AircraftFamilyTab /></TabsContent>
           </Tabs>
 
           <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
