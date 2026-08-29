@@ -20,6 +20,10 @@ export interface PushThfRequest {
   thfNo: string;
   routeFrom: string;
   routeTo: string;
+  aircraftEngineCode?: string;
+  familyCode?: string;
+  series?: string;
+  engineCode?: string;
 }
 
 // Interface for push THF response

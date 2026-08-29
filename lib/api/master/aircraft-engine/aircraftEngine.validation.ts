@@ -13,6 +13,7 @@ import type {
   EngineMaster,
   ReferenceCheck,
 } from "./aircraftEngine.types";
+import type { AircraftType } from "../aircraft-types/aircraft-types";
 
 /** Display-label derivation used by the editor preview when the API record has not been saved yet. */
 export function buildDisplayLabel(familyCode: string, series: string, engineName: string): string {
@@ -49,9 +50,7 @@ export interface Datasets {
   engines: EngineMaster[];
   combinations: AircraftEngineCombination[];
   /** Aircraft Types (from /master/aircraftTypes) — replaces old systemConfigs */
-  aircraftTypes: { modelName: string; familyCode: string | null }[];
-  /** Aircraft Family codes (from /master/aircraft-family-codes-list) */
-  familyCodes: { code: string }[];
+  aircraftTypes: AircraftType[];
 }
 
 // ── Levenshtein distance for "did you mean" engine suggestions ──
@@ -94,56 +93,33 @@ export function suggestEngineName(label: string, engines: EngineMaster[]): strin
 // The full data-quality scan.
 // ══════════════════════════════════════════════════════════════
 export function computeDataQuality(data: Datasets): DataQualityFinding[] {
-  const { combinations, aircraftTypes, familyCodes } = data;
+  const { combinations, aircraftTypes } = data;
   const findings: DataQualityFinding[] = [];
 
   const comboFamilies = new Set(combinations.map((c) => c.familyCode));
   const typeFamilies = new Set(aircraftTypes.map((t) => t.modelName).filter(Boolean));
-  const registeredFamilies = new Set(familyCodes.map((f) => f.code));
 
-  // ── 1. Aircraft Family ไม่มีใน Combinations ──
-  for (const code of registeredFamilies) {
-    if (!comboFamilies.has(code)) {
+  // Check for duplicate ICAO codes
+  const icaoCounts = new Map<string, number>();
+  for (const t of aircraftTypes) {
+    if (t.code) {
+      icaoCounts.set(t.code, (icaoCounts.get(t.code) || 0) + 1);
+    }
+  }
+
+  for (const [icao, count] of icaoCounts.entries()) {
+    if (count > 1) {
       findings.push({
-        id: `family-no-combo-${code}`,
-        category: "MISSING_CONFIG",
-        message: `${code} มีอยู่ใน Aircraft Family แต่ยังไม่มี Aircraft-Engine Combination`,
+        id: `dup-icao-${icao}`,
+        category: "DUPLICATE_ICAO",
+        message: `ICAO Code "${icao}" is duplicated ${count} times in Aircraft system config`,
+        severity: "red",
       });
     }
   }
 
-  // ── 2. Aircraft Family ไม่มีใน System Config (Aircraft Types) ──
-  for (const code of registeredFamilies) {
-    if (!typeFamilies.has(code)) {
-      findings.push({
-        id: `family-no-type-${code}`,
-        category: "MISSING_CONFIG",
-        message: `${code} มีอยู่ใน Aircraft Family แต่ยังไม่มีข้อมูลใน Aircraft System Config`,
-      });
-    }
-  }
-
-  // ── 3. Combination family ที่ไม่ได้ลงทะเบียนใน Aircraft Family ──
-  for (const family of comboFamilies) {
-    if (!registeredFamilies.has(family)) {
-      findings.push({
-        id: `combo-no-family-${family}`,
-        category: "MISSING_CONFIG",
-        message: `${family} มีอยู่ใน Aircraft-Engine Combinations แต่ยังไม่ได้ลงทะเบียนใน Aircraft Family`,
-      });
-    }
-  }
-
-  // ── 4. System Config family ที่ไม่ได้ลงทะเบียนใน Aircraft Family ──
-  for (const family of typeFamilies) {
-    if (!registeredFamilies.has(family)) {
-      findings.push({
-        id: `type-no-family-${family}`,
-        category: "MISSING_CONFIG",
-        message: `${family} มีอยู่ใน Aircraft System Config แต่ยังไม่ได้ลงทะเบียนใน Aircraft Family`,
-      });
-    }
-  }
+  // Additional checks between combinations and aircraftTypes can go here
+  // For now, no strict cross-validation on families since Aircraft Family is removed.
 
   return findings;
 }

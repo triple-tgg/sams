@@ -13,6 +13,10 @@ export type Step1FormInputs = {
   routeFrom: Option | null
   routeTo: Option | null
 
+  // Aircraft-Engine
+  series: string
+  engineCode: string
+
   // Arrival (UTC Time)
   flightArrival: string
   arrivalDate: string

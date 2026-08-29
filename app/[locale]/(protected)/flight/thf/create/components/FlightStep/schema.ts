@@ -27,6 +27,10 @@ export const flightFormSchema = z.object({
   routeFrom: optionalOptionSchema, // Optional
   routeTo: optionalOptionSchema, // Optional
 
+  // Aircraft-Engine
+  series: z.string().optional().default(''),
+  engineCode: z.string().optional().default(''),
+
   // Arrival (UTC Time) - Required: flightArrival, arrivalDate, sta; Optional: ata
   flightArrival: z.string().min(1, "Flight No is required"),
   arrivalDate: z.string().min(1, "Arrival date is required"),

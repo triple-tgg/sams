@@ -214,7 +214,7 @@ export function SamsAuthTab() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h2 className="text-lg font-bold text-foreground">SAMs Authorization</h2>
+        <h2 className="text-lg font-bold text-foreground">SAMS Authorization</h2>
 
         {/* ── Filter Bar ── */}
         <div className="flex items-center gap-3 flex-wrap">
@@ -441,7 +441,7 @@ export function SamsAuthTab() {
                       {detailStaff ? detailStaff.name : targetStaff?.employeeName}
                     </DialogTitle>
                     <p className="mt-1 text-xs font-semibold text-slate-500">
-                      {detailStaff ? detailStaff.employeeId : targetStaff?.employeeId} • SAMs Authorization
+                      {detailStaff ? detailStaff.employeeId : targetStaff?.employeeId} • SAMS Authorization
                     </p>
                   </div>
                   <span
@@ -504,7 +504,7 @@ export function SamsAuthTab() {
                         <input type="date" value={editCurrDate} onChange={event => setEditCurrDate(event.target.value)} className="mt-1 w-full bg-transparent text-sm font-bold text-slate-800 outline-none" />
                       </label>
                       <label className="block rounded-lg border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
-                        <span className="block text-[10px] font-semibold text-slate-500">Date of Expire (SAMs)</span>
+                        <span className="block text-[10px] font-semibold text-slate-500">Date of Expire (SAMS)</span>
                         <input type="date" value={editSamsExp} onChange={event => setEditSamsExp(event.target.value)} className="mt-1 w-full bg-transparent text-sm font-bold text-slate-800 outline-none" />
                       </label>
                     </div>

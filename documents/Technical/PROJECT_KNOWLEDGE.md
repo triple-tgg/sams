@@ -528,7 +528,7 @@ These are observations, not automatically authorized fixes:
 9. **Timer mismatch.** Flight timeline says “update every minute” but uses a
    600 ms interval, creating unnecessary renders/API-adjacent work.
 10. **Metadata/branding remnants.** Some metadata and `theme.config.tsx` retain
-    DashCode/template or old “SAMs” labels despite the official naming rule.
+    DashCode/template or old “SAMS” labels despite the official naming rule.
 11. **Potential pagination bug.** Flight table's page-size branch calls
     `goToPage(next.pageSize)` rather than a page-size updater; reproduce before
     changing.

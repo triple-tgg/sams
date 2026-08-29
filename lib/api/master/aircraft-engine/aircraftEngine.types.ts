@@ -138,7 +138,8 @@ export interface AircraftSystemConfig {
 
 export type DataQualityCategory =
   | "MISSING_CONFIG" // family in combinations but absent from system config (or reverse)
-  | "NAMING"; // engine label elsewhere doesn't match engine_master exactly
+  | "NAMING" // engine label elsewhere doesn't match engine_master exactly
+  | "DUPLICATE_ICAO"; // ICAO code duplicated
 
 /** Banner severity. A single `red` finding escalates the whole banner (CR-1). */
 export type DataQualitySeverity = "amber" | "red";

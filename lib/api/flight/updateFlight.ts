@@ -8,6 +8,10 @@ export interface UpdateFlightData {
   stationsCode: string;
   acReg: string;
   acTypeCode: string;
+  aircraftEngineCode?: string;
+  familyCode?: string;
+  series?: string;
+  engineCode?: string;
   arrivalFlightNo: string;
   arrivalStaDate: string;      // UTC datetime "YYYY-MM-DD HH:mm"
   arrivalAtaDate: string;      // UTC datetime "YYYY-MM-DD HH:mm"

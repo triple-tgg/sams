@@ -1,37 +1,66 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
-import { RotateCw, FileText, Paperclip } from 'lucide-react'
-import { useEmployeeLogbookList } from '@/lib/api/qa/employee-logbook.hooks'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import { RotateCw, FileText, Paperclip, ChevronsUpDown, Check } from 'lucide-react'
+import { useLogbookRecordsList } from '@/lib/api/qa/logbook-records.hooks'
+import { useQAStaffList } from '@/lib/api/hooks/useQAStaffManagement'
 import { useDebounce } from '@/hooks/useDebounce'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Pagination } from "./components/Pagination"
 import DateRangeFilter from "./components/DateRange"
 import { DateRange } from "react-day-picker"
 import dayjs from "dayjs"
+import { cn } from '@/lib/utils'
 
 export default function EmployeeHistoryTrainingPage() {
-  const [searchTerm, setSearchTerm] = useState('')
-  const debouncedSearchTerm = useDebounce(searchTerm, 500)
+  const [selectedStaffId, setSelectedStaffId] = useState<number>(0)
+  const [staffOpen, setStaffOpen] = useState(false)
+  const [staffSearch, setStaffSearch] = useState('')
+  const debouncedStaffSearch = useDebounce(staffSearch, 300)
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
+  const [similarTechnology, setSimilarTechnology] = useState('all')
   const [page, setPage] = useState(1)
   const perPage = 10
 
-  const { data: logbookData, isLoading } = useEmployeeLogbookList({
-    name: debouncedSearchTerm,
-    dateStart: dateRange?.from ? dayjs(dateRange.from).format('YYYY-MM-DD') : undefined,
-    dateEnd: dateRange?.to ? dayjs(dateRange.to).format('YYYY-MM-DD') : undefined,
+  // Fetch staff list for dropdown
+  const { data: staffRes, isLoading: staffLoading } = useQAStaffList({
+    name: debouncedStaffSearch,
+    employeeId: '',
+    positionId: 0,
+    departmentId: 0,
+    staffstypeId: 0,
+    page: 1,
+    perPage: 50
+  })
+  const staffOptions = useMemo(() =>
+    (staffRes?.responseData || []).map(s => ({
+      id: s.id,
+      label: `${s.fullNameEn || s.name} (${s.code || s.employeeId || ''})`,
+      name: s.fullNameEn || s.name,
+    })),
+    [staffRes]
+  )
+  const selectedStaffLabel = staffOptions.find(s => s.id === selectedStaffId)?.label || ''
+
+  const { data: logbookData, isLoading } = useLogbookRecordsList({
+    staffId: selectedStaffId,
+    startDate: dateRange?.from ? dayjs(dateRange.from).format('YYYY-MM-DD') : undefined,
+    endDate: dateRange?.to ? dayjs(dateRange.to).format('YYYY-MM-DD') : undefined,
+    similarTechnology: similarTechnology !== 'all' ? similarTechnology : undefined,
     page,
     perPage
   })
 
-  const records = logbookData?.list || []
-  const totalItems = logbookData?.pagination?.total || 0
-  const totalPages = logbookData?.pagination?.totalPages || 1
+  const records = logbookData?.responseData || []
+  const totalItems = logbookData?.total || logbookData?.totalAll || 0
+  const totalPages = Math.max(1, Math.ceil(totalItems / perPage))
 
   return (
     <div className="space-y-6">
@@ -51,17 +80,51 @@ export default function EmployeeHistoryTrainingPage() {
         {/* Filters */}
         <div className="px-6 pb-4">
           <div className="flex flex-col md:flex-row gap-4 mb-2 items-end">
-            <div className="space-y-1.5 flex-1 max-w-[240px]">
+            <div className="space-y-1.5 flex-1 max-w-[280px]">
               <Label className="text-sm font-semibold text-slate-700">Name</Label>
-              <Input
-                placeholder="Search name..."
-                className="h-9 w-full"
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value)
-                  setPage(1)
-                }}
-              />
+              <Popover open={staffOpen} onOpenChange={setStaffOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={staffOpen}
+                    className="h-9 w-full justify-between font-normal text-sm"
+                  >
+                    <span className="truncate">
+                      {selectedStaffId ? selectedStaffLabel : 'Select staff...'}
+                    </span>
+                    <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[280px] p-0" align="start">
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Search staff name..."
+                      value={staffSearch}
+                      onValueChange={setStaffSearch}
+                    />
+                    <CommandList>
+                      <CommandEmpty>{staffLoading ? 'Loading...' : 'No staff found.'}</CommandEmpty>
+                      <CommandGroup>
+                        {staffOptions.map((staff) => (
+                          <CommandItem
+                            key={staff.id}
+                            value={String(staff.id)}
+                            onSelect={() => {
+                              setSelectedStaffId(staff.id === selectedStaffId ? 0 : staff.id)
+                              setStaffOpen(false)
+                              setPage(1)
+                            }}
+                          >
+                            <Check className={cn('mr-2 h-4 w-4', selectedStaffId === staff.id ? 'opacity-100' : 'opacity-0')} />
+                            {staff.label}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="flex-1 max-w-md">
@@ -76,14 +139,31 @@ export default function EmployeeHistoryTrainingPage() {
               />
             </div>
 
+            <div className="space-y-1.5">
+              <Label className="text-sm font-semibold text-slate-700">Similar Technology</Label>
+              <Select value={similarTechnology} onValueChange={(val) => { setSimilarTechnology(val); setPage(1) }}>
+                <SelectTrigger className="h-9 w-[180px]">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="Group 1">Group 1</SelectItem>
+                  <SelectItem value="Group 2">Group 2</SelectItem>
+                  <SelectItem value="Group 3">Group 3</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="flex flex-wrap gap-4 items-center">
-              {(searchTerm !== '' || dateRange) && (
+              {(selectedStaffId > 0 || dateRange || similarTechnology !== 'all') && (
                 <Button
                   color="secondary"
                   size="sm"
                   onClick={() => {
-                    setSearchTerm('')
+                    setSelectedStaffId(0)
+                    setStaffSearch('')
                     setDateRange(undefined)
+                    setSimilarTechnology('all')
                     setPage(1)
                   }}
                   className="mb-0.5"

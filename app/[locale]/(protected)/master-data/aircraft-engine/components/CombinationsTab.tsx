@@ -15,28 +15,29 @@ import { PermissionActionGuard } from "@/components/partials/auth/PermissionActi
 import {
   useCombinations, useEngines, useUpsertCombination, useDeleteCombination,
 } from "@/lib/api/master/aircraft-engine/aircraftEngine.hooks";
-import { useAircraftFamilyCodes } from "@/lib/api/master/aircraft-family/aircraft-family.hooks";
-import type { AircraftFamilyCode } from "@/lib/api/master/aircraft-family/aircraft-family";
+import { useAircraftTypes } from "@/lib/api/master/aircraft-types/aircraft-types.hooks";
+import type { AircraftType } from "@/lib/api/master/aircraft-types/aircraft-types";
 import { buildDisplayLabel, checkCombinationReferences } from "@/lib/api/master/aircraft-engine/aircraftEngine.validation";
 import type { AircraftEngineCombination, EngineMaster } from "@/lib/api/master/aircraft-engine/aircraftEngine.types";
 import { AE_MENU, Chip, UpdatedMeta, th } from "./shared";
 
 interface FormState {
   id?: number;
+  icaoCode: string;
   familyCode: string;
   series: string;
   engineCode: string;
   similarTechnology: string;
 }
 
-const emptyForm: FormState = { familyCode: "", series: "", engineCode: "", similarTechnology: "" };
+const emptyForm: FormState = { icaoCode: "", familyCode: "", series: "", engineCode: "", similarTechnology: "" };
 
 const SIMILAR_TECHNOLOGY_OPTIONS = ["Group 1", "Group 2", "Group 3"];
 
 export function CombinationsTab() {
   const { data: combinations = [], isFetching } = useCombinations();
   const { data: engines = [] } = useEngines();
-  const { data: families = [] } = useAircraftFamilyCodes();
+  const { data: aircraftTypes = [] } = useAircraftTypes();
   const upsert = useUpsertCombination();
   const del = useDeleteCombination();
 
@@ -57,6 +58,11 @@ export function CombinationsTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [combinations, engines, search]);
 
+  const uniqueFamilyCodes = useMemo(() => {
+    const list = form.icaoCode ? aircraftTypes.filter((t: AircraftType) => t.code === form.icaoCode) : aircraftTypes;
+    return Array.from(new Set(list.map((t: AircraftType) => t.familyCode).filter(Boolean))) as string[];
+  }, [aircraftTypes, form.icaoCode]);
+
   const previewLabel = (() => {
     const fam = form.familyCode;
     if (!fam || !form.engineCode) return "—";
@@ -65,7 +71,8 @@ export function CombinationsTab() {
 
   const openAdd = () => { setForm(emptyForm); setModalMode("add"); };
   const openEdit = (c: AircraftEngineCombination) => {
-    setForm({ id: c.id, familyCode: c.familyCode, series: c.series, engineCode: c.engineCode, similarTechnology: c.similarTechnology || "" });
+    const match = aircraftTypes.find((t: AircraftType) => t.familyCode === c.familyCode) || aircraftTypes.find((t: AircraftType) => t.code === c.familyCode);
+    setForm({ id: c.id, icaoCode: match?.code || c.familyCode, familyCode: c.familyCode, series: c.series, engineCode: c.engineCode, similarTechnology: c.similarTechnology || "" });
     setModalMode("edit");
   };
   const closeModal = () => { setModalMode("closed"); setForm(emptyForm); };
@@ -182,30 +189,35 @@ export function CombinationsTab() {
                   </SelectContent>
                 </Select>
               </div>
+              <div></div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs font-medium text-slate-600">Aircraft family *</Label>
+                <Label className="text-xs font-medium text-slate-600">ICAO Code *</Label>
                 <Popover open={familyOpen} onOpenChange={setFamilyOpen}>
                   <PopoverTrigger asChild>
                     <Button variant="outline" role="combobox" aria-expanded={familyOpen} className="mt-1 h-9 w-full justify-between text-sm font-normal">
-                      {form.familyCode || <span className="text-muted-foreground">Select family</span>}
+                      {form.icaoCode || <span className="text-muted-foreground">Select ICAO Code</span>}
                       <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[200px] p-0" align="start">
                     <Command>
-                      <CommandInput placeholder="Search family..." className="h-8 text-sm" />
+                      <CommandInput placeholder="Search ICAO code..." className="h-8 text-sm" />
                       <CommandList>
-                        <CommandEmpty>No family found.</CommandEmpty>
-                        {families.map((fam: AircraftFamilyCode) => (
+                        <CommandEmpty>No ICAO code found.</CommandEmpty>
+                        {aircraftTypes.map((fam: AircraftType) => (
                           <CommandItem
                             key={fam.code}
                             value={fam.code}
                             onSelect={(v) => {
-                              setForm((f) => ({ ...f, familyCode: v.toUpperCase() }));
+                              const match = aircraftTypes.find((t: AircraftType) => t.code === v.toUpperCase());
+                              setForm((f) => ({ ...f, icaoCode: v.toUpperCase(), familyCode: match?.familyCode || v.toUpperCase() }));
                               setFamilyOpen(false);
                             }}
                           >
-                            <Check className={cn("mr-2 h-3.5 w-3.5", form.familyCode === fam.code ? "opacity-100" : "opacity-0")} />
+                            <Check className={cn("mr-2 h-3.5 w-3.5", form.icaoCode === fam.code ? "opacity-100" : "opacity-0")} />
                             {fam.code}
                           </CommandItem>
                         ))}
@@ -213,6 +225,17 @@ export function CombinationsTab() {
                     </Command>
                   </PopoverContent>
                 </Popover>
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-slate-600">Family Code</Label>
+                <Select value={form.familyCode} onValueChange={(v) => setForm((f) => ({ ...f, familyCode: v }))}>
+                  <SelectTrigger className={cn("mt-1 h-9 text-sm", !form.familyCode && "text-muted-foreground")}><SelectValue placeholder="Select Family Code" /></SelectTrigger>
+                  <SelectContent>
+                    {uniqueFamilyCodes.map((code) => (
+                      <SelectItem key={code} value={code}>{code}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

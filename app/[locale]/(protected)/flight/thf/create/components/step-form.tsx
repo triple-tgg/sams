@@ -14,6 +14,7 @@ import { useAirlineOptions } from '@/lib/api/hooks/useAirlines'
 import { useStationsOptions } from '@/lib/api/hooks/useStations'
 import { useStatusOptions } from '@/lib/api/hooks/useStatus'
 import { useAircraftTypes } from '@/lib/api/hooks/useAircraftTypes'
+import PreviewStep from './PreviewStep'
 import EquipmentStep from './EquipmentStep'
 
 
@@ -22,7 +23,8 @@ const steps = [
   { label: 'Services', step: 2 },
   { label: 'Equipment', step: 3 },
   { label: 'Parts & Tools', step: 4 },
-  { label: 'Attach file', step: 5 },
+  { label: 'Preview', step: 5 },
+  { label: 'Attach file', step: 6 },
 ]
 
 const StepForm = () => {
@@ -121,6 +123,9 @@ const StepForm = () => {
           lineMaintenanceId={lineMaintenanceData?.id || null}
           initialData={data}
           infoData={existingFlightData}
+        />
+        <PreviewStep
+          flightInfosId={flightInfosId}
         />
         <AttachFileStep
           thfNumber={lineMaintenanceData?.thfNumber || ''}

@@ -20,6 +20,10 @@ export const getDefaultValues = (): Step1FormInputs => ({
   routeFrom: null,
   routeTo: null,
 
+  // Aircraft-Engine
+  series: '',
+  engineCode: '',
+
   // Arrival (UTC Time)
   flightArrival: '',
   arrivalDate: '',
@@ -50,6 +54,10 @@ export const sanitizeFormData = (existingData: FlightFormData): Step1FormInputs 
     acTypeCode: existingData.acTypeCode || null,
     routeFrom: existingData.routeFrom || null,
     routeTo: existingData.routeTo || null,
+
+    // Aircraft-Engine
+    series: (existingData as any).series || '',
+    engineCode: (existingData as any).engineCode || '',
 
     // Arrival (UTC Time)
     flightArrival: existingData.flightArrival || '',

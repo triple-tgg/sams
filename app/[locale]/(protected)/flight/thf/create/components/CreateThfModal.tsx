@@ -7,6 +7,7 @@ import FlightStep from './FlightStep'
 import ServicesStep from './ServicesStep'
 import PartsAndToolsStep from './PartsAndToolsStep'
 import AttachFileStep from './AttachFile'
+import PreviewStep from './PreviewStep'
 import EquipmentStep from './EquipmentStep'
 import { useCreateThfModalController } from './useCreateThfModalController'
 
@@ -15,7 +16,8 @@ const steps = [
     { label: 'Services', step: 2, description: 'Service Recording' },
     { label: 'Equipment', step: 3, description: 'Equipment Usage' },
     { label: 'Parts & Tools', step: 4, description: 'Parts & Tools Management' },
-    { label: 'Attach File', step: 5, description: 'Supporting Documents' },
+    { label: 'Preview', step: 5, description: 'Review your entries' },
+    { label: 'Attach File', step: 6, description: 'Supporting Documents' },
 ]
 
 interface CreateThfModalProps {
@@ -102,7 +104,12 @@ const CreateThfModal: React.FC<CreateThfModalProps> = ({
                         infoData={flightDataState.data}
                     />
 
-                    {/* Step 5: Attach File */}
+                    {/* Step 5: Preview */}
+                    <PreviewStep
+                        flightInfosId={flightInfosId}
+                    />
+
+                    {/* Step 6: Attach File */}
                     <AttachFileStep
                         thfNumber={flightDataState.lineMaintenanceData?.thfNumber || ''}
                         lineMaintenanceId={flightDataState.lineMaintenanceData?.id || null}

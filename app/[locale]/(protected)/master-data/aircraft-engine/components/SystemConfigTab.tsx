@@ -19,9 +19,7 @@ import {
   useUpsertAircraftType,
   useDeleteAircraftType,
 } from "@/lib/api/master/aircraft-types/aircraft-types.hooks";
-import { useAircraftFamilyCodes } from "@/lib/api/master/aircraft-family/aircraft-family.hooks";
 import type { AircraftType } from "@/lib/api/master/aircraft-types/aircraft-types";
-import type { AircraftFamilyCode } from "@/lib/api/master/aircraft-family/aircraft-family";
 import { AE_MENU, UpdatedMeta, th } from "./shared";
 
 // ── Form ─────────────────────────────────────────────────────────
@@ -83,7 +81,6 @@ const stickyBodyAltBg = "bg-slate-50";
 
 export function SystemConfigTab() {
   const { data: configs = [], isFetching } = useAircraftTypes();
-  const { data: families = [] } = useAircraftFamilyCodes();
   const upsert = useUpsertAircraftType();
   const del = useDeleteAircraftType();
 
@@ -91,7 +88,6 @@ export function SystemConfigTab() {
   const [modalMode, setModalMode] = useState<"closed" | "add" | "edit">("closed");
   const [form, setForm] = useState<FormState>(emptyForm);
   const [deleteTarget, setDeleteTarget] = useState<AircraftType | null>(null);
-  const [familyOpen, setFamilyOpen] = useState(false);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -99,6 +95,10 @@ export function SystemConfigTab() {
       `${c.code} ${c.modelName} ${c.modelSubName} ${c.classicOrNeo} ${c.familyCode ?? ""}`.toLowerCase().includes(q),
     );
   }, [configs, search]);
+
+  const uniqueFamilies = useMemo(() => Array.from(new Set(configs.map((c: AircraftType) => c.familyCode).filter(Boolean))) as string[], [configs]);
+  const uniqueModels = useMemo(() => Array.from(new Set(configs.map((c: AircraftType) => c.modelName).filter(Boolean))) as string[], [configs]);
+  const uniqueSubModels = useMemo(() => Array.from(new Set(configs.map((c: AircraftType) => c.modelSubName).filter(Boolean))) as string[], [configs]);
 
   const openAdd = () => { setForm(emptyForm); setModalMode("add"); };
   const openEdit = (c: AircraftType) => {
@@ -123,7 +123,7 @@ export function SystemConfigTab() {
     (c: AircraftType) => c.code.toUpperCase() === (form.code ?? "").trim().toUpperCase(),
   ) && (form.code ?? "").trim().length > 0;
 
-  const canSave = !!(form.code ?? "").trim() && !!(form.modelName ?? "").trim() && !isDuplicateIcao;
+  const canSave = !!(form.code ?? "").trim() && !!(form.modelName ?? "").trim() && !!(form.familyCode ?? "").trim() && !isDuplicateIcao;
 
   const handleSave = async () => {
     try {
@@ -268,6 +268,16 @@ export function SystemConfigTab() {
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">Tied to ICAO code — 1 row per variant</DialogDescription>
 
+          <datalist id="familyCode-list">
+            {uniqueFamilies.map((fam) => <option key={fam} value={fam} />)}
+          </datalist>
+          <datalist id="modelName-list">
+            {uniqueModels.map((mod) => <option key={mod} value={mod} />)}
+          </datalist>
+          <datalist id="modelSubName-list">
+            {uniqueSubModels.map((sub) => <option key={sub} value={sub} />)}
+          </datalist>
+
           <div className="space-y-4 py-1">
             {/* Basic info */}
             <div className="grid grid-cols-2 gap-3">
@@ -279,57 +289,25 @@ export function SystemConfigTab() {
                 )}
               </div>
               <div>
-                <Label className="text-xs font-medium text-slate-600">Aircraft family</Label>
-                <Popover open={familyOpen} onOpenChange={setFamilyOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" role="combobox" aria-expanded={familyOpen} className="mt-1 h-9 w-full justify-between text-sm font-normal">
-                      {form.familyCode || <span className="text-muted-foreground">Select family</span>}
-                      <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[200px] p-0" align="start">
-                    <Command>
-                      <CommandInput placeholder="Search family..." className="h-8 text-sm" />
-                      <CommandList>
-                        <CommandEmpty>No family found.</CommandEmpty>
-                        {families.map((fam: AircraftFamilyCode) => (
-                          <CommandItem
-                            key={fam.id}
-                            value={fam.code}
-                            onSelect={(v) => {
-                              setForm((f) => ({ ...f, familyCode: v.toUpperCase() }));
-                              setFamilyOpen(false);
-                            }}
-                          >
-                            <Check className={cn("mr-2 h-3.5 w-3.5", form.familyCode === fam.code ? "opacity-100" : "opacity-0")} />
-                            {fam.code}
-                          </CommandItem>
-                        ))}
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                <Label className="text-xs font-medium text-slate-600">Aircraft family / Model Name *</Label>
+                <Input list="familyCode-list" value={form.familyCode} onChange={(e) => setForm((f) => ({ ...f, familyCode: e.target.value.toUpperCase(), modelName: e.target.value.toUpperCase() }))} placeholder="e.g. A320" className="mt-1 h-9 text-sm uppercase" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs font-medium text-slate-600">Model Name *</Label>
-                <Input value={form.modelName} onChange={(e) => setForm((f) => ({ ...f, modelName: e.target.value }))} placeholder="e.g. A320" className="mt-1 h-9 text-sm" />
+                <Label className="text-xs font-medium text-slate-600">Model Sub Name</Label>
+                <Input list="modelSubName-list" value={form.modelSubName} onChange={(e) => setForm((f) => ({ ...f, modelSubName: e.target.value }))} placeholder="e.g. A320neo" className="mt-1 h-9 text-sm" />
               </div>
               <div>
-                <Label className="text-xs font-medium text-slate-600">Model Sub Name</Label>
-                <Input value={form.modelSubName} onChange={(e) => setForm((f) => ({ ...f, modelSubName: e.target.value }))} placeholder="e.g. A320neo" className="mt-1 h-9 text-sm" />
+                <Label className="text-xs font-medium text-slate-600">Classic / NEO</Label>
+                <Select value={form.classicOrNeo} onValueChange={(v) => setForm((f) => ({ ...f, classicOrNeo: v }))}>
+                  <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="CLASSIC">CLASSIC</SelectItem>
+                    <SelectItem value="NEO">NEO</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            </div>
-            <div>
-              <Label className="text-xs font-medium text-slate-600">Classic / NEO</Label>
-              <Select value={form.classicOrNeo} onValueChange={(v) => setForm((f) => ({ ...f, classicOrNeo: v }))}>
-                <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CLASSIC">CLASSIC</SelectItem>
-                  <SelectItem value="NEO">NEO</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
 
             {/* Engine flags */}

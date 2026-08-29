@@ -9,7 +9,7 @@ vi.mock("@/lib/axios.config", () => ({ default: axiosMock }));
 
 import { getSamsAuthById, getSamsAuthList, upsertSamsAuth } from "./sams-auth";
 
-describe("SAMs Authorization API", () => {
+describe("SAMS Authorization API", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -92,7 +92,7 @@ describe("SAMs Authorization API", () => {
     );
   });
 
-  it("loads the nested SAMs Authorization detail contract by ID", async () => {
+  it("loads the nested SAMS Authorization detail contract by ID", async () => {
     const response = {
       message: "success",
       responseData: {
@@ -159,7 +159,7 @@ describe("SAMs Authorization API", () => {
     expect(axiosMock.get).toHaveBeenCalledWith("/authorization/sams-auth/byid/1");
   });
 
-  it("posts the nested SAMs Authorization upsert contract", async () => {
+  it("posts the nested SAMS Authorization upsert contract", async () => {
     const request = {
       authorizationSamses: {
         id: 1,

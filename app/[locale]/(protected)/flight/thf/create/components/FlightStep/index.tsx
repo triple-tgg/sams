@@ -1,7 +1,7 @@
 'use client'
 
-import { useForm, FieldErrors } from 'react-hook-form'
-import { useEffect, useRef, useCallback } from 'react'
+import { useForm, FieldErrors, Controller } from 'react-hook-form'
+import { useEffect, useRef, useCallback, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { zodResolver } from '@hookform/resolvers/zod'
 
@@ -18,6 +18,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CreatableRouteSelect } from '@/components/ui/creatable-route-select'
 import { FlightFormData } from '@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId'
 import { Flight } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import {
+  Select as ShadSelect,
+  SelectContent as ShadSelectContent,
+  SelectItem as ShadSelectItem,
+  SelectTrigger as ShadSelectTrigger,
+  SelectValue as ShadSelectValue,
+} from '@/components/ui/select'
 
 // Hooks
 import { useAirlineOptions } from '@/lib/api/hooks/useAirlines'
@@ -28,6 +38,8 @@ import { usePushThf } from '@/lib/api/hooks/usePushThf'
 import { PushThfRequest } from '@/lib/api/lineMaintenances/flight-thf/pushThf'
 import { combineToUtcDatetime } from '@/lib/utils/flightDatetime'
 import { convertDateToBackend } from '@/lib/utils/formatPicker'
+import { useCombinations, useSystemConfigs } from '@/lib/api/master/aircraft-engine/aircraftEngine.hooks'
+import type { AircraftEngineCombination } from '@/lib/api/master/aircraft-engine/aircraftEngine.types'
 
 interface FlightStepProps {
   flightInfosId: number | null;
@@ -47,6 +59,24 @@ const FlightStep = (props: FlightStepProps) => {
   const { options: aircraftOptions, isLoading: isLoadingAircraft, error: acTypeCodeError, usingFallback: acTypeCodeUsingFallback } = useAircraftTypes()
   const { options: statusOptions, isLoading: loadingStatus, error: statusError, usingFallback: statusUsingFallback } = useStatusOptions()
 
+  // Aircraft Engine Combinations
+  const { data: combinationsData } = useCombinations()
+  const { data: systemConfigsData } = useSystemConfigs()
+
+  // A/C Type options: unique Family Code from Aircraft system config
+  const familyCodeOptions = useMemo(() => {
+    if (!systemConfigsData) return []
+    const seen = new Set<string>()
+    return systemConfigsData
+      .filter(c => {
+        if (!c.familyCode || seen.has(c.familyCode)) return false
+        seen.add(c.familyCode)
+        return true
+      })
+      .map(c => ({ value: c.familyCode, label: c.familyCode }))
+  }, [systemConfigsData])
+  const isLoadingFamilyCode = !systemConfigsData
+
   // Mutation Hook
   const pushThfMutation = usePushThf()
 
@@ -56,11 +86,66 @@ const FlightStep = (props: FlightStepProps) => {
     register,
     control,
     reset,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<Step1FormInputs>({
     resolver: zodResolver(flightFormSchema),
     defaultValues: props.formData ? sanitizeFormData(props.formData) : getDefaultValues(),
   })
+
+  // Watch acTypeCode for combo filtering
+  const selectedAcType = watch('acTypeCode')
+  const selectedSeries = watch('series')
+  const selectedEngineCode = watch('engineCode')
+
+  // A/C Type value is now familyCode directly
+  const mappedFamilyCode = selectedAcType?.value || ''
+
+  // ── Combination mode toggle ──
+  const [comboMode, setComboMode] = useState<'combination' | 'manual'>('combination')
+  const [selectedComboId, setSelectedComboId] = useState<string>('')
+
+  // Build combination options filtered by selected A/C Type (familyCode)
+  const combinationOptions = useMemo(() => {
+    if (!combinationsData || !mappedFamilyCode) return []
+    return combinationsData
+      .filter((c: AircraftEngineCombination) => c.familyCode === mappedFamilyCode)
+      .map((c: AircraftEngineCombination) => ({
+        value: String(c.id),
+        label: c.displayLabel,
+        combo: c,
+      }))
+  }, [combinationsData, mappedFamilyCode])
+
+  // When user selects a combination, auto-fill series & engineCode
+  const handleComboSelect = (comboId: string) => {
+    setSelectedComboId(comboId)
+    const found = combinationOptions.find(o => o.value === comboId)
+    if (found) {
+      setValue('series', found.combo.series || '')
+      setValue('engineCode', found.combo.engineCode || '')
+    }
+  }
+
+  // Reset combo selection when A/C Type changes
+  const prevAcTypeRef = useRef(selectedAcType?.value)
+  useEffect(() => {
+    if (prevAcTypeRef.current !== selectedAcType?.value) {
+      setValue('series', '')
+      setValue('engineCode', '')
+      setSelectedComboId('')
+      prevAcTypeRef.current = selectedAcType?.value
+    }
+  }, [selectedAcType, setValue])
+
+  // Reset fields when switching mode
+  const handleModeChange = (mode: 'combination' | 'manual') => {
+    setComboMode(mode)
+    setValue('series', '')
+    setValue('engineCode', '')
+    setSelectedComboId('')
+  }
 
   // Focus the first error field: scroll into view and focus the input/button/textarea
   const focusFirstError = useCallback((fieldErrors: FieldErrors<Step1FormInputs>) => {
@@ -120,6 +205,10 @@ const FlightStep = (props: FlightStepProps) => {
         thfNo: data.thfNumber,
         routeFrom: data.routeFrom?.value || '',
         routeTo: data.routeTo?.value || '',
+        aircraftEngineCode: mappedFamilyCode,
+        familyCode: mappedFamilyCode,
+        series: data.series || '',
+        engineCode: data.engineCode || '',
       }
 
       await pushThfMutation.mutateAsync(payload)
@@ -228,10 +317,8 @@ const FlightStep = (props: FlightStepProps) => {
                   control={control}
                   label="A/C Type *"
                   placeholder="Select A/C Type"
-                  options={aircraftOptions}
-                  isLoading={isLoadingAircraft}
-                  error={acTypeCodeError?.message}
-                  usingFallback={!!acTypeCodeUsingFallback}
+                  options={familyCodeOptions}
+                  isLoading={isLoadingFamilyCode}
                   errorMessage={errors.acTypeCode?.message}
                 />
               </div>
@@ -254,6 +341,94 @@ const FlightStep = (props: FlightStepProps) => {
                 />
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Aircraft-Engine Section */}
+        <Card className='border border-blue-200'>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Aircraft-Engine</CardTitle>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={comboMode === 'combination'}
+                onCheckedChange={(checked) => handleModeChange(checked ? 'combination' : 'manual')}
+                color="primary"
+                size="sm"
+              />
+              <span className="text-sm text-slate-600">Select Combination</span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {comboMode === 'combination' ? (
+              /* ── Combination mode ── */
+              <div className="grid grid-cols-5 gap-4">
+                <div className="col-span-2 space-y-1">
+                  <Label>Combination</Label>
+                  <ShadSelect
+                    value={selectedComboId || undefined}
+                    onValueChange={handleComboSelect}
+                    disabled={!selectedAcType?.value}
+                  >
+                    <ShadSelectTrigger>
+                      <ShadSelectValue placeholder={selectedAcType?.value ? "Select Combination" : "Select A/C Type first"} />
+                    </ShadSelectTrigger>
+                    <ShadSelectContent>
+                      {combinationOptions.map((opt) => (
+                        <ShadSelectItem key={opt.value} value={opt.value}>{opt.label}</ShadSelectItem>
+                      ))}
+                    </ShadSelectContent>
+                  </ShadSelect>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Family Code</Label>
+                  <Input value={mappedFamilyCode || ''} readOnly disabled className="bg-slate-50" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Series</Label>
+                  <Input value={selectedSeries || ''} readOnly disabled className="bg-slate-50" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Engine Code</Label>
+                  <Input value={selectedEngineCode || ''} readOnly disabled className="bg-slate-50" />
+                </div>
+              </div>
+            ) : (
+              /* ── Manual mode ── */
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <Label>Family Code</Label>
+                  <Input value={mappedFamilyCode || ''} readOnly disabled placeholder="Select A/C Type first" className="bg-slate-50" />
+                </div>
+                <div className="space-y-1">
+                  <Label>Series</Label>
+                  <Controller
+                    name="series"
+                    control={control}
+                    render={({ field }) => (
+                      <Input
+                        {...field}
+                        placeholder="e.g. NEO"
+                        disabled={!selectedAcType?.value}
+                      />
+                    )}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Engine Code</Label>
+                  <Controller
+                    name="engineCode"
+                    control={control}
+                    render={({ field }) => (
+                      <Input
+                        {...field}
+                        placeholder="e.g. LEAP-1A"
+                        disabled={!selectedAcType?.value}
+                      />
+                    )}
+                  />
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

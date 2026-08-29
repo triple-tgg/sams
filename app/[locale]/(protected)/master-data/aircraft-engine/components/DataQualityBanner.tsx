@@ -8,11 +8,13 @@ import type { DataQualityCategory, DataQualityFinding } from "@/lib/api/master/a
 const TAG_STYLE: Record<DataQualityCategory, string> = {
   MISSING_CONFIG: "bg-orange-400 text-orange-950",
   NAMING: "bg-rose-400 text-rose-950",
+  DUPLICATE_ICAO: "bg-red-500 text-white",
 };
 
 const TAG_LABEL: Record<DataQualityCategory, string> = {
   MISSING_CONFIG: "MISSING",
   NAMING: "NAMING",
+  DUPLICATE_ICAO: "DUPLICATE",
 };
 
 export function DataQualityBanner({ findings }: { findings: DataQualityFinding[] }) {

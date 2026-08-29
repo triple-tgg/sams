@@ -324,6 +324,15 @@ const CardFormServicesStep = (props: Props) => {
 
         <Separator />
 
+        {/* Operational Sections (Flight Deck & Towing) */}
+        <OperationalSections
+          form={form}
+          onAddTowingInfo={handleAddTowingInfo}
+          onRemoveTowingInfo={handleRemoveTowingInfo}
+        />
+
+        <Separator />
+
         {/* Additional Defects Section */}
         <AdditionalDefectsSection
           form={form}
@@ -355,17 +364,6 @@ const CardFormServicesStep = (props: Props) => {
           onRemove={handleRemovePersonnel}
           staffsTypesValuesOptions={props.staffsTypesValuesOptions}
           infoData={props.formData}
-        />
-
-        <Separator />
-
-        {/* Operational Sections */}
-        <OperationalSections
-          form={form}
-          // onAddFlightDeckInfo={handleAddFlightDeckInfo}
-          // onRemoveFlightDeckInfo={handleRemoveFlightDeckInfo}
-          onAddTowingInfo={handleAddTowingInfo}
-          onRemoveTowingInfo={handleRemoveTowingInfo}
         />
 
         {/* Form Actions */}

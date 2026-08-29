@@ -249,7 +249,7 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
             <ShieldCheck className="h-5 w-5 text-blue-600" />
             <h2 className="text-base font-extrabold text-slate-900">Authorization compliance overview</h2>
           </div>
-          <p className="mt-1 text-xs text-slate-500">Live summary of SAMs, customer and authority authorizations</p>
+          <p className="mt-1 text-xs text-slate-500">Live summary of SAMS, customer and authority authorizations</p>
         </div>
         <Button type="button" variant="outline" size="sm" onClick={refresh} disabled={isRefreshing} className="bg-white">
           <RefreshCw className={cn('mr-2 h-3.5 w-3.5', isRefreshing && 'animate-spin')} />
@@ -265,10 +265,10 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
       )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard icon={Users} label="Staff monitored" value={totalStaff} detail="Certifying staff in SAMs authorization" tone="neutral" onClick={() => onNavigate('sams')} />
-        <MetricCard icon={BadgeCheck} label="Valid SAMs" value={dashboard.samsCounts.valid} detail={`${percentage(dashboard.samsCounts.valid, samsRows.length)}% of loaded staff`} tone="success" onClick={() => onNavigate('sams')} />
+        <MetricCard icon={Users} label="Staff monitored" value={totalStaff} detail="Certifying staff in SAMS authorization" tone="neutral" onClick={() => onNavigate('sams')} />
+        <MetricCard icon={BadgeCheck} label="Valid SAMS" value={dashboard.samsCounts.valid} detail={`${percentage(dashboard.samsCounts.valid, samsRows.length)}% of loaded staff`} tone="success" onClick={() => onNavigate('sams')} />
         <MetricCard icon={CircleAlert} label="Action required" value={attentionTotal} detail={`${dashboard.samsCounts.expired} expired · ${dashboard.samsCounts.expiring} expiring · ${dashboard.samsCounts.notIssued} not issued`} tone={attentionTotal > 0 ? 'danger' : 'success'} onClick={() => onNavigate('sams')} />
-        <MetricCard icon={UserRoundCheck} label="CRS ready" value={dashboard.crsReady} detail="Valid SAMs and at least 1 valid customer auth" tone={dashboard.crsReady > 0 ? 'success' : 'warning'} onClick={() => onNavigate('monitoring')} />
+        <MetricCard icon={UserRoundCheck} label="CRS ready" value={dashboard.crsReady} detail="Valid SAMS and at least 1 valid customer auth" tone={dashboard.crsReady > 0 ? 'success' : 'warning'} onClick={() => onNavigate('monitoring')} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
@@ -279,7 +279,7 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
                 <AlertTriangle className="h-4 w-4 text-red-500" />
                 Priority actions
               </h3>
-              <p className="mt-0.5 text-[10px] text-slate-500">Expired, expiring and not-issued SAMs records ordered by urgency</p>
+              <p className="mt-0.5 text-[10px] text-slate-500">Expired, expiring and not-issued SAMS records ordered by urgency</p>
             </div>
             <button type="button" onClick={() => onNavigate('sams')} className="text-[11px] font-bold text-blue-600 hover:text-blue-700">
               View all <ArrowRight className="ml-1 inline h-3 w-3" />
@@ -289,7 +289,7 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
             {dashboard.priority.length === 0 ? (
               <div className="flex flex-col items-center px-4 py-10 text-center">
                 <CheckCircle2 className="h-8 w-8 text-emerald-500" />
-                <p className="mt-2 text-xs font-bold text-slate-700">No urgent SAMs issues</p>
+                <p className="mt-2 text-xs font-bold text-slate-700">No urgent SAMS issues</p>
                 <p className="mt-1 text-[10px] text-slate-500">All loaded records are currently valid.</p>
               </div>
             ) : dashboard.priority.slice(0, 6).map(item => {
@@ -330,7 +330,7 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
             <p className="mt-0.5 text-[10px] text-slate-500">Valid records across each authorization source</p>
           </div>
           <div className="space-y-1">
-            <CoverageRow label="SAMs authorization" detail="Valid staff authorization" valid={dashboard.samsCounts.valid} total={samsRows.length} icon={ShieldCheck} onClick={() => onNavigate('sams')} />
+            <CoverageRow label="SAMS authorization" detail="Valid staff authorization" valid={dashboard.samsCounts.valid} total={samsRows.length} icon={ShieldCheck} onClick={() => onNavigate('sams')} />
             <CoverageRow label="Customer authorization" detail="Valid airline authorization cells" valid={dashboard.customerValid} total={dashboard.customerTotal} icon={Building2} onClick={() => onNavigate('customer')} />
             <CoverageRow label="Authority license" detail="Valid aviation authority licenses" valid={dashboard.authorityValid} total={dashboard.authorityTotal} icon={Globe2} onClick={() => onNavigate('authority')} />
           </div>
@@ -342,7 +342,7 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
           <div>
             <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
               <CalendarClock className="h-4 w-4 text-blue-600" />
-              90-day SAMs expiry outlook
+              90-day SAMS expiry outlook
             </h3>
             <p className="mt-0.5 text-[10px] text-slate-500">Workload forecast for renewal planning</p>
           </div>

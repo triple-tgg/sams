@@ -13,7 +13,7 @@ certifying staff member can issue a **Certificate of Release to Service (CRS)**
 for each customer airline.
 
 The backend must calculate eligibility. The frontend must not reconstruct the
-compliance decision by joining SAMs and Customer Authorization responses itself.
+compliance decision by joining SAMS and Customer Authorization responses itself.
 This ensures that the matrix, dashboard, export, and any later release workflow
 use the same rule and the same evaluation timestamp.
 
@@ -24,7 +24,7 @@ This specification provides three read endpoints:
 3. `GET /authorization/monitoring-crs/summary` — small aggregate payload for the dashboard.
 
 No write endpoint is introduced. Source records continue to be maintained by
-the existing SAMs Authorization and Customer Authorization APIs.
+the existing SAMS Authorization and Customer Authorization APIs.
 
 ## 2. Source of Truth
 
@@ -32,7 +32,7 @@ The service must evaluate current records from these domains in one consistent
 database read/snapshot:
 
 - active staff master record;
-- SAMs Authorization, including `isCrs`, expiry date, and authorized aircraft types;
+- SAMS Authorization, including `isCrs`, expiry date, and authorized aircraft types;
 - Customer Authorization per airline, including status, expiry date, and authorized aircraft types;
 - active customer-airline master data;
 - active aircraft-type-license master data.
@@ -58,13 +58,13 @@ under reason codes.
 A staff member is eligible for one airline only when all conditions below are true:
 
 1. The staff record is active.
-2. An active, non-deleted SAMs Authorization exists.
-3. The SAMs Authorization has `isCrs = true`.
-4. The SAMs Authorization has not expired at `evaluatedAtUtc`.
+2. An active, non-deleted SAMS Authorization exists.
+3. The SAMS Authorization has `isCrs = true`.
+4. The SAMS Authorization has not expired at `evaluatedAtUtc`.
 5. An active, non-deleted Customer Authorization exists for the airline.
 6. Customer Authorization status code is `VAL`.
 7. Customer Authorization has not expired at `evaluatedAtUtc`.
-8. SAMs and Customer Authorization share at least one active aircraft type.
+8. SAMS and Customer Authorization share at least one active aircraft type.
 
 The backend must return the aircraft intersection in `eligibleAircraftTypes`.
 Eligibility is scoped to those aircraft types only.
@@ -100,7 +100,7 @@ least one airline. It is `true` for both `FULL` and `PARTIAL`.
 | Code | `isEligible` | Meaning |
 |---|---:|---|
 | `ELIGIBLE` | `true` | All rules pass and no authorization expires within the warning window. |
-| `AT_RISK` | `true` | All rules pass, but SAMs or Customer Authorization expires within `expiryWarningDays`. |
+| `AT_RISK` | `true` | All rules pass, but SAMS or Customer Authorization expires within `expiryWarningDays`. |
 | `INELIGIBLE` | `false` | One or more blocking rules fail. |
 | `NOT_IN_SCOPE` | `false` | Airline is excluded from this staff member's scope. Reserved for future scoped operation. |
 
@@ -134,7 +134,7 @@ Monitoring CRS matrix.
 
 | Field | Type | Required | Rules |
 |---|---|---:|---|
-| `searchKeyword` | string | Yes | Empty string means no search. Search employee name, employee ID, and SAMs Auth No. Trim whitespace; case-insensitive. |
+| `searchKeyword` | string | Yes | Empty string means no search. Search employee name, employee ID, and SAMS Auth No. Trim whitespace; case-insensitive. |
 | `coverageStatus` | string | Yes | `""`, `FULL`, `PARTIAL`, or `NONE`. |
 | `samsStatus` | string | Yes | `""`, `VAL`, `EXPIRING`, `EXP`, or `NOT_ISSUED`. |
 | `airlineId` | number/null | Yes | When provided, return/filter eligibility for that active airline. |
@@ -362,11 +362,11 @@ them to localized text but must not parse human messages.
 | Code | Blocking | Meaning |
 |---|---:|---|
 | `STAFF_INACTIVE` | Yes | Staff master record is inactive. |
-| `SAMS_AUTH_NOT_ISSUED` | Yes | No active SAMs Authorization exists. |
-| `SAMS_AUTH_NOT_CRS` | Yes | SAMs Authorization has `isCrs = false`. |
-| `SAMS_AUTH_EXPIRED` | Yes | SAMs Authorization expiry is before the evaluation time. |
-| `SAMS_AUTH_EXPIRY_MISSING` | Yes | SAMs Authorization expiry is null, empty, or invalid. |
-| `SAMS_AUTH_EXPIRING` | No | SAMs Authorization expires within the warning window. |
+| `SAMS_AUTH_NOT_ISSUED` | Yes | No active SAMS Authorization exists. |
+| `SAMS_AUTH_NOT_CRS` | Yes | SAMS Authorization has `isCrs = false`. |
+| `SAMS_AUTH_EXPIRED` | Yes | SAMS Authorization expiry is before the evaluation time. |
+| `SAMS_AUTH_EXPIRY_MISSING` | Yes | SAMS Authorization expiry is null, empty, or invalid. |
+| `SAMS_AUTH_EXPIRING` | No | SAMS Authorization expires within the warning window. |
 | `CUSTOMER_AUTH_NOT_ISSUED` | Yes | No active Customer Authorization exists for the airline. |
 | `CUSTOMER_AUTH_PENDING` | Yes | Customer status is `PEN` or empty. |
 | `CUSTOMER_AUTH_NOT_APPROVED` | Yes | Customer status is `NAP`. |
@@ -375,16 +375,16 @@ them to localized text but must not parse human messages.
 | `CUSTOMER_AUTH_EXPIRED` | Yes | Customer Authorization expiry is before the evaluation time. |
 | `CUSTOMER_AUTH_EXPIRY_MISSING` | Yes | Customer Authorization expiry is null, empty, or invalid. |
 | `CUSTOMER_AUTH_EXPIRING` | No | Customer Authorization expires within the warning window. |
-| `AUTH_SCOPE_MISMATCH` | Yes | SAMs and Customer Authorization have no active aircraft type in common. |
+| `AUTH_SCOPE_MISMATCH` | Yes | SAMS and Customer Authorization have no active aircraft type in common. |
 | `AIRLINE_NOT_IN_SCOPE` | No | Airline is excluded from staff scope. Reserved for future use. |
 | `DATA_CONFLICT` | Yes | Multiple active source records make the decision ambiguous. |
 
 When multiple rules fail, return all applicable codes in deterministic order:
-staff, SAMs, Customer Authorization, scope, warning.
+staff, SAMS, Customer Authorization, scope, warning.
 
 ## 8. Status Mapping
 
-### 8.1 SAMs status returned by this API
+### 8.1 SAMS status returned by this API
 
 | Code | Rule |
 |---|---|
@@ -476,15 +476,15 @@ the same evaluation time.
 ## 11. Performance and Query Requirements
 
 - Do not execute one query per staff-airline cell.
-- Load the current page of staff IDs first, then batch-load SAMs, Customer
+- Load the current page of staff IDs first, then batch-load SAMS, Customer
   Authorization, aircraft scopes, and airline master data.
 - Summary counts must be calculated in the database or from an equivalent set-based query.
 - Target response time: p95 below `1.5 seconds` for `perPage = 20` and up to 200 active airlines.
 - Suggested indexes:
-  - SAMs Authorization: `(staffId, isdelete, expiryDate)`;
+  - SAMS Authorization: `(staffId, isdelete, expiryDate)`;
   - Customer Authorization: `(staffId, airlineId, isdelete, expiryDate)`;
   - Customer status foreign key;
-  - SAMs/Customer aircraft junction tables by parent ID and aircraft type ID.
+  - SAMS/Customer aircraft junction tables by parent ID and aircraft type ID.
 - A short cache of at most 60 seconds is acceptable only if invalidated after the
   source writes listed in Section 10.
 
@@ -493,14 +493,14 @@ the same evaluation time.
 Backend implementation is accepted when all cases below pass at a fixed
 `evaluatedAtUtc`.
 
-1. Valid SAMs + Valid Customer + shared aircraft scope returns `ELIGIBLE`.
+1. Valid SAMS + Valid Customer + shared aircraft scope returns `ELIGIBLE`.
 2. The same records expiring within 90 days return `AT_RISK` and remain eligible.
-3. Expired SAMs makes every in-scope airline `INELIGIBLE` with `SAMS_AUTH_EXPIRED`.
+3. Expired SAMS makes every in-scope airline `INELIGIBLE` with `SAMS_AUTH_EXPIRED`.
 4. `isCrs = false` makes every in-scope airline ineligible with `SAMS_AUTH_NOT_CRS`.
 5. Missing Customer Authorization returns `CUSTOMER_AUTH_NOT_ISSUED`.
 6. Customer status `NAP`, `NCP`, `SUS`, and `PEN` maps to the matching reason code.
-7. Missing or invalid SAMs/Customer expiry returns the matching `*_EXPIRY_MISSING` reason and is ineligible.
-8. Valid SAMs and Customer records with no shared aircraft type return `AUTH_SCOPE_MISMATCH`.
+7. Missing or invalid SAMS/Customer expiry returns the matching `*_EXPIRY_MISSING` reason and is ineligible.
+8. Valid SAMS and Customer records with no shared aircraft type return `AUTH_SCOPE_MISMATCH`.
 9. One eligible cell and one ineligible cell returns `PARTIAL` and `hasAnyCrsEligibility = true`.
 10. All in-scope cells eligible returns `FULL`.
 11. Zero eligible cells returns `NONE` and `hasAnyCrsEligibility = false`.
@@ -512,7 +512,7 @@ Backend implementation is accepted when all cases below pass at a fixed
 
 ## 13. Out of Scope
 
-- Creating or editing SAMs Authorization.
+- Creating or editing SAMS Authorization.
 - Creating or editing Customer Authorization.
 - Authority Authorization maintenance.
 - Issuing or signing an actual CRS document.

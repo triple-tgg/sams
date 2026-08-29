@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 
 import { getLangDir } from "rtl-detect";
 import { useParams } from "next/navigation";
@@ -43,7 +44,10 @@ import { CustomDateInput } from "@/components/ui/input-date/CustomDateInput";
 import { SearchableSelectField } from "@/components/ui/search-select";
 import { CreatableRouteSelect } from "@/components/ui/creatable-route-select";
 import { useAircraftTypes } from "@/lib/api/hooks/useAircraftTypes";
+import { useCombinations, useSystemConfigs } from "@/lib/api/master/aircraft-engine/aircraftEngine.hooks";
+import type { AircraftEngineCombination } from "@/lib/api/master/aircraft-engine/aircraftEngine.types";
 import { toast } from "sonner";
+import { useMemo, useEffect, useState } from "react";
 import { PersonnelSection } from "./thf/create/components/CPresonel";
 
 
@@ -61,6 +65,8 @@ const FormSchema = z
 
     acReg: z.string().trim().optional().default(""),
     acType: z.object({ value: z.string(), label: z.string() }).nullable().refine(Boolean, "Required"),
+    series: z.string().optional().default(''),
+    engineCode: z.string().optional().default(''),
     flightArrival: z.string().trim().min(2, "Required"),
     arrivalDate: z.string().regex(/^\d{2}\/\d{2}\/\d{4}$/g, "DD/MMM/YYYY"),
     sta: z.string().regex(/^\d{2}:\d{2}$/g, "HH:mm"),
@@ -154,6 +160,7 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
     formState: { errors },
     reset,
     setValue,
+    watch,
   } = useForm<Inputs>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
@@ -205,6 +212,10 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
       userName: values.userName.trim() ?? "",
       csIdList: values.csIdList || null,
       mechIdList: values.mechIdList || null,
+      aircraftEngineCode: mappedFamilyCode,
+      familyCode: mappedFamilyCode,
+      series: values.series || '',
+      engineCode: values.engineCode || '',
     };
 
     mutate(
@@ -232,6 +243,77 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
     usingFallback: acTypeCodeUsingFallback,
     error: acTypeCodeError
   } = useAircraftTypes();
+
+  // Aircraft Engine Combinations — cascading filter
+  const { data: combinationsData } = useCombinations();
+  const { data: systemConfigsData } = useSystemConfigs();
+
+  // A/C Type options: unique Family Code from Aircraft system config
+  const familyCodeOptions = useMemo(() => {
+    if (!systemConfigsData) return [];
+    const seen = new Set<string>();
+    return systemConfigsData
+      .filter(c => {
+        if (!c.familyCode || seen.has(c.familyCode)) return false;
+        seen.add(c.familyCode);
+        return true;
+      })
+      .map(c => ({ value: c.familyCode, label: c.familyCode }));
+  }, [systemConfigsData]);
+  const isLoadingFamilyCode = !systemConfigsData;
+
+  const selectedAcType = watch('acType');
+  const selectedSeries = watch('series');
+  const selectedEngineCode = watch('engineCode');
+
+  // A/C Type value is now familyCode directly
+  const mappedFamilyCode = selectedAcType?.value || '';
+
+  // ── Combination mode toggle ──
+  const [comboMode, setComboMode] = useState<'combination' | 'manual'>('combination');
+  const [selectedComboId, setSelectedComboId] = useState<string>('');
+
+  // Build combination options filtered by selected A/C Type (familyCode)
+  const combinationOptions = useMemo(() => {
+    if (!combinationsData || !mappedFamilyCode) return [];
+    return combinationsData
+      .filter((c: AircraftEngineCombination) => c.familyCode === mappedFamilyCode)
+      .map((c: AircraftEngineCombination) => ({
+        value: String(c.id),
+        label: c.displayLabel,
+        combo: c,
+      }));
+  }, [combinationsData, mappedFamilyCode]);
+
+  // When user selects a combination, auto-fill series & engineCode
+  const handleComboSelect = (comboId: string) => {
+    setSelectedComboId(comboId);
+    const found = combinationOptions.find(o => o.value === comboId);
+    if (found) {
+      setValue('series', found.combo.series || '');
+      setValue('engineCode', found.combo.engineCode || '');
+    }
+  };
+
+  // Reset combo selection when A/C Type changes
+  const prevAcTypeRef = React.useRef(selectedAcType?.value);
+  useEffect(() => {
+    if (prevAcTypeRef.current !== selectedAcType?.value) {
+      setValue('series', '');
+      setValue('engineCode', '');
+      setSelectedComboId('');
+      prevAcTypeRef.current = selectedAcType?.value;
+    }
+  }, [selectedAcType, setValue]);
+
+  // Reset fields when switching mode
+  const handleModeChange = (mode: 'combination' | 'manual') => {
+    setComboMode(mode);
+    setValue('series', '');
+    setValue('engineCode', '');
+    setSelectedComboId('');
+  };
+
   return (
     <Dialog
       open={open}
@@ -338,43 +420,120 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                   </p>
                 )}
               </div>
-              {/* A/C Reg / A/C Type */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label htmlFor="acReg">A/C Reg</Label>
-                  <Input {...register("acReg")} placeholder="A/C Reg" autoComplete="off" />
-                  <FieldError msg={errors.acReg?.message} />
-                </div>
-                <div className="space-y-1">
-                  <SearchableSelectField
-                    name="acType"
-                    control={control}
-                    label="A/C Type"
-                    placeholder="Select A/C Type"
-                    options={aircraftOptions}
-                    isLoading={isLoadingAircraft}
-                    errorMessage={errors.acType?.message}
-                    usingFallback={acTypeCodeUsingFallback}
+            </div>
+
+            {/* Route From / Route To */}
+            <div className="grid grid-cols-2 gap-4">
+              <CreatableRouteSelect
+                name="routeFrom"
+                control={control}
+                label="Route From"
+                placeholder="Select Route From"
+                errorMessage={errors.routeFrom?.message as string | undefined}
+              />
+              <CreatableRouteSelect
+                name="routeTo"
+                control={control}
+                label="Route To"
+                placeholder="Select Route To"
+                errorMessage={errors.routeTo?.message as string | undefined}
+              />
+            </div>
+
+            {/* A/C Reg / A/C Type */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="acReg">A/C Reg</Label>
+                <Input {...register("acReg")} placeholder="A/C Reg" autoComplete="off" />
+                <FieldError msg={errors.acReg?.message} />
+              </div>
+              <div className="space-y-1">
+                <SearchableSelectField
+                  name="acType"
+                  control={control}
+                  label="A/C Type"
+                  placeholder="Select A/C Type"
+                  options={familyCodeOptions}
+                  isLoading={isLoadingFamilyCode}
+                  errorMessage={errors.acType?.message}
+                />
+              </div>
+            </div>
+
+            {/* Aircraft-Engine Combination */}
+            <div className="space-y-3">
+              {/* Mode toggle */}
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-slate-700">Aircraft-Engine :</span>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={comboMode === 'combination'}
+                    onCheckedChange={(checked) => handleModeChange(checked ? 'combination' : 'manual')}
+                    color="primary"
+                    size="sm"
                   />
+                  <span className="text-sm text-slate-600">Select Combination</span>
                 </div>
               </div>
-              {/* Route From / Route To */}
-              <div className="grid grid-cols-2 gap-4">
-                <CreatableRouteSelect
-                  name="routeFrom"
-                  control={control}
-                  label="Route From"
-                  placeholder="Select Route From"
-                  errorMessage={errors.routeFrom?.message as string | undefined}
-                />
-                <CreatableRouteSelect
-                  name="routeTo"
-                  control={control}
-                  label="Route To"
-                  placeholder="Select Route To"
-                  errorMessage={errors.routeTo?.message as string | undefined}
-                />
-              </div>
+
+              {comboMode === 'combination' ? (
+                /* ── Combination mode ── */
+                <div className="grid grid-cols-5 gap-4">
+                  <div className="col-span-2 space-y-1">
+                    <Label>Combination</Label>
+                    <Select
+                      value={selectedComboId || undefined}
+                      onValueChange={handleComboSelect}
+                      disabled={!selectedAcType?.value}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={selectedAcType?.value ? "Select Combination" : "Select A/C Type first"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {combinationOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Family Code</Label>
+                    <Input value={mappedFamilyCode || ''} readOnly disabled className="bg-slate-50" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Series</Label>
+                    <Input value={selectedSeries || ''} readOnly disabled className="bg-slate-50" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Engine Code</Label>
+                    <Input value={selectedEngineCode || ''} readOnly disabled className="bg-slate-50" />
+                  </div>
+                </div>
+              ) : (
+                /* ── Manual mode ── */
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-1">
+                    <Label>Family Code</Label>
+                    <Input value={mappedFamilyCode || ''} readOnly disabled placeholder="Select A/C Type first" className="bg-slate-50" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Series</Label>
+                    <Input
+                      {...register('series')}
+                      placeholder="e.g. NEO"
+                      disabled={!selectedAcType?.value}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Engine Code</Label>
+                    <Input
+                      {...register('engineCode')}
+                      placeholder="e.g. LEAP-1A"
+                      disabled={!selectedAcType?.value}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             <Separator className="mb-8 mt-10" />
