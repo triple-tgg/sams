@@ -2,13 +2,14 @@ import React, { useMemo } from 'react'
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { UseFormReturn } from 'react-hook-form'
-import { PlusIcon, ClipboardCheck, XIcon, TrashIcon } from 'lucide-react'
+import { PlusIcon, ClipboardCheck, XIcon, TrashIcon, InfoIcon } from 'lucide-react'
 import { AircraftCheckSubType, AircraftCheckType } from '@/lib/api/master/aircraft-check-types/airlines.interface'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form"
 import { Badge } from "@/components/ui/badge"
 import { ServicesFormInputs, transformAircraftCheckTypesToOptions, transformAircraftCheckSubTypesToOptions } from '../types'
+import { getServiceDescription } from './serviceDescriptionConfig'
 
 /** Check if maintenance type is TR-related (starts with TR/tr or equals TR-Transit) */
 const isTRType = (value: string) =>
@@ -17,6 +18,30 @@ const isTRType = (value: string) =>
 /** Check if sub-type is "Full Handling" (case-insensitive) */
 const isFullHandling = (value: string) =>
   value.toLowerCase() === 'full handling'
+
+/** Animated banner that shows the service scope description */
+const ServiceDescriptionBanner: React.FC<{
+  maintenanceType: string
+  subTypes: string[]
+}> = ({ maintenanceType, subTypes }) => {
+  const description = useMemo(
+    () => getServiceDescription(maintenanceType, subTypes),
+    [maintenanceType, subTypes]
+  )
+
+  if (!description) return null
+
+  return (
+    <div
+      className="flex items-start gap-2 px-3 py-2.5 rounded-md bg-blue-50 border border-blue-200/60 text-blue-700 animate-in fade-in slide-in-from-top-1 duration-200"
+    >
+      <InfoIcon className="h-4 w-4 mt-0.5 shrink-0 text-blue-500" />
+      <p className="text-xs leading-relaxed">
+        {description}
+      </p>
+    </div>
+  )
+}
 
 const AircraftChecksSection: React.FC<{
   form: UseFormReturn<ServicesFormInputs>
@@ -237,6 +262,12 @@ const AircraftChecksSection: React.FC<{
                 </Button>
               )}
             </div>
+
+            {/* Service Description Banner */}
+            <ServiceDescriptionBanner
+              maintenanceType={form.watch(`aircraftChecks.${index}.maintenanceTypes`)}
+              subTypes={form.watch(`aircraftChecks.${index}.maintenanceSubTypes`) || []}
+            />
           </div>
         ))}
       </CardContent>

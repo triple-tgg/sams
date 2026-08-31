@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Plus, Building2, Briefcase, Wrench, ShieldCheck } from 'lucide-react'
+import { Plus, Building2, Briefcase, Wrench, ShieldCheck, Upload } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -19,6 +19,7 @@ import { CourseTable } from './components/CourseTable'
 import { TrainingNeedsMatrix } from './components/TrainingNeedsMatrix'
 import { CourseDetailPanel } from './components/CourseDetailModal'
 import { AddCourseModal } from './components/AddCourseModal'
+import { ImportCourseModal } from './components/ImportCourseModal'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getCourseList, getCourseCategories, getCourseDepartments, getCourseSummary, deleteCourse, DeleteCourseRequest, DeleteCourseResponse, CourseDepartmentItem, CourseData, CourseCategory } from '@/lib/api/qa/course'
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
@@ -36,6 +37,7 @@ export default function CourseManagementPage() {
     const [editingCourse, setEditingCourse] = useState<Course | null>(null)
     const [coursePendingDelete, setCoursePendingDelete] = useState<Course | null>(null)
     const [expandedDept, setExpandedDept] = useState<string | null>(null)
+    const [showImportModal, setShowImportModal] = useState(false)
 
     const { getUserName } = useReduxAuth()
     const queryClient = useQueryClient()
@@ -154,6 +156,10 @@ export default function CourseManagementPage() {
                         </CardDescription>
                         <div className="flex items-center gap-2 ml-auto">
                             <PermissionActionGuard menuCode="QA_MONITORING" action="canCreate">
+                                <Button variant="outline" onClick={() => setShowImportModal(true)}>
+                                    <Upload className="h-4 w-4 mr-2" />
+                                    Import
+                                </Button>
                                 <Button onClick={() => setShowAddModal(true)} color="primary">
                                     <Plus className="h-4 w-4 mr-2" />
                                     Add Course
@@ -343,6 +349,11 @@ export default function CourseManagementPage() {
                         setEditingCourse(null)
                     }}
                 />
+            )}
+
+            {/* Import Course Modal */}
+            {showImportModal && (
+                <ImportCourseModal onClose={() => setShowImportModal(false)} />
             )}
 
             <AlertDialog

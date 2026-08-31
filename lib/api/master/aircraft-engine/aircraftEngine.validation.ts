@@ -15,6 +15,80 @@ import type {
 } from "./aircraftEngine.types";
 import type { AircraftType } from "../aircraft-types/aircraft-types";
 
+// ──────────────────────────────────────────────────────────────
+// Derived-data helpers consumed by the mock store.
+//
+// rollUpGroupEngines  (CR-4) — unique engine names for a group's active combos.
+// computeCompletenessStatus (CR-1) — draft / incomplete / complete.
+// resolveGroupsForCustomer  (CR-2) — prefer customer-specific over global groups.
+// filterDownstreamGroups           — keep only groups that have active members.
+// ──────────────────────────────────────────────────────────────
+
+/** CR-4: derive the distinct engine names for a group from its active member combinations. */
+export function rollUpGroupEngines(
+  group: AuthorizationTypeGroup,
+  activeCombos: AircraftEngineCombination[],
+  engines: EngineMaster[],
+): string[] {
+  const engineCodes = new Set<string>();
+  for (const combo of activeCombos) {
+    if (group.memberCombinationIds.includes(combo.id)) {
+      engineCodes.add(combo.engineCode);
+    }
+  }
+  const engineMap = new Map(engines.map((e) => [e.engineCode, e.engineName]));
+  return Array.from(engineCodes)
+    .map((code) => engineMap.get(code) ?? code)
+    .sort();
+}
+
+/**
+ * CR-1: determine the completeness status of a group.
+ * - `draft`      — no members at all.
+ * - `incomplete`  — has members but not every member combo resolves to a known engine.
+ * - `complete`    — every member combo resolves and there is at least one member.
+ */
+export function computeCompletenessStatus(
+  group: AuthorizationTypeGroup,
+  activeCombos: AircraftEngineCombination[],
+  engines: EngineMaster[],
+): CompletenessStatus {
+  if (group.memberCombinationIds.length === 0) return "draft";
+
+  const knownEngines = new Set(engines.map((e) => e.engineCode));
+  for (const comboId of group.memberCombinationIds) {
+    const combo = activeCombos.find((c) => c.id === comboId);
+    if (!combo || !knownEngines.has(combo.engineCode)) return "incomplete";
+  }
+  return "complete";
+}
+
+/**
+ * CR-2: resolve groups for a specific customer.
+ * If a customer-specific override exists for the same groupLabel, prefer it
+ * over the global (customerId === null) group.
+ */
+export function resolveGroupsForCustomer(
+  groups: AuthorizationTypeGroup[],
+  customerId: number,
+): AuthorizationTypeGroup[] {
+  const customerGroups = groups.filter((g) => g.customerId === customerId);
+  const customerLabels = new Set(customerGroups.map((g) => g.groupLabel));
+
+  // Keep all customer-specific groups + globals that have no customer override.
+  const globals = groups.filter(
+    (g) => g.customerId === null && !customerLabels.has(g.groupLabel),
+  );
+  return [...customerGroups, ...globals];
+}
+
+/** Keep only groups that have at least one active member combination. */
+export function filterDownstreamGroups(
+  groups: AuthorizationTypeGroup[],
+): AuthorizationTypeGroup[] {
+  return groups.filter((g) => g.memberCombinationIds.length > 0);
+}
+
 /** Display-label derivation used by the editor preview when the API record has not been saved yet. */
 export function buildDisplayLabel(familyCode: string, series: string, engineName: string): string {
   const base = series ? `${familyCode}-${series}` : familyCode;
