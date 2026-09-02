@@ -85,6 +85,8 @@ export interface UpsertCourseRequest {
   additionalNote: string;
   aircraftTypeLicenseId: number | null;
   courseObjective: string;
+  courseDuration: string | null;
+  courseSyllabus: string | null;
   requirements: UpsertCourseRequirement[];
 }
 
@@ -322,6 +324,8 @@ export interface CourseDetailResponseData {
       updatedby: string | null;
       aircraftTypeLicenseId: number | null;
       courseObjective: string | null;
+      courseDuration: string | null;
+      courseSyllabus: string | null;
     };
     requirements: CourseDetailRequirement[];
   };

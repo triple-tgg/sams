@@ -40,6 +40,8 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
         requiredRoles: initialRoles as number[],
         aircraftTypeLicenseId: null as number | null,
         courseObjective: '',
+        courseDuration: '',
+        courseSyllabus: '',
     })
     const [submitted, setSubmitted] = useState(false)
 
@@ -71,12 +73,14 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                 code: data.course.courseCode || '',
                 name: data.course.courseName || '',
                 category: apiCategories.find(c => c.id === data.course.courseCategoryId)?.name || 'Core',
-                recurrent: data.course.courseType === 'Recurrence',
+                recurrent: data.course.courseType === 'Recurrent',
                 recurrentYears: data.course.recurrenceIntervalYears || 2,
                 note: data.course.additionalNote || '',
                 requiredRoles: data.requirements.filter(r => r.isRequired).map(r => r.courseDepartmentSubId),
                 aircraftTypeLicenseId: data.course.aircraftTypeLicenseId || null,
-                courseObjective: data.course.courseObjective || ''
+                courseObjective: data.course.courseObjective || '',
+                courseDuration: data.course.courseDuration || '',
+                courseSyllabus: data.course.courseSyllabus || ''
             })
         }
     }, [courseDetailResp, apiCategories])
@@ -111,11 +115,13 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
             courseCode: form.code,
             courseName: form.name,
             courseCategoryId: catId,
-            courseType: form.recurrent ? 'Recurrence' : 'Initial',
+            courseType: form.recurrent ? 'Recurrent' : 'Initial',
             recurrenceIntervalYears: form.recurrent ? form.recurrentYears : null,
             additionalNote: form.note || '',
             aircraftTypeLicenseId: form.aircraftTypeLicenseId,
             courseObjective: form.courseObjective || '',
+            courseDuration: form.courseDuration || null,
+            courseSyllabus: form.courseSyllabus || null,
             requirements: requirements
         })
     }
@@ -123,12 +129,12 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
 
     return (
         <Dialog open onOpenChange={(open) => !open && onClose()}>
-            <DialogContent size="md" className="max-w-lg p-6 max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 transition-all duration-300">
-                <DialogHeader>
+            <DialogContent size="md" className="max-w-lg p-0 max-h-[90vh] flex flex-col gap-0">
+                <DialogHeader className="p-6 pb-4 border-b shrink-0">
                     <DialogTitle>{isEditing ? 'Edit Course' : 'Add New Course'}</DialogTitle>
                 </DialogHeader>
 
-                <div className="space-y-4 pt-2">
+                <div className="space-y-4 p-6 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 transition-all duration-300">
                     {isLoadingCourse ? (
                         <div className="py-12 flex justify-center items-center flex-col gap-3">
                             <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin"></div>
@@ -204,11 +210,12 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                                             <span className="text-sm text-muted-foreground">Every</span>
                                             <input
                                                 type="number"
-                                                className="w-14 px-2 py-1 text-sm border border-border rounded-lg text-center text-foreground bg-card focus:outline-none focus:ring-2 focus:ring-primary/10"
+                                                className="w-16 px-2 py-1 text-sm border border-border rounded-lg text-center text-foreground bg-card focus:outline-none focus:ring-2 focus:ring-primary/10"
                                                 value={form.recurrentYears}
-                                                onChange={e => setForm({ ...form, recurrentYears: parseInt(e.target.value) })}
-                                                min={1}
-                                                max={5}
+                                                onChange={e => setForm({ ...form, recurrentYears: parseFloat(e.target.value) || 0 })}
+                                                min={0.1}
+                                                max={10}
+                                                step={0.1}
                                             />
                                             <span className="text-sm text-muted-foreground">years</span>
                                         </div>
@@ -221,10 +228,21 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                                 <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Required For <span className="text-red-400">*</span></label>
                                 <Select
                                     isMulti
-                                    options={apiRoles.map(role => ({ value: role.id, label: `${role.code} - ${role.name}` }))}
+                                    options={[
+                                        { value: -1, label: '── Select All ──' },
+                                        ...apiRoles.map(role => ({ value: role.id, label: `${role.code} - ${role.name}` }))
+                                    ]}
                                     value={apiRoles.filter(role => form.requiredRoles.includes(role.id)).map(role => ({ value: role.id, label: `${role.code} - ${role.name}` }))}
-                                    onChange={(selectedOptions: any) => {
-                                        setForm({ ...form, requiredRoles: selectedOptions ? selectedOptions.map((opt: any) => opt.value) : [] })
+                                    onChange={(selectedOptions: any, actionMeta: any) => {
+                                        const selected = selectedOptions || []
+                                        const isSelectAll = selected.some((opt: any) => opt.value === -1)
+                                        if (isSelectAll) {
+                                            // If all are already selected, deselect all; otherwise select all
+                                            const allSelected = form.requiredRoles.length === apiRoles.length
+                                            setForm({ ...form, requiredRoles: allSelected ? [] : apiRoles.map(r => r.id) })
+                                        } else {
+                                            setForm({ ...form, requiredRoles: selected.map((opt: any) => opt.value) })
+                                        }
                                     }}
                                     placeholder="Select required roles..."
                                     className="text-sm"
@@ -236,6 +254,14 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                                             '&:hover': {
                                                 borderColor: state.isFocused ? '#3b82f6' : '#cbd5e1'
                                             }
+                                        }),
+                                        option: (base, state) => ({
+                                            ...base,
+                                            ...(state.data && (state.data as any).value === '__select_all__' ? {
+                                                fontWeight: 600,
+                                                borderBottom: '1px solid #e2e8f0',
+                                                color: '#3b82f6',
+                                            } : {})
                                         })
                                     }}
                                 />
@@ -270,6 +296,17 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                                 </div>
                             )}
 
+                            {/* Course Duration */}
+                            <div>
+                                <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Course Duration</label>
+                                <input
+                                    className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary"
+                                    placeholder="e.g. 2 Days, 16 Hours"
+                                    value={form.courseDuration}
+                                    onChange={e => setForm({ ...form, courseDuration: e.target.value })}
+                                />
+                            </div>
+
                             {/* Course Objective */}
                             <div>
                                 <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Course Objective</label>
@@ -280,6 +317,19 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                                     value={form.courseObjective}
                                     onChange={e => setForm({ ...form, courseObjective: e.target.value })}
                                 />
+                            </div>
+
+                            {/* Course Syllabus */}
+                            <div className="flex flex-col">
+                                <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Course Syllabus</label>
+                                <div className="border border-border rounded-lg bg-card text-foreground [&_.ql-toolbar]:border-none [&_.ql-toolbar]:border-b [&_.ql-toolbar]:border-border [&_.ql-container]:border-none [&_.ql-editor]:min-h-[120px] [&_.ql-editor]:text-sm [&_.ql-editor.ql-blank::before]:text-muted-foreground [&_.ql-stroke]:stroke-foreground [&_.ql-fill]:fill-foreground">
+                                    <ReactQuill
+                                        theme="snow"
+                                        placeholder="Enter the course syllabus..."
+                                        value={form.courseSyllabus}
+                                        onChange={val => setForm({ ...form, courseSyllabus: val })}
+                                    />
+                                </div>
                             </div>
 
                             {/* Note */}
@@ -299,7 +349,7 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                 </div>
 
                 {/* Actions */}
-                <DialogFooter className="mt-6 pt-0">
+                <DialogFooter className="p-6 pt-4 border-t shrink-0">
                     <button
                         onClick={onClose}
                         disabled={isLoadingCourse}

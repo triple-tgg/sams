@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { Plus, Building2, Briefcase, Wrench, ShieldCheck, Upload } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -37,7 +37,8 @@ export default function CourseManagementPage() {
     const [editingCourse, setEditingCourse] = useState<Course | null>(null)
     const [coursePendingDelete, setCoursePendingDelete] = useState<Course | null>(null)
     const [expandedDept, setExpandedDept] = useState<string | null>(null)
-    const [showImportModal, setShowImportModal] = useState(false)
+    const [importFile, setImportFile] = useState<File | null>(null)
+    const importFileInputRef = useRef<HTMLInputElement>(null)
 
     const { getUserName } = useReduxAuth()
     const queryClient = useQueryClient()
@@ -152,11 +153,22 @@ export default function CourseManagementPage() {
                     <CardHeader className="pb-4">
                         <CardTitle>Course Management</CardTitle>
                         <CardDescription>
-                            Manage training courses and requirements · SAMS-FM-CM-014 Rev.03
+                            Manage training courses and requirements
                         </CardDescription>
                         <div className="flex items-center gap-2 ml-auto">
                             <PermissionActionGuard menuCode="QA_MONITORING" action="canCreate">
-                                <Button variant="outline" onClick={() => setShowImportModal(true)}>
+                                <input
+                                    ref={importFileInputRef}
+                                    type="file"
+                                    accept=".xlsx,.xls"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                        const f = e.target.files?.[0]
+                                        if (f) setImportFile(f)
+                                        e.target.value = ''
+                                    }}
+                                />
+                                <Button variant="outline" onClick={() => importFileInputRef.current?.click()}>
                                     <Upload className="h-4 w-4 mr-2" />
                                     Import
                                 </Button>
@@ -288,8 +300,8 @@ export default function CourseManagementPage() {
                                             {/* Stats Row */}
                                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                                 <StatCard label="Total Courses" value={stats.total} color="hsl(var(--primary))" />
-                                                <StatCard label="Recurrent (2yr)" value={stats.recurrent} color="#0ea5e9" />
-                                                <StatCard label="Initial Only" value={stats.initial} color="#6366f1" />
+                                                <StatCard label="Recurrent" value={stats.recurrent} color="#0ea5e9" />
+                                                <StatCard label="Initial" value={stats.initial} color="#6366f1" />
                                                 <StatCard label="Categories" value={stats.categories} color="#f59e0b" />
                                             </div>
 
@@ -307,10 +319,10 @@ export default function CourseManagementPage() {
                                                     courses={filtered}
                                                     search={search}
                                                     onSearchChange={setSearch}
-                                                    onSelectCourse={setSelectedCourse}
+                                                    onSelectCourse={() => {}}
                                                     onEditCourse={setEditingCourse}
                                                     onDeleteCourse={setCoursePendingDelete}
-                                                    selectedCourseId={selectedCourse?.id ?? null}
+                                                    selectedCourseId={null}
                                                     deletingCourseId={deleteCourseMutation.isPending ? deleteCourseMutation.variables?.id : null}
                                                 />
                                             )}
@@ -320,20 +332,6 @@ export default function CourseManagementPage() {
                                     )}
                                 </div>
 
-                                {/* ── Right Detail Panel ── */}
-                                {selectedCourse && activeTab === 'courses' && (
-                                    <CourseDetailPanel
-                                        course={selectedCourse}
-                                        onClose={() => setSelectedCourse(null)}
-                                        onDelete={() => {
-                                            deleteCourseMutation.mutate({
-                                                id: selectedCourse.id,
-                                                userName: getUserName() || 'system',
-                                            })
-                                        }}
-                                        onEdit={() => setEditingCourse(selectedCourse)}
-                                    />
-                                )}
                             </div>
                         </div>
                     </CardContent>
@@ -352,8 +350,8 @@ export default function CourseManagementPage() {
             )}
 
             {/* Import Course Modal */}
-            {showImportModal && (
-                <ImportCourseModal onClose={() => setShowImportModal(false)} />
+            {importFile && (
+                <ImportCourseModal file={importFile} onClose={() => setImportFile(null)} />
             )}
 
             <AlertDialog

@@ -1,11 +1,14 @@
 'use client'
 
-import { useState, useCallback, useRef, useMemo } from 'react'
-import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle, ArrowLeft, Loader2, Trash2 } from 'lucide-react'
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
+import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle, ArrowLeft, Loader2, Trash2, Pencil } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import { upsertCourse, getCourseCategories, getCourseDepartmentSubList } from '@/lib/api/qa/course'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useReduxAuth } from '@/lib/api/hooks/useReduxAuth'
@@ -38,17 +41,15 @@ interface ImportResult {
 
 type Step = 'upload' | 'preview' | 'importing' | 'result'
 
-// ── Helpers ──
-
 /** Detect if course is Recurrent from name or explicit field */
-function detectCourseType(row: ParsedCourseRow): 'Recurrence' | 'Initial' {
-  if (row.courseType?.toLowerCase().includes('recur')) return 'Recurrence'
-  if (row.courseName?.toLowerCase().includes('recurrent')) return 'Recurrence'
+function detectCourseType(row: ParsedCourseRow): 'Recurrent' | 'Initial' {
+  if (row.courseType?.toLowerCase().includes('recur')) return 'Recurrent'
+  if (row.courseName?.toLowerCase().includes('recurrent')) return 'Recurrent'
   return 'Initial'
 }
 
 /** Parse Excel file into structured rows */
-function parseExcelFile(file: File): Promise<ParsedCourseRow[]> {
+function parseExcelFile(file: File, apiCategories: any[] = []): Promise<ParsedCourseRow[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = (e) => {
@@ -59,21 +60,37 @@ function parseExcelFile(file: File): Promise<ParsedCourseRow[]> {
         const sheet = workbook.Sheets[sheetName]
         const jsonData = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: '' })
 
-        const rows: ParsedCourseRow[] = jsonData.map((row, idx) => {
-          const courseCode = String(row['courseCode'] || '').trim()
-          const courseName = String(row['courseName'] || '').trim()
-          const courseObjective = String(row['courseObjective'] || '').trim()
-          const courseDuration = String(row['Course Duration'] || '').trim()
-          const courseSyllabus = String(row['Course Syllabus'] || '').trim()
-          const courseCategory = String(row['courseCategory'] || '').trim()
-          const courseType = String(row['courseType'] || '').trim()
-          const recurrenceRaw = row['recurrenceIntervalYears']
+        const rows: ParsedCourseRow[] = jsonData.map((rawRow, idx) => {
+          // Normalize keys (lowercase, no spaces) to be extremely robust against Excel formatting differences
+          const row: Record<string, any> = {}
+          for (const key in rawRow) {
+            const normalizedKey = key.toLowerCase().replace(/\s+/g, '')
+            row[normalizedKey] = rawRow[key]
+          }
+
+          const courseCode = String(row['coursecode'] || '').trim()
+          const courseName = String(row['coursename'] || '').trim()
+          const courseObjective = String(row['courseobjective'] || row['objective'] || '').trim()
+          const courseDuration = String(row['courseduration'] || row['duration'] || '').trim()
+          const courseSyllabus = String(row['coursesyllabus'] || row['syllabus'] || '').trim()
+          const courseCategory = String(row['coursecategory'] || row['category'] || '').trim()
+          const courseType = String(row['coursetype'] || row['type'] || '').trim()
+          const recurrenceRaw = row['recurrenceintervalyears'] || row['recurrence']
           const recurrenceIntervalYears = recurrenceRaw ? Number(recurrenceRaw) : null
-          const additionalNote = String(row['additionalNote'] || '').trim()
+          const additionalNote = String(row['additionalnote'] || row['note'] || '').trim()
 
           const errors: string[] = []
           if (!courseCode) errors.push('Missing courseCode')
           if (!courseName) errors.push('Missing courseName')
+          
+          if (courseCategory) {
+            const isValidCategory = apiCategories.some(c => c.name.toLowerCase() === courseCategory.toLowerCase())
+            if (!isValidCategory) {
+              errors.push(`Invalid Category: "${courseCategory}"`)
+            }
+          } else {
+            errors.push('Missing Category')
+          }
 
           return {
             rowIndex: idx + 2, // +2: 1-indexed + header row
@@ -106,17 +123,22 @@ function parseExcelFile(file: File): Promise<ParsedCourseRow[]> {
 // ── Component ──
 
 interface ImportCourseModalProps {
+  file: File
   onClose: () => void
 }
 
-export function ImportCourseModal({ onClose }: ImportCourseModalProps) {
+export function ImportCourseModal({ file: initialFile, onClose }: ImportCourseModalProps) {
   const [step, setStep] = useState<Step>('upload')
-  const [file, setFile] = useState<File | null>(null)
+  const [file, setFile] = useState<File | null>(initialFile)
   const [rows, setRows] = useState<ParsedCourseRow[]>([])
   const [isDragOver, setIsDragOver] = useState(false)
   const [parseError, setParseError] = useState<string | null>(null)
   const [isParsing, setIsParsing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Edit and Remove state
+  const [rowToRemove, setRowToRemove] = useState<number | null>(null)
+  const [editingRow, setEditingRow] = useState<ParsedCourseRow | null>(null)
 
   // Import state
   const [importProgress, setImportProgress] = useState(0)
@@ -143,6 +165,13 @@ export function ImportCourseModal({ onClose }: ImportCourseModalProps) {
   const validRows = useMemo(() => rows.filter(r => r.isValid), [rows])
   const invalidRows = useMemo(() => rows.filter(r => !r.isValid), [rows])
 
+  // Auto-parse file on mount
+  useEffect(() => {
+    if (initialFile && step === 'upload') {
+      handleFile(initialFile)
+    }
+  }, [initialFile])
+
   // ── Handlers ──
 
   const handleFile = useCallback(async (f: File) => {
@@ -157,7 +186,7 @@ export function ImportCourseModal({ onClose }: ImportCourseModalProps) {
     setIsParsing(true)
 
     try {
-      const parsed = await parseExcelFile(f)
+      const parsed = await parseExcelFile(f, apiCategories)
       setRows(parsed)
       setStep('preview')
     } catch (err: any) {
@@ -180,8 +209,37 @@ export function ImportCourseModal({ onClose }: ImportCourseModalProps) {
   }, [handleFile])
 
   const handleRemoveRow = useCallback((rowIndex: number) => {
-    setRows(prev => prev.filter(r => r.rowIndex !== rowIndex))
+    setRowToRemove(rowIndex)
   }, [])
+
+  const confirmRemoveRow = useCallback(() => {
+    if (rowToRemove !== null) {
+      setRows(prev => prev.filter(r => r.rowIndex !== rowToRemove))
+      setRowToRemove(null)
+    }
+  }, [rowToRemove])
+
+  const handleSaveEditRow = useCallback((updatedRow: ParsedCourseRow) => {
+    // Re-validate the row
+    const errors: string[] = []
+    if (!updatedRow.courseCode) errors.push('Missing courseCode')
+    if (!updatedRow.courseName) errors.push('Missing courseName')
+    
+    if (updatedRow.courseCategory) {
+      const isValidCategory = apiCategories.some(c => c.name.toLowerCase() === updatedRow.courseCategory.toLowerCase())
+      if (!isValidCategory) {
+        errors.push(`Invalid Category: "${updatedRow.courseCategory}"`)
+      }
+    } else {
+      errors.push('Missing Category')
+    }
+
+    updatedRow.errors = errors
+    updatedRow.isValid = errors.length === 0
+
+    setRows(prev => prev.map(r => r.rowIndex === updatedRow.rowIndex ? updatedRow : r))
+    setEditingRow(null)
+  }, [apiCategories])
 
   const handleImport = useCallback(async () => {
     setStep('importing')
@@ -223,12 +281,14 @@ export function ImportCourseModal({ onClose }: ImportCourseModalProps) {
           courseName: row.courseName,
           courseCategoryId: categoryId,
           courseType: detectedType,
-          recurrenceIntervalYears: detectedType === 'Recurrence'
+          recurrenceIntervalYears: detectedType === 'Recurrent'
             ? (row.recurrenceIntervalYears ?? 2)
             : null,
           additionalNote: combinedNote,
           aircraftTypeLicenseId: null,
           courseObjective: row.courseObjective || '',
+          courseDuration: row.courseDuration || null,
+          courseSyllabus: row.courseSyllabus || null,
           requirements,
         })
 
@@ -258,66 +318,34 @@ export function ImportCourseModal({ onClose }: ImportCourseModalProps) {
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open && !isImporting) onClose() }}>
-      <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+      <DialogContent size="lg" className="max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5 text-emerald-600" />
-            {step === 'upload' && 'Import Courses from Excel'}
+            {step === 'upload' && 'Parsing File...'}
             {step === 'preview' && 'Preview Import Data'}
             {step === 'importing' && 'Importing Courses...'}
             {step === 'result' && 'Import Complete'}
           </DialogTitle>
         </DialogHeader>
 
-        {/* ─── Step 1: Upload ─── */}
+        {/* ─── Step 1: Parsing ─── */}
         {step === 'upload' && (
           <div className="flex-1 flex flex-col items-center justify-center py-8">
-            <div
-              onDragOver={(e) => { e.preventDefault(); setIsDragOver(true) }}
-              onDragLeave={() => setIsDragOver(false)}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              className={`
-                w-full max-w-md border-2 border-dashed rounded-xl p-12 text-center cursor-pointer
-                transition-all duration-200
-                ${isDragOver
-                  ? 'border-emerald-400 bg-emerald-50 scale-[1.02]'
-                  : 'border-gray-300 hover:border-emerald-400 hover:bg-emerald-50/50'
-                }
-              `}
-            >
-              {isParsing ? (
-                <div className="flex flex-col items-center gap-3">
-                  <Loader2 className="h-10 w-10 text-emerald-500 animate-spin" />
-                  <p className="text-sm text-muted-foreground">Parsing Excel file...</p>
-                </div>
-              ) : (
-                <>
-                  <Upload className={`h-10 w-10 mx-auto mb-4 ${isDragOver ? 'text-emerald-500' : 'text-gray-400'}`} />
-                  <p className="text-sm font-medium text-foreground mb-1">
-                    Drop your Excel file here or click to browse
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Supports .xlsx and .xls files
-                  </p>
-                </>
-              )}
-            </div>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx,.xls"
-              className="hidden"
-              onChange={handleFileInput}
-            />
-
-            {parseError && (
-              <div className="mt-4 flex items-center gap-2 text-sm text-destructive bg-destructive/10 px-4 py-2 rounded-lg">
-                <XCircle className="h-4 w-4 shrink-0" />
-                {parseError}
+            {isParsing ? (
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 className="h-10 w-10 text-emerald-500 animate-spin" />
+                <p className="text-sm text-muted-foreground">Parsing Excel file...</p>
               </div>
-            )}
+            ) : parseError ? (
+              <div className="flex flex-col items-center gap-3">
+                <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 px-4 py-2 rounded-lg">
+                  <XCircle className="h-4 w-4 shrink-0" />
+                  {parseError}
+                </div>
+                <Button type="button" variant="outline" onClick={onClose} className="mt-2">Close</Button>
+              </div>
+            ) : null}
           </div>
         )}
 
@@ -348,28 +376,108 @@ export function ImportCourseModal({ onClose }: ImportCourseModalProps) {
             {/* Preview Table */}
             <div className="flex-1 overflow-auto border rounded-lg">
               <table className="w-full text-xs">
-                <thead className="bg-muted/50 sticky top-0 z-10">
+                <thead className="bg-slate-50 sticky top-0 z-10">
                   <tr>
                     <th className="px-3 py-2.5 text-left font-medium text-muted-foreground w-10">#</th>
                     <th className="px-3 py-2.5 text-left font-medium text-muted-foreground w-12">Status</th>
-                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground min-w-[140px]">Course Code</th>
+                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground min-w-[120px]">Course Code</th>
                     <th className="px-3 py-2.5 text-left font-medium text-muted-foreground min-w-[250px]">Course Name</th>
-                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground min-w-[120px]">Type</th>
-                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground min-w-[100px]">Duration</th>
+                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground min-w-[200px]">Objective</th>
+                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground min-w-[150px]">Category</th>
+                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground min-w-[100px]">Type</th>
+                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground min-w-[80px]">Recurrence</th>
+                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground min-w-[80px]">Duration</th>
+                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground min-w-[260px]">Syllabus</th>
+                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground min-w-[140px]">Note</th>
                     <th className="px-3 py-2.5 text-left font-medium text-muted-foreground w-10"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {rows.map((row) => {
                     const type = detectCourseType(row)
+                    const isEditing = editingRow?.rowIndex === row.rowIndex
+
+                    if (isEditing) {
+                      return (
+                        <tr key={row.rowIndex} className="bg-slate-50/50">
+                          <td className="px-3 py-2 text-muted-foreground">{row.rowIndex}</td>
+                          <td className="px-3 py-2">
+                            {row.isValid ? (
+                              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                            ) : (
+                              <div className="group relative">
+                                <AlertTriangle className="h-4 w-4 text-red-500" />
+                                <div className="absolute left-0 bottom-full mb-1 hidden group-hover:block bg-red-800 text-white text-[10px] px-2 py-1 rounded shadow-lg whitespace-nowrap z-20">
+                                  {row.errors.join(', ')}
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-1 py-1">
+                            <Input className="h-7 text-xs px-2 w-full" value={editingRow.courseCode} onChange={e => setEditingRow({...editingRow, courseCode: e.target.value})} />
+                          </td>
+                          <td className="px-1 py-1">
+                            <Input className="h-7 text-xs px-2 w-full" value={editingRow.courseName} onChange={e => setEditingRow({...editingRow, courseName: e.target.value})} />
+                          </td>
+                          <td className="px-1 py-1">
+                            <Textarea className="min-h-7 h-7 text-xs px-2 py-1 w-full" value={editingRow.courseObjective} onChange={e => setEditingRow({...editingRow, courseObjective: e.target.value})} />
+                          </td>
+                          <td className="px-1 py-1">
+                            <select 
+                              className="h-7 text-xs px-2 w-full rounded-md border border-input bg-background"
+                              value={editingRow.courseCategory} 
+                              onChange={e => setEditingRow({...editingRow, courseCategory: e.target.value})}
+                            >
+                              <option value="" disabled>Select category...</option>
+                              {apiCategories.map(cat => (
+                                <option key={cat.id} value={cat.name}>{cat.name}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-1 py-1">
+                            <Input className="h-7 text-xs px-2 w-full" value={editingRow.courseType} onChange={e => setEditingRow({...editingRow, courseType: e.target.value})} />
+                          </td>
+                          <td className="px-1 py-1">
+                            <Input type="number" className="h-7 text-xs px-2 w-full min-w-[60px]" value={editingRow.recurrenceIntervalYears || ''} onChange={e => setEditingRow({...editingRow, recurrenceIntervalYears: e.target.value ? Number(e.target.value) : null})} />
+                          </td>
+                          <td className="px-1 py-1">
+                            <Input className="h-7 text-xs px-2 w-full" value={editingRow.courseDuration} onChange={e => setEditingRow({...editingRow, courseDuration: e.target.value})} />
+                          </td>
+                          <td className="px-1 py-1">
+                            <Textarea className="min-h-7 h-7 text-xs px-2 py-1 w-full" value={editingRow.courseSyllabus} onChange={e => setEditingRow({...editingRow, courseSyllabus: e.target.value})} />
+                          </td>
+                          <td className="px-1 py-1">
+                            <Input className="h-7 text-xs px-2 w-full" value={editingRow.additionalNote} onChange={e => setEditingRow({...editingRow, additionalNote: e.target.value})} />
+                          </td>
+                          <td className="px-3 py-2 text-right whitespace-nowrap">
+                            <button
+                              type="button"
+                              onClick={() => handleSaveEditRow(editingRow)}
+                              className="p-1 rounded hover:bg-emerald-100 text-muted-foreground hover:text-emerald-600 transition-colors mr-1"
+                              title="Save row"
+                            >
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingRow(null)}
+                              className="p-1 rounded hover:bg-slate-200 text-muted-foreground hover:text-slate-600 transition-colors"
+                              title="Cancel edit"
+                            >
+                              <XCircle className="h-3.5 w-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    }
+
                     return (
                       <tr
                         key={row.rowIndex}
-                        className={`transition-colors ${
-                          row.isValid
-                            ? 'hover:bg-muted/30'
-                            : 'bg-red-50/50 hover:bg-red-50'
-                        }`}
+                        className={`transition-colors ${row.isValid
+                          ? 'hover:bg-muted/30'
+                          : 'bg-red-50/50 hover:bg-red-50'
+                          }`}
                       >
                         <td className="px-3 py-2 text-muted-foreground">{row.rowIndex}</td>
                         <td className="px-3 py-2">
@@ -387,24 +495,54 @@ export function ImportCourseModal({ onClose }: ImportCourseModalProps) {
                         <td className="px-3 py-2 font-mono font-medium text-primary">
                           {row.courseCode || <span className="text-red-400 italic">empty</span>}
                         </td>
-                        <td className="px-3 py-2 max-w-[300px] truncate" title={row.courseName}>
+                        <td className="px-3 py-2 max-w-[200px] truncate" title={row.courseName}>
                           {row.courseName || <span className="text-red-400 italic">empty</span>}
+                        </td>
+                        <td className="px-3 py-2 max-w-[180px] truncate" title={row.courseObjective}>
+                          {row.courseObjective || <span className="text-muted-foreground">-</span>}
+                        </td>
+                        <td className="px-3 py-2">
+                          {row.courseCategory ? (
+                            <Badge className="text-[10px] px-1.5 py-0.5 bg-violet-100 text-violet-700 hover:bg-violet-100">
+                              {row.courseCategory}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
                         </td>
                         <td className="px-3 py-2">
                           <Badge
-                            className={`text-[10px] px-1.5 py-0.5 ${
-                              type === 'Recurrence'
-                                ? 'bg-sky-100 text-sky-700 hover:bg-sky-100'
-                                : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
-                            }`}
+                            className={`text-[10px] px-1.5 py-0.5 ${type === 'Recurrent'
+                              ? 'bg-sky-100 text-sky-700 hover:bg-sky-100'
+                              : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
+                              }`}
                           >
-                            {type === 'Recurrence' ? 'Recurrent' : 'Initial'}
+                            {type === 'Recurrent' ? 'Recurrent' : 'Initial'}
                           </Badge>
                         </td>
                         <td className="px-3 py-2 text-muted-foreground">
+                          {row.recurrenceIntervalYears != null
+                            ? `${row.recurrenceIntervalYears} yr${row.recurrenceIntervalYears !== 1 ? 's' : ''}`
+                            : '-'}
+                        </td>
+                        <td className="px-3 py-2 text-muted-foreground max-w-[140px] truncate" title={row.courseDuration}>
                           {row.courseDuration || '-'}
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2 max-w-[160px] truncate" title={row.courseSyllabus}>
+                          {row.courseSyllabus || <span className="text-muted-foreground">-</span>}
+                        </td>
+                        <td className="px-3 py-2 max-w-[140px] truncate" title={row.additionalNote}>
+                          {row.additionalNote || <span className="text-muted-foreground">-</span>}
+                        </td>
+                        <td className="px-3 py-2 text-right whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => setEditingRow(row)}
+                            className="p-1 rounded hover:bg-slate-100 text-muted-foreground hover:text-primary transition-colors mr-1"
+                            title="Edit row"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
                           <button
                             type="button"
                             onClick={() => handleRemoveRow(row.rowIndex)}
@@ -426,11 +564,7 @@ export function ImportCourseModal({ onClose }: ImportCourseModalProps) {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => {
-                  setStep('upload')
-                  setFile(null)
-                  setRows([])
-                }}
+                onClick={onClose}
               >
                 <ArrowLeft className="h-4 w-4 mr-1.5" />
                 Back
@@ -517,6 +651,26 @@ export function ImportCourseModal({ onClose }: ImportCourseModalProps) {
           </div>
         )}
       </DialogContent>
+
+      {/* Remove Confirmation Dialog */}
+      {rowToRemove !== null && (
+        <Dialog open={rowToRemove !== null} onOpenChange={() => setRowToRemove(null)}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Confirm Removal</DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              <p className="text-sm text-muted-foreground">Are you sure you want to remove this row from the import list?</p>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setRowToRemove(null)}>Cancel</Button>
+              <Button type="button" color="destructive" onClick={confirmRemoveRow}>Remove</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+
     </Dialog>
   )
 }

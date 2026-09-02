@@ -662,20 +662,20 @@ export default function ScheduleDetailPage() {
                                 </div>
 
                                 {/* Location / Meeting Link */}
-                                <div className="flex items-start gap-2 text-xs mt-1">
+                                <div className="flex items-start gap-2 text-xs mt-1 overflow-hidden">
                                     {session.attendanceTypeName?.toLowerCase().includes('online') ? (
                                         <Video className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
                                     ) : (
                                         <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
                                     )}
-                                    <div>
+                                    <div className="min-w-0 flex-1">
                                         <span className="text-muted-foreground/60 text-[9px] font-semibold uppercase block">
                                             {session.attendanceTypeName?.toLowerCase().includes('online') ? 'Meeting Link' : 'Location'}
                                         </span>
                                         {session.attendanceTypeName?.toLowerCase().includes('online') && session.link ? (
                                             <a href={session.link} target="_blank" rel="noopener noreferrer"
-                                                className="text-primary font-medium hover:underline">
-                                                {session.link.replace(/^https?:\/\//, '').substring(0, 35)}{session.link.length > 42 ? '...' : ''}
+                                                className="text-primary font-medium hover:underline block truncate">
+                                                {session.link}
                                             </a>
                                         ) : (
                                             <span className="text-foreground font-medium">{session.venue}</span>
