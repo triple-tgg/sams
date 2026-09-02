@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import ModalStepWrapper from './modal-step-wrapper'
 import FlightStep from './FlightStep'
 import ServicesStep from './ServicesStep'
@@ -58,6 +58,7 @@ const CreateThfModal: React.FC<CreateThfModalProps> = ({
                     e.preventDefault()
                 }}
             >
+                <DialogTitle className="sr-only">{title}</DialogTitle>
                 <ModalStepWrapper
                     steps={steps}
                     title={title}

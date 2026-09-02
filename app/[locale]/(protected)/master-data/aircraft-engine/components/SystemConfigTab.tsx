@@ -119,11 +119,9 @@ export function SystemConfigTab() {
   };
   const closeModal = () => { setModalMode("closed"); setForm(emptyForm); };
 
-  const isDuplicateIcao = modalMode === "add" && configs.some(
-    (c: AircraftType) => c.code.toUpperCase() === (form.code ?? "").trim().toUpperCase(),
-  ) && (form.code ?? "").trim().length > 0;
+  const isDuplicateIcao = false;
 
-  const canSave = !!(form.code ?? "").trim() && !!(form.modelName ?? "").trim() && !!(form.familyCode ?? "").trim() && !isDuplicateIcao;
+  const canSave = !!(form.code ?? "").trim() && !!(form.modelName ?? "").trim() && !!(form.familyCode ?? "").trim();
 
   const handleSave = async () => {
     try {
@@ -207,9 +205,9 @@ export function SystemConfigTab() {
                 <th className={subHeaderClass}>CSD 2</th>
                 <th className={subHeaderClass}>CSD 3</th>
                 <th className={subHeaderClass}>CSD 4</th>
-                <th className={subHeaderClass}>Green</th>
-                <th className={subHeaderClass}>Blue</th>
-                <th className={subHeaderClass}>Yellow</th>
+                <th className={subHeaderClass}>GREEN/A/LH</th>
+                <th className={subHeaderClass}>BLUE/CENTER</th>
+                <th className={subHeaderClass}>YELLOW/B/2RH</th>
               </tr>
             </thead>
             <tbody>
@@ -283,10 +281,7 @@ export function SystemConfigTab() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs font-medium text-slate-600">ICAO code *</Label>
-                <Input value={form.code} disabled={modalMode === "edit"} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value, name: e.target.value }))} placeholder="e.g. A20N" className={cn("mt-1 h-9 text-sm uppercase disabled:opacity-60", isDuplicateIcao && "border-red-400 focus-visible:ring-red-400")} />
-                {isDuplicateIcao && (
-                  <p className="mt-1 text-xs text-red-500">ICAO code "{(form.code ?? "").trim().toUpperCase()}" already exists</p>
-                )}
+                <Input value={form.code} disabled={modalMode === "edit"} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value, name: e.target.value }))} placeholder="e.g. A20N" className="mt-1 h-9 text-sm uppercase disabled:opacity-60" />
               </div>
               <div>
                 <Label className="text-xs font-medium text-slate-600">Aircraft family / Model Name *</Label>
@@ -325,11 +320,11 @@ export function SystemConfigTab() {
 
             {/* CSD flags */}
             <div>
-              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">CSD (Generator)</p>
+              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">CSD/IDG/VSFG (Generator)</p>
               <div className="grid grid-cols-2 gap-3">
                 {(["flagCsd1", "flagCsd2", "flagCsd3", "flagCsd4"] as const).map((key, idx) => (
                   <div key={key} className="flex items-center justify-between rounded-lg border border-border bg-slate-50 px-3 py-2">
-                    <Label className="text-xs text-slate-600">CSD {idx + 1}</Label>
+                    <Label className="text-xs text-slate-600">#{idx + 1}</Label>
                     <Switch checked={form[key]} onCheckedChange={(v) => setForm((f) => ({ ...f, [key]: v }))} />
                   </div>
                 ))}
@@ -339,11 +334,11 @@ export function SystemConfigTab() {
             {/* Hydraulic flags */}
             <div>
               <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">Hydraulic</p>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid gap-3">
                 {([
-                  ["flagHydrolicGreen", "Green"],
-                  ["flagHydrolicBlue", "Blue"],
-                  ["flagHydrolicYellow", "Yellow"],
+                  ["flagHydrolicGreen", "GREEN/A/LH"],
+                  ["flagHydrolicBlue", "BLUE/CENTER"],
+                  ["flagHydrolicYellow", "YELLOW/B/2RH"],
                 ] as const).map(([key, label]) => (
                   <div key={key} className="flex items-center justify-between rounded-lg border border-border bg-slate-50 px-3 py-2">
                     <Label className="text-xs text-slate-600">{label}</Label>

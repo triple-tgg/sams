@@ -3,7 +3,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import type { FlightItem } from "@/lib/api/flight/filghtlist.interface";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { CircleOff, MoreHorizontal, FileCheck, FilePenLine, Paperclip, SquarePen, Eye, Mail } from "lucide-react";
+import { CircleOff, MoreHorizontal, FileCheck, FilePenLine, Paperclip, SquarePen, Eye, Mail, BadgeDollarSign } from "lucide-react";
 import clsx from "clsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatUtcToLocalDisplay } from "@/lib/utils/flightDatetime";
@@ -12,23 +12,31 @@ import { PermissionActionGuard } from "@/components/partials/auth/PermissionActi
 export function getFlightColumns({
   onCreateTHF,
   onEditFlight,
+  onPreviewTHF,
   onAttach,
   onCancel,
   onSendEmail,
   isCancelLoading = false,
+  hideStatusActions = false,
+  onPreInvoice,
+  acTypeField = "code",
 }: {
   onCreateTHF?: (flight: FlightItem) => void;
   onEditFlight?: (flight: FlightItem) => void;
+  onPreviewTHF?: (flight: FlightItem) => void;
   onAttach?: (filePath: string) => void;
   onCancel?: (flight: FlightItem) => void;
   onSendEmail?: (flight: FlightItem) => void;
   isCancelLoading?: boolean;
+  hideStatusActions?: boolean;
+  onPreInvoice?: (flight: FlightItem) => void;
+  /** Which field of acTypeObj the "A/C Type" column shows */
+  acTypeField?: "code" | "familyCode";
 }): ColumnDef<FlightItem>[] {
   return [
     // {
     //   accessorKey: "status", header: "-",
     //   cell: ({ row }) => <div className="bg-primary/10 border-l-4 border-l-red-600 px-6 h-20"></div>
-    // },
     {
       accessorKey: "arrivalFlightNo", header: "Flight No",
       cell: ({ row }) => <div className={clsx("font-medium text-sm whitespace-nowrap", row.original.datasource === "adhoc" ? "text-orange-400" : "")}>{row.getValue("arrivalFlightNo")}</div>
@@ -55,7 +63,8 @@ export function getFlightColumns({
     },
     {
       accessorKey: "acType", header: "A/C Type",
-      accessorFn: (row) => `${row?.acTypeObj?.code ?? ""}`,
+      accessorFn: (row) =>
+        `${(acTypeField === "familyCode" ? row?.acTypeObj?.familyCode : row?.acTypeObj?.code) ?? ""}`,
       cell: ({ row }) => <span className={clsx("whitespace-nowrap", row.original.datasource === "adhoc" ? "text-orange-400" : "")}>{row.getValue("acType") || "-"}</span>,
     },
     {
@@ -86,7 +95,7 @@ export function getFlightColumns({
         const flight = row.original;
         return (
           <div className="flex items-center justify-end gap-1">
-            {flight.state === "save" && (
+            {!hideStatusActions && flight.state === "save" && (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -116,7 +125,7 @@ export function getFlightColumns({
                 </Tooltip>
               </TooltipProvider>
             )}
-            {flight.state !== "plan" && (
+            {!hideStatusActions && flight.state !== "plan" && (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -151,46 +160,74 @@ export function getFlightColumns({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <PermissionActionGuard menuCode="FLIGHT" action="canEdit">
+                {onEditFlight && (
+                  <PermissionActionGuard menuCode="FLIGHT" action="canEdit">
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      disabled={flight.statusObj?.code === "Cancel"}
+                      onClick={() => onEditFlight(flight)}
+                    >
+                      <SquarePen className="h-4 w-4 mr-2" />
+                      Edit Flight
+                    </DropdownMenuItem>
+                  </PermissionActionGuard>
+                )}
+                {onCreateTHF && (
+                  <PermissionActionGuard menuCode="THF" action={flight.state === "plan" ? "canCreate" : "canEdit"}>
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      disabled={flight.statusObj?.code === "Cancel"}
+                      onClick={() => onCreateTHF(flight)}
+                    >
+                      <FilePenLine className="h-4 w-4 mr-2" />
+                      {flight.state === "plan" ? "Create THF" : "Edit THF"}
+                    </DropdownMenuItem>
+                  </PermissionActionGuard>
+                )}
+                {onPreviewTHF && flight.state !== "plan" && (
+                  <PermissionActionGuard menuCode="THF" action="canView">
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      disabled={flight.statusObj?.code === "Cancel"}
+                      onClick={() => onPreviewTHF(flight)}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      Preview THF
+                    </DropdownMenuItem>
+                  </PermissionActionGuard>
+                )}
+                {onPreInvoice && (
                   <DropdownMenuItem
                     className="cursor-pointer"
                     disabled={flight.statusObj?.code === "Cancel"}
-                    onClick={() => onEditFlight?.(flight)}
+                    onClick={() => onPreInvoice(flight)}
                   >
-                    <SquarePen className="h-4 w-4 mr-2" />
-                    Edit Flight
+                    <BadgeDollarSign className="h-4 w-4 mr-2" />
+                    Pre-Invoice
                   </DropdownMenuItem>
-                </PermissionActionGuard>
-                <PermissionActionGuard menuCode="FLIGHT" action="canEdit">
+                )}
+                {onAttach && flight.isFiles && (
                   <DropdownMenuItem
                     className="cursor-pointer"
-                    disabled={flight.statusObj?.code === "Cancel"}
-                    onClick={() => onCreateTHF?.(flight)}
-                  >
-                    <FilePenLine className="h-4 w-4 mr-2" />
-                    {flight.state === "plan" ? "Create THF" : "Edit THF"}
-                  </DropdownMenuItem>
-                </PermissionActionGuard>
-                {flight.isFiles && (
-                  <DropdownMenuItem
-                    className="cursor-pointer"
-                    onClick={() => flight.filePath && onAttach?.(flight.filePath)}
+                    onClick={() => flight.filePath && onAttach(flight.filePath)}
                   >
                     <Paperclip className="h-4 w-4 mr-2" />
                     View Attachment
                   </DropdownMenuItem>
                 )}
-                <PermissionActionGuard menuCode="FLIGHT" action="canDelete">
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="cursor-pointer text-destructive focus:text-destructive"
-                    disabled={flight.statusObj?.code === "Cancel"}
-                    onClick={() => onCancel?.(flight)}
-                  >
-                    <CircleOff className="h-4 w-4 mr-2" />
-                    Cancel Flight
-                  </DropdownMenuItem>
-                </PermissionActionGuard>
+                {onCancel && (
+                  <PermissionActionGuard menuCode="FLIGHT" action="canDelete">
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="cursor-pointer text-destructive focus:text-destructive"
+                      disabled={flight.statusObj?.code === "Cancel"}
+                      onClick={() => onCancel(flight)}
+                    >
+                      <CircleOff className="h-4 w-4 mr-2" />
+                      Cancel Flight
+                    </DropdownMenuItem>
+                  </PermissionActionGuard>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

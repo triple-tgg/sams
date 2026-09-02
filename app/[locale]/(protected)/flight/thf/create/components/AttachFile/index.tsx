@@ -49,7 +49,7 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
   loading,
   thfNumber,
 }) => {
-  const { goNext, goBack, onSave, setSubmitHandler, setDraftHandler, setIsSubmitting, closeModal } = useStep()
+  const { goNext, goBack, onSave, setSubmitHandler, setDraftHandler, setIsSubmitting, closeModal, submitPhase, setSubmitPhase } = useStep()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [fileErrors, setFileErrors] = useState<string[]>([])
@@ -103,6 +103,7 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
     existingFlightData: initialData,
     lineMaintenanceId: lineMaintenanceId || null,
     closeModal,
+    setSubmitPhase,
   })
 
   // Load initial data
@@ -293,7 +294,7 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
                 <Button
                   type="button"
                   onClick={() => uploadAllFiles()}
-                  disabled={isUploading}
+                  disabled={isUploading || isSubmittingMutation || submitPhase === 'saving_files' || submitPhase === 'sharepoint' || submitPhase === 'success'}
                   className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   {isUploading ? (
@@ -311,8 +312,18 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
               )}
             </div>
 
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={handleFileInputChange}
+              accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+            />
+
             {/* Drag & Drop Zone */}
-            {canAddMore && (
+            {!hasFiles && canAddMore && (
               <div
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -333,14 +344,6 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
                 <p className="text-xs text-gray-500 mt-1">
                   Images, PDF, Word, Excel (Max 10MB per file, up to 10 files)
                 </p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={handleFileInputChange}
-                  accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.txt"
-                />
               </div>
             )}
 
@@ -369,6 +372,24 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
         {/* File List Grid */}
         {hasFiles && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Small Dropzone Card (when there are files and can add more) */}
+            {canAddMore && (
+              <Card
+                className={`relative overflow-hidden transition-all border-2 border-dashed cursor-pointer flex flex-col items-center justify-center min-h-[140px] shadow-sm hover:shadow-md ${
+                  isDragging
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
+                }`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className={`h-8 w-8 mb-2 ${isDragging ? 'text-blue-500' : 'text-gray-400'}`} />
+                <p className="text-sm font-medium text-gray-700">Add more files</p>
+              </Card>
+            )}
+
             {files.filter(f => !f.isDelete).map((file) => (
               <Card
                 key={file.id}
@@ -445,6 +466,7 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
                       size="icon"
                       color="destructive"
                       onClick={() => file.id && removeFile(file.id)}
+                      disabled={isSubmittingMutation || submitPhase === 'saving_files' || submitPhase === 'sharepoint' || submitPhase === 'success'}
                       className="h-8 w-8"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -490,6 +512,89 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
             successMessage="Your attach file data has been saved."
           />
         )} */}
+
+        {/* Submit Progress UI */}
+        {(submitPhase === 'saving_files' || submitPhase === 'sharepoint' || submitPhase === 'success' || submitPhase === 'error') && (
+          <Card className={`border ${
+            submitPhase === 'success' ? 'border-green-200 bg-green-50' : 
+            submitPhase === 'error' ? 'border-red-200 bg-red-50' : 
+            'border-blue-200 bg-blue-50'
+          }`}>
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                {submitPhase === 'success' ? (
+                  <>
+                    <div className="h-6 w-6 rounded-full bg-green-500 flex items-center justify-center">
+                      <Check className="h-4 w-4 text-white" />
+                    </div>
+                    <span className="text-green-700">Submit Completed Successfully</span>
+                  </>
+                ) : submitPhase === 'error' ? (
+                  <>
+                    <div className="h-6 w-6 rounded-full bg-red-500 flex items-center justify-center">
+                      <X className="h-4 w-4 text-white" />
+                    </div>
+                    <span className="text-red-700">Submit Failed</span>
+                  </>
+                ) : (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                    <span className="text-blue-900">Processing Submit...</span>
+                  </>
+                )}
+              </h3>
+              
+              <div className="space-y-4 ml-2 border-l-2 border-slate-200 pl-4">
+                {/* Step 1 */}
+                <div className="flex items-center gap-3">
+                  {submitPhase === 'saving_files' ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                  ) : submitPhase === 'error' ? (
+                    <div className="h-4 w-4 rounded-full bg-red-500 flex items-center justify-center">
+                      <X className="h-3 w-3 text-white" />
+                    </div>
+                  ) : (
+                    <div className="h-4 w-4 rounded-full bg-green-500 flex items-center justify-center">
+                      <Check className="h-3 w-3 text-white" />
+                    </div>
+                  )}
+                  <span className={`text-sm font-medium ${submitPhase === 'saving_files' ? 'text-blue-800' : submitPhase === 'error' ? 'text-red-700' : 'text-slate-700'}`}>
+                    1. Saving Attached Files
+                  </span>
+                </div>
+                
+                {/* Step 2 */}
+                <div className="flex items-center gap-3">
+                  {submitPhase === 'saving_files' ? (
+                    <div className="h-4 w-4 rounded-full border-2 border-slate-300" />
+                  ) : submitPhase === 'sharepoint' ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                  ) : submitPhase === 'error' ? (
+                    <div className="h-4 w-4 rounded-full border-2 border-slate-300" />
+                  ) : (
+                    <div className="h-4 w-4 rounded-full bg-green-500 flex items-center justify-center">
+                      <Check className="h-3 w-3 text-white" />
+                    </div>
+                  )}
+                  <span className={`text-sm font-medium ${submitPhase === 'saving_files' ? 'text-slate-400' : submitPhase === 'sharepoint' ? 'text-blue-800' : submitPhase === 'error' ? 'text-slate-400' : 'text-slate-700'}`}>
+                    2. Sending to SharePoint
+                  </span>
+                </div>
+              </div>
+
+              {submitPhase === 'success' && (
+                <div className="mt-6 p-3 bg-white rounded-md border border-green-200 text-sm text-green-800 font-medium text-center">
+                  All processes completed. You can now close this window.
+                </div>
+              )}
+              {submitPhase === 'error' && (
+                <div className="mt-6 p-3 bg-white rounded-md border border-red-200 text-sm text-red-800 font-medium text-center">
+                  An error occurred during submission. You can edit the form and try submitting again using the buttons below.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </form>
     </Form>
   )

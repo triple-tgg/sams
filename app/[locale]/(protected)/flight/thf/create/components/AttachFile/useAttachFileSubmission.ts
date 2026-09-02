@@ -19,6 +19,7 @@ export interface UseAttachFileSubmissionParams {
   existingFlightData?: LineMaintenanceThfResponse | null
   lineMaintenanceId: number | null
   closeModal?: () => void
+  setSubmitPhase?: (phase: any) => void
 }
 
 export interface UseAttachFileSubmissionReturn {
@@ -45,7 +46,8 @@ export const useAttachFileSubmission = ({
   onBackStep,
   onUpdateData,
   lineMaintenanceId,
-  closeModal
+  closeModal,
+  setSubmitPhase
 }: UseAttachFileSubmissionParams): UseAttachFileSubmissionReturn => {
   const { locale } = useParams()
   const hasLineMaintenanceId = lineMaintenanceId !== null
@@ -130,36 +132,34 @@ export const useAttachFileSubmission = ({
     }
   }, [callAttachFileOther, closeModal])
 
-  // Submit: attachfile-other → mapping-contracts → sharepoint send → close modal
+  // Submit: attachfile-other → sharepoint send
   const handleSubmit = useCallback(async (data: AttachFileFormInputs) => {
     try {
       // Step 1: Save attach files
+      setSubmitPhase?.('saving_files')
       await callAttachFileOther(data)
 
-      // Step 2: Map contracts
-      const userName = getUserName() || 'system'
-      await mappingContracts({ userName })
-
-      // Step 3: Send to SharePoint
+      // Step 2: Send to SharePoint
+      setSubmitPhase?.('sharepoint')
       try {
         await sendToSharePoint()
       } catch (spError) {
-        // SharePoint error is non-blocking — data is already saved
         console.warn('⚠️ SharePoint send failed (non-blocking):', spError)
         toast.warning('Submit completed but SharePoint upload failed', {
           description: spError instanceof Error ? spError.message : 'Please try again later',
         })
-        closeModal?.()
+        setSubmitPhase?.('success')
         return
       }
 
       toast.success('Submit completed successfully')
-      closeModal?.()
+      setSubmitPhase?.('success')
     } catch (error) {
       console.error('❌ Submit failed:', error)
       toast.error(`Submit failed: ${error instanceof Error ? error.message : error}`)
+      setSubmitPhase?.('error')
     }
-  }, [callAttachFileOther, mappingContracts, sendToSharePoint, getUserName, closeModal])
+  }, [callAttachFileOther, mappingContracts, sendToSharePoint, getUserName, setSubmitPhase])
 
   // Handle back navigation
   const handleOnBackStep = useCallback(() => {

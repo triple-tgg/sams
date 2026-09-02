@@ -12,10 +12,13 @@ import {
     InvoiceFilters,
     PreInvoiceTable,
     DraftInvoiceTable,
+    ThfDocumentTable,
 } from "./components";
 import { PrintPreviewModal } from "./components/PrintPreviewModal";
 import { exportPreInvoiceToExcel } from "./components/exportExcel";
 import { usePreInvoice, useDraftInvoice } from "@/lib/api/hooks/useInvoice";
+import { useThfDocumentListQuery } from "@/lib/api/hooks/useThfDocumentListQuery";
+import { buildListDoneOrMappedRequest } from "@/lib/api/lineMaintenances/listDoneOrMapped";
 import type { InvoiceRequest } from "@/lib/api/contract/invoiceApi";
 
 import { dateTimeUtils } from "@/lib/dayjs";
@@ -32,6 +35,7 @@ const InvoicePage = () => {
     const [endDate, setEndDate] = useState(today);
     const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
     const [selectedAircraftTypes, setSelectedAircraftTypes] = useState<string[]>([]);
+    const [thfNumber, setThfNumber] = useState<string>("");
 
     // ── Search State (committed on Search click) ────────────
     const [searchParams, setSearchParams] = useState<InvoiceRequest>({
@@ -40,11 +44,12 @@ const InvoicePage = () => {
         airlineCode: "",
         stationCodeList: [],
         airCraftTypeCodeList: [],
+        thfNumber: "",
     });
     const hasSearched = true;
 
     // ── Tab State ───────────────────────────────────────────
-    const [activeTab, setActiveTab] = useState<InvoiceTabType>("pre-invoice");
+    const [activeTab, setActiveTab] = useState<InvoiceTabType>("thf-document");
     const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
 
     // ── API Hooks ───────────────────────────────────────────
@@ -60,6 +65,13 @@ const InvoicePage = () => {
         isFetching: isFetchingDraft,
     } = useDraftInvoice(searchParams, hasSearched);
 
+    // THF DOCUMENT tab count only – the table fetches its own page of rows
+    const thfCountRequest = useMemo(
+        () => buildListDoneOrMappedRequest(searchParams, 1, 1),
+        [searchParams]
+    );
+    const { data: thfData } = useThfDocumentListQuery(thfCountRequest, hasSearched);
+
     const preInvoices = preInvoiceData?.responseData ?? [];
     const draftInvoices = draftInvoiceData?.responseData ?? [];
     const isSearching = isFetchingPre || isFetchingDraft;
@@ -68,7 +80,7 @@ const InvoicePage = () => {
     const [page, setPage] = useState(1);
     const perPage = 50;
 
-    const currentData = activeTab === "pre-invoice" ? preInvoices : draftInvoices;
+    const currentData = activeTab === "pre-invoice" ? preInvoices : activeTab === "draft-invoice" ? draftInvoices : [];
     const totalAll = currentData.length;
     const totalPages = Math.ceil(totalAll / perPage);
 
@@ -85,10 +97,11 @@ const InvoicePage = () => {
     // ── Tab Counts ──────────────────────────────────────────
     const tabCounts = useMemo(
         () => ({
+            "thf-document": thfData?.totalAll ?? 0,
             "pre-invoice": preInvoices.length,
             "draft-invoice": draftInvoices.length,
         }),
-        [preInvoices.length, draftInvoices.length]
+        [thfData?.totalAll, preInvoices.length, draftInvoices.length]
     );
 
     // ── Handlers ────────────────────────────────────────────
@@ -104,10 +117,11 @@ const InvoicePage = () => {
             airlineCode: selectedAirline || "",
             stationCodeList: selectedLocations,
             airCraftTypeCodeList: selectedAircraftTypes,
+            thfNumber: activeTab === "thf-document" ? thfNumber.trim() : "",
         };
         setSearchParams(request);
         setPage(1);
-    }, [startDate, endDate, selectedAirline, selectedLocations, selectedAircraftTypes]);
+    }, [startDate, endDate, selectedAirline, selectedLocations, selectedAircraftTypes, activeTab, thfNumber]);
 
     const handlePrevPage = () => {
         if (page > 1) setPage(page - 1);
@@ -169,6 +183,9 @@ const InvoicePage = () => {
                         onLocationsChange={setSelectedLocations}
                         selectedAircraftTypes={selectedAircraftTypes}
                         onAircraftTypesChange={setSelectedAircraftTypes}
+                        thfNumber={thfNumber}
+                        onThfNumberChange={setThfNumber}
+                        showThfNumber={activeTab === "thf-document"}
                         onSearch={handleSearch}
                         isSearching={isSearching}
                     />
@@ -185,7 +202,12 @@ const InvoicePage = () => {
 
                             {/* Table based on active tab */}
                             <div id="invoice-table-container" className="mt-4">
-                                {activeTab === "pre-invoice" ? (
+                                {activeTab === "thf-document" ? (
+                                    <ThfDocumentTable
+                                        searchParams={searchParams}
+                                        hasSearched={hasSearched}
+                                    />
+                                ) : activeTab === "pre-invoice" ? (
                                     <PreInvoiceTable
                                         invoices={paginatedPreInvoices}
                                         isLoading={isLoadingPre}

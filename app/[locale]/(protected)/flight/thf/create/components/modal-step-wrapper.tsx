@@ -2,10 +2,10 @@
 
 import React, { useState, Children, ReactNode, useEffect, useRef } from 'react'
 import VerticalStepper from './stepper/vertical-stepper'
-import { StepContext } from './step-context'
+import { StepContext, SubmitPhase } from './step-context'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { X } from 'lucide-react'
+import { X, CheckCircle2 } from 'lucide-react'
 
 interface Step {
     label: string
@@ -27,6 +27,7 @@ const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, ti
     const [activeStep, setActiveStep] = useState(1) // 1-based index for display/logic matching existing components
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isDrafting, setIsDrafting] = useState(false)
+    const [submitPhase, setSubmitPhase] = useState<SubmitPhase>('idle')
     const submitHandlerRef = useRef<(() => void) | null>(null)
     const draftHandlerRef = useRef<(() => void) | null>(null)
 
@@ -92,6 +93,7 @@ const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, ti
     }
 
     const isLastStep = currentStep === steps.length - 1
+    const isSuccess = submitPhase === 'success'
 
     const CurrentComponent = Children.toArray(children)[currentStep]
 
@@ -109,7 +111,9 @@ const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, ti
                 setDraftHandler,
                 isModal: true,
                 setIsSubmitting,
-                closeModal: onClose
+                closeModal: onClose,
+                submitPhase,
+                setSubmitPhase
             }}
         >
             <div className="flex h-[80vh] w-full overflow-hidden rounded-md border bg-white shadow-xl">
@@ -125,7 +129,6 @@ const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, ti
 
                     {/* Bottom sidebar info or decoration */}
                     <div className="mt-auto p-6 text-blue-100/60 text-xs">
-                        &copy; Triple-T Innovation
                     </div>
                 </div>
 
@@ -149,7 +152,6 @@ const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, ti
                     {/* Scrollable Content Area */}
                     <ScrollArea className="flex-1 p-0">
                         <div className="px-8 py-6 pb-24">
-                            {/* Additional wrapper to force max-width if needed */}
                             <div className="max-w-4xl">
                                 {CurrentComponent}
                             </div>
@@ -158,22 +160,23 @@ const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, ti
 
                     {/* Footer Actions */}
                     <div className="border-t bg-white p-4 px-8 flex justify-end gap-3 sticky bottom-0 z-10">
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                if (currentStep === 0) {
-                                    onClose?.()
-                                } else {
-                                    goBack()
-                                }
-                            }}
-                            disabled={isSubmitting || isDrafting}
-                        >
-                            {currentStep === 0 ? 'Cancel' : 'Back'}
-                        </Button>
+                        {!isSuccess && (
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    if (currentStep === 0) {
+                                        onClose?.()
+                                    } else {
+                                        goBack()
+                                    }
+                                }}
+                                disabled={isSubmitting || isDrafting}
+                            >
+                                {currentStep === 0 ? 'Cancel' : 'Back'}
+                            </Button>
+                        )}
 
-                        {/* Draft button — only on last step */}
-                        {isLastStep && (
+                        {isLastStep && !isSuccess && (
                             <Button
                                 variant="outline"
                                 onClick={handleDraftAction}
@@ -191,20 +194,29 @@ const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, ti
                             </Button>
                         )}
 
-                        <Button
-                            onClick={handlePrimaryAction}
-                            disabled={isSubmitting || isDrafting}
-                            className="bg-blue-600 hover:bg-blue-700 text-white min-w-[100px]"
-                        >
-                            {isSubmitting ? (
-                                <div className="flex items-center gap-2">
-                                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                    <span>Saving...</span>
-                                </div>
-                            ) : (
-                                currentStep === steps.length - 1 ? 'Submit' : 'Next Step'
-                            )}
-                        </Button>
+                        {isSuccess ? (
+                            <Button
+                                onClick={onClose}
+                                className="bg-blue-600 hover:bg-blue-700 text-white min-w-[100px]"
+                            >
+                                Close
+                            </Button>
+                        ) : (
+                            <Button
+                                onClick={handlePrimaryAction}
+                                disabled={isSubmitting || isDrafting}
+                                className="bg-blue-600 hover:bg-blue-700 text-white min-w-[100px]"
+                            >
+                                {isSubmitting ? (
+                                    <div className="flex items-center gap-2">
+                                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                        <span>Saving...</span>
+                                    </div>
+                                ) : (
+                                    currentStep === steps.length - 1 ? 'Submit' : 'Next Step'
+                                )}
+                            </Button>
+                        )}
                     </div>
                 </div>
             </div>

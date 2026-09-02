@@ -173,25 +173,7 @@ export function computeDataQuality(data: Datasets): DataQualityFinding[] {
   const comboFamilies = new Set(combinations.map((c) => c.familyCode));
   const typeFamilies = new Set(aircraftTypes.map((t) => t.modelName).filter(Boolean));
 
-  // Check for duplicate ICAO codes
-  const icaoCounts = new Map<string, number>();
-  for (const t of aircraftTypes) {
-    if (t.code) {
-      icaoCounts.set(t.code, (icaoCounts.get(t.code) || 0) + 1);
-    }
-  }
-
-  for (const [icao, count] of icaoCounts.entries()) {
-    if (count > 1) {
-      findings.push({
-        id: `dup-icao-${icao}`,
-        category: "DUPLICATE_ICAO",
-        message: `ICAO Code "${icao}" is duplicated ${count} times in Aircraft system config`,
-        severity: "red",
-      });
-    }
-  }
-
+  // Duplicate ICAO codes are intentionally allowed
   // Additional checks between combinations and aircraftTypes can go here
   // For now, no strict cross-validation on families since Aircraft Family is removed.
 

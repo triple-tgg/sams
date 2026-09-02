@@ -1,5 +1,7 @@
 import { createContext, useContext } from 'react'
 
+export type SubmitPhase = 'idle' | 'saving_files' | 'sharepoint' | 'success' | 'error'
+
 type StepContextType = {
   activeStep: number
   currentStep: number
@@ -13,6 +15,8 @@ type StepContextType = {
   isModal?: boolean
   setIsSubmitting?: (isSubmitting: boolean) => void
   closeModal?: () => void
+  submitPhase?: SubmitPhase
+  setSubmitPhase?: (phase: SubmitPhase) => void
 }
 
 export const StepContext = createContext<StepContextType | undefined>(undefined)

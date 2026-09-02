@@ -39,6 +39,8 @@ export interface FlightItem {
   filePath: string | null
   isFiles: boolean
   isLlineMaintenances: boolean
+  lineMaintenancesId?: number | null
+  isMapping?: boolean
   state: string
   routeForm: string | null
   routeFrom?: string | null
@@ -94,6 +96,7 @@ export interface AcTypeObj {
   modelName?: string
   modelSubName?: string
   classicOrNeo?: string
+  familyCode?: string | null
   flagEnging1?: boolean
   flagEnging2?: boolean
   flagEnging3?: boolean

@@ -635,7 +635,7 @@ function MatrixView() {
             }`}
           >
             <Filter className="w-3 h-3" />
-            Authoritys
+            Authority
             {authFilter.size !== AUTHORITY_KEYS.length && (
               <span className="bg-primary text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none">
                 {authFilter.size}/{AUTHORITY_KEYS.length}

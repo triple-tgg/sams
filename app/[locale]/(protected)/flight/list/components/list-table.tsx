@@ -30,6 +30,7 @@ import { ExcelImportModal } from "@/components/flight-timeline/ExcelImportModal"
 import { useFlightExcelImport } from "@/hooks/use-flight-excel-import"
 import CreateProject from "../../create-project"
 import CreateThfModal from "../../thf/create/components/CreateThfModal"
+import { PreviewThfModal } from "./PreviewThfModal"
 import EmailPreviewModal from "./EmailPreviewModal"
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
 
@@ -111,6 +112,10 @@ const ListTable = ({
     const [createThfOpen, setCreateThfOpen] = React.useState(false)
     const [selectedFlightThfId, setSelectedFlightThfId] = React.useState<number | null>(null)
 
+    // Preview THF Modal State
+    const [previewThfOpen, setPreviewThfOpen] = React.useState(false)
+    const [selectedPreviewThfId, setSelectedPreviewThfId] = React.useState<number | null>(null)
+
     const [sorting, setSorting] = React.useState<SortingState>([])
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
     const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
@@ -168,6 +173,12 @@ const ListTable = ({
         onEditFlight: (flight) => {
             setEditFlightId(flight.flightInfosId || null);
             setOpenEditFlight(true);
+        },
+        onPreviewTHF: (flight) => {
+            if (flight.flightInfosId) {
+                setSelectedPreviewThfId(flight.flightInfosId)
+                setPreviewThfOpen(true)
+            }
         },
         onAttach: (filePath: string) => {
             console.log("Attach file:", filePath);
@@ -580,6 +591,12 @@ const ListTable = ({
                 onDeleteRow={excelImport.deleteRow}
                 onEditRow={excelImport.editRow}
                 onUpdateSheetName={excelImport.updateSheetName}
+            />
+            
+            <PreviewThfModal
+                open={previewThfOpen}
+                onOpenChange={setPreviewThfOpen}
+                flightInfosId={selectedPreviewThfId}
             />
         </Card>
     )

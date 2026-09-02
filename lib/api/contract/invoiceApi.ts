@@ -9,6 +9,7 @@ export interface InvoiceRequest {
     airlineCode: string; // optional – send "" if not selected
     stationCodeList: string[];       // optional – send [] if not selected
     airCraftTypeCodeList: string[];  // optional – send [] if not selected
+    thfNumber?: string;
 }
 
 // ── Pre-Invoice Response ─────────────────────────────────
