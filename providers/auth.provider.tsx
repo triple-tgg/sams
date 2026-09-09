@@ -6,45 +6,23 @@ import { RootState } from "@/store/rootReducer"
 import { useRouter, usePathname } from "next/navigation"
 import store from "@/store"
 import { handleLogin } from "@/components/partials/auth/store"
-import { getFirstViewableRoute } from '@/lib/api/permission/getFirstViewableRoute'
-
-// Public routes that don't require authentication (without locale prefix)
-const publicRoutesBase = [
-    '/auth/login',
-    '/auth/register',
-    '/auth/forgot-password',
-    '/auth/reset-password'
-]
-
-// Root routes that should redirect based on auth status
-const rootRoutes = ['/', '/en', '/ar']
+import { resolveAuthRedirect } from "@/lib/auth/resolveAuthRedirect"
+import { usePermissionHydration } from "@/hooks/use-permission-hydration"
 
 const AuthGuard = ({ children }: { children: React.ReactNode }) => {
     const router = useRouter()
     const pathname = usePathname()
     const dispatch = useDispatch()
-    const [isLoading, setIsLoading] = useState(true)
+    const [isInitializing, setIsInitializing] = useState(true)
 
     // Redux state
     const { isAuth } = useSelector((state: RootState) => state.auth)
     const permMenus = useSelector((state: RootState) => state.permission.menus)
     const isPermLoaded = useSelector((state: RootState) => state.permission.isLoaded)
 
-    // Extract locale from pathname (e.g., /en/dashboard -> en, /ar/auth/login -> ar)
-    const getLocale = () => {
-        const match = pathname.match(/^\/(en|ar)/)
-        return match ? match[1] : 'en'
-    }
-    const locale = getLocale()
-
-    // Get the path without locale prefix for matching
-    const pathWithoutLocale = pathname.replace(/^\/(en|ar)/, '') || '/'
-
-    // Check if current route is public
-    const isPublicRoute = publicRoutesBase.includes(pathWithoutLocale)
-
-    // Check if current route is a root route
-    const isRootRoute = rootRoutes.includes(pathname) || pathWithoutLocale === '/'
+    // Keep permissions in the store on every route, not just the protected
+    // layouts — the root route needs them to decide where to send the user.
+    usePermissionHydration()
 
     // Initialize auth state from localStorage
     useEffect(() => {
@@ -86,54 +64,34 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
                 localStorage.removeItem('access_token')
                 localStorage.removeItem('refresh_token')
             } finally {
-                setIsLoading(false)
+                setIsInitializing(false)
             }
         }
 
         initializeAuth()
     }, [dispatch])
 
-    // Auth guard - redirect based on authentication status
+    // Auth guard — redirect based on authentication status and permissions.
     useEffect(() => {
-        if (isLoading) return // Wait for initialization
+        if (isInitializing) return // Wait for initialization
 
-        // Handle root routes (/, /en, /ar)
-        if (isRootRoute) {
-            if (isAuth) {
-                // Wait for permissions to load before redirecting
-                // so we navigate to the correct first viewable route
-                if (!isPermLoaded) return
-                const firstRoute = getFirstViewableRoute(permMenus)
-                if (firstRoute) {
-                    router.push(`/${locale}${firstRoute}`)
-                }
-            } else {
-                // User is not authenticated - redirect to login
-                router.push(`/${locale}/auth/login`)
-            }
-            return
-        }
+        const decision = resolveAuthRedirect({
+            pathname,
+            isAuth,
+            isPermLoaded,
+            permissions: permMenus,
+        })
 
-        // Handle login page redirect when already authenticated
-        // Wait for permissions to be loaded before redirecting so we can
-        // navigate to the correct first viewable route
-        if (isAuth && pathWithoutLocale === '/auth/login' && isPermLoaded) {
-            const firstRoute = getFirstViewableRoute(permMenus)
-            if (firstRoute) {
-                router.push(`/${locale}${firstRoute}`)
-            }
-            return
+        // `replace`, not `push`: the login page and the root spinner must not
+        // stay in history, or Back drops the user onto a page that only
+        // redirects again.
+        if (decision.action === 'redirect' && decision.href !== pathname) {
+            router.replace(decision.href)
         }
-
-        // Handle protected routes
-        if (!isAuth && !isPublicRoute) {
-            // User is not authenticated and trying to access protected route
-            router.push(`/${locale}/auth/login`)
-        }
-    }, [isAuth, pathname, pathWithoutLocale, isPublicRoute, isRootRoute, router, isLoading, locale, isPermLoaded])
+    }, [isAuth, pathname, router, isInitializing, isPermLoaded, permMenus])
 
     // Show loading during initialization
-    if (isLoading) {
+    if (isInitializing) {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <div className="text-center">

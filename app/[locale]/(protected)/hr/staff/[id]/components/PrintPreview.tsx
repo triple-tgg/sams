@@ -20,7 +20,7 @@ interface PrintPreviewProps {
 function PageHeader() {
     return (
         <div className="pp-header">
-            <img src="/images/logo/logo.png" alt="SAMS" className="pp-logo" />
+            <img src="/sams-logo-new.png" alt="SAMS" className="pp-logo" />
             <h1 className="pp-title">Employee Profile and Training Record</h1>
         </div>
     )

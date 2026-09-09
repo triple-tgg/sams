@@ -7,6 +7,7 @@ import { handleLogin } from '@/components/partials/auth/store'
 import { setPermissionsLoading, setPermissions, clearPermissions } from '@/components/partials/auth/permissionSlice'
 import { getFirstViewableRoute } from '@/lib/api/permission/getFirstViewableRoute'
 import { getMenuPermissions } from '@/lib/api/permission/getMenuPermissions'
+import { FALLBACK_ROUTE } from '@/lib/auth/resolveAuthRedirect'
 
 interface UseLoginOptions {
   onSuccess?: (data: LoginResponse) => void
@@ -78,7 +79,6 @@ export const useLogin = (options: UseLoginOptions = {}) => {
           try {
             const permRes = await getMenuPermissions(roleId)
             permissions = permRes.responseData ?? []
-            console.log('[useLogin] permissions from /permission/menus API:', permissions.length, 'items')
           } catch (err) {
             console.warn('[useLogin] Failed to fetch permissions from API, using login response fallback:', err)
           }
@@ -93,16 +93,14 @@ export const useLogin = (options: UseLoginOptions = {}) => {
           localStorage.setItem('user', JSON.stringify(storedUser))
         } catch (e) {}
 
-        // Navigate to the first menu the user can view
+        // Navigate to the first menu the user can view. `replace` keeps the
+        // login page out of history, so Back does not return to a form that
+        // immediately redirects again.
         const firstRoute = getFirstViewableRoute(permissions)
-        console.log('[useLogin] firstRoute resolved:', firstRoute)
-        if (firstRoute) {
-          console.log('[useLogin] navigating to:', `/${locale}${firstRoute}`)
-          router.push(`/${locale}${firstRoute}`)
-        } else {
+        if (!firstRoute) {
           console.warn('[useLogin] No viewable route found — user has no permissions')
-          router.push(`/${locale}/flight/list`)
         }
+        router.replace(`/${locale}${firstRoute ?? FALLBACK_ROUTE}`)
       }
 
       // Call custom success handler

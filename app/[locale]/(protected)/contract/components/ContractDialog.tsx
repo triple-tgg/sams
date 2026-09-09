@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogHeader,
     DialogTitle,
     DialogFooter,
@@ -467,8 +468,8 @@ export const ContractDialog = ({
                         {/* Header */}
                         <div className="flex items-center justify-between px-6 py-4 border-b bg-background">
                             <div>
-                                <h2 className="text-lg font-semibold">View Contract</h2>
-                                <p className="text-sm text-muted-foreground">Contract details and pricing information</p>
+                                <DialogTitle className="text-lg font-semibold">View Contract</DialogTitle>
+                                <DialogDescription className="text-sm text-muted-foreground">Contract details and pricing information</DialogDescription>
                             </div>
                         </div>
 

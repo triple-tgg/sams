@@ -44,8 +44,11 @@ export interface CourseData {
   createdby: string | null;
   updateddate: string | null;
   updatedby: string | null;
-  aircraftTypeLicenseId: number | null;
+  /** Ids of the aircraft/engine combinations this course covers. */
+  aircraftEngineCombinationIds: number[];
   courseObjective: string | null;
+  duration: string | null;
+  syllabus: string | null;
   requirements: CourseRequirementItem[];
 }
 
@@ -83,17 +86,25 @@ export interface UpsertCourseRequest {
   courseType: string;
   recurrenceIntervalYears: number | null;
   additionalNote: string;
-  aircraftTypeLicenseId: number | null;
+  /** Aircraft/engine combinations to attach. Send [] to detach all. */
+  aircraftEngineCombinationIds: number[];
   courseObjective: string;
-  courseDuration: string | null;
-  courseSyllabus: string | null;
+  duration: string | null;
+  syllabus: string | null;
   requirements: UpsertCourseRequirement[];
 }
 
-export const upsertCourse = async (data: UpsertCourseRequest) => {
+export interface UpsertCourseResponse {
+  message: string;
+  /** The endpoint returns the affected course in a single-element array. */
+  responseData: { courseId: number }[];
+  error: string;
+}
+
+export const upsertCourse = async (data: UpsertCourseRequest): Promise<UpsertCourseResponse> => {
   try {
     const res = await axiosConfig.post("/training/course/upsert", data);
-    return res.data;
+    return res.data as UpsertCourseResponse;
   } catch (error: any) {
     console.error("Error upserting course:", error);
     throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to upsert course");
@@ -306,6 +317,18 @@ export interface CourseDetailRequirement {
   updatedby: string | null;
 }
 
+/** Join row linking a course to one aircraft/engine combination. */
+export interface CourseAircraftEngineCombination {
+  id: number;
+  courseId: number;
+  aircraftEngineCombinationId: number;
+  isdelete: boolean;
+  createddate: string;
+  createdby: string | null;
+  updateddate: string | null;
+  updatedby: string | null;
+}
+
 export interface CourseDetailResponseData {
   message: string;
   responseData: {
@@ -322,12 +345,12 @@ export interface CourseDetailResponseData {
       createdby: string | null;
       updateddate: string | null;
       updatedby: string | null;
-      aircraftTypeLicenseId: number | null;
       courseObjective: string | null;
-      courseDuration: string | null;
-      courseSyllabus: string | null;
+      duration: string | null;
+      syllabus: string | null;
     };
     requirements: CourseDetailRequirement[];
+    aircraftEngineCombinations: CourseAircraftEngineCombination[];
   };
   error: string;
 }

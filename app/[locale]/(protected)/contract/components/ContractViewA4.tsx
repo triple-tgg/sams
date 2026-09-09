@@ -47,8 +47,8 @@ export const ContractViewA4 = ({ formData, isLoading }: ContractViewA4Props) => 
                         <div className="flex items-center gap-4">
                             {/* Logo */}
                             <img
-                                src="/images/logo/logo.png"
-                                alt="SAM Logo"
+                                src="/sams-logo-new.png"
+                                alt="SAMS"
                                 className="h-14 w-auto object-contain"
                             />
                             <div>

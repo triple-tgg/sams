@@ -15,8 +15,8 @@ const Login = () => {
                 <div className="bg-stone-100 p-6 rounded-lg shadow-2xl shadow-stone-400">
                   <div className="flex items-center justify-center">
                     <Image
-                      src="/images/logo/logo.png"
-                      alt="dashcode"
+                      src="/sams-logo-new.png"
+                      alt="SAMS"
                       width={90}
                       height={36}
                       className="w-[120px] h-auto object-contain"

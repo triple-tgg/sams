@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
     Sheet,
     SheetHeader,
+    SheetTitle,
     SheetContent,
     SheetTrigger,
 } from "@/components/ui/sheet";
@@ -34,13 +35,14 @@ export function SheetMenu() {
             </SheetTrigger>
             <SheetContent className="sm:w-72 px-3 h-full flex flex-col" side="left">
                 <SheetHeader>
+                    <SheetTitle className="sr-only">Mobile Navigation Menu</SheetTitle>
                     <Link href="/flight/list" className="flex gap-2 items-center     ">
                         {/* <DashCodeLogo className="  text-default-900 h-8 w-8 [&>path:nth-child(3)]:text-background [&>path:nth-child(2)]:text-background" /> */}
 
                         <div className='flex justify-center w-full'>
                             <Image
-                                src="/images/logo/logo.png"
-                                alt="dashcode"
+                                src="/sams-logo-new.png"
+                                alt="SAMS"
                                 width={90}
                                 height={48}
                                 className="w-[130px] h-auto object-contain  [&>path:nth-child(3)]:text-background [&>path:nth-child(2)]:text-background"

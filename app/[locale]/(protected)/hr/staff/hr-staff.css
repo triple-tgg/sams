@@ -36,17 +36,32 @@
 }
 
 .hr-btn-import {
-    border: 1.5px solid #e2e8f0 !important;
+    border: 1.5px solid #93c5fd !important;
+    background: transparent !important;
     color: #2563eb !important;
     font-weight: 600;
     letter-spacing: 0.02em;
+    box-shadow: 0 1px 2px rgba(37, 99, 235, 0.05);
     transition: all 0.2s;
 }
 
 .hr-btn-import:hover {
-    background: rgba(37, 99, 235, 0.06) !important;
+    background: rgba(37, 99, 235, 0.08) !important;
     border-color: #2563eb !important;
+    color: #1d4ed8 !important;
     transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
+}
+
+:is(.dark) .hr-btn-import {
+    border-color: #1e40af !important;
+    color: #60a5fa !important;
+}
+
+:is(.dark) .hr-btn-import:hover {
+    background: rgba(37, 99, 235, 0.15) !important;
+    border-color: #3b82f6 !important;
+    color: #93c5fd !important;
 }
 
 .hr-staff-avatar {

@@ -22,7 +22,7 @@ interface WorkExperiencePreviewProps {
 function FormHeader() {
     return (
         <div className="wep-header-container">
-            <img src="/images/logo/logo.png" alt="SAMS" className="wep-logo" />
+            <img src="/sams-logo-new.png" alt="SAMS" className="wep-logo" />
             <h1 className="wep-title">Employee Profile and Training Record</h1>
         </div>
     )

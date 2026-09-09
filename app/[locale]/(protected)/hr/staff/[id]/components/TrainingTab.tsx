@@ -7,6 +7,12 @@ import { formatDate } from '../utils'
 import { useStaffTrainingDashboard, useCreateTrainingHistory, useUpdateTrainingHistory, useDeleteTrainingHistory } from '@/lib/api/hooks/useQAStaffManagement'
 import type { TrainingDashboardResponseData, TrainingDashboardCurrentTraining, TrainingDashboardPreviousTraining } from '@/lib/api/qa/staff-management'
 import { toast } from 'sonner'
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip'
 
 // ── SVG Donut Chart ──
 function DonutChart({ percentage }: { percentage: number }) {
@@ -643,7 +649,8 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
                             </div>
                         </div>
                         {currentTraining.length > 0 ? (
-                            <table className="w-full border-collapse">
+                            <TooltipProvider delayDuration={0}>
+                                <table className="w-full border-collapse">
                                 <thead>
                                     <tr>
                                         {['Training Course', 'Valid Until', 'By', 'Status'].map(h => (
@@ -658,7 +665,22 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
                                         const status = getTrainingStatus(t.validUntil)
                                         return (
                                             <tr key={i} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => setSelectedTraining(t)}>
-                                                <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700 font-medium">{t.course}</td>
+                                                <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700 font-medium max-w-[280px]">
+                                                    {t.course ? (
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <span className="block truncate cursor-default">
+                                                                    {t.course}
+                                                                </span>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent side="top" className="z-[9999] max-w-sm text-xs font-normal bg-slate-900 text-slate-50 shadow-md px-2.5 py-1.5 rounded">
+                                                                {t.course}
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    ) : (
+                                                        '-'
+                                                    )}
+                                                </td>
                                                 <td className="text-xs py-3 px-3.5 border-b border-slate-100 text-slate-700 whitespace-nowrap">{formatValidUntil(t.validUntil)}</td>
                                                 <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-500">{t.provider}</td>
                                                 <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700">
@@ -669,6 +691,7 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
                                     })}
                                 </tbody>
                             </table>
+                        </TooltipProvider>
                         ) : (
                             <div className="flex flex-col items-center justify-center py-10 text-center">
                                 <div className="w-14 h-14 rounded-2xl bg-orange-50 flex items-center justify-center mb-4">
@@ -704,7 +727,8 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
 
 
                         {apiHistories.length > 0 || isAdding ? (
-                            <table className="w-full border-collapse">
+                            <TooltipProvider delayDuration={0}>
+                                <table className="w-full border-collapse">
                                 <thead>
                                     <tr>
                                         <th className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider py-2.5 px-3.5 border-b border-[#e8ecf1] text-left">Course Name</th>
@@ -750,7 +774,22 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
 
                                         return (
                                             <tr key={h.id} className={`hover:bg-slate-50 transition-colors ${isLocked ? 'opacity-50 pointer-events-none' : ''} ${deletingId === h.id ? 'bg-red-50/50' : ''}`}>
-                                                <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700 font-medium">{h.courseName}</td>
+                                                <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700 font-medium max-w-[280px]">
+                                                    {h.courseName ? (
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <span className="block truncate cursor-default">
+                                                                    {h.courseName}
+                                                                </span>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent side="top" className="z-[9999] max-w-sm text-xs font-normal bg-slate-900 text-slate-50 shadow-md px-2.5 py-1.5 rounded">
+                                                                {h.courseName}
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    ) : (
+                                                        '-'
+                                                    )}
+                                                </td>
                                                 <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-500">{h.academyName}</td>
                                                 <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700 whitespace-nowrap">{formatDate(h.dateFrom)}</td>
                                                 <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700 whitespace-nowrap">{formatDate(h.dateTo)}</td>
@@ -797,6 +836,7 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
                                     )}
                                 </tbody>
                             </table>
+                        </TooltipProvider>
                         ) : (
                             <div className="flex flex-col items-center justify-center py-10 text-center">
                                 <div className="w-14 h-14 rounded-2xl bg-violet-50 flex items-center justify-center mb-4">

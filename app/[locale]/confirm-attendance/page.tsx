@@ -338,7 +338,7 @@ export default function ConfirmAttendancePage() {
                 {/* Logo */}
                 <div className="flex justify-center mb-8">
                     <Image
-                        src="/images/logo/logo.png"
+                        src="/sams-logo-new.png"
                         alt="SAMS Engineering Maintenance System"
                         width={140}
                         height={56}

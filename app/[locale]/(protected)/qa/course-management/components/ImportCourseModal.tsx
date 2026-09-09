@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
-import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle, ArrowLeft, Loader2, Trash2, Pencil } from 'lucide-react'
+import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle, ArrowLeft, Loader2, Trash2, Pencil, Wand2, Settings2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -9,11 +9,19 @@ import { Progress } from '@/components/ui/progress'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { upsertCourse, getCourseCategories, getCourseDepartmentSubList } from '@/lib/api/qa/course'
+import { getCourseCategories } from '@/lib/api/qa/course'
+import {
+  importCourses,
+  fetchCourseCodeIndex,
+  buildImportCoursePayload,
+  summarizeImportPlan,
+  type ImportCoursesSummary,
+} from '@/lib/api/qa/import-courses'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useReduxAuth } from '@/lib/api/hooks/useReduxAuth'
 import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
+import { cn } from '@/lib/utils'
 
 // ── Types ──
 
@@ -30,22 +38,85 @@ interface ParsedCourseRow {
   additionalNote: string
   // Validation
   errors: string[]
+  fieldErrors: Record<string, string>
   isValid: boolean
-}
-
-interface ImportResult {
-  row: ParsedCourseRow
-  success: boolean
-  error?: string
 }
 
 type Step = 'upload' | 'preview' | 'importing' | 'result'
 
-/** Detect if course is Recurrent from name or explicit field */
-function detectCourseType(row: ParsedCourseRow): 'Recurrent' | 'Initial' {
-  if (row.courseType?.toLowerCase().includes('recur')) return 'Recurrent'
+/** Determine course type: prioritize explicit field from Excel, fallback to name heuristics only if empty */
+function detectCourseType(row: { courseType?: string; courseName?: string }): 'Recurrent' | 'Initial' {
+  const explicitType = row.courseType?.trim().toLowerCase()
+  if (explicitType) {
+    if (explicitType === 'recurrent' || explicitType.includes('recur')) return 'Recurrent'
+    return 'Initial'
+  }
   if (row.courseName?.toLowerCase().includes('recurrent')) return 'Recurrent'
   return 'Initial'
+}
+
+/** Validate row and return errors both list and by field */
+function validateCourseRow(
+  row: {
+    courseCode: string
+    courseName: string
+    courseCategory: string
+    [key: string]: any
+  },
+  apiCategories: any[] = []
+): { errors: string[]; fieldErrors: Record<string, string>; isValid: boolean } {
+  const errors: string[] = []
+  const fieldErrors: Record<string, string> = {}
+
+  if (!row.courseCode?.trim()) {
+    const msg = 'Missing courseCode'
+    errors.push(msg)
+    fieldErrors['courseCode'] = msg
+  }
+
+  if (!row.courseName?.trim()) {
+    const msg = 'Missing courseName'
+    errors.push(msg)
+    fieldErrors['courseName'] = msg
+  }
+
+  if (row.courseCategory?.trim()) {
+    if (apiCategories.length > 0) {
+      const isValidCategory = apiCategories.some(
+        c =>
+          c.name?.toLowerCase().trim() === row.courseCategory.toLowerCase().trim() ||
+          c.code?.toLowerCase().trim() === row.courseCategory.toLowerCase().trim()
+      )
+      if (!isValidCategory) {
+        const msg = `Invalid Category: "${row.courseCategory}"`
+        errors.push(msg)
+        fieldErrors['courseCategory'] = msg
+      }
+    }
+  } else {
+    const msg = 'Missing Category'
+    errors.push(msg)
+    fieldErrors['courseCategory'] = msg
+  }
+
+  return {
+    errors,
+    fieldErrors,
+    isValid: errors.length === 0,
+  }
+}
+
+/** Warning/Error icon with tooltip for specific cell */
+function CellErrorIcon({ message }: { message?: string }) {
+  if (!message) return null
+  return (
+    <div className="group relative inline-flex items-center shrink-0">
+      <AlertTriangle className="h-3.5 w-3.5 text-red-500 cursor-help" />
+      <div className="absolute left-0 bottom-full mb-1 hidden group-hover:block bg-red-800 text-white text-[10px] px-2 py-1 rounded shadow-lg whitespace-nowrap z-40 pointer-events-none">
+        {message}
+      </div>
+    </div>
+  )
 }
 
 /** Parse Excel file into structured rows */
@@ -74,23 +145,21 @@ function parseExcelFile(file: File, apiCategories: any[] = []): Promise<ParsedCo
           const courseDuration = String(row['courseduration'] || row['duration'] || '').trim()
           const courseSyllabus = String(row['coursesyllabus'] || row['syllabus'] || '').trim()
           const courseCategory = String(row['coursecategory'] || row['category'] || '').trim()
-          const courseType = String(row['coursetype'] || row['type'] || '').trim()
+          const rawType = String(row['coursetype'] || row['type'] || '').trim()
+          let courseType = 'Initial'
+          if (rawType) {
+            courseType = rawType.toLowerCase().includes('recur') ? 'Recurrent' : 'Initial'
+          } else if (courseName.toLowerCase().includes('recurrent')) {
+            courseType = 'Recurrent'
+          }
           const recurrenceRaw = row['recurrenceintervalyears'] || row['recurrence']
-          const recurrenceIntervalYears = recurrenceRaw ? Number(recurrenceRaw) : null
+          const recurrenceIntervalYears = recurrenceRaw ? Math.round(Number(recurrenceRaw) * 10) / 10 : null
           const additionalNote = String(row['additionalnote'] || row['note'] || '').trim()
 
-          const errors: string[] = []
-          if (!courseCode) errors.push('Missing courseCode')
-          if (!courseName) errors.push('Missing courseName')
-          
-          if (courseCategory) {
-            const isValidCategory = apiCategories.some(c => c.name.toLowerCase() === courseCategory.toLowerCase())
-            if (!isValidCategory) {
-              errors.push(`Invalid Category: "${courseCategory}"`)
-            }
-          } else {
-            errors.push('Missing Category')
-          }
+          const validation = validateCourseRow(
+            { courseCode, courseName, courseCategory },
+            apiCategories
+          )
 
           return {
             rowIndex: idx + 2, // +2: 1-indexed + header row
@@ -103,8 +172,7 @@ function parseExcelFile(file: File, apiCategories: any[] = []): Promise<ParsedCo
             courseType,
             recurrenceIntervalYears,
             additionalNote,
-            errors,
-            isValid: errors.length === 0,
+            ...validation,
           }
         })
 
@@ -142,7 +210,9 @@ export function ImportCourseModal({ file: initialFile, onClose }: ImportCourseMo
 
   // Import state
   const [importProgress, setImportProgress] = useState(0)
-  const [importResults, setImportResults] = useState<ImportResult[]>([])
+  const [importStage, setImportStage] = useState('')
+  const [importSummary, setImportSummary] = useState<ImportCoursesSummary | null>(null)
+  const [importError, setImportError] = useState<string | null>(null)
   const [isImporting, setIsImporting] = useState(false)
 
   const { user } = useReduxAuth()
@@ -155,15 +225,121 @@ export function ImportCourseModal({ file: initialFile, onClose }: ImportCourseMo
   })
   const apiCategories = useMemo(() => categoryListResp?.responseData || [], [categoryListResp])
 
-  // Fetch department sub list for requirements
-  const { data: deptSubListResp } = useQuery({
-    queryKey: ['course-department-sub-list'],
-    queryFn: getCourseDepartmentSubList,
+  // Existing course codes, so the preview can say which rows update an
+  // existing course and which create a new one.
+  const { data: courseCodeIndex } = useQuery({
+    queryKey: ['course-code-index'],
+    queryFn: () => fetchCourseCodeIndex(),
   })
-  const apiRoles = useMemo(() => deptSubListResp?.responseData || [], [deptSubListResp])
 
   const validRows = useMemo(() => rows.filter(r => r.isValid), [rows])
   const invalidRows = useMemo(() => rows.filter(r => !r.isValid), [rows])
+
+  // How the valid rows split between creating and updating, using the codes
+  // already in the system.
+  const importPlan = useMemo(
+    () => summarizeImportPlan(buildImportCoursePayload(validRows, courseCodeIndex ?? new Map())),
+    [validRows, courseCodeIndex]
+  )
+
+  // Compute which columns have errors and how many
+  const columnErrorCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const row of rows) {
+      if (row.fieldErrors) {
+        for (const field of Object.keys(row.fieldErrors)) {
+          counts[field] = (counts[field] || 0) + 1
+        }
+      }
+    }
+    return counts
+  }, [rows])
+
+  // Thai/English column names with errors for the alert banner
+  const errorColumnNames = useMemo(() => {
+    const map: Record<string, string> = {
+      courseCode: 'Course Code',
+      courseName: 'Course Name',
+      courseCategory: 'Category',
+      courseType: 'Type',
+      recurrenceIntervalYears: 'Recurrence',
+      courseDuration: 'Duration',
+      courseSyllabus: 'Syllabus',
+      additionalNote: 'Note',
+    }
+    return Object.keys(columnErrorCounts).map(key => map[key] || key)
+  }, [columnErrorCounts])
+
+  // Default values confirmation modal state
+  const [defaultModalState, setDefaultModalState] = useState<{
+    isOpen: boolean
+    targetColumn?: string
+  }>({ isOpen: false })
+  const [defaultCategory, setDefaultCategory] = useState<string>('')
+  const [defaultType, setDefaultType] = useState<'Initial' | 'Recurrent'>('Initial')
+  const [defaultRecurrence, setDefaultRecurrence] = useState<number>(2)
+  const [applyOnlyToErrors, setApplyOnlyToErrors] = useState<boolean>(true)
+
+  // Initialize defaultCategory when apiCategories loads
+  useEffect(() => {
+    if (apiCategories.length > 0 && !defaultCategory) {
+      setDefaultCategory(apiCategories[0]?.name || '')
+    }
+  }, [apiCategories, defaultCategory])
+
+  // Handler to apply default values to rows
+  const handleApplyDefaultValues = useCallback(() => {
+    const targetCol = defaultModalState.targetColumn
+
+    setRows(prev => {
+      return prev.map(row => {
+        // If applyOnlyToErrors is true and row has no errors, skip
+        if (applyOnlyToErrors && row.isValid) return row
+
+        const updatedRow = { ...row }
+        let changed = false
+
+        // Category
+        if (!targetCol || targetCol === 'courseCategory') {
+          if (!applyOnlyToErrors || row.fieldErrors?.courseCategory) {
+            if (defaultCategory) {
+              updatedRow.courseCategory = defaultCategory
+              changed = true
+            }
+          }
+        }
+
+        // Type
+        if (!targetCol || targetCol === 'courseType') {
+          if (!applyOnlyToErrors || row.fieldErrors?.courseType) {
+            updatedRow.courseType = defaultType
+            changed = true
+          }
+        }
+
+        // Recurrence
+        if (!targetCol || targetCol === 'recurrenceIntervalYears') {
+          if (!applyOnlyToErrors || row.fieldErrors?.recurrenceIntervalYears) {
+            updatedRow.recurrenceIntervalYears = defaultRecurrence
+            changed = true
+          }
+        }
+
+        if (changed) {
+          const validation = validateCourseRow(updatedRow, apiCategories)
+          return {
+            ...updatedRow,
+            ...validation,
+          }
+        }
+
+        return row
+      })
+    })
+
+    setDefaultModalState({ isOpen: false })
+    toast.success('ตั้งค่าเริ่มต้นและตรวจสอบข้อมูลใหม่เรียบร้อยแล้ว')
+  }, [applyOnlyToErrors, defaultCategory, defaultModalState.targetColumn, defaultType, defaultRecurrence, apiCategories])
 
   // Auto-parse file on mount
   useEffect(() => {
@@ -171,6 +347,18 @@ export function ImportCourseModal({ file: initialFile, onClose }: ImportCourseMo
       handleFile(initialFile)
     }
   }, [initialFile])
+
+  // Re-validate rows when apiCategories changes
+  useEffect(() => {
+    if (apiCategories.length > 0 && rows.length > 0) {
+      setRows(prev =>
+        prev.map(r => ({
+          ...r,
+          ...validateCourseRow(r, apiCategories),
+        }))
+      )
+    }
+  }, [apiCategories])
 
   // ── Handlers ──
 
@@ -194,7 +382,7 @@ export function ImportCourseModal({ file: initialFile, onClose }: ImportCourseMo
     } finally {
       setIsParsing(false)
     }
-  }, [])
+  }, [apiCategories])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -220,24 +408,13 @@ export function ImportCourseModal({ file: initialFile, onClose }: ImportCourseMo
   }, [rowToRemove])
 
   const handleSaveEditRow = useCallback((updatedRow: ParsedCourseRow) => {
-    // Re-validate the row
-    const errors: string[] = []
-    if (!updatedRow.courseCode) errors.push('Missing courseCode')
-    if (!updatedRow.courseName) errors.push('Missing courseName')
-    
-    if (updatedRow.courseCategory) {
-      const isValidCategory = apiCategories.some(c => c.name.toLowerCase() === updatedRow.courseCategory.toLowerCase())
-      if (!isValidCategory) {
-        errors.push(`Invalid Category: "${updatedRow.courseCategory}"`)
-      }
-    } else {
-      errors.push('Missing Category')
+    const validation = validateCourseRow(updatedRow, apiCategories)
+    const newRow = {
+      ...updatedRow,
+      ...validation,
     }
 
-    updatedRow.errors = errors
-    updatedRow.isValid = errors.length === 0
-
-    setRows(prev => prev.map(r => r.rowIndex === updatedRow.rowIndex ? updatedRow : r))
+    setRows(prev => prev.map(r => r.rowIndex === updatedRow.rowIndex ? newRow : r))
     setEditingRow(null)
   }, [apiCategories])
 
@@ -245,74 +422,44 @@ export function ImportCourseModal({ file: initialFile, onClose }: ImportCourseMo
     setStep('importing')
     setIsImporting(true)
     setImportProgress(0)
-    setImportResults([])
+    setImportSummary(null)
+    setImportError(null)
 
-    const toImport = validRows
-    const results: ImportResult[] = []
+    try {
+      // Read the current course codes right before sending. A stale index would
+      // send id 0 for a course that already exists and duplicate it.
+      setImportStage('Checking existing course codes...')
+      setImportProgress(20)
+      const codeIndex = await fetchCourseCodeIndex()
 
-    for (let i = 0; i < toImport.length; i++) {
-      const row = toImport[i]
-      try {
-        // Resolve category ID
-        const detectedType = detectCourseType(row)
-        const matchedCategory = apiCategories.find(
-          c => c.name.toLowerCase() === row.courseCategory.toLowerCase()
-        )
-        const categoryId = matchedCategory?.id || (apiCategories[0]?.id ?? 1)
+      setImportStage('Uploading courses...')
+      setImportProgress(60)
+      const payload = buildImportCoursePayload(validRows, codeIndex)
+      const res = await importCourses(payload)
 
-        // Build note combining duration + syllabus + original note
-        const noteParts = [
-          row.courseDuration && `Duration: ${row.courseDuration}`,
-          row.courseSyllabus && `Syllabus:\n${row.courseSyllabus}`,
-          row.additionalNote,
-        ].filter(Boolean)
-        const combinedNote = noteParts.join('\n\n')
+      setImportProgress(100)
+      setImportSummary(res.responseData)
 
-        // Map all roles as not required by default (import only creates the course)
-        const requirements = apiRoles.map(role => ({
-          courseId: 0,
-          courseDepartmentSubId: role.id,
-          isRequired: false,
-        }))
-
-        await upsertCourse({
-          courseId: 0, // 0 = create new
-          courseCode: row.courseCode,
-          courseName: row.courseName,
-          courseCategoryId: categoryId,
-          courseType: detectedType,
-          recurrenceIntervalYears: detectedType === 'Recurrent'
-            ? (row.recurrenceIntervalYears ?? 2)
-            : null,
-          additionalNote: combinedNote,
-          aircraftTypeLicenseId: null,
-          courseObjective: row.courseObjective || '',
-          courseDuration: row.courseDuration || null,
-          courseSyllabus: row.courseSyllabus || null,
-          requirements,
-        })
-
-        results.push({ row, success: true })
-      } catch (err: any) {
-        results.push({ row, success: false, error: err.message || 'Unknown error' })
+      const { created = 0, updated = 0 } = res.responseData ?? {}
+      if (created + updated > 0) {
+        toast.success(`Imported ${created} new and updated ${updated} course${updated === 1 ? '' : 's'}`)
+      } else {
+        toast.warning('No course was created or updated')
       }
 
-      setImportProgress(Math.round(((i + 1) / toImport.length) * 100))
-      setImportResults([...results])
+      queryClient.invalidateQueries({ queryKey: ['course-list-management'] })
+      queryClient.invalidateQueries({ queryKey: ['course-summary'] })
+      queryClient.invalidateQueries({ queryKey: ['course-code-index'] })
+    } catch (err: any) {
+      const message = err?.message || 'Failed to import courses'
+      setImportError(message)
+      toast.error(message)
+    } finally {
+      setIsImporting(false)
+      setImportStage('')
+      setStep('result')
     }
-
-    setIsImporting(false)
-    setStep('result')
-
-    // Invalidate caches
-    queryClient.invalidateQueries({ queryKey: ['course-list-management'] })
-    queryClient.invalidateQueries({ queryKey: ['course-summary'] })
-
-    const successCount = results.filter(r => r.success).length
-    if (successCount > 0) {
-      toast.success(`Successfully imported ${successCount} course${successCount > 1 ? 's' : ''}`)
-    }
-  }, [validRows, apiCategories, apiRoles, queryClient])
+  }, [validRows, queryClient])
 
   // ── Render ──
 
@@ -353,7 +500,7 @@ export function ImportCourseModal({ file: initialFile, onClose }: ImportCourseMo
         {step === 'preview' && (
           <div className="flex-1 flex flex-col min-h-0">
             {/* Summary bar */}
-            <div className="flex items-center gap-3 mb-4 flex-wrap">
+            <div className="flex items-center gap-3 mb-3 flex-wrap">
               <Badge className="gap-1.5 text-xs py-1 bg-gray-100 text-gray-700 hover:bg-gray-100 border border-gray-200">
                 <FileSpreadsheet className="h-3.5 w-3.5" />
                 {file?.name}
@@ -373,23 +520,166 @@ export function ImportCourseModal({ file: initialFile, onClose }: ImportCourseMo
               )}
             </div>
 
+            {/* Error Banner when errors exist */}
+            {invalidRows.length > 0 && (
+              <div className="flex items-center justify-between p-3 mb-3 bg-red-50/90 border border-red-200 rounded-lg text-xs text-red-900 shadow-sm">
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-red-900">
+                        พบข้อมูลไม่ถูกต้อง {invalidRows.length} แถว
+                      </span>
+                      {errorColumnNames.length > 0 && (
+                        <span className="text-red-700 font-medium">
+                          (คอลัมน์: {errorColumnNames.join(', ')})
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-red-600 mt-0.5">
+                      ท่านสามารถคลิกที่เซลล์เพื่อแก้ไขข้อมูลรายแถว หรือกดยืนยันเพื่อตั้งค่าเริ่มต้น (Set Default Value) ให้กับรายการที่มีข้อผิดพลาด
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-8 text-xs bg-red-600 hover:bg-red-700 text-white font-medium shadow-sm gap-1.5"
+                    onClick={() => setDefaultModalState({ isOpen: true })}
+                  >
+                    <Wand2 className="h-3.5 w-3.5" />
+                    กดยืนยันตั้งค่าเริ่มต้น (Set Default Value)
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* Preview Table */}
             <div className="flex-1 overflow-auto border rounded-lg">
               <table className="w-full text-xs">
-                <thead className="bg-slate-50 sticky top-0 z-10">
+                <thead className="bg-slate-50 sticky top-0 z-10 shadow-sm">
                   <tr>
-                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground w-10">#</th>
-                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground w-12">Status</th>
-                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground min-w-[120px]">Course Code</th>
-                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground min-w-[250px]">Course Name</th>
-                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground min-w-[200px]">Objective</th>
-                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground min-w-[150px]">Category</th>
-                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground min-w-[100px]">Type</th>
-                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground min-w-[80px]">Recurrence</th>
-                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground min-w-[80px]">Duration</th>
-                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground min-w-[260px]">Syllabus</th>
-                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground min-w-[140px]">Note</th>
-                    <th className="px-3 py-2.5 text-left font-medium text-muted-foreground w-10"></th>
+                    <th className="sticky left-0 z-30 bg-slate-50 px-3 py-2.5 text-left font-medium text-muted-foreground w-10">#</th>
+                    <th className="sticky left-[40px] z-30 bg-slate-50 px-3 py-2.5 text-left font-medium text-muted-foreground w-16 border-r border-slate-200 shadow-[2px_0_4px_-1px_rgba(0,0,0,0.06)]">Status</th>
+                    <th className={cn("px-3 py-2.5 text-left font-medium min-w-[130px]", columnErrorCounts['courseCode'] ? 'text-red-700 bg-red-50 border-b-2 border-red-400' : 'text-muted-foreground')}>
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span>Course Code</span>
+                        {columnErrorCounts['courseCode'] && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-red-600 bg-red-100 border border-red-200 rounded-full px-1.5 py-0">
+                            <AlertTriangle className="h-3 w-3" />
+                            {columnErrorCounts['courseCode']}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                    <th className={cn("px-3 py-2.5 text-left font-medium min-w-[240px]", columnErrorCounts['courseName'] ? 'text-red-700 bg-red-50 border-b-2 border-red-400' : 'text-muted-foreground')}>
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span>Course Name</span>
+                        {columnErrorCounts['courseName'] && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-red-600 bg-red-100 border border-red-200 rounded-full px-1.5 py-0">
+                            <AlertTriangle className="h-3 w-3" />
+                            {columnErrorCounts['courseName']}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                    <th className={cn("px-3 py-2.5 text-left font-medium min-w-[190px]", columnErrorCounts['courseObjective'] ? 'text-red-700 bg-red-50 border-b-2 border-red-400' : 'text-muted-foreground')}>
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span>Objective</span>
+                        {columnErrorCounts['courseObjective'] && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-red-600 bg-red-100 border border-red-200 rounded-full px-1.5 py-0">
+                            <AlertTriangle className="h-3 w-3" />
+                            {columnErrorCounts['courseObjective']}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                    <th className={cn("px-3 py-2.5 text-left font-medium min-w-[160px]", columnErrorCounts['courseCategory'] ? 'text-red-700 bg-red-50 border-b-2 border-red-400' : 'text-muted-foreground')}>
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span>Category</span>
+                        {columnErrorCounts['courseCategory'] && (
+                          <button
+                            type="button"
+                            onClick={() => setDefaultModalState({ isOpen: true, targetColumn: 'courseCategory' })}
+                            className="inline-flex items-center gap-1 text-[10px] font-semibold text-red-700 bg-red-100 hover:bg-red-200 border border-red-300 rounded-full px-1.5 py-0.5 transition-colors cursor-pointer"
+                            title="คลิกเพื่อกดยืนยันตั้งค่าเริ่มต้นสำหรับ Category"
+                          >
+                            <AlertTriangle className="h-3 w-3 text-red-600" />
+                            <span>{columnErrorCounts['courseCategory']}</span>
+                            <span className="text-[9px] underline">ตั้งค่า</span>
+                          </button>
+                        )}
+                      </div>
+                    </th>
+                    <th className={cn("px-3 py-2.5 text-left font-medium min-w-[110px]", columnErrorCounts['courseType'] ? 'text-red-700 bg-red-50 border-b-2 border-red-400' : 'text-muted-foreground')}>
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span>Type</span>
+                        {columnErrorCounts['courseType'] && (
+                          <button
+                            type="button"
+                            onClick={() => setDefaultModalState({ isOpen: true, targetColumn: 'courseType' })}
+                            className="inline-flex items-center gap-1 text-[10px] font-semibold text-red-700 bg-red-100 hover:bg-red-200 border border-red-300 rounded-full px-1.5 py-0.5 transition-colors cursor-pointer"
+                            title="คลิกเพื่อกดยืนยันตั้งค่าเริ่มต้นสำหรับ Type"
+                          >
+                            <AlertTriangle className="h-3 w-3 text-red-600" />
+                            <span>{columnErrorCounts['courseType']}</span>
+                            <span className="text-[9px] underline">ตั้งค่า</span>
+                          </button>
+                        )}
+                      </div>
+                    </th>
+                    <th className={cn("px-3 py-2.5 text-left font-medium min-w-[110px]", columnErrorCounts['recurrenceIntervalYears'] ? 'text-red-700 bg-red-50 border-b-2 border-red-400' : 'text-muted-foreground')}>
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span>Recurrence</span>
+                        {columnErrorCounts['recurrenceIntervalYears'] && (
+                          <button
+                            type="button"
+                            onClick={() => setDefaultModalState({ isOpen: true, targetColumn: 'recurrenceIntervalYears' })}
+                            className="inline-flex items-center gap-1 text-[10px] font-semibold text-red-700 bg-red-100 hover:bg-red-200 border border-red-300 rounded-full px-1.5 py-0.5 transition-colors cursor-pointer"
+                            title="คลิกเพื่อกดยืนยันตั้งค่าเริ่มต้นสำหรับ Recurrence"
+                          >
+                            <AlertTriangle className="h-3 w-3 text-red-600" />
+                            <span>{columnErrorCounts['recurrenceIntervalYears']}</span>
+                            <span className="text-[9px] underline">ตั้งค่า</span>
+                          </button>
+                        )}
+                      </div>
+                    </th>
+                    <th className={cn("px-3 py-2.5 text-left font-medium min-w-[85px]", columnErrorCounts['courseDuration'] ? 'text-red-700 bg-red-50 border-b-2 border-red-400' : 'text-muted-foreground')}>
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span>Duration</span>
+                        {columnErrorCounts['courseDuration'] && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-red-600 bg-red-100 border border-red-200 rounded-full px-1.5 py-0">
+                            <AlertTriangle className="h-3 w-3" />
+                            {columnErrorCounts['courseDuration']}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                    <th className={cn("px-3 py-2.5 text-left font-medium min-w-[240px]", columnErrorCounts['courseSyllabus'] ? 'text-red-700 bg-red-50 border-b-2 border-red-400' : 'text-muted-foreground')}>
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span>Syllabus</span>
+                        {columnErrorCounts['courseSyllabus'] && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-red-600 bg-red-100 border border-red-200 rounded-full px-1.5 py-0">
+                            <AlertTriangle className="h-3 w-3" />
+                            {columnErrorCounts['courseSyllabus']}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                    <th className={cn("px-3 py-2.5 text-left font-medium min-w-[130px]", columnErrorCounts['additionalNote'] ? 'text-red-700 bg-red-50 border-b-2 border-red-400' : 'text-muted-foreground')}>
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span>Note</span>
+                        {columnErrorCounts['additionalNote'] && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-red-600 bg-red-100 border border-red-200 rounded-full px-1.5 py-0">
+                            <AlertTriangle className="h-3 w-3" />
+                            {columnErrorCounts['additionalNote']}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                    <th className="sticky right-0 z-30 bg-slate-50 px-3 py-2.5 text-right font-medium text-muted-foreground w-16 border-l border-slate-200 shadow-[-2px_0_4px_-1px_rgba(0,0,0,0.06)]"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -399,46 +689,111 @@ export function ImportCourseModal({ file: initialFile, onClose }: ImportCourseMo
 
                     if (isEditing) {
                       return (
-                        <tr key={row.rowIndex} className="bg-slate-50/50">
-                          <td className="px-3 py-2 text-muted-foreground">{row.rowIndex}</td>
-                          <td className="px-3 py-2">
+                        <tr key={row.rowIndex} className="bg-amber-50/40 border-y-2 border-primary/30">
+                          <td className="sticky left-0 z-20 bg-amber-50 px-3 py-2 text-muted-foreground">{row.rowIndex}</td>
+                          <td className="sticky left-[40px] z-20 bg-amber-50 px-3 py-2 border-r border-slate-200 shadow-[2px_0_4px_-1px_rgba(0,0,0,0.06)]">
                             {row.isValid ? (
                               <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                             ) : (
-                              <div className="group relative">
+                              <div className="group/edit-status relative">
                                 <AlertTriangle className="h-4 w-4 text-red-500" />
-                                <div className="absolute left-0 bottom-full mb-1 hidden group-hover:block bg-red-800 text-white text-[10px] px-2 py-1 rounded shadow-lg whitespace-nowrap z-20">
+                                <div className="absolute left-0 bottom-full mb-1 hidden group-hover/edit-status:block bg-red-800 text-white text-[10px] px-2.5 py-1.5 rounded shadow-lg whitespace-nowrap z-40">
                                   {row.errors.join(', ')}
                                 </div>
                               </div>
                             )}
                           </td>
                           <td className="px-1 py-1">
-                            <Input className="h-7 text-xs px-2 w-full" value={editingRow.courseCode} onChange={e => setEditingRow({...editingRow, courseCode: e.target.value})} />
+                            <div className="flex items-center gap-1">
+                              {row.fieldErrors?.courseCode && <CellErrorIcon message={row.fieldErrors.courseCode} />}
+                              <Input
+                                className={cn("h-7 text-xs px-2 w-full", row.fieldErrors?.courseCode && "border-red-500 focus-visible:ring-red-500 bg-red-50/30")}
+                                value={editingRow.courseCode}
+                                onChange={e => setEditingRow({...editingRow, courseCode: e.target.value})}
+                              />
+                            </div>
                           </td>
                           <td className="px-1 py-1">
-                            <Input className="h-7 text-xs px-2 w-full" value={editingRow.courseName} onChange={e => setEditingRow({...editingRow, courseName: e.target.value})} />
+                            <div className="flex items-center gap-1">
+                              {row.fieldErrors?.courseName && <CellErrorIcon message={row.fieldErrors.courseName} />}
+                              <Input
+                                className={cn("h-7 text-xs px-2 w-full", row.fieldErrors?.courseName && "border-red-500 focus-visible:ring-red-500 bg-red-50/30")}
+                                value={editingRow.courseName}
+                                onChange={e => setEditingRow({...editingRow, courseName: e.target.value})}
+                              />
+                            </div>
                           </td>
                           <td className="px-1 py-1">
-                            <Textarea className="min-h-7 h-7 text-xs px-2 py-1 w-full" value={editingRow.courseObjective} onChange={e => setEditingRow({...editingRow, courseObjective: e.target.value})} />
+                            <div className="flex items-center gap-1">
+                              {row.fieldErrors?.courseObjective && <CellErrorIcon message={row.fieldErrors.courseObjective} />}
+                              <Textarea className="min-h-7 h-7 text-xs px-2 py-1 w-full" value={editingRow.courseObjective} onChange={e => setEditingRow({...editingRow, courseObjective: e.target.value})} />
+                            </div>
                           </td>
                           <td className="px-1 py-1">
-                            <select 
+                            <div className="flex items-center gap-1">
+                              {row.fieldErrors?.courseCategory && <CellErrorIcon message={row.fieldErrors.courseCategory} />}
+                              <select 
+                                className={cn(
+                                  "h-7 text-xs px-2 w-full rounded-md border border-input bg-background",
+                                  row.fieldErrors?.courseCategory && "border-red-500 focus:ring-red-500 bg-red-50/40"
+                                )}
+                                value={editingRow.courseCategory} 
+                                onChange={e => setEditingRow({...editingRow, courseCategory: e.target.value})}
+                              >
+                                <option value="" disabled>Select category...</option>
+                                {apiCategories.map(cat => (
+                                  <option key={cat.id} value={cat.name}>{cat.name}</option>
+                                ))}
+                              </select>
+                              {apiCategories.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingRow({...editingRow, courseCategory: apiCategories[0]?.name || ''})}
+                                  className="h-7 text-[10px] px-1.5 rounded border border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap"
+                                  title="ใช้ค่าเริ่มต้น (Category แรก)"
+                                >
+                                  ค่าเริ่มต้น
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-1 py-1">
+                            <select
                               className="h-7 text-xs px-2 w-full rounded-md border border-input bg-background"
-                              value={editingRow.courseCategory} 
-                              onChange={e => setEditingRow({...editingRow, courseCategory: e.target.value})}
+                              value={editingRow.courseType || 'Initial'}
+                              onChange={e => setEditingRow({...editingRow, courseType: e.target.value})}
                             >
-                              <option value="" disabled>Select category...</option>
-                              {apiCategories.map(cat => (
-                                <option key={cat.id} value={cat.name}>{cat.name}</option>
-                              ))}
+                              <option value="Initial">Initial</option>
+                              <option value="Recurrent">Recurrent</option>
                             </select>
                           </td>
                           <td className="px-1 py-1">
-                            <Input className="h-7 text-xs px-2 w-full" value={editingRow.courseType} onChange={e => setEditingRow({...editingRow, courseType: e.target.value})} />
-                          </td>
-                          <td className="px-1 py-1">
-                            <Input type="number" className="h-7 text-xs px-2 w-full min-w-[60px]" value={editingRow.recurrenceIntervalYears || ''} onChange={e => setEditingRow({...editingRow, recurrenceIntervalYears: e.target.value ? Number(e.target.value) : null})} />
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                className="h-7 text-xs px-2 w-full min-w-[55px]"
+                                value={editingRow.recurrenceIntervalYears ?? ''}
+                                onChange={e => {
+                                  const val = e.target.value
+                                  if (val === '') {
+                                    setEditingRow({...editingRow, recurrenceIntervalYears: null})
+                                  } else {
+                                    const num = Math.round(Number(val) * 10) / 10
+                                    setEditingRow({...editingRow, recurrenceIntervalYears: num})
+                                  }
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setEditingRow({...editingRow, recurrenceIntervalYears: 2})}
+                                className="h-7 text-[10px] px-1.5 rounded border border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap"
+                                title="ตั้งค่าเริ่มต้น 2 ปี"
+                              >
+                                2y
+                              </button>
+                            </div>
                           </td>
                           <td className="px-1 py-1">
                             <Input className="h-7 text-xs px-2 w-full" value={editingRow.courseDuration} onChange={e => setEditingRow({...editingRow, courseDuration: e.target.value})} />
@@ -449,23 +804,26 @@ export function ImportCourseModal({ file: initialFile, onClose }: ImportCourseMo
                           <td className="px-1 py-1">
                             <Input className="h-7 text-xs px-2 w-full" value={editingRow.additionalNote} onChange={e => setEditingRow({...editingRow, additionalNote: e.target.value})} />
                           </td>
-                          <td className="px-3 py-2 text-right whitespace-nowrap">
-                            <button
-                              type="button"
-                              onClick={() => handleSaveEditRow(editingRow)}
-                              className="p-1 rounded hover:bg-emerald-100 text-muted-foreground hover:text-emerald-600 transition-colors mr-1"
-                              title="Save row"
-                            >
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditingRow(null)}
-                              className="p-1 rounded hover:bg-slate-200 text-muted-foreground hover:text-slate-600 transition-colors"
-                              title="Cancel edit"
-                            >
-                              <XCircle className="h-3.5 w-3.5" />
-                            </button>
+                          <td className="sticky right-0 z-20 bg-amber-50 px-3 py-2 text-right whitespace-nowrap border-l border-slate-200 shadow-[-2px_0_4px_-1px_rgba(0,0,0,0.06)]">
+                            <div className="flex items-center gap-1 justify-end">
+                              <button
+                                type="button"
+                                onClick={() => handleSaveEditRow(editingRow)}
+                                className="p-1 px-1.5 rounded bg-emerald-100 hover:bg-emerald-200 text-emerald-700 transition-colors flex items-center gap-1 text-[11px] font-medium"
+                                title="Save changes"
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                <span>บันทึก</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingRow(null)}
+                                className="p-1 px-1.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors text-[11px]"
+                                title="Cancel edit"
+                              >
+                                ยกเลิก
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       )
@@ -474,67 +832,248 @@ export function ImportCourseModal({ file: initialFile, onClose }: ImportCourseMo
                     return (
                       <tr
                         key={row.rowIndex}
-                        className={`transition-colors ${row.isValid
-                          ? 'hover:bg-muted/30'
-                          : 'bg-red-50/50 hover:bg-red-50'
-                          }`}
+                        className={cn(
+                          "group transition-colors",
+                          row.isValid
+                            ? "hover:bg-muted/30"
+                            : "bg-red-50/40 hover:bg-red-50/70"
+                        )}
                       >
-                        <td className="px-3 py-2 text-muted-foreground">{row.rowIndex}</td>
-                        <td className="px-3 py-2">
+                        <td className={cn(
+                          "sticky left-0 z-20 px-3 py-2 text-muted-foreground transition-colors",
+                          row.isValid ? "bg-white group-hover:bg-slate-50" : "bg-red-50/95 group-hover:bg-red-100"
+                        )}>
+                          {row.rowIndex}
+                        </td>
+                        <td className={cn(
+                          "sticky left-[40px] z-20 px-3 py-2 border-r border-slate-200 shadow-[2px_0_4px_-1px_rgba(0,0,0,0.06)] transition-colors",
+                          row.isValid ? "bg-white group-hover:bg-slate-50" : "bg-red-50/95 group-hover:bg-red-100"
+                        )}>
                           {row.isValid ? (
                             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                           ) : (
-                            <div className="group relative">
-                              <AlertTriangle className="h-4 w-4 text-red-500" />
-                              <div className="absolute left-0 bottom-full mb-1 hidden group-hover:block bg-red-800 text-white text-[10px] px-2 py-1 rounded shadow-lg whitespace-nowrap z-20">
-                                {row.errors.join(', ')}
+                            <div className="flex items-center gap-1.5">
+                              <div className="group/status relative">
+                                <AlertTriangle className="h-4 w-4 text-red-500 cursor-pointer" />
+                                <div className="absolute left-0 bottom-full mb-1 hidden group-hover/status:block bg-red-800 text-white text-[10px] px-2.5 py-1.5 rounded shadow-lg whitespace-nowrap z-40 pointer-events-none">
+                                  <p className="font-semibold mb-0.5">ข้อผิดพลาด ({row.errors.length}):</p>
+                                  {row.errors.map((e, idx) => (
+                                    <div key={idx}>• {e}</div>
+                                  ))}
+                                  <p className="mt-1 text-[9px] text-red-200">คลิกที่ช่องหรือปุ่มเพื่อแก้ไข</p>
+                                </div>
                               </div>
+                              <button
+                                type="button"
+                                onClick={() => setEditingRow(row)}
+                                className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700 hover:bg-red-200 font-medium transition-colors"
+                                title="คลิกเพื่อแก้ไขข้อมูลแถวนี้"
+                              >
+                                แก้ไข
+                              </button>
                             </div>
                           )}
                         </td>
-                        <td className="px-3 py-2 font-mono font-medium text-primary">
-                          {row.courseCode || <span className="text-red-400 italic">empty</span>}
-                        </td>
-                        <td className="px-3 py-2 max-w-[200px] truncate" title={row.courseName}>
-                          {row.courseName || <span className="text-red-400 italic">empty</span>}
-                        </td>
-                        <td className="px-3 py-2 max-w-[180px] truncate" title={row.courseObjective}>
-                          {row.courseObjective || <span className="text-muted-foreground">-</span>}
-                        </td>
-                        <td className="px-3 py-2">
-                          {row.courseCategory ? (
-                            <Badge className="text-[10px] px-1.5 py-0.5 bg-violet-100 text-violet-700 hover:bg-violet-100">
-                              {row.courseCategory}
-                            </Badge>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
+                        <td
+                          onClick={() => setEditingRow(row)}
+                          className={cn(
+                            "px-3 py-2 font-mono font-medium transition-colors cursor-pointer group/cell",
+                            row.fieldErrors?.courseCode 
+                              ? "text-red-700 bg-red-50/90 hover:bg-red-100/90 border-l-2 border-red-500" 
+                              : "text-primary hover:bg-muted/40"
                           )}
+                          title="คลิกเพื่อแก้ไข Course Code"
+                        >
+                          <div className="flex items-center justify-between gap-1.5">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <CellErrorIcon message={row.fieldErrors?.courseCode} />
+                              <span>{row.courseCode || <span className="text-red-500 italic">ว่าง (คลิกแก้ไข)</span>}</span>
+                            </div>
+                            <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover/cell:opacity-100 transition-opacity shrink-0" />
+                          </div>
                         </td>
-                        <td className="px-3 py-2">
-                          <Badge
-                            className={`text-[10px] px-1.5 py-0.5 ${type === 'Recurrent'
-                              ? 'bg-sky-100 text-sky-700 hover:bg-sky-100'
-                              : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
-                              }`}
-                          >
-                            {type === 'Recurrent' ? 'Recurrent' : 'Initial'}
-                          </Badge>
+                        <td
+                          onClick={() => setEditingRow(row)}
+                          className={cn(
+                            "px-3 py-2 max-w-[200px] transition-colors cursor-pointer group/cell",
+                            row.fieldErrors?.courseName 
+                              ? "bg-red-50/90 hover:bg-red-100/90 border-l-2 border-red-500" 
+                              : "hover:bg-muted/40"
+                          )}
+                          title="คลิกเพื่อแก้ไข Course Name"
+                        >
+                          <div className="flex items-center justify-between gap-1.5">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <CellErrorIcon message={row.fieldErrors?.courseName} />
+                              <span className="truncate" title={row.courseName}>
+                                {row.courseName || <span className="text-red-500 italic">ว่าง (คลิกแก้ไข)</span>}
+                              </span>
+                            </div>
+                            <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover/cell:opacity-100 transition-opacity shrink-0" />
+                          </div>
                         </td>
-                        <td className="px-3 py-2 text-muted-foreground">
-                          {row.recurrenceIntervalYears != null
-                            ? `${row.recurrenceIntervalYears} yr${row.recurrenceIntervalYears !== 1 ? 's' : ''}`
-                            : '-'}
+                        <td
+                          onClick={() => setEditingRow(row)}
+                          className={cn(
+                            "px-3 py-2 max-w-[180px] transition-colors cursor-pointer group/cell",
+                            row.fieldErrors?.courseObjective 
+                              ? "bg-red-50/90 hover:bg-red-100/90 border-l-2 border-red-500" 
+                              : "hover:bg-muted/40"
+                          )}
+                          title="คลิกเพื่อแก้ไข Objective"
+                        >
+                          <div className="flex items-center justify-between gap-1.5">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <CellErrorIcon message={row.fieldErrors?.courseObjective} />
+                              <span className="truncate" title={row.courseObjective}>
+                                {row.courseObjective || <span className="text-muted-foreground">-</span>}
+                              </span>
+                            </div>
+                            <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover/cell:opacity-100 transition-opacity shrink-0" />
+                          </div>
                         </td>
-                        <td className="px-3 py-2 text-muted-foreground max-w-[140px] truncate" title={row.courseDuration}>
-                          {row.courseDuration || '-'}
+                        <td
+                          onClick={() => setEditingRow(row)}
+                          className={cn(
+                            "px-3 py-2 transition-colors cursor-pointer group/cell",
+                            row.fieldErrors?.courseCategory 
+                              ? "bg-red-50/90 hover:bg-red-100/90 border-l-2 border-red-500" 
+                              : "hover:bg-muted/40"
+                          )}
+                          title="คลิกเพื่อแก้ไข Category"
+                        >
+                          <div className="flex items-center justify-between gap-1.5">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <CellErrorIcon message={row.fieldErrors?.courseCategory} />
+                              {row.courseCategory ? (
+                                <Badge
+                                  className={cn(
+                                    "text-[10px] px-1.5 py-0.5",
+                                    row.fieldErrors?.courseCategory
+                                      ? "bg-red-100 text-red-700 hover:bg-red-100 border border-red-300"
+                                      : "bg-violet-100 text-violet-700 hover:bg-violet-100"
+                                  )}
+                                >
+                                  {row.courseCategory}
+                                </Badge>
+                              ) : (
+                                <span className="text-red-500 italic text-xs">ไม่ได้ระบุ (คลิกเพื่อเลือก)</span>
+                              )}
+                            </div>
+                            <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover/cell:opacity-100 transition-opacity shrink-0" />
+                          </div>
                         </td>
-                        <td className="px-3 py-2 max-w-[160px] truncate" title={row.courseSyllabus}>
-                          {row.courseSyllabus || <span className="text-muted-foreground">-</span>}
+                        <td
+                          onClick={() => setEditingRow(row)}
+                          className={cn(
+                            "px-3 py-2 transition-colors cursor-pointer group/cell",
+                            row.fieldErrors?.courseType 
+                              ? "bg-red-50/90 hover:bg-red-100/90 border-l-2 border-red-500" 
+                              : "hover:bg-muted/40"
+                          )}
+                          title="คลิกเพื่อแก้ไข Type"
+                        >
+                          <div className="flex items-center justify-between gap-1.5">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <CellErrorIcon message={row.fieldErrors?.courseType} />
+                              <Badge
+                                className={`text-[10px] px-1.5 py-0.5 ${type === 'Recurrent'
+                                  ? 'bg-sky-100 text-sky-700 hover:bg-sky-100'
+                                  : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
+                                  }`}
+                              >
+                                {type === 'Recurrent' ? 'Recurrent' : 'Initial'}
+                              </Badge>
+                            </div>
+                            <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover/cell:opacity-100 transition-opacity shrink-0" />
+                          </div>
                         </td>
-                        <td className="px-3 py-2 max-w-[140px] truncate" title={row.additionalNote}>
-                          {row.additionalNote || <span className="text-muted-foreground">-</span>}
+                        <td
+                          onClick={() => setEditingRow(row)}
+                          className={cn(
+                            "px-3 py-2 text-muted-foreground transition-colors cursor-pointer group/cell",
+                            row.fieldErrors?.recurrenceIntervalYears 
+                              ? "bg-red-50/90 hover:bg-red-100/90 border-l-2 border-red-500 text-red-700" 
+                              : "hover:bg-muted/40"
+                          )}
+                          title="คลิกเพื่อแก้ไข Recurrence"
+                        >
+                          <div className="flex items-center justify-between gap-1.5">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <CellErrorIcon message={row.fieldErrors?.recurrenceIntervalYears} />
+                              <span>
+                                {row.recurrenceIntervalYears != null
+                                  ? `${Number.isInteger(row.recurrenceIntervalYears) ? row.recurrenceIntervalYears : row.recurrenceIntervalYears.toFixed(1)} yr${row.recurrenceIntervalYears !== 1 ? 's' : ''}`
+                                  : '-'}
+                              </span>
+                            </div>
+                            <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover/cell:opacity-100 transition-opacity shrink-0" />
+                          </div>
                         </td>
-                        <td className="px-3 py-2 text-right whitespace-nowrap">
+                        <td
+                          onClick={() => setEditingRow(row)}
+                          className={cn(
+                            "px-3 py-2 text-muted-foreground max-w-[140px] transition-colors cursor-pointer group/cell",
+                            row.fieldErrors?.courseDuration 
+                              ? "bg-red-50/90 hover:bg-red-100/90 border-l-2 border-red-500 text-red-700" 
+                              : "hover:bg-muted/40"
+                          )}
+                          title="คลิกเพื่อแก้ไข Duration"
+                        >
+                          <div className="flex items-center justify-between gap-1.5">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <CellErrorIcon message={row.fieldErrors?.courseDuration} />
+                              <span className="truncate" title={row.courseDuration}>
+                                {row.courseDuration || '-'}
+                              </span>
+                            </div>
+                            <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover/cell:opacity-100 transition-opacity shrink-0" />
+                          </div>
+                        </td>
+                        <td
+                          onClick={() => setEditingRow(row)}
+                          className={cn(
+                            "px-3 py-2 max-w-[160px] transition-colors cursor-pointer group/cell",
+                            row.fieldErrors?.courseSyllabus 
+                              ? "bg-red-50/90 hover:bg-red-100/90 border-l-2 border-red-500 text-red-700" 
+                              : "hover:bg-muted/40"
+                          )}
+                          title="คลิกเพื่อแก้ไข Syllabus"
+                        >
+                          <div className="flex items-center justify-between gap-1.5">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <CellErrorIcon message={row.fieldErrors?.courseSyllabus} />
+                              <span className="truncate" title={row.courseSyllabus}>
+                                {row.courseSyllabus || <span className="text-muted-foreground">-</span>}
+                              </span>
+                            </div>
+                            <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover/cell:opacity-100 transition-opacity shrink-0" />
+                          </div>
+                        </td>
+                        <td
+                          onClick={() => setEditingRow(row)}
+                          className={cn(
+                            "px-3 py-2 max-w-[140px] transition-colors cursor-pointer group/cell",
+                            row.fieldErrors?.additionalNote 
+                              ? "bg-red-50/90 hover:bg-red-100/90 border-l-2 border-red-500 text-red-700" 
+                              : "hover:bg-muted/40"
+                          )}
+                          title="คลิกเพื่อแก้ไข Note"
+                        >
+                          <div className="flex items-center justify-between gap-1.5">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <CellErrorIcon message={row.fieldErrors?.additionalNote} />
+                              <span className="truncate" title={row.additionalNote}>
+                                {row.additionalNote || <span className="text-muted-foreground">-</span>}
+                              </span>
+                            </div>
+                            <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover/cell:opacity-100 transition-opacity shrink-0" />
+                          </div>
+                        </td>
+                        <td className={cn(
+                          "sticky right-0 z-20 px-3 py-2 text-right whitespace-nowrap border-l border-slate-200 shadow-[-2px_0_4px_-1px_rgba(0,0,0,0.06)] transition-colors",
+                          row.isValid ? "bg-white group-hover:bg-slate-50" : "bg-red-50/95 group-hover:bg-red-100"
+                        )}>
                           <button
                             type="button"
                             onClick={() => setEditingRow(row)}
@@ -569,15 +1108,23 @@ export function ImportCourseModal({ file: initialFile, onClose }: ImportCourseMo
                 <ArrowLeft className="h-4 w-4 mr-1.5" />
                 Back
               </Button>
-              <Button
-                type="button"
-                color="primary"
-                disabled={validRows.length === 0}
-                onClick={handleImport}
-              >
-                <Upload className="h-4 w-4 mr-1.5" />
-                Import {validRows.length} course{validRows.length !== 1 ? 's' : ''}
-              </Button>
+              <div className="flex items-center gap-3">
+                {/* A row whose Course Code already exists updates that course */}
+                {validRows.length > 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    {importPlan.createCount} new, {importPlan.updateCount} update
+                  </span>
+                )}
+                <Button
+                  type="button"
+                  color="primary"
+                  disabled={validRows.length === 0}
+                  onClick={handleImport}
+                >
+                  <Upload className="h-4 w-4 mr-1.5" />
+                  Import {validRows.length} course{validRows.length !== 1 ? 's' : ''}
+                </Button>
+              </div>
             </DialogFooter>
           </div>
         )}
@@ -588,7 +1135,7 @@ export function ImportCourseModal({ file: initialFile, onClose }: ImportCourseMo
             <Loader2 className="h-10 w-10 text-primary animate-spin" />
             <div className="w-full max-w-sm space-y-3 text-center">
               <p className="text-sm font-medium">
-                Importing courses... {importResults.length}/{validRows.length}
+                {importStage || `Importing ${validRows.length} course${validRows.length === 1 ? '' : 's'}...`}
               </p>
               <Progress value={importProgress} className="h-2" />
               <p className="text-xs text-muted-foreground">
@@ -601,46 +1148,61 @@ export function ImportCourseModal({ file: initialFile, onClose }: ImportCourseMo
         {/* ─── Step 4: Result ─── */}
         {step === 'result' && (
           <div className="flex-1 flex flex-col min-h-0">
-            {/* Summary cards */}
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-center">
-                <CheckCircle2 className="h-6 w-6 text-emerald-500 mx-auto mb-1" />
-                <p className="text-2xl font-bold text-emerald-700">
-                  {importResults.filter(r => r.success).length}
-                </p>
-                <p className="text-xs text-emerald-600">Imported Successfully</p>
+            {/* The request itself failed, so there are no server counts to show */}
+            {importError ? (
+              <div className="flex flex-col items-center gap-3 py-8">
+                <XCircle className="h-10 w-10 text-red-500" />
+                <p className="text-sm font-medium text-red-700">Import failed</p>
+                <p className="text-xs text-muted-foreground text-center max-w-md">{importError}</p>
               </div>
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-                <XCircle className="h-6 w-6 text-red-500 mx-auto mb-1" />
-                <p className="text-2xl font-bold text-red-700">
-                  {importResults.filter(r => !r.success).length}
-                </p>
-                <p className="text-xs text-red-600">Failed</p>
-              </div>
-            </div>
+            ) : (
+              <>
+                {/* Summary cards straight from the import response */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center">
+                    <FileSpreadsheet className="h-6 w-6 text-slate-500 mx-auto mb-1" />
+                    <p className="text-2xl font-bold text-slate-700">{importSummary?.total ?? 0}</p>
+                    <p className="text-xs text-slate-600">Total Rows</p>
+                  </div>
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-center">
+                    <CheckCircle2 className="h-6 w-6 text-emerald-500 mx-auto mb-1" />
+                    <p className="text-2xl font-bold text-emerald-700">{importSummary?.created ?? 0}</p>
+                    <p className="text-xs text-emerald-600">Created</p>
+                  </div>
+                  <div className="bg-sky-50 border border-sky-200 rounded-lg p-4 text-center">
+                    <Pencil className="h-6 w-6 text-sky-500 mx-auto mb-1" />
+                    <p className="text-2xl font-bold text-sky-700">{importSummary?.updated ?? 0}</p>
+                    <p className="text-xs text-sky-600">Updated</p>
+                  </div>
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
+                    <AlertTriangle className="h-6 w-6 text-amber-500 mx-auto mb-1" />
+                    <p className="text-2xl font-bold text-amber-700">{importSummary?.skipped ?? 0}</p>
+                    <p className="text-xs text-amber-600">Skipped</p>
+                  </div>
+                </div>
 
-            {/* Failed rows detail */}
-            {importResults.some(r => !r.success) && (
-              <div className="flex-1 overflow-auto border rounded-lg">
-                <table className="w-full text-xs">
-                  <thead className="bg-red-50 sticky top-0">
-                    <tr>
-                      <th className="px-3 py-2 text-left font-medium text-red-700">Course Code</th>
-                      <th className="px-3 py-2 text-left font-medium text-red-700">Course Name</th>
-                      <th className="px-3 py-2 text-left font-medium text-red-700">Error</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {importResults.filter(r => !r.success).map((r, idx) => (
-                      <tr key={idx} className="hover:bg-red-50/50">
-                        <td className="px-3 py-2 font-mono">{r.row.courseCode}</td>
-                        <td className="px-3 py-2">{r.row.courseName}</td>
-                        <td className="px-3 py-2 text-red-600">{r.error}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                {/* Errors reported per row by the server */}
+                {importSummary?.errors && importSummary.errors.length > 0 && (
+                  <div className="flex-1 overflow-auto border rounded-lg">
+                    <table className="w-full text-xs">
+                      <thead className="bg-red-50 sticky top-0">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium text-red-700">
+                            Errors reported by the server ({importSummary.errors.length})
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {importSummary.errors.map((message, idx) => (
+                          <tr key={`import-error-${idx}`} className="hover:bg-red-50/50">
+                            <td className="px-3 py-2 text-red-600">{message}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
             )}
 
             <DialogFooter className="mt-4">
@@ -665,6 +1227,147 @@ export function ImportCourseModal({ file: initialFile, onClose }: ImportCourseMo
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setRowToRemove(null)}>Cancel</Button>
               <Button type="button" color="destructive" onClick={confirmRemoveRow}>Remove</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Set Default Values Confirmation Dialog */}
+      {defaultModalState.isOpen && (
+        <Dialog
+          open={defaultModalState.isOpen}
+          onOpenChange={(open) => {
+            if (!open) setDefaultModalState({ isOpen: false })
+          }}
+        >
+          <DialogContent className="sm:max-w-[480px]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <Wand2 className="h-5 w-5 text-primary" />
+                ยืนยันการตั้งค่าเริ่มต้น (Set Default Value)
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4 py-3 text-xs">
+              <p className="text-muted-foreground">
+                ระบบจะนำค่าเริ่มต้นที่ระบุด้านล่างไปใส่ให้กับรายการที่มีข้อผิดพลาดโดยอัตโนมัติ เพื่อให้ข้อมูลถูกต้องและสามารถนำเข้าได้:
+              </p>
+
+              {/* Category Default */}
+              {(!defaultModalState.targetColumn || defaultModalState.targetColumn === 'courseCategory') && (
+                <div className="space-y-1.5 p-3 rounded-lg border bg-slate-50/70">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold text-slate-800">Category (หมวดหมู่วิชา)</Label>
+                    {columnErrorCounts['courseCategory'] ? (
+                      <Badge className="text-[10px] py-0 bg-red-100 text-red-700 hover:bg-red-100 border border-red-200">
+                        พบข้อผิดพลาด {columnErrorCounts['courseCategory']} รายการ
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <select
+                    className="w-full h-8 text-xs px-2 rounded-md border border-input bg-background"
+                    value={defaultCategory}
+                    onChange={(e) => setDefaultCategory(e.target.value)}
+                  >
+                    <option value="" disabled>-- เลือก Category เริ่มต้น --</option>
+                    {apiCategories.map(cat => (
+                      <option key={cat.id} value={cat.name}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Course Type Default */}
+              {(!defaultModalState.targetColumn || defaultModalState.targetColumn === 'courseType') && (
+                <div className="space-y-1.5 p-3 rounded-lg border bg-slate-50/70">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold text-slate-800">Course Type (ประเภทหลักสูตร)</Label>
+                    {columnErrorCounts['courseType'] ? (
+                      <Badge className="text-[10px] py-0 bg-red-100 text-red-700 hover:bg-red-100 border border-red-200">
+                        พบข้อผิดพลาด {columnErrorCounts['courseType']} รายการ
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <div className="flex gap-4 pt-1">
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="defaultType"
+                        value="Initial"
+                        checked={defaultType === 'Initial'}
+                        onChange={() => setDefaultType('Initial')}
+                        className="text-primary"
+                      />
+                      <span>Initial</span>
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="defaultType"
+                        value="Recurrent"
+                        checked={defaultType === 'Recurrent'}
+                        onChange={() => setDefaultType('Recurrent')}
+                        className="text-primary"
+                      />
+                      <span>Recurrent</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* Recurrence Default */}
+              {(!defaultModalState.targetColumn || defaultModalState.targetColumn === 'recurrenceIntervalYears') && (
+                <div className="space-y-1.5 p-3 rounded-lg border bg-slate-50/70">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold text-slate-800">Recurrence Interval (ปี - ทศนิยม 1 ตำแหน่ง)</Label>
+                    {columnErrorCounts['recurrenceIntervalYears'] ? (
+                      <Badge className="text-[10px] py-0 bg-red-100 text-red-700 hover:bg-red-100 border border-red-200">
+                        พบข้อผิดพลาด {columnErrorCounts['recurrenceIntervalYears']} รายการ
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    className="h-8 text-xs"
+                    value={defaultRecurrence}
+                    onChange={(e) => setDefaultRecurrence(Math.round(Number(e.target.value) * 10) / 10)}
+                  />
+                </div>
+              )}
+
+              <div className="pt-1">
+                <label className="flex items-center gap-2 cursor-pointer text-xs">
+                  <input
+                    type="checkbox"
+                    checked={applyOnlyToErrors}
+                    onChange={(e) => setApplyOnlyToErrors(e.target.checked)}
+                    className="rounded border-input text-primary focus:ring-primary h-4 w-4"
+                  />
+                  <span className="text-muted-foreground">
+                    นำค่าเริ่มต้นไปใช้เฉพาะรายการที่เกิดข้อผิดพลาดเท่านั้น (แนะนำ)
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <DialogFooter className="mt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDefaultModalState({ isOpen: false })}
+              >
+                ยกเลิก
+              </Button>
+              <Button
+                type="button"
+                color="primary"
+                onClick={handleApplyDefaultValues}
+              >
+                <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                ยืนยันใช้ค่าเริ่มต้น
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

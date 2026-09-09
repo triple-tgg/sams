@@ -1,83 +1,24 @@
 "use client";
 
-import React, { useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
-import { useRouter } from "next/navigation";
+import React from "react";
+import { useSelector } from "react-redux";
 import type { RootState } from "@/store/rootReducer";
-import { getMenuPermissions } from "@/lib/api/permission/getMenuPermissions";
-import { setPermissionsLoading, setPermissions } from "@/components/partials/auth/permissionSlice";
 import { Icon } from "@iconify/react";
 
 /**
  * PermissionGuard
  *
- * - If the user is authenticated but permissions have NOT been loaded yet
- *   (e.g. after a page refresh), re-fetches permissions from the API.
- * - Shows a full-page loading spinner while permissions are loading.
- * - Renders children once permissions are ready.
+ * Holds a full-page spinner until the authenticated user's permissions are in
+ * the store, so protected pages never render against an empty permission set.
+ *
+ * Loading itself is done by `usePermissionHydration` in AuthProvider, which
+ * runs on every route — including the root route, which sits outside this
+ * layout and would otherwise wait on permissions nothing was fetching.
  */
 export default function PermissionGuard({ children }: { children: React.ReactNode }) {
-    const dispatch = useDispatch();
     const isAuth = useSelector((s: RootState) => s.auth.isAuth);
-    const users = useSelector((s: RootState) => s.auth.users);
-    const { isLoaded, isLoading } = useSelector((s: RootState) => s.permission);
+    const isLoaded = useSelector((s: RootState) => s.permission.isLoaded);
 
-    // Re-fetch permissions if user is logged in but permissions not in store
-    // (happens after browser refresh — Redux is reset but localStorage keeps the user)
-    useEffect(() => {
-        if (isAuth && !isLoaded && !isLoading) {
-            // Try to load permissions from localStorage first (saved during login)
-            const savedUser = localStorage.getItem('user');
-            let hasCachedPerms = false;
-            if (savedUser) {
-                try {
-                    const userData = JSON.parse(savedUser);
-                    if (userData.menuPermissions && userData.menuPermissions.length > 0) {
-                        console.log('[PermissionGuard] loaded permissions from localStorage:', userData.menuPermissions.length, 'items');
-                        dispatch(setPermissions(userData.menuPermissions));
-                        hasCachedPerms = true;
-                    }
-                } catch (e) {
-                    console.warn('[PermissionGuard] Failed to parse saved user data');
-                }
-            }
-
-            // Fallback: fetch from API if not in localStorage, OR always update to latest
-            const roleId = (users as any)?.roleId;
-            if (roleId) {
-                if (!hasCachedPerms) {
-                    dispatch(setPermissionsLoading());
-                }
-                getMenuPermissions(Number(roleId))
-                    .then((res) => {
-                        const newPerms = res.responseData ?? [];
-                        console.log('[PermissionGuard] fetched permissions from API:', newPerms.length, 'items');
-                        dispatch(setPermissions(newPerms));
-                        
-                        // Update localStorage to cache the freshest permissions
-                        if (savedUser) {
-                            try {
-                                const userData = JSON.parse(savedUser);
-                                userData.menuPermissions = newPerms;
-                                localStorage.setItem('user', JSON.stringify(userData));
-                            } catch (e) {}
-                        }
-                    })
-                    .catch((err) => {
-                        console.error('[PermissionGuard] fetch failed:', err);
-                        // If it fails but we have cached ones, let's keep the cached ones.
-                        if (!hasCachedPerms) {
-                            dispatch(setPermissions([]));
-                        }
-                    });
-            } else {
-                console.warn('[PermissionGuard] No roleId found — setting empty permissions');
-                dispatch(setPermissions([]));
-            }
-        }
-    }, [isAuth, isLoaded, isLoading, users, dispatch]);
-
-    // Show loading overlay while fetching
     if (isAuth && !isLoaded) {
         return (
             <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-background gap-4">

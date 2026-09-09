@@ -1,3 +1,4 @@
+
 'use client'
 import React from "react";
 import DashCodeLogo from "./dascode-logo";
@@ -19,8 +20,8 @@ const Logo = () => {
         return <Link href="/flight/list" className="flex gap-2 items-center justify-center bg-blue-50 rounded-2xl p-2 pb-0">
             {/* <DashCodeLogo className="  text-default-900 h-8 w-8 [&>path:nth-child(3)]:text-background [&>path:nth-child(2)]:text-background" /> */}
             <Image
-                src="/images/logo/logo.png"
-                alt="dashcode"
+                src="/sams-logo-new.png"
+                alt="SAMS"
                 width={90}
                 height={36}
                 className="w-full h-auto object-contain  [&>path:nth-child(3)]:text-background [&>path:nth-child(2)]:text-background"
@@ -33,8 +34,8 @@ const Logo = () => {
         <Link href="/flight/list" className="flex gap-2 items-center justify-center  ">
             {/* <DashCodeLogo className="  text-default-900 h-8 w-8 [&>path:nth-child(3)]:text-background [&>path:nth-child(2)]:text-background" /> */}
             <Image
-                src="/images/logo/logo.png"
-                alt="dashcode"
+                src="/sams-logo-new.png"
+                alt="SAMS"
                 width={90}
                 height={36}
                 className="w-full h-auto object-contain  [&>path:nth-child(3)]:text-background [&>path:nth-child(2)]:text-background"

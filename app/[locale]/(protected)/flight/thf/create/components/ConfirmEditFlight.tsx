@@ -75,8 +75,8 @@ const ConfirmEditFlight = ({ onClose, onConfirm, setUserConfirm }: Props) => {
             <div className="max-w-[500px] flex flex-col gap-6 shadow-2xl shadow-slate-400 rounded-xl p-6 mt-10 bg-slate-100  border border-slate-200">
                 <div className="flex items-center justify-center">
                     <Image
-                        src="/images/logo/logo.png"
-                        alt="dashcode"
+                        src="/sams-logo-new.png"
+                        alt="SAMS"
                         width={90}
                         height={36}
                         className="w-[120px] h-auto object-contain"

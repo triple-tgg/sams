@@ -16,8 +16,8 @@ const HeaderLogo = () => {
             <Link href="/flight/list" className="flex gap-2 items-center    ">
                 {/* <DashCodeLogo className="  text-default-900 h-8 w-8 [&>path:nth-child(3)]:text-background [&>path:nth-child(2)]:text-background" /> */}
                 <Image
-                    src="/images/logo/logo.png"
-                    alt="dashcode"
+                    src="/sams-logo-new.png"
+                    alt="SAMS"
                     width={90}
                     height={48}
                     className="w-[60px] h-auto object-contain  [&>path:nth-child(3)]:text-background [&>path:nth-child(2)]:text-background"
@@ -32,8 +32,8 @@ const HeaderLogo = () => {
                 <Link href="/flight/list" className="flex gap-2 items-center    ">
                     {/* <DashCodeLogo className="  text-default-900 h-8 w-8 [&>path:nth-child(3)]:text-background [&>path:nth-child(2)]:text-background" /> */}
                     <Image
-                        src="/images/logo/logo.png"
-                        alt="dashcode"
+                        src="/sams-logo-new.png"
+                        alt="SAMS"
                         width={90}
                         height={48}
                         className="w-[60px] h-auto object-contain  [&>path:nth-child(3)]:text-background [&>path:nth-child(2)]:text-background"

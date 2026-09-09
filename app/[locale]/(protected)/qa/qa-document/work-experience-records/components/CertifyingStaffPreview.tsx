@@ -23,7 +23,7 @@ function FormHeader({ employeeId }: { employeeId: string }) {
     return (
         <div className="csp-header-container">
             <div className="csp-header-top">
-                <img src="/images/logo/logo.png" alt="SAMS" className="csp-logo" />
+                <img src="/sams-logo-new.png" alt="SAMS" className="csp-logo" />
                 <h1 className="csp-title">Certifying Staff Maintenance Experience Summary Form</h1>
             </div>
             <div className="csp-employee-id">Employee ID: {employeeId}</div>

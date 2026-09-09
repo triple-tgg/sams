@@ -121,7 +121,7 @@ export function PrintAttendanceModal({ isOpen, onClose, scheduleId }: PrintModal
                             <div className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
                                 <div style={{ width: 120 }}>
                                     <img
-                                        src="/images/logo/logo.png"
+                                        src="/sams-logo-new.png"
                                         alt="SAMS Logo"
                                         style={{ width: 70, height: 'auto', objectFit: 'contain' }}
                                     />

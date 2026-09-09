@@ -4,7 +4,8 @@ import {
     getCoreRowModel, getFilteredRowModel, getSortedRowModel, useReactTable,
 } from "@tanstack/react-table"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, ChevronRight, Download, Plus, AlignStartVertical, FileUp, Search, MapPin, Plane, Calendar, Zap, RotateCcw } from "lucide-react"
+import { ChevronLeft, ChevronRight, Download, Plus, AlignStartVertical, FileUp, Search, MapPin, Plane, Calendar, Zap, RotateCcw, Loader2 } from "lucide-react"
+import { useAircraftSchedMappingTemplate } from "@/hooks/use-aircraft-sched-mapping-template"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -90,15 +91,8 @@ const ListTable = ({
 
     const router = useRouter()
     const { locale } = useParams()
-    // Download template handler (same as Flight Timeline)
-    const handleDownloadTemplate = () => {
-        const link = document.createElement('a');
-        link.href = '/flie/Template Aircraft Sched-Mapping.xlsx';
-        link.download = 'Template Aircraft Sched-Mapping.xlsx';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
+    // Template comes from the API so its reference sheets stay current
+    const { downloadTemplate, isDownloading: isDownloadingTemplate } = useAircraftSchedMappingTemplate();
 
     // Excel import hook with preview, validation, and upload (same as Flight Timeline)
     const excelImport = useFlightExcelImport();
@@ -350,10 +344,13 @@ const ListTable = ({
                         className="flex-none"
                         color="secondary"
                         variant="outline"
-                        onClick={handleDownloadTemplate}
+                        onClick={downloadTemplate}
+                        disabled={isDownloadingTemplate}
                         size="md"
                     >
-                        <Download className="w-4 h-4 mr-2" />
+                        {isDownloadingTemplate
+                            ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            : <Download className="w-4 h-4 mr-2" />}
                         <span>Template</span>
                     </Button>
                     <PermissionActionGuard menuCode="FLIGHT_TIMELINE" action="canView">

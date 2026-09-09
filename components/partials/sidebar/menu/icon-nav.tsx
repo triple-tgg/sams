@@ -36,7 +36,7 @@ const IconNav = ({ menuList }: IconNavProps) => {
       <div className="text-center py-4 pt-0">
         <Link href="/flight/list" className="flex justify-center gap-2 items-center  bg-blue-50  p-2 pb-0">
           <Image
-            src="/images/logo/logo.png"
+            src="/sams-logo-new.png"
             alt="SAMS"
             width={48}
             height={48}

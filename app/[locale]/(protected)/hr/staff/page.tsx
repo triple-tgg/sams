@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -9,6 +9,12 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip'
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -43,6 +49,22 @@ export default function HRStaffListPage() {
     const [filterPosition, setFilterPosition] = useState<string>("0")
     const [filterDepartment, setFilterDepartment] = useState<string>("0")
     const [showImportModal, setShowImportModal] = useState(false)
+    const [selectedImportFile, setSelectedImportFile] = useState<File | null>(null)
+    const importFileInputRef = useRef<HTMLInputElement>(null)
+
+    const handleImportClick = () => {
+        importFileInputRef.current?.click()
+    }
+
+    const handleImportFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (file) {
+            setSelectedImportFile(file)
+            setShowImportModal(true)
+        }
+        e.target.value = ''
+    }
+
     const [filterStatus, setFilterStatus] = useState<string>("all")
 
     const { data: departmentData, isLoading: isLoadingDepartments } = useStaffDepartments()
@@ -118,11 +140,18 @@ export default function HRStaffListPage() {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
+                        <input
+                            ref={importFileInputRef}
+                            type="file"
+                            accept=".xlsx,.xls"
+                            className="hidden"
+                            onChange={handleImportFileSelect}
+                        />
                         <Button
                             size="sm"
                             variant="outline"
-                            className="border-green-300 text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-400 dark:hover:bg-green-900/20"
-                            onClick={() => setShowImportModal(true)}
+                            className="hr-btn-import"
+                            onClick={handleImportClick}
                         >
                             <FileUp className="h-4 w-4 mr-1.5" />
                             Import Excel
@@ -240,7 +269,8 @@ export default function HRStaffListPage() {
                     ) : (
                         <>
                             {/* Table */}
-                            <Table>
+                            <TooltipProvider delayDuration={150}>
+                                <Table>
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead className="whitespace-nowrap min-w-[220px]">Employee Name</TableHead>
@@ -317,8 +347,24 @@ export default function HRStaffListPage() {
                                                 </TableCell>
 
                                                 {/* Position */}
-                                                <TableCell className="text-sm">
-                                                    {staff.jobTitle || staff.positionObj?.name || '—'}
+                                                <TableCell className="text-sm max-w-[200px]">
+                                                    {staff.jobTitle || staff.positionObj?.name ? (
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <span className="block truncate cursor-default">
+                                                                    {staff.jobTitle || staff.positionObj?.name}
+                                                                </span>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent
+                                                                side="top"
+                                                                className="z-[9999] max-w-sm text-xs font-normal bg-slate-900 text-slate-50 dark:bg-slate-800 dark:text-slate-100 shadow-md px-2.5 py-1.5 rounded"
+                                                            >
+                                                                {staff.jobTitle || staff.positionObj?.name}
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    ) : (
+                                                        <span className="text-muted-foreground text-xs">—</span>
+                                                    )}
                                                 </TableCell>
 
                                                 {/* Status */}
@@ -348,7 +394,8 @@ export default function HRStaffListPage() {
                                         ))
                                     )}
                                 </TableBody>
-                            </Table>
+                                </Table>
+                            </TooltipProvider>
 
                             {/* Pagination */}
                             <div className="flex items-center justify-between px-5 py-4 border-t">
@@ -420,7 +467,11 @@ export default function HRStaffListPage() {
             {/* Staff Excel Import Modal */}
             <StaffExcelImportModal
                 isOpen={showImportModal}
-                onClose={() => setShowImportModal(false)}
+                initialFile={selectedImportFile}
+                onClose={() => {
+                    setShowImportModal(false)
+                    setSelectedImportFile(null)
+                }}
                 onImportSuccess={() => refetch()}
             />
         </div>

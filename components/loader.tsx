@@ -13,10 +13,11 @@ const Loader = () => {
             <div className="flex gap-2 items-center ">
                 {/* <DashCodeLogo className="  text-default-900 h-8 w-8 [&>path:nth-child(3)]:text-background [&>path:nth-child(2)]:text-background" /> */}
                 <Image
-                    src="/images/logo/3.png"
-                    alt="dashcode"
-                    width={200}
-                    height={36}
+                    src="/sams-logo-new.png"
+                    alt="SAMS"
+                    width={90}
+                    height={90}
+                    className="w-[90px] h-auto object-contain"
                 />
                 {/* <h1 className="text-xl font-semibold text-default-900 ">
                     SAMS Maintenance

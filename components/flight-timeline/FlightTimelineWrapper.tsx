@@ -10,7 +10,8 @@ import { formatDateForApi, sanitizeFlightsPlanby } from './utils';
 import { useFlightListQuery } from '@/lib/api/hooks/useFlightListQuery';
 import { GetFlightListParams } from "@/lib/api/flight/getFlightList";
 import { FlightItem } from "@/lib/api/flight/filghtlist.interface";
-import { AlignStartVertical, ArrowLeftFromLine, ArrowRightFromLine, Table, Maximize2, Minimize2, X, Plus, AlarmClockOff, AlarmClock, FileUp, Download } from "lucide-react";
+import { AlignStartVertical, ArrowLeftFromLine, ArrowRightFromLine, Table, Maximize2, Minimize2, X, Plus, AlarmClockOff, AlarmClock, FileUp, Download, Loader2 } from "lucide-react";
+import { useAircraftSchedMappingTemplate } from "@/hooks/use-aircraft-sched-mapping-template";
 import { FlightPlanbyItem, useFlightListPlanbyQuery } from "@/lib/api/hooks/useFlightListPlanbyQuery";
 import dayjs from "dayjs";
 import CreateProject from "@/app/[locale]/(protected)/flight/create-project";
@@ -62,15 +63,8 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
         }
     };
 
-    // Download template handler
-    const handleDownloadTemplate = () => {
-        const link = document.createElement('a');
-        link.href = '/flie/Template Aircraft Sched-Mapping.xlsx';
-        link.download = 'Template Aircraft Sched-Mapping.xlsx';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
+    // Template comes from the API so its reference sheets stay current
+    const { downloadTemplate, isDownloading: isDownloadingTemplate } = useAircraftSchedMappingTemplate();
 
     // Excel import hook with preview, validation, and upload
     const excelImport = useFlightExcelImport();
@@ -311,10 +305,13 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                             className="flex-none"
                             color="secondary"
                             variant="outline"
-                            onClick={handleDownloadTemplate}
+                            onClick={downloadTemplate}
+                            disabled={isDownloadingTemplate}
                             size="md"
                         >
-                            <Download className="w-4 h-4 mr-2" />
+                            {isDownloadingTemplate
+                                ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                : <Download className="w-4 h-4 mr-2" />}
                             <span>Template</span>
                         </Button>
                         </PermissionActionGuard>

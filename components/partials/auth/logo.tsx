@@ -7,12 +7,8 @@ const Logo = () => {
   return (
     <div>
       <Image
-        src={
-          mode === "light"
-            ? "/images/logo/logo.svg"
-            : "/images/logo/logo-white.svg"
-        }
-        alt=""
+        src="/sams-logo-new.png"
+        alt="SAMS"
         width={300}
         height={300}
         className=" w-36 "

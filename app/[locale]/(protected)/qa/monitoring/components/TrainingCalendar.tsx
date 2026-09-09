@@ -363,10 +363,13 @@ function MonthCard({
                     <div className="text-[11px] text-muted-foreground/50 py-1">No records</div>
                 ) : (
                     <>
-                        {preview.map(s => {
+                        {preview.map((s, i) => {
                             const minSt = mapStatus(s.status)
                             return (
-                                <div key={`${s.staffId}-${s.courseCode}`} className="flex items-center gap-1.5 text-[11px] text-muted-foreground overflow-hidden">
+                                // The API can return several rows for one staff member in the
+                                // same month, and courseCode is sometimes blank, so staffId and
+                                // courseCode together are not unique. The index disambiguates.
+                                <div key={`${s.staffId}-${s.courseCode}-${i}`} className="flex items-center gap-1.5 text-[11px] text-muted-foreground overflow-hidden">
                                     <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: STATUS_COLORS[minSt] }} />
                                     <span className="whitespace-nowrap overflow-hidden text-ellipsis flex-1">{s.staffName}</span>
                                 </div>

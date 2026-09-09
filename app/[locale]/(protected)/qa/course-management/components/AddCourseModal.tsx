@@ -38,10 +38,10 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
         recurrentYears: course?.recurrentYears || 2,
         note: course?.note || '',
         requiredRoles: initialRoles as number[],
-        aircraftTypeLicenseId: null as number | null,
+        aircraftEngineCombinationId: null as number | null,
         courseObjective: '',
-        courseDuration: '',
-        courseSyllabus: '',
+        duration: '',
+        syllabus: '',
     })
     const [submitted, setSubmitted] = useState(false)
 
@@ -77,10 +77,12 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                 recurrentYears: data.course.recurrenceIntervalYears || 2,
                 note: data.course.additionalNote || '',
                 requiredRoles: data.requirements.filter(r => r.isRequired).map(r => r.courseDepartmentSubId),
-                aircraftTypeLicenseId: data.course.aircraftTypeLicenseId || null,
+                // The detail endpoint returns the combinations as join rows.
+                aircraftEngineCombinationId:
+                    data.aircraftEngineCombinations?.[0]?.aircraftEngineCombinationId ?? null,
                 courseObjective: data.course.courseObjective || '',
-                courseDuration: data.course.courseDuration || '',
-                courseSyllabus: data.course.courseSyllabus || ''
+                duration: data.course.duration || '',
+                syllabus: data.course.syllabus || ''
             })
         }
     }, [courseDetailResp, apiCategories])
@@ -99,7 +101,7 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
     const onSaveClick = () => {
         setSubmitted(true)
         if (form.requiredRoles.length === 0) return
-        if (form.category === 'Type Course' && !form.aircraftTypeLicenseId) return
+        if (form.category === 'Type Course' && !form.aircraftEngineCombinationId) return
 
         const selectedCat = apiCategories.find(c => c.name === form.category)
         const catId = selectedCat?.id || 1
@@ -118,10 +120,12 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
             courseType: form.recurrent ? 'Recurrent' : 'Initial',
             recurrenceIntervalYears: form.recurrent ? form.recurrentYears : null,
             additionalNote: form.note || '',
-            aircraftTypeLicenseId: form.aircraftTypeLicenseId,
+            aircraftEngineCombinationIds: form.aircraftEngineCombinationId
+                ? [form.aircraftEngineCombinationId]
+                : [],
             courseObjective: form.courseObjective || '',
-            courseDuration: form.courseDuration || null,
-            courseSyllabus: form.courseSyllabus || null,
+            duration: form.duration || null,
+            syllabus: form.syllabus || null,
             requirements: requirements
         })
     }
@@ -274,9 +278,9 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                                     <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Aircraft Type License <span className="text-red-400">*</span></label>
                                     <Select
                                         options={activeCombinations.map(combo => ({ value: combo.id, label: combo.displayLabel }))}
-                                        value={activeCombinations.filter(combo => combo.id === form.aircraftTypeLicenseId).map(combo => ({ value: combo.id, label: combo.displayLabel }))[0] || null}
+                                        value={activeCombinations.filter(combo => combo.id === form.aircraftEngineCombinationId).map(combo => ({ value: combo.id, label: combo.displayLabel }))[0] || null}
                                         onChange={(selectedOption: any) => {
-                                            setForm({ ...form, aircraftTypeLicenseId: selectedOption ? selectedOption.value : null })
+                                            setForm({ ...form, aircraftEngineCombinationId: selectedOption ? selectedOption.value : null })
                                         }}
                                         placeholder="Select Aircraft Type"
                                         className="text-sm"
@@ -284,7 +288,7 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                                         styles={{
                                             control: (base, state) => ({
                                                 ...base,
-                                                borderColor: (submitted && !form.aircraftTypeLicenseId) ? '#f87171' : '#e2e8f0',
+                                                borderColor: (submitted && !form.aircraftEngineCombinationId) ? '#f87171' : '#e2e8f0',
                                                 boxShadow: state.isFocused ? '0 0 0 1px #3b82f6' : 'none',
                                                 '&:hover': {
                                                     borderColor: state.isFocused ? '#3b82f6' : '#cbd5e1'
@@ -292,7 +296,7 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                                             })
                                         }}
                                     />
-                                    {submitted && !form.aircraftTypeLicenseId && <p className="text-[11px] text-red-500 mt-1">Aircraft Type License is required</p>}
+                                    {submitted && !form.aircraftEngineCombinationId && <p className="text-[11px] text-red-500 mt-1">Aircraft Type License is required</p>}
                                 </div>
                             )}
 
@@ -302,8 +306,8 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                                 <input
                                     className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary"
                                     placeholder="e.g. 2 Days, 16 Hours"
-                                    value={form.courseDuration}
-                                    onChange={e => setForm({ ...form, courseDuration: e.target.value })}
+                                    value={form.duration}
+                                    onChange={e => setForm({ ...form, duration: e.target.value })}
                                 />
                             </div>
 
@@ -326,8 +330,8 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                                     <ReactQuill
                                         theme="snow"
                                         placeholder="Enter the course syllabus..."
-                                        value={form.courseSyllabus}
-                                        onChange={val => setForm({ ...form, courseSyllabus: val })}
+                                        value={form.syllabus}
+                                        onChange={val => setForm({ ...form, syllabus: val })}
                                     />
                                 </div>
                             </div>

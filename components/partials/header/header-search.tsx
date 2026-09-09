@@ -29,8 +29,8 @@ const HeaderSearch = () => {
                 </button>
             </DialogTrigger>
             <DialogContent className="p-0">
-                <DialogTitle className="hidden"></DialogTitle>
-                <DialogDescription className="hidden"></DialogDescription>
+                <DialogTitle className="sr-only">Search</DialogTitle>
+                <DialogDescription className="sr-only">Search navigation and pages</DialogDescription>
                 <Command className=" bg-card">
                     <div className="flex items-center border-b border-default-200">
                         <CommandInput
