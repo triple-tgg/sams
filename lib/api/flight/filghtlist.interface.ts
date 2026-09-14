@@ -55,7 +55,17 @@ export interface FlightItem {
   maintenanceStatusObj?: MaintenanceStatusObj | null
   // Email success count
   emailSuccessCount?: number
+  // THF Revision & Mapping lifecycle
+  mappingStatus?: ThfMappingStatus
+  revisionReason?: string | null
+  revisionCategory?: string | null
+  revisionRequestedAt?: string | null
+  revisionRequestedBy?: string | null
+  revisionCount?: number
 }
+
+export type ThfMappingStatus = 'NONE' | 'MAPPED' | 'REVISION_REQUESTED' | 'REVISED' | 'LOCKED';
+export type ThfDocumentState = 'plan' | 'draft' | 'save' | 'submitted' | 'revision_required' | 'pending_unlock' | 'locked';
 
 // Staff item (for csList and mechList when returned as objects)
 export interface StaffItem {

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useMapContractsV2 } from "@/lib/api/contract/mappingContractsV2.hooks";
+import { thfRevisionService } from "@/lib/store/useThfRevisionStore";
 
 interface PreInvoiceModalProps {
     open: boolean;
@@ -28,6 +29,11 @@ export function PreInvoiceModal({ open, onOpenChange, lineMaintenanceIds }: PreI
             curencyRate: Number(currencyRate) || 0,
             lineMaintenanceIdLiist: lineMaintenanceIds,
         });
+
+        // Any revised items that were mapped into Pre-Invoice are now settled
+        lineMaintenanceIds.forEach(id => {
+            thfRevisionService.reMapSuccess({ lineMaintenanceId: id });
+        });
         
         onOpenChange(false);
     };
@@ -36,7 +42,7 @@ export function PreInvoiceModal({ open, onOpenChange, lineMaintenanceIds }: PreI
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>Pre-Invoice</DialogTitle>
+                    <DialogTitle>Create Pre-Invoice</DialogTitle>
                 </DialogHeader>
                 
                 <div className="grid gap-4 py-4">

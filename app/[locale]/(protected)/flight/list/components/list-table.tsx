@@ -33,7 +33,10 @@ import CreateProject from "../../create-project"
 import CreateThfModal from "../../thf/create/components/CreateThfModal"
 import { PreviewThfModal } from "./PreviewThfModal"
 import EmailPreviewModal from "./EmailPreviewModal"
+import { RequestUnlockModal } from "./RequestUnlockModal"
+import { useAllThfRevisions } from "@/lib/store/useThfRevisionStore"
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
+import { AlertTriangle } from "lucide-react"
 
 interface Option {
     value: string; label: string; image?: string;
@@ -119,6 +122,12 @@ const ListTable = ({
     const [emailModalOpen, setEmailModalOpen] = React.useState(false);
     const [selectedEmailFlight, setSelectedEmailFlight] = React.useState<FlightItem | null>(null);
 
+    // Request Unlock Modal State
+    const [requestUnlockOpen, setRequestUnlockOpen] = React.useState(false);
+    const [selectedUnlockFlight, setSelectedUnlockFlight] = React.useState<FlightItem | null>(null);
+
+    const { getRevisionForFlight } = useAllThfRevisions();
+
     // Cancel flight mutation
     const cancelFlightMutation = useCancelFlightMutation();
 
@@ -154,11 +163,6 @@ const ListTable = ({
     const dateRangeValue = watch("dateRange")
     const columns = getFlightColumns({
         onCreateTHF: (flight) => {
-            // const q = new URLSearchParams({ flightInfosId: String(flight.flightInfosId ?? "") })
-            // router.push(`/${locale}/flight/thf/create?${q.toString()}`)
-            // routerPushNewTab(`/${locale}/flight/thf/create?${q.toString()}`)
-
-            // Open Modal
             if (flight.flightInfosId) {
                 setSelectedFlightThfId(flight.flightInfosId)
                 setCreateThfOpen(true)
@@ -174,6 +178,11 @@ const ListTable = ({
                 setPreviewThfOpen(true)
             }
         },
+        onRequestUnlock: (flight) => {
+            setSelectedUnlockFlight(flight);
+            setRequestUnlockOpen(true);
+        },
+        getRevisionRecord: (flight) => getRevisionForFlight(flight.flightInfosId, flight.lineMaintenancesId, flight.thfNumber),
         onAttach: (filePath: string) => {
             console.log("Attach file:", filePath);
             routerPushNewTab(filePath);
@@ -303,6 +312,12 @@ const ListTable = ({
                 flightNo={selectedEmailFlight?.arrivalFlightNo}
                 emailTo={selectedEmailFlight?.airlineObj?.emailTo}
                 emailCc={selectedEmailFlight?.airlineObj?.emailCc}
+            />
+            <RequestUnlockModal
+                open={requestUnlockOpen}
+                onOpenChange={setRequestUnlockOpen}
+                flight={selectedUnlockFlight}
+                onSuccess={() => setSelectedUnlockFlight(null)}
             />
             {/* Header Section with Title and Buttons */}
             <CardHeader className="pb-4">
@@ -506,6 +521,26 @@ const ListTable = ({
                     </div>
                 </form>
             </FormProvider>
+            {/* Revision Required Alert Banner */}
+            {(() => {
+                const revisionRequiredCount = projects.filter(p => {
+                    const rev = getRevisionForFlight(p.flightInfosId, p.lineMaintenancesId, p.thfNumber);
+                    return rev?.state === "revision_required";
+                }).length;
+
+                if (revisionRequiredCount === 0) return null;
+
+                return (
+                    <div className="mx-6 mb-3 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 rounded-lg flex items-center justify-between text-xs text-amber-900 dark:text-amber-200 shadow-xs">
+                        <div className="flex items-center gap-2 font-medium">
+                            <AlertTriangle className="h-4 w-4 text-amber-600 animate-pulse" />
+                            <span>มี <strong>{revisionRequiredCount}</strong> เที่ยวบินที่แผนกบัญชีส่งกลับมาให้แก้ไขเอกสาร THF (Revision Required)</span>
+                        </div>
+                        <span className="text-[11px] text-amber-700 dark:text-amber-400">กรุณาตรวจสอบและกด <strong>Edit THF (Revision Required)</strong> ในเที่ยวบินที่มีแถบสีส้ม</span>
+                    </div>
+                );
+            })()}
+
             {(isLoading || isFetching) && <TableSkeleton columns={7} rows={5} />}
             {!isLoading && !isFetching && (
                 <CardContent className="p-0 overflow-x-auto">
@@ -530,12 +565,16 @@ const ListTable = ({
                                 table.getRowModel().rows.map((row) => {
                                     const flight = row.original;
                                     const isCancelled = flight.statusObj?.code === "Cancel";
+                                    const revRecord = getRevisionForFlight(flight.flightInfosId, flight.lineMaintenancesId, flight.thfNumber);
+                                    const isRevisionRequired = revRecord?.state === "revision_required";
+
                                     return (
                                         <TableRow
                                             key={row.id}
                                             data-state={row.getIsSelected() && "selected"}
                                             className={clsx(
-                                                isCancelled && "bg-destructive/5 border-l-4 border-l-destructive"
+                                                isCancelled && "bg-destructive/5 border-l-4 border-l-destructive",
+                                                isRevisionRequired && "bg-amber-500/10 border-l-4 border-l-amber-500 hover:bg-amber-500/15"
                                             )}
                                         >
                                             {row.getVisibleCells().map((cell) => (

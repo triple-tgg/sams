@@ -5,7 +5,8 @@ import VerticalStepper from './stepper/vertical-stepper'
 import { StepContext, SubmitPhase } from './step-context'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { X, CheckCircle2 } from 'lucide-react'
+import { X, CheckCircle2, AlertTriangle } from 'lucide-react'
+import type { ThfRevisionRecord } from '@/lib/store/useThfRevisionStore'
 
 interface Step {
     label: string
@@ -20,9 +21,10 @@ type ModalStepWrapperProps = {
     status?: string
     onClose?: () => void
     canNavigate?: boolean
+    revisionRecord?: ThfRevisionRecord | null
 }
 
-const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, title = "New THF", status, onClose, canNavigate = false }) => {
+const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, title = "New THF", status, onClose, canNavigate = false, revisionRecord }) => {
     const [currentStep, setCurrentStep] = useState(0)
     const [activeStep, setActiveStep] = useState(1) // 1-based index for display/logic matching existing components
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -153,6 +155,29 @@ const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, ti
                     <ScrollArea className="flex-1 p-0">
                         <div className="px-8 py-6 pb-24">
                             <div className="max-w-4xl">
+                                {revisionRecord?.state === 'revision_required' && (
+                                    <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 rounded-lg flex items-start gap-3 shadow-xs">
+                                        <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                                        <div className="text-xs text-amber-900 dark:text-amber-200 flex-1">
+                                            <div className="font-semibold text-sm text-amber-800 dark:text-amber-300 flex items-center justify-between">
+                                                <span>คำขอแก้ไขจากแผนกบัญชี ({revisionRecord.requestedBy || 'Accounting'})</span>
+                                                {revisionRecord.requestedAt && (
+                                                    <span className="text-[11px] font-normal text-amber-600 dark:text-amber-400">
+                                                        {new Date(revisionRecord.requestedAt).toLocaleString()}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="mt-1.5 text-slate-800 dark:text-slate-200 font-medium bg-white/85 dark:bg-slate-900/85 p-2.5 rounded border border-amber-200/60 dark:border-amber-900/60">
+                                                {revisionRecord.reason || 'กรุณาตรวจสอบและปรับปรุงข้อมูลให้ถูกต้องตามที่ระบุ'}
+                                            </p>
+                                            {revisionRecord.category && (
+                                                <div className="mt-1.5 text-[11px] text-amber-700 dark:text-amber-400 font-medium">
+                                                    หมวดหมู่ข้อผิดพลาด: <span className="underline">{revisionRecord.category}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                                 {CurrentComponent}
                             </div>
                         </div>

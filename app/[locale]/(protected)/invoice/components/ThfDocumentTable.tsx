@@ -28,8 +28,12 @@ import clsx from "clsx";
 import { routerPushNewTab } from "@/lib/utils/navigation";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PreInvoiceModal } from "./PreInvoiceModal";
+import { RequestRevisionModal } from "./RequestRevisionModal";
 import { Button } from "@/components/ui/button";
-import { BadgeDollarSign } from "lucide-react";
+import { BadgeDollarSign, AlertCircle, RotateCcw, RefreshCw, Layers } from "lucide-react";
+import { useAllThfRevisions } from "@/lib/store/useThfRevisionStore";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { toast } from "sonner";
 
 interface ThfDocumentTableProps {
     searchParams: InvoiceRequest;
@@ -96,15 +100,26 @@ export const ThfDocumentTable = ({
     const [preInvoiceOpen, setPreInvoiceOpen] = useState(false);
     const [selectedPreInvoiceIds, setSelectedPreInvoiceIds] = useState<number[]>([]);
 
+    const [revisionModalOpen, setRevisionModalOpen] = useState(false);
+    const [selectedRevisionFlight, setSelectedRevisionFlight] = useState<FlightItem | null>(null);
+
     const [rowSelection, setRowSelection] = useState({});
 
+    const { getRevisionForFlight, reMapSuccess } = useAllThfRevisions();
     const cancelFlightMutation = useCancelFlightMutation();
+
+    const handleRequestRevision = (flight: FlightItem) => {
+        setSelectedRevisionFlight(flight);
+        setRevisionModalOpen(true);
+    };
 
     const columns = useMemo(() => {
         const baseColumns = getFlightColumns({
             hideStatusActions: true,
             // A/C Type shows the family code (e.g. A320) on THF DOCUMENT
             acTypeField: "familyCode",
+            onRequestRevision: handleRequestRevision,
+            getRevisionRecord: (flight) => getRevisionForFlight(flight.flightInfosId, flight.lineMaintenancesId, flight.thfNumber),
             onPreviewTHF: (flight) => {
                 if (flight.flightInfosId) {
                     setSelectedPreviewThfId(flight.flightInfosId);
@@ -129,13 +144,36 @@ export const ThfDocumentTable = ({
                         aria-label="Select all"
                     />
                 ),
-                cell: ({ row }) => (
-                    <Checkbox
-                        checked={row.getIsSelected()}
-                        onCheckedChange={(value) => row.toggleSelected(!!value)}
-                        aria-label="Select row"
-                    />
-                ),
+                cell: ({ row }) => {
+                    const flight = row.original;
+                    const rev = getRevisionForFlight(flight.flightInfosId, flight.lineMaintenancesId, flight.thfNumber);
+                    const isRevisionReq = rev?.mappingStatus === "REVISION_REQUESTED";
+
+                    if (isRevisionReq) {
+                        return (
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <div className="inline-block cursor-not-allowed opacity-40">
+                                            <Checkbox disabled checked={false} aria-label="Cannot select item under revision" />
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="text-xs">
+                                        ไม่สามารถเลือกได้ เนื่องจากอยู่ในสถานะรอแก้ไข (Revision Requested)
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        );
+                    }
+
+                    return (
+                        <Checkbox
+                            checked={row.getIsSelected()}
+                            onCheckedChange={(value) => row.toggleSelected(!!value)}
+                            aria-label="Select row"
+                        />
+                    );
+                },
                 enableSorting: false,
                 enableHiding: false,
             },
@@ -151,19 +189,81 @@ export const ThfDocumentTable = ({
             {
                 id: "mappingStatus",
                 header: "STATUS",
-                cell: ({ row }) => row.original.isMapping ? (
-                    <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold tracking-wider text-primary border border-primary/20">
-                        MAPPED
-                    </span>
-                ) : (
-                    <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold tracking-wider text-red-700 border border-red-200">
-                        NONE
-                    </span>
-                ),
+                cell: ({ row }) => {
+                    const flight = row.original;
+                    const rev = getRevisionForFlight(flight.flightInfosId, flight.lineMaintenancesId, flight.thfNumber);
+                    const status = rev?.mappingStatus ?? (flight.isMapping ? "MAPPED" : "NONE");
+
+                    if (status === "REVISION_REQUESTED") {
+                        return (
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-amber-700 border border-amber-300 animate-pulse cursor-help">
+                                            <AlertCircle className="h-3 w-3 text-amber-600" />
+                                            REVISION REQUESTED
+                                        </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-xs text-xs">
+                                        <p className="font-semibold text-amber-500">เหตุผลที่ส่งกลับแก้ไข:</p>
+                                        <p className="text-slate-100 mt-0.5">{rev?.reason || "-"}</p>
+                                        {rev?.category && (
+                                            <p className="text-[10px] text-slate-400 mt-1">หมวดหมู่: {rev.category}</p>
+                                        )}
+                                        <p className="text-[10px] text-slate-400 mt-0.5">
+                                            โดย: {rev?.requestedBy || "Accounting"} ({rev?.requestedAt ? new Date(rev.requestedAt).toLocaleTimeString() : "-"})
+                                        </p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        );
+                    }
+
+                    if (status === "REVISED") {
+                        return (
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <span className="inline-flex items-center gap-1 rounded bg-purple-100 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-purple-700 border border-purple-300 cursor-help">
+                                            <RotateCcw className="h-3 w-3 text-purple-600" />
+                                            REVISED
+                                        </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-xs text-xs">
+                                        <p className="font-semibold text-purple-400">ช่างแก้ไขเสร็จเรียบร้อยแล้ว</p>
+                                        <p className="text-slate-100 mt-0.5">เอกสารพร้อมสำหรับ Create Pre-Invoice เพื่อคำนวณและออกใบแจ้งหนี้</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        );
+                    }
+
+                    if (status === "LOCKED") {
+                        return (
+                            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold tracking-wider text-slate-700 border border-slate-300">
+                                LOCKED
+                            </span>
+                        );
+                    }
+
+                    if (status === "MAPPED") {
+                        return (
+                            <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold tracking-wider text-primary border border-primary/20">
+                                MAPPED
+                            </span>
+                        );
+                    }
+
+                    return (
+                        <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold tracking-wider text-red-700 border border-red-200">
+                            NONE
+                        </span>
+                    );
+                },
             },
             ...baseColumns
         ];
-    }, []);
+    }, [getRevisionForFlight]);
 
     const table = useReactTable({
         data: rows,
@@ -178,6 +278,25 @@ export const ThfDocumentTable = ({
         pageCount,
         getCoreRowModel: getCoreRowModel(),
     });
+
+    // Calculate summary counts across currently displayed rows (must be before any early return)
+    const summaryStats = useMemo(() => {
+        let mapped = 0;
+        let none = 0;
+        let revisionReq = 0;
+        let revised = 0;
+
+        rows.forEach(r => {
+            const rev = getRevisionForFlight(r.flightInfosId, r.lineMaintenancesId, r.thfNumber);
+            const status = rev?.mappingStatus ?? (r.isMapping ? "MAPPED" : "NONE");
+            if (status === "REVISION_REQUESTED") revisionReq++;
+            else if (status === "REVISED") revised++;
+            else if (status === "MAPPED") mapped++;
+            else none++;
+        });
+
+        return { total: rows.length, mapped, none, revisionReq, revised };
+    }, [rows, getRevisionForFlight]);
 
     if (!hasSearched) return null;
 
@@ -202,6 +321,31 @@ export const ThfDocumentTable = ({
 
     return (
         <div className="w-full bg-white rounded-md border">
+            {/* Status Overview Header Bar */}
+            <div className="p-3 border-b flex flex-wrap items-center justify-between gap-2 bg-slate-50/70 text-xs">
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold text-slate-700">STATUS SUMMARY:</span>
+                    <span className="inline-flex items-center rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 font-medium text-emerald-700">
+                        Mapped: {summaryStats.mapped}
+                    </span>
+                    <span className="inline-flex items-center rounded-full bg-red-50 border border-red-200 px-2.5 py-0.5 font-medium text-red-700">
+                        None: {summaryStats.none}
+                    </span>
+                    {summaryStats.revised > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 border border-purple-300 px-2.5 py-0.5 font-semibold text-purple-700 animate-pulse">
+                            <RotateCcw className="h-3 w-3" />
+                            Revised (Ready for Create Pre-Invoice): {summaryStats.revised}
+                        </span>
+                    )}
+                    {summaryStats.revisionReq > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 border border-amber-300 px-2.5 py-0.5 font-semibold text-amber-800">
+                            <AlertCircle className="h-3 w-3 text-amber-600" />
+                            Revision Requested: {summaryStats.revisionReq}
+                        </span>
+                    )}
+                </div>
+            </div>
+
             {Object.keys(rowSelection).length > 0 && (
                 <div className="p-3 border-b flex items-center justify-between bg-slate-50">
                     <span className="text-sm font-medium text-slate-700">
@@ -219,7 +363,7 @@ export const ThfDocumentTable = ({
                         }}
                     >
                         <BadgeDollarSign className="w-4 h-4 mr-2" />
-                        Pre-Invoice
+                        Create Pre-Invoice
                     </Button>
                 </div>
             )}
@@ -310,6 +454,13 @@ export const ThfDocumentTable = ({
                     }
                 }}
                 lineMaintenanceIds={selectedPreInvoiceIds}
+            />
+
+            <RequestRevisionModal
+                open={revisionModalOpen}
+                onOpenChange={setRevisionModalOpen}
+                flight={selectedRevisionFlight}
+                onSuccess={() => setSelectedRevisionFlight(null)}
             />
         </div>
     );

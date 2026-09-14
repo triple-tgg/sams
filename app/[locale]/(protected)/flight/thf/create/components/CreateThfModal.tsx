@@ -10,6 +10,7 @@ import AttachFileStep from './AttachFile'
 import PreviewStep from './PreviewStep'
 import EquipmentStep from './EquipmentStep'
 import { useCreateThfModalController } from './useCreateThfModalController'
+import { useThfRevision } from '@/lib/store/useThfRevisionStore'
 
 const steps = [
     { label: 'Flight Info', step: 1, description: 'Flight Details' },
@@ -36,12 +37,18 @@ const CreateThfModal: React.FC<CreateThfModalProps> = ({
     // Separation of Concerns: Logic extracted to hook
     const { flightDataState, options } = useCreateThfModalController({ flightInfosId })
 
+    const { record: revisionRecord } = useThfRevision({
+        flightId: flightInfosId,
+        lineMaintenanceId: flightDataState.lineMaintenanceData?.id,
+        thfNumber: flightDataState.lineMaintenanceData?.thfNumber,
+    })
+
     // Determine if this is an Edit (existing THF) vs New (no THF yet)
     // We use isInitialCreationMode to prevent the modal from switching to 'Edit' mode
     // midway through the process if step 1 is saved and lineMaintenanceData is created.
     const isEdit = flightDataState.isInitialCreationMode === false
     const title = isEdit ? 'Edit THF' : 'New THF'
-    const status = flightDataState.rawFlightData?.state || undefined
+    const status = revisionRecord?.state ?? flightDataState.rawFlightData?.state ?? undefined
     const canNavigate = isEdit
 
     const handleClose = () => {
@@ -65,6 +72,7 @@ const CreateThfModal: React.FC<CreateThfModalProps> = ({
                     status={status}
                     onClose={handleClose}
                     canNavigate={canNavigate}
+                    revisionRecord={revisionRecord}
                 >
                     {/* Step 1: Flight */}
                     <FlightStep

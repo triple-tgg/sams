@@ -4,12 +4,12 @@ import { useParams, useRouter } from 'next/navigation'
 import { AttachFileFormInputs } from './types'
 import { prepareAttachFileDataForApi } from './utils'
 import { usePutAttachFileOtherWithLoading } from '@/lib/api/hooks/usePutAttachfileOther'
-import { useMappingContracts } from '@/lib/api/hooks/useMappingContracts'
 import { useSharePointSend } from '@/lib/api/hooks/useSharePointSend'
 import { LineMaintenanceThfResponse } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import useReduxAuth from '@/lib/api/hooks/useReduxAuth'
+import { thfRevisionService } from '@/lib/store/useThfRevisionStore'
 
 export interface UseAttachFileSubmissionParams {
   form: UseFormReturn<AttachFileFormInputs>
@@ -75,19 +75,6 @@ export const useAttachFileSubmission = ({
     }
   })
 
-  // Initialize the mapping-contracts mutation
-  const {
-    mappingContracts,
-    isMappingLoading,
-  } = useMappingContracts({
-    lineMaintenancesId: lineMaintenanceId || 0,
-    onSuccess: async () => {
-      console.log('✅ Mapping contracts successful')
-    },
-    onError: (error) => {
-      console.error('❌ Failed to map contracts:', error)
-    }
-  })
 
   // Initialize the SharePoint send mutation
   const {
@@ -152,6 +139,17 @@ export const useAttachFileSubmission = ({
         return
       }
 
+      // Check if this was a revision submission
+      if (lineMaintenanceId) {
+        const rev = thfRevisionService.get(undefined, lineMaintenanceId);
+        if (rev && rev.state === 'revision_required') {
+          thfRevisionService.submitRevision({
+            lineMaintenanceId,
+          });
+          toast.info('ส่งการแก้ไขไปยังแผนกบัญชีเรียบร้อยแล้ว สถานะเปลี่ยนเป็น REVISED พร้อมสำหรับออก Pre-Invoice');
+        }
+      }
+
       toast.success('Submit completed successfully')
       setSubmitPhase?.('success')
     } catch (error) {
@@ -159,7 +157,7 @@ export const useAttachFileSubmission = ({
       toast.error(`Submit failed: ${error instanceof Error ? error.message : error}`)
       setSubmitPhase?.('error')
     }
-  }, [callAttachFileOther, mappingContracts, sendToSharePoint, getUserName, setSubmitPhase])
+  }, [callAttachFileOther, sendToSharePoint, getUserName, setSubmitPhase, lineMaintenanceId])
 
   // Handle back navigation
   const handleOnBackStep = useCallback(() => {
@@ -171,7 +169,7 @@ export const useAttachFileSubmission = ({
     handleSubmit,
     handleDraft,
     handleOnBackStep,
-    isSubmitting: isAttachFileLoading || isMappingLoading || isSharePointLoading,
+    isSubmitting: isAttachFileLoading || isSharePointLoading,
     isDrafting: isAttachFileLoading,
     isSubmitSuccess,
     isSubmitError,
