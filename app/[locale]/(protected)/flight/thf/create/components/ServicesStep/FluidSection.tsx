@@ -14,6 +14,7 @@ import {
 import { ServicesFormInputs } from './types'
 import { AircraftTypeFlags } from '@/lib/api/master/aircraft-types/getAircraftTypeById'
 import { CustomDateInput } from '@/components/ui/input-date/CustomDateInput'
+import { CustomTimeInput } from '@/components/ui/input-time/CustomTimeInput'
 import { FieldError } from '@/components/ui/field-error'
 
 // ─── Shared UI helpers ───────────────────────────────────────────────
@@ -525,7 +526,7 @@ export const OperationalSections: React.FC<OperationalSectionsProps> = ({
                           render={({ field }) => (
                             <FormItem className="space-y-0">
                               <FormControl>
-                                <Input type="time" {...field} className="h-9" />
+                                <CustomTimeInput {...field} className="h-9" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -558,7 +559,7 @@ export const OperationalSections: React.FC<OperationalSectionsProps> = ({
                           render={({ field }) => (
                             <FormItem className="space-y-0">
                               <FormControl>
-                                <Input type="time" {...field} className="h-9" />
+                                <CustomTimeInput {...field} className="h-9" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>

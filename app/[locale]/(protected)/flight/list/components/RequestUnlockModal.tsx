@@ -27,7 +27,7 @@ export function RequestUnlockModal({ open, onOpenChange, flight, onSuccess }: Re
         if (!flight) return;
 
         if (!reason.trim()) {
-            toast.error("กรุณาระบุเหตุผลที่ต้องการแก้ไขเอกสาร");
+            toast.error("Please provide a reason for the edit request.");
             return;
         }
 
@@ -56,8 +56,8 @@ export function RequestUnlockModal({ open, onOpenChange, flight, onSuccess }: Re
                 requestedBy: "Engineer / Maintenance Team",
             });
 
-            toast.info(`ส่งคำขอปลดล็อกเอกสาร THF ${flight.thfNumber || ""} ไปยังแผนกบัญชีแล้ว`, {
-                description: "เมื่อบัญชีอนุมัติคำขอ คุณจะสามารถกดเข้าแก้ไขเอกสารได้ทันที",
+            toast.info(`Unlock request for THF ${flight.thfNumber || ""} sent to Accounting`, {
+                description: "Once Accounting approves the request, you can edit this document immediately.",
             });
 
             onSuccess?.();
@@ -65,7 +65,7 @@ export function RequestUnlockModal({ open, onOpenChange, flight, onSuccess }: Re
             setReason("");
         } catch (error) {
             console.error("Failed to request unlock:", error);
-            toast.error("เกิดข้อผิดพลาดในการส่งคำขอ");
+            toast.error("Failed to submit unlock request.");
         } finally {
             setIsSubmitting(false);
         }
@@ -80,28 +80,32 @@ export function RequestUnlockModal({ open, onOpenChange, flight, onSuccess }: Re
                     <DialogHeader>
                         <div className="flex items-center gap-2 text-blue-600">
                             <LockKeyhole className="h-5 w-5" />
-                            <DialogTitle className="text-lg">ขออนุญาตแก้ไขเอกสาร THF (Request Edit)</DialogTitle>
+                            <DialogTitle className="text-lg">Request THF Edit</DialogTitle>
                         </div>
                         <DialogDescription className="text-xs text-muted-foreground pt-1">
-                            เอกสาร THF นี้ถูกบันทึกและส่งมอบให้แผนกบัญชี (Invoice) แล้ว หากต้องการแก้ไขข้อมูล จะต้องได้รับความยินยอมจากบัญชีก่อนเพื่อป้องกันความคลาดเคลื่อนของยอดเงิน
+                            This THF has been saved and submitted to Accounting (Invoice). Any modifications require Accounting approval to prevent billing discrepancies.
                         </DialogDescription>
                     </DialogHeader>
 
                     {/* Flight & THF Info Card */}
                     <div className="my-4 p-3 bg-slate-50 border rounded-lg text-xs grid grid-cols-2 gap-2 text-slate-700">
-                        <div>
+                        <div className="col-span-2">
                             <span className="text-muted-foreground">THF Number: </span>
                             <span className="font-semibold text-slate-900">{flight.thfNumber || "-"}</span>
                         </div>
-                        <div>
+                        <div className="col-span-2">
                             <span className="text-muted-foreground">Flight No: </span>
-                            <span className="font-semibold text-slate-900">{flight.arrivalFlightNo || flight.departureFlightNo || "-"}</span>
+                            <span className="font-semibold text-slate-900">
+                                {flight.arrivalFlightNo && flight.departureFlightNo && flight.arrivalFlightNo !== flight.departureFlightNo && !flight.arrivalFlightNo.includes(flight.departureFlightNo)
+                                    ? `${flight.arrivalFlightNo} / ${flight.departureFlightNo}`
+                                    : (flight.arrivalFlightNo || flight.departureFlightNo || "-")}
+                            </span>
                         </div>
-                        <div>
+                        <div className="pt-1.5 border-t border-slate-200/60">
                             <span className="text-muted-foreground">Airline: </span>
                             <span className="font-semibold text-slate-900">{flight.airlineObj?.code || "-"}</span>
                         </div>
-                        <div>
+                        <div className="pt-1.5 border-t border-slate-200/60">
                             <span className="text-muted-foreground">Station: </span>
                             <span className="font-semibold text-slate-900">{flight.stationObj?.code || "-"}</span>
                         </div>
@@ -110,11 +114,11 @@ export function RequestUnlockModal({ open, onOpenChange, flight, onSuccess }: Re
                     <div className="space-y-4 py-2">
                         <div className="space-y-1.5">
                             <Label htmlFor="unlockReason" className="text-xs font-semibold text-slate-700">
-                                เหตุผลและความจำเป็นในการขอแก้ไข <span className="text-destructive">*</span>
+                                Reason for Edit Request <span className="text-destructive">*</span>
                             </Label>
                             <Textarea
                                 id="unlockReason"
-                                placeholder="เช่น ต้องการปรับยอดการเติมน้ำมันไฮดรอลิกให้ตรงกับหน้างานจริง, แก้ไขเลขช่างผู้ปฏิบัติงาน..."
+                                placeholder="e.g. Adjust hydraulic servicing quantity to match actual logbook, update technician staff ID..."
                                 className="min-h-[100px] text-xs resize-none"
                                 value={reason}
                                 onChange={(e) => setReason(e.target.value)}
@@ -123,7 +127,7 @@ export function RequestUnlockModal({ open, onOpenChange, flight, onSuccess }: Re
                         </div>
                     </div>
 
-                    <DialogFooter className="mt-4 gap-2 sm:gap-0">
+                    <DialogFooter className="mt-4 gap-2 sm:gap-1">
                         <Button
                             type="button"
                             variant="outline"
@@ -131,7 +135,7 @@ export function RequestUnlockModal({ open, onOpenChange, flight, onSuccess }: Re
                             onClick={() => onOpenChange(false)}
                             disabled={isSubmitting}
                         >
-                            ยกเลิก
+                            Cancel
                         </Button>
                         <Button
                             type="submit"
@@ -141,7 +145,7 @@ export function RequestUnlockModal({ open, onOpenChange, flight, onSuccess }: Re
                             disabled={isSubmitting || !reason.trim()}
                         >
                             <Send className="h-3.5 w-3.5 mr-1.5" />
-                            {isSubmitting ? "กำลังส่งคำขอ..." : "ส่งคำขอไปยังบัญชี"}
+                            {isSubmitting ? "Submitting..." : "Submit Request to Accounting"}
                         </Button>
                     </DialogFooter>
                 </form>

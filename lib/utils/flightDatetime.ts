@@ -76,24 +76,25 @@ export const utcToLocalDayjs = (utcDatetime: string | null | undefined) => {
  * @example combineToUtcDatetime("2026-02-15", "13:45") → "2026-02-15 13:45"
  */
 export const combineToUtcDatetime = (date: string, time?: string): string => {
-  if (!date) return ''
-  return `${date} ${time || '00:00'}`
+  if (!date || !time || !time.trim()) return ''
+  return `${date} ${time.trim()}`
 }
 
 /**
  * รวม date (DD/MM/YYYY form format) + time (HH:mm) → "YYYY-MM-DD HH:mm" (UTC) สำหรับส่ง API
  * Form แสดง Local Time ดังนั้นต้องแปลง Local → UTC ก่อนส่ง
+ * หากไม่มีการระบุ time (เช่น ATA/ATD ที่ยังไม่ได้ลงเวลาจริง) จะคืนค่าเป็น '' ไม่เติม 00:00
  * @example combineFormToUtcDatetime("15/02/2026", "20:45") → "2026-02-15 13:45" (TH -7h)
  */
 export const combineFormToUtcDatetime = (formDate: string, time?: string): string => {
-  if (!formDate) return ''
+  if (!formDate || !time || !time.trim()) return ''
   // Convert DD/MM/YYYY → YYYY-MM-DD
   const parts = formDate.split('/')
   if (parts.length !== 3) return ''
   const [day, month, year] = parts
   const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
   // Use ISO T-separator so dayjs parses reliably as LOCAL time (no customParseFormat needed)
-  const localIso = `${isoDate}T${time || '00:00'}`
+  const localIso = `${isoDate}T${time.trim()}`
   // Parse as local time → convert to UTC
   const utc = dayjs(localIso).utc()
   if (!utc.isValid()) return ''

@@ -584,6 +584,7 @@ export const useFlightExcelImport = () => {
                     mechIdList,
                     maintenanceStatusId,
                     note: row['NOTE'] || row['REMARK'] || '',
+                    datasource: 'plan',
                 };
             };
 
@@ -637,7 +638,7 @@ export const useFlightExcelImport = () => {
                         });
                     }
 
-                    // Check master data matches and collect warnings
+                    // Check master data matches and collect errors
                     const airlineMatch = findOptionMatch(row['AIRLINE'], airlineOptions, 'label');
                     const stationMatch = findOptionMatch(row['STATION'], stationOptions, 'value');
                     const acTypeMatch = findOptionMatch(row['A/C TYPE'], aircraftTypeOptions, 'value');
@@ -645,44 +646,44 @@ export const useFlightExcelImport = () => {
                     const routeToMatch = findOptionMatch(row['ROUTE TO'], routeOptions, 'value');
                     const checkMatch = findOptionMatch(row['CHECK'], checkStatusOptions, 'value');
 
-                    // Add warnings for missing master data
+                    // Add errors for missing master data
                     if (row['AIRLINE'] && !airlineMatch) {
-                        warnings.push({
+                        errors.push({
                             row: rowId,
                             column: 'AIRLINE',
                             message: `Airline "${row['AIRLINE']}" not found in database`,
                         });
                     }
                     if (row['STATION'] && !stationMatch) {
-                        warnings.push({
+                        errors.push({
                             row: rowId,
                             column: 'STATION',
                             message: `Station "${row['STATION']}" not found in database`,
                         });
                     }
                     if (row['A/C TYPE'] && !acTypeMatch) {
-                        warnings.push({
+                        errors.push({
                             row: rowId,
                             column: 'A/C TYPE',
                             message: `A/C Type "${row['A/C TYPE']}" not found in database`,
                         });
                     }
                     if (row['ROUTE FROM'] && !routeFromMatch) {
-                        warnings.push({
+                        errors.push({
                             row: rowId,
                             column: 'ROUTE FROM',
                             message: `Route "${row['ROUTE FROM']}" not found in database`,
                         });
                     }
                     if (row['ROUTE TO'] && !routeToMatch) {
-                        warnings.push({
+                        errors.push({
                             row: rowId,
                             column: 'ROUTE TO',
                             message: `Route "${row['ROUTE TO']}" not found in database`,
                         });
                     }
                     if (row['CHECK'] && !checkMatch) {
-                        warnings.push({
+                        errors.push({
                             row: rowId,
                             column: 'CHECK',
                             message: `Status "${row['CHECK']}" not found in database`,
@@ -693,7 +694,7 @@ export const useFlightExcelImport = () => {
                     if (row['CS']) {
                         const csResult = parseAndMatchStaff(String(row['CS']), 'CS');
                         if (csResult.notFound.length > 0) {
-                            warnings.push({
+                            errors.push({
                                 row: rowId,
                                 column: 'CS',
                                 message: `Staff not found: ${csResult.notFound.join(', ')}`,
@@ -703,7 +704,7 @@ export const useFlightExcelImport = () => {
                     if (row['MECH']) {
                         const mechResult = parseAndMatchStaff(String(row['MECH']), 'MECH');
                         if (mechResult.notFound.length > 0) {
-                            warnings.push({
+                            errors.push({
                                 row: rowId,
                                 column: 'MECH',
                                 message: `Staff not found: ${mechResult.notFound.join(', ')}`,
@@ -722,7 +723,7 @@ export const useFlightExcelImport = () => {
                         data: { ...row, _mapped: mappedWithIds, _sheetIndex: sheetIndex },
                         isValid: errors.length === 0,
                         errors,
-                        warnings,
+                        warnings: [],
                     };
                 });
             });
@@ -736,7 +737,7 @@ export const useFlightExcelImport = () => {
             const invalidCount = allValidated.filter((r) => !r.isValid).length;
             const totalSheets = sheets.length;
 
-            if (validateResult.flagPass) {
+            if (validateResult.flagPass && invalidCount === 0) {
                 toast.success(`All ${validCount} rows from ${totalSheets} sheet(s) passed validation!`);
             } else {
                 toast.warning(`${validCount} valid, ${invalidCount} invalid rows found across ${totalSheets} sheet(s)`);
@@ -886,6 +887,7 @@ export const useFlightExcelImport = () => {
                     mechIdList,
                     maintenanceStatusId,
                     note: row['NOTE'] || row['REMARK'] || '',
+                    datasource: 'plan',
                     userName: 'system', // TODO: Get from auth context
                 };
             });
@@ -970,8 +972,8 @@ export const useFlightExcelImport = () => {
                 // Find and update the edited row's validation
                 updated[activeSheetIndex] = sheetValidation.map((v) => {
                     if (v.originalIndex === rowIndex + 2) {
-                        // Recalculate warnings for the edited row
-                        const warnings: { row: number; column: string; message: string }[] = [];
+                        // Recalculate errors for the edited row
+                        const errors: { row: number; column: string; message: string }[] = [];
                         const rowId = v.originalIndex;
 
                         // Check master data matches (simplified check based on column values)
@@ -983,42 +985,48 @@ export const useFlightExcelImport = () => {
                         const checkMatch = findOptionMatch(updatedData['CHECK'], checkStatusOptions, 'value');
 
                         if (updatedData['AIRLINE'] && !airlineMatch) {
-                            warnings.push({ row: rowId, column: 'AIRLINE', message: `Airline "${updatedData['AIRLINE']}" not found in database` });
+                            errors.push({ row: rowId, column: 'AIRLINE', message: `Airline "${updatedData['AIRLINE']}" not found in database` });
                         }
                         if (updatedData['STATION'] && !stationMatch) {
-                            warnings.push({ row: rowId, column: 'STATION', message: `Station "${updatedData['STATION']}" not found in database` });
+                            errors.push({ row: rowId, column: 'STATION', message: `Station "${updatedData['STATION']}" not found in database` });
                         }
                         if (updatedData['A/C TYPE'] && !acTypeMatch) {
-                            warnings.push({ row: rowId, column: 'A/C TYPE', message: `A/C Type "${updatedData['A/C TYPE']}" not found in database` });
+                            errors.push({ row: rowId, column: 'A/C TYPE', message: `A/C Type "${updatedData['A/C TYPE']}" not found in database` });
                         }
                         if (updatedData['ROUTE FROM'] && !routeFromMatch) {
-                            warnings.push({ row: rowId, column: 'ROUTE FROM', message: `Route "${updatedData['ROUTE FROM']}" not found in database` });
+                            errors.push({ row: rowId, column: 'ROUTE FROM', message: `Route "${updatedData['ROUTE FROM']}" not found in database` });
                         }
                         if (updatedData['ROUTE TO'] && !routeToMatch) {
-                            warnings.push({ row: rowId, column: 'ROUTE TO', message: `Route "${updatedData['ROUTE TO']}" not found in database` });
+                            errors.push({ row: rowId, column: 'ROUTE TO', message: `Route "${updatedData['ROUTE TO']}" not found in database` });
                         }
                         if (updatedData['CHECK'] && !checkMatch) {
-                            warnings.push({ row: rowId, column: 'CHECK', message: `Status "${updatedData['CHECK']}" not found in database` });
+                            errors.push({ row: rowId, column: 'CHECK', message: `Status "${updatedData['CHECK']}" not found in database` });
                         }
 
                         // Check staff columns
                         if (updatedData['CS']) {
                             const csResult = parseAndMatchStaff(String(updatedData['CS']), 'CS');
                             if (csResult.notFound.length > 0) {
-                                warnings.push({ row: rowId, column: 'CS', message: `Staff not found: ${csResult.notFound.join(', ')}` });
+                                errors.push({ row: rowId, column: 'CS', message: `Staff not found: ${csResult.notFound.join(', ')}` });
                             }
                         }
                         if (updatedData['MECH']) {
                             const mechResult = parseAndMatchStaff(String(updatedData['MECH']), 'MECH');
                             if (mechResult.notFound.length > 0) {
-                                warnings.push({ row: rowId, column: 'MECH', message: `Staff not found: ${mechResult.notFound.join(', ')}` });
+                                errors.push({ row: rowId, column: 'MECH', message: `Staff not found: ${mechResult.notFound.join(', ')}` });
                             }
                         }
+
+                        // Preserve API errors if any
+                        const apiErrors = (v.errors || []).filter(e => e.column === 'API');
+                        errors.push(...apiErrors);
 
                         return {
                             ...v,
                             data: { ...v.data, ...updatedData },
-                            warnings,
+                            isValid: errors.length === 0,
+                            errors,
+                            warnings: [],
                         };
                     }
                     return v;
@@ -1076,10 +1084,10 @@ export const useFlightExcelImport = () => {
     const validatedRows = validatedRowsBySheet[activeSheetIndex] || [];
     const validRows = allValidatedRows.filter((r) => r.isValid);
     const invalidRows = allValidatedRows.filter((r) => !r.isValid);
-    // Rows with warnings (master data mismatches)
+    // Rows with warnings
     const warningRows = allValidatedRows.filter((r) => r.warnings && r.warnings.length > 0);
-    // Block upload if there are errors OR warnings
-    const canUpload = hasValidated && invalidRows.length === 0 && warningRows.length === 0 && validRows.length > 0;
+    // Block upload if there are errors
+    const canUpload = hasValidated && invalidRows.length === 0 && validRows.length > 0;
 
     return {
         // State

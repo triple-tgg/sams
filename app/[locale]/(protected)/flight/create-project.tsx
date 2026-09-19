@@ -39,11 +39,15 @@ import { useStatusOptions } from "@/lib/api/hooks/useStatus";
 import { FieldError } from "@/components/ui/field-error";
 import { combineFormToUtcDatetime } from "@/lib/utils/flightDatetime";
 import { CustomDateInput } from "@/components/ui/input-date/CustomDateInput";
+import { CustomTimeInput } from "@/components/ui/input-time/CustomTimeInput";
 import { SearchableSelectField } from "@/components/ui/search-select";
 import { CreatableRouteSelect } from "@/components/ui/creatable-route-select";
 import { useAircraftTypes } from "@/lib/api/hooks/useAircraftTypes";
+import { useMaintenanceStatus } from "@/lib/api/hooks/useMaintenanceStatus";
 import { useCombinations, useSystemConfigs } from "@/lib/api/master/aircraft-engine/aircraftEngine.hooks";
 import type { AircraftEngineCombination } from "@/lib/api/master/aircraft-engine/aircraftEngine.types";
+import type { FlightValidateResponse } from "@/components/flight-timeline/types/flight-import.types";
+import axios from "@/lib/axios.config";
 import { toast } from "sonner";
 import { useMemo, useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -58,6 +62,8 @@ import {
   CalendarRange,
   Clock,
   CheckCircle2,
+  AlertCircle,
+  Loader2,
   Sparkles,
   Pencil,
   Trash2,
@@ -103,6 +109,11 @@ export interface GeneratedRecurringFlight {
   mappedFamilyCode?: string;
   series?: string;
   engineCode?: string;
+  airlinesId?: number;
+  stationId?: number;
+  acTypeId?: number;
+  aircraftEngineId?: number;
+  maintenanceStatusId?: number;
 }
 
 const DAYS_OF_WEEK = [
@@ -252,10 +263,16 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
   const [generatedFlights, setGeneratedFlights] = useState<GeneratedRecurringFlight[]>([]);
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [rowEditData, setRowEditData] = useState<Partial<GeneratedRecurringFlight>>({});
+  const [isValidatingRecurring, setIsValidatingRecurring] = useState<boolean>(false);
+  const [validationResultMap, setValidationResultMap] = useState<Record<number, { isValid: boolean; statusText?: string }> | null>(null);
 
   // Fetch staff list to resolve staff display names
   const { data: allStaffData } = useStaff({ code: "", name: "", id: "" }, true);
   const staffList = useMemo(() => allStaffData?.responseData || [], [allStaffData]);
+
+  // Master data hooks
+  const { aircraftTypes } = useAircraftTypes();
+  const { options: maintenanceStatusOptions } = useMaintenanceStatus();
 
   // Use airline options hook
   const {
@@ -313,6 +330,8 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
     setRowEditData({});
     setComboMode("combination");
     setSelectedComboId("");
+    setIsValidatingRecurring(false);
+    setValidationResultMap(null);
   }, [reset]);
 
   // Reset all form data and state whenever dialog closes
@@ -413,10 +432,10 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
         acTypeCode: values.acType!.value.trim(),
         arrivalFlightNo: values.flightArrival.trim(),
         arrivalStaDate: combineFormToUtcDatetime(values.arrivalDate, values.sta),
-        arrivalAtaDate: combineFormToUtcDatetime(values.arrivalDate, values.ata),
+        arrivalAtaDate: values.ata?.trim() ? combineFormToUtcDatetime(values.arrivalDate, values.ata) : "",
         departureFlightNo: (values.flightDeparture ?? "").trim(),
-        departureStdDate: combineFormToUtcDatetime(values.departureDate ?? "", values.std),
-        departureAtdDate: combineFormToUtcDatetime(values.departureDate ?? "", values.atd),
+        departureStdDate: values.departureDate && values.std ? combineFormToUtcDatetime(values.departureDate, values.std) : "",
+        departureAtdDate: values.departureDate && values.atd?.trim() ? combineFormToUtcDatetime(values.departureDate, values.atd) : "",
         bayNo: (values.bay ?? "").trim(),
         thfNo: (values.thfNumber ?? "").trim(),
         statusCode: values.status?.value ?? "Normal",
@@ -468,11 +487,44 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
       }
 
       const csStaffNames = (values.csIdList || [])
-        .map((id) => staffList.find((s) => s.id === id)?.name || `#${id}`)
+        .map((id) => {
+          const s = staffList.find((s) => s.id === id);
+          return (s as any)?.fullNameEn || (s as any)?.nameEn || (s as any)?.displayName || s?.name || `#${id}`;
+        })
         .join(", ");
       const mechStaffNames = (values.mechIdList || [])
-        .map((id) => staffList.find((s) => s.id === id)?.name || `#${id}`)
+        .map((id) => {
+          const s = staffList.find((s) => s.id === id);
+          return (s as any)?.fullNameEn || (s as any)?.nameEn || (s as any)?.displayName || s?.name || `#${id}`;
+        })
         .join(", ");
+
+      const selectedAirline = customerOptions.find((o) => o.value === values.customer?.value);
+      const airlinesId = selectedAirline?.id ?? (values.customer as any)?.id ?? 0;
+
+      const selectedStation = stationOptions.find((o) => o.value === values.station?.value);
+      const stationId = selectedStation?.id ?? (values.station as any)?.id ?? 0;
+
+      const selectedAcTypeItem = aircraftTypes.find(
+        (t) => t.code === (mappedFamilyCode || values.acType?.value)
+      );
+      const acTypeId = selectedAcTypeItem?.id ?? (values.acType as any)?.id ?? 0;
+
+      const aircraftEngineId =
+        Number(selectedComboId) ||
+        combinationsData?.find(
+          (c) =>
+            c.familyCode === mappedFamilyCode &&
+            c.series === values.series &&
+            c.engineCode === values.engineCode
+        )?.id ||
+        0;
+
+      const matchedMaintStatus = maintenanceStatusOptions.find(
+        (m) => m.value.toLowerCase() === (values.status?.value || "").toLowerCase()
+      );
+      const maintenanceStatusId =
+        (values.maintenanceStatus as any)?.id ?? matchedMaintStatus?.id ?? 2;
 
       const list: GeneratedRecurringFlight[] = calculatedDates.map((item, idx) => ({
         tempId: `rf-${Date.now()}-${idx}`,
@@ -505,11 +557,17 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
         mappedFamilyCode: mappedFamilyCode,
         series: values.series || "",
         engineCode: values.engineCode || "",
+        airlinesId,
+        stationId,
+        acTypeId,
+        aircraftEngineId,
+        maintenanceStatusId,
       }));
 
       setGeneratedFlights(list);
       setEditingRowId(null);
       setRowEditData({});
+      setValidationResultMap(null);
       setStep("preview-recurring");
       toast.success(`Generated ${list.length} recurring flights. Review and edit before submitting.`);
     }
@@ -526,6 +584,7 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
     );
     setEditingRowId(null);
     setRowEditData({});
+    setValidationResultMap(null);
     toast.success("Flight record updated");
   };
 
@@ -536,7 +595,99 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
 
   const handleDeleteRow = (tempId: string) => {
     setGeneratedFlights((prev) => prev.filter((item) => item.tempId !== tempId));
+    setValidationResultMap(null);
     toast.info("Flight record removed");
+  };
+
+  const buildRecurringApiPayload = (flights: GeneratedRecurringFlight[], isImport: boolean = false) => {
+    return flights.map((item, idx) => {
+      const staUtc = combineFormToUtcDatetime(item.arrivalDate, item.sta);
+      const stdUtc = item.departureDate && item.std ? combineFormToUtcDatetime(item.departureDate, item.std) : "";
+      const baseItem: Record<string, any> = {
+        rowId: idx + 1,
+        airlinesId: item.airlinesId ?? 0,
+        stationId: item.stationId ?? 0,
+        acTypeId: item.acTypeId ?? 0,
+        aircraftEngineId: item.aircraftEngineId ?? 0,
+        familyCode: item.mappedFamilyCode || item.acTypeValue || "",
+        series: item.series || "",
+        engineCode: item.engineCode || "",
+        acReg: item.acReg || "",
+        arrivalFlightNo: item.flightArrival || "",
+        departureFlightNo: item.flightDeparture || "",
+        routeFrom: item.routeFrom || "",
+        routeTo: item.routeTo || "",
+        arrivalStaDate: staUtc,
+        departureStdDate: stdUtc,
+        etaDate: staUtc,
+        bayNo: item.bay || "",
+        csIdList: item.csIdList || [],
+        mechIdList: item.mechIdList || [],
+        maintenanceStatusId: item.maintenanceStatusId ?? 2,
+        note: item.note || "",
+      };
+
+      if (isImport) {
+        baseItem.datasource = "recurring";
+      }
+
+      return baseItem;
+    });
+  };
+
+  const handleValidateRecurring = async () => {
+    if (generatedFlights.length === 0) {
+      toast.error("No flights to validate");
+      return;
+    }
+
+    setIsValidatingRecurring(true);
+    try {
+      const payload = buildRecurringApiPayload(generatedFlights, false);
+      const response = await axios.post<FlightValidateResponse>(
+        "/flight/importlist-filghtinfo-validate",
+        payload
+      );
+
+      const resData = response.data?.responseData;
+      const resultMap: Record<number, { isValid: boolean; statusText?: string }> = {};
+      let hasError = false;
+
+      if (resData?.validateFilghtList && Array.isArray(resData.validateFilghtList)) {
+        resData.validateFilghtList.forEach((v) => {
+          const isRowValid = !v.statusText;
+          if (!isRowValid) hasError = true;
+          resultMap[v.rowId] = {
+            isValid: isRowValid,
+            statusText: v.statusText || undefined,
+          };
+        });
+      }
+
+      setValidationResultMap(resultMap);
+
+      if (resData?.flagPass || !hasError) {
+        toast.success("Validation passed! All flights are valid.");
+      } else {
+        toast.error("Validation issues found. Please review the highlighted flights.", {
+          duration: Infinity,
+          closeButton: true,
+        });
+      }
+    } catch (err: any) {
+      console.error("Validate recurring error:", err);
+      const errorMessage =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        err.message ||
+        "An error occurred while validating flights";
+      toast.error(errorMessage, {
+        duration: Infinity,
+        closeButton: true,
+      });
+    } finally {
+      setIsValidatingRecurring(false);
+    }
   };
 
   const handleFinalSubmitRecurring = async () => {
@@ -546,52 +697,27 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
     }
 
     setIsSubmittingRecurring(true);
-    setRecurringProgress({ current: 0, total: generatedFlights.length });
 
     try {
-      let successCount = 0;
-      for (let i = 0; i < generatedFlights.length; i++) {
-        const item = generatedFlights[i];
-        setRecurringProgress({ current: i + 1, total: generatedFlights.length });
+      const payload = buildRecurringApiPayload(generatedFlights, true);
+      await axios.post("/flight/importlist-filghtinfo", payload);
 
-        const payload: FlightData = {
-          id: 0,
-          airlinesCode: item.customerValue,
-          stationsCode: item.stationValue,
-          acReg: item.acReg,
-          acTypeCode: item.acTypeValue,
-          arrivalFlightNo: item.flightArrival,
-          arrivalStaDate: combineFormToUtcDatetime(item.arrivalDate, item.sta),
-          arrivalAtaDate: combineFormToUtcDatetime(item.arrivalDate, item.ata),
-          departureFlightNo: item.flightDeparture,
-          departureStdDate: combineFormToUtcDatetime(item.departureDate, item.std),
-          departureAtdDate: combineFormToUtcDatetime(item.departureDate, item.atd),
-          bayNo: item.bay,
-          thfNo: item.thfNumber,
-          statusCode: item.statusValue || "Normal",
-          note: item.note,
-          routeForm: item.routeFrom,
-          routeTo: item.routeTo,
-          userName: item.userName,
-          csIdList: item.csIdList,
-          mechIdList: item.mechIdList,
-          aircraftEngineCode: item.mappedFamilyCode,
-          familyCode: item.mappedFamilyCode,
-          series: item.series || "",
-          engineCode: item.engineCode || "",
-        };
-
-        await addFlight(payload);
-        successCount++;
-      }
-
-      toast.success(`Successfully created ${successCount} recurring flights`);
+      toast.success(`Successfully created ${generatedFlights.length} recurring flights`);
       queryClient.invalidateQueries({ queryKey: ["flightList"] });
       queryClient.invalidateQueries({ queryKey: ["flightListPlanby"] });
       resetAllForm();
       setOpen(false);
     } catch (err: any) {
-      toast.error(err?.message ?? "An error occurred while creating recurring flights");
+      console.error("Submit recurring error:", err);
+      const errorMessage =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        err.message ||
+        "An error occurred while creating recurring flights";
+      toast.error(errorMessage, {
+        duration: Infinity,
+        closeButton: true,
+      });
     } finally {
       setIsSubmittingRecurring(false);
       setRecurringProgress(null);
@@ -1431,19 +1557,35 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                         <Label htmlFor="sta">
                           STA (Local) <span className="text-red-500 font-bold">*</span>
                         </Label>
-                        <Input
-                          type="time"
-                          {...register("sta")}
-                          className={cn(errors.sta && "border-red-500 focus-visible:ring-red-500")}
+                        <Controller
+                          name="sta"
+                          control={control}
+                          render={({ field }) => (
+                            <CustomTimeInput
+                              value={field.value}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              placeholder="HH:mm"
+                              className={cn(errors.sta && "border-red-500 focus-visible:ring-red-500")}
+                            />
+                          )}
                         />
                         <FieldError msg={errors.sta?.message} />
                       </div>
                       <div className="space-y-1">
                         <Label htmlFor="ata">ATA (Local)</Label>
-                        <Input
-                          type="time"
-                          {...register("ata")}
-                          className={cn(errors.ata && "border-red-500 focus-visible:ring-red-500")}
+                        <Controller
+                          name="ata"
+                          control={control}
+                          render={({ field }) => (
+                            <CustomTimeInput
+                              value={field.value}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              placeholder="HH:mm"
+                              className={cn(errors.ata && "border-red-500 focus-visible:ring-red-500")}
+                            />
+                          )}
                         />
                         <FieldError msg={errors.ata?.message} />
                       </div>
@@ -1487,12 +1629,36 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                       </div>
                       <div className="space-y-1">
                         <Label htmlFor="std">STD (Local)</Label>
-                        <Input type="time" {...register("std")} />
+                        <Controller
+                          name="std"
+                          control={control}
+                          render={({ field }) => (
+                            <CustomTimeInput
+                              value={field.value}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              placeholder="HH:mm"
+                              className={cn(errors.std && "border-red-500 focus-visible:ring-red-500")}
+                            />
+                          )}
+                        />
                         <FieldError msg={errors.std?.message} />
                       </div>
                       <div className="space-y-1">
                         <Label htmlFor="atd">ATD (Local)</Label>
-                        <Input type="time" {...register("atd")} />
+                        <Controller
+                          name="atd"
+                          control={control}
+                          render={({ field }) => (
+                            <CustomTimeInput
+                              value={field.value}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              placeholder="HH:mm"
+                              className={cn(errors.atd && "border-red-500 focus-visible:ring-red-500")}
+                            />
+                          )}
+                        />
                         <FieldError msg={errors.atd?.message} />
                       </div>
                     </div>
@@ -1679,6 +1845,22 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                     {generatedFlights.length}
                   </strong>
                 </span>
+                {validationResultMap && (
+                  <>
+                    <span>•</span>
+                    {Object.values(validationResultMap).some((v) => !v.isValid) ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-red-600 bg-red-50 dark:bg-red-950/50 px-2 py-0.5 rounded-full border border-red-200 dark:border-red-900">
+                        <AlertCircle className="w-3 h-3 text-red-500" />
+                        {Object.values(validationResultMap).filter((v) => !v.isValid).length} Error(s) found
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-900">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                        All Valid
+                      </span>
+                    )}
+                  </>
+                )}
               </div>
             </div>
 
@@ -1758,24 +1940,22 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                             </td>
                             {/* STA */}
                             <td className="py-1.5 px-1.5">
-                              <Input
-                                type="time"
+                              <CustomTimeInput
                                 value={rowEditData.sta ?? ""}
-                                onChange={(e) =>
-                                  setRowEditData((prev) => ({ ...prev, sta: e.target.value }))
+                                onChange={(val) =>
+                                  setRowEditData((prev) => ({ ...prev, sta: val }))
                                 }
-                                className="h-7 text-xs px-1 bg-white dark:bg-slate-900 w-[65px]"
+                                className="h-7 text-xs px-1 bg-white dark:bg-slate-900 w-[78px]"
                               />
                             </td>
                             {/* ATA */}
                             <td className="py-1.5 px-1.5">
-                              <Input
-                                type="time"
+                              <CustomTimeInput
                                 value={rowEditData.ata ?? ""}
-                                onChange={(e) =>
-                                  setRowEditData((prev) => ({ ...prev, ata: e.target.value }))
+                                onChange={(val) =>
+                                  setRowEditData((prev) => ({ ...prev, ata: val }))
                                 }
-                                className="h-7 text-xs px-1 bg-white dark:bg-slate-900 w-[65px]"
+                                className="h-7 text-xs px-1 bg-white dark:bg-slate-900 w-[78px]"
                               />
                             </td>
                             {/* Flight Arr */}
@@ -1808,24 +1988,22 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                             </td>
                             {/* STD */}
                             <td className="py-1.5 px-1.5">
-                              <Input
-                                type="time"
+                              <CustomTimeInput
                                 value={rowEditData.std ?? ""}
-                                onChange={(e) =>
-                                  setRowEditData((prev) => ({ ...prev, std: e.target.value }))
+                                onChange={(val) =>
+                                  setRowEditData((prev) => ({ ...prev, std: val }))
                                 }
-                                className="h-7 text-xs px-1 bg-white dark:bg-slate-900 w-[65px]"
+                                className="h-7 text-xs px-1 bg-white dark:bg-slate-900 w-[78px]"
                               />
                             </td>
                             {/* ATD */}
                             <td className="py-1.5 px-1.5">
-                              <Input
-                                type="time"
+                              <CustomTimeInput
                                 value={rowEditData.atd ?? ""}
-                                onChange={(e) =>
-                                  setRowEditData((prev) => ({ ...prev, atd: e.target.value }))
+                                onChange={(val) =>
+                                  setRowEditData((prev) => ({ ...prev, atd: val }))
                                 }
-                                className="h-7 text-xs px-1 bg-white dark:bg-slate-900 w-[65px]"
+                                className="h-7 text-xs px-1 bg-white dark:bg-slate-900 w-[78px]"
                               />
                             </td>
                             {/* Flight Dep */}
@@ -1926,13 +2104,34 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                         );
                       }
 
+                      const rowId = index + 1;
+                      const validation = validationResultMap ? validationResultMap[rowId] : null;
+
                       return (
                         <tr
                           key={row.tempId}
-                          className="hover:bg-purple-50/30 dark:hover:bg-purple-950/20 transition-colors group"
+                          className={cn(
+                            "transition-colors group",
+                            validation && !validation.isValid
+                              ? "bg-red-50/60 dark:bg-red-950/30 hover:bg-red-50/80 dark:hover:bg-red-950/40"
+                              : "hover:bg-purple-50/30 dark:hover:bg-purple-950/20"
+                          )}
                         >
                           <td className="py-2.5 px-2 text-center font-semibold text-slate-400">
-                            {index + 1}
+                            <div className="flex items-center justify-center gap-1">
+                              <span>{rowId}</span>
+                              {validation && (
+                                validation.isValid ? (
+                                  <span title="Valid">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                  </span>
+                                ) : (
+                                  <span title={validation.statusText || "Validation issue"}>
+                                    <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                                  </span>
+                                )
+                              )}
+                            </div>
                           </td>
                           {/* Arrival Date */}
                           <td className="py-2.5 px-2.5">
@@ -1955,7 +2154,15 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                           </td>
                           {/* Flight Arr */}
                           <td className="py-2.5 px-2 font-semibold text-blue-600 dark:text-blue-400">
-                            {row.flightArrival}
+                            <div>{row.flightArrival}</div>
+                            {validation && !validation.isValid && validation.statusText && (
+                              <div
+                                className="text-[10px] font-normal text-red-600 dark:text-red-400 truncate max-w-[120px]"
+                                title={validation.statusText}
+                              >
+                                {validation.statusText}
+                              </div>
+                            )}
                           </td>
                           {/* Departure Date */}
                           <td className="py-2.5 px-2.5 text-slate-600 dark:text-slate-300">
@@ -2047,8 +2254,8 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                 variant="ghost"
                 size="sm"
                 onClick={() => setStep("fill-info")}
-                disabled={isSubmittingRecurring}
-                className="text-xs text-slate-600 hover:text-slate-900"
+                disabled={isSubmittingRecurring || isValidatingRecurring}
+                className="text-xs text-slate-600"
               >
                 <ArrowLeft className="w-3.5 h-3.5 mr-1" />
                 Back to Edit Settings
@@ -2058,11 +2265,30 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                 <Button
                   type="button"
                   variant="outline"
+                  onClick={handleValidateRecurring}
+                  disabled={isValidatingRecurring || isSubmittingRecurring || generatedFlights.length === 0}
+                  className="border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-300 dark:hover:bg-purple-950 font-medium"
+                >
+                  {isValidatingRecurring ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                      Validating...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5 mr-1.5 text-purple-600" />
+                      Validate
+                    </>
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={() => {
                     resetAllForm();
                     setOpen(false);
                   }}
-                  disabled={isSubmittingRecurring}
+                  disabled={isSubmittingRecurring || isValidatingRecurring}
                 >
                   Cancel
                 </Button>
@@ -2070,15 +2296,14 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                   type="button"
                   color="secondary"
                   onClick={handleFinalSubmitRecurring}
-                  disabled={isSubmittingRecurring || generatedFlights.length === 0}
+                  disabled={isSubmittingRecurring || isValidatingRecurring || generatedFlights.length === 0}
                   className="bg-purple-600 hover:bg-purple-700 text-white font-semibold shadow-xs"
                 >
                   {isSubmittingRecurring ? (
-                    recurringProgress ? (
-                      `Adding ${recurringProgress.current}/${recurringProgress.total}...`
-                    ) : (
-                      "Adding Flights..."
-                    )
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                      Adding Flights...
+                    </>
                   ) : (
                     `Add ${generatedFlights.length} Recurring Flights`
                   )}

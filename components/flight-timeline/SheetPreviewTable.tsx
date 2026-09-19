@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Trash2, Pencil, Check, X, AlertTriangle, CalendarIcon, ChevronsUpDown, Plus, Loader2 } from 'lucide-react';
+import { Trash2, Pencil, Check, X, AlertTriangle, AlertCircle, CalendarIcon, ChevronsUpDown, Plus, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -814,53 +814,56 @@ export function SheetPreviewTable({
 
                                             // Check if value exists in options (for validation display)
                                             const cellValue = row[header];
-                                            let optionWarning: string | null = null;
+                                            let optionError: string | null = null;
 
                                             if (cellValue && !isEditing) {
                                                 if (isAirlineColumn) {
                                                     const match = findOptionMatch(cellValue, airlineOptions, 'label');
                                                     if (!match) {
-                                                        optionWarning = `Airline "${cellValue}" not found in database`;
+                                                        optionError = `Airline "${cellValue}" not found in database`;
                                                     }
                                                 } else if (isAircraftTypeColumn) {
                                                     const match = findOptionMatch(cellValue, aircraftTypeOptions, 'value');
                                                     if (!match) {
-                                                        optionWarning = `A/C Type "${cellValue}" not found in database`;
+                                                        optionError = `A/C Type "${cellValue}" not found in database`;
                                                     }
                                                 } else if (isRouteColumn) {
                                                     const match = findOptionMatch(cellValue, routeOptions, 'value');
                                                     if (!match) {
-                                                        optionWarning = `Route "${cellValue}" not found in database`;
+                                                        optionError = `Route "${cellValue}" not found in database`;
                                                     }
                                                 } else if (isStaffColumn) {
                                                     // Check each staff name in the comma-separated list
                                                     const result = parseAndMatchStaff(String(cellValue), staffType as 'CS' | 'MECH');
                                                     if (result.notFound.length > 0) {
-                                                        optionWarning = `Staff not found: ${result.notFound.join(', ')}`;
+                                                        optionError = `Staff not found: ${result.notFound.join(', ')}`;
                                                     }
                                                 } else if (isStationColumn) {
                                                     const match = findOptionMatch(cellValue, stationOptions, 'value');
                                                     if (!match) {
-                                                        optionWarning = `Station "${cellValue}" not found in database`;
+                                                        optionError = `Station "${cellValue}" not found in database`;
                                                     }
                                                 } else if (isCheckColumn) {
                                                     // Check if CHECK value exists in MaintenanceStatus options
                                                     const match = findOptionMatch(cellValue, checkStatusOptions, 'value');
                                                     if (!match) {
-                                                        optionWarning = `Status "${cellValue}" not found in database`;
+                                                        optionError = `Status "${cellValue}" not found in database`;
                                                     }
                                                 }
                                             }
 
-                                            const hasWarning = optionWarning !== null;
+                                            const cellError = validation?.errors.find(
+                                                (e) => e.column === header ||
+                                                    e.column.toLowerCase().includes(header.toLowerCase().replace(/[^a-z]/gi, ''))
+                                            );
+                                            const isError = cellHasError || (hasValidation && optionError !== null);
 
                                             return (
                                                 <td
                                                     key={colIndex}
                                                     className={cn(
                                                         'p-3 whitespace-nowrap',
-                                                        cellHasError && 'text-red-600 dark:text-red-400 font-medium',
-                                                        hasWarning && !cellHasError && 'bg-amber-50 dark:bg-amber-900/20'
+                                                        isError && 'text-red-600 dark:text-red-400 font-medium bg-red-50/50 dark:bg-red-950/20'
                                                     )}
                                                 >
                                                     {isEditing ? (
@@ -868,17 +871,35 @@ export function SheetPreviewTable({
                                                     ) : (() => {
                                                         const formatted = formatCellValue(header, cellValue, sheetDate);
 
-                                                        // Show warning for option mismatch or missing date context
-                                                        if (hasWarning || formatted.missingDateContext) {
-                                                            const warningTitle = optionWarning ||
-                                                                (formatted.missingDateContext ? 'Missing date context: Sheet name is not a valid date' : '');
+                                                        // Show error for cell error or option mismatch
+                                                        if (isError) {
+                                                            const errorTitle = cellError?.message || optionError || 'Validation error';
                                                             return (
                                                                 <div className="flex items-center gap-1.5">
                                                                     <span
                                                                         title={formatted.tooltip || undefined}
-                                                                        className={cn(
-                                                                            formatted.missingDateContext && 'text-amber-600 dark:text-amber-400'
-                                                                        )}
+                                                                        className="text-red-600 dark:text-red-400 font-medium"
+                                                                    >
+                                                                        {formatted.display}
+                                                                    </span>
+                                                                    <span
+                                                                        className="text-red-500 cursor-help"
+                                                                        title={errorTitle}
+                                                                    >
+                                                                        <AlertCircle className="h-4 w-4" />
+                                                                    </span>
+                                                                </div>
+                                                            );
+                                                        }
+
+                                                        // Show warning for missing date context
+                                                        if (formatted.missingDateContext) {
+                                                            const warningTitle = 'Missing date context: Sheet name is not a valid date';
+                                                            return (
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <span
+                                                                        title={formatted.tooltip || undefined}
+                                                                        className="text-amber-600 dark:text-amber-400"
                                                                     >
                                                                         {formatted.display}
                                                                     </span>

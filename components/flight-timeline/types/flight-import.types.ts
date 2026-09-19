@@ -132,6 +132,7 @@ export interface FlightValidateRequestItem {
     mechIdList: number[];
     maintenanceStatusId?: number;
     note: string;
+    datasource?: string;
     userName?: string;
 }
 

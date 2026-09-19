@@ -25,8 +25,6 @@ export function PreInvoiceModal({ open, onOpenChange, lineMaintenanceIds }: PreI
         if (!lineMaintenanceIds.length) return;
         
         await mapContractsMutation.mutateAsync({
-            curencyType: currencyType,
-            curencyRate: Number(currencyRate) || 0,
             lineMaintenanceIdLiist: lineMaintenanceIds,
         });
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { AlertTriangle, CalendarIcon, Check, CheckCircle, ChevronLeft, ChevronRight, FileSpreadsheet, Loader2, Pencil, Upload, X } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CalendarIcon, Check, CheckCircle, ChevronLeft, ChevronRight, FileSpreadsheet, Loader2, Pencil, Upload, X } from 'lucide-react';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import {
@@ -366,12 +366,21 @@ export function ExcelImportModal({
 
                 {/* Footer Actions */}
                 <DialogFooter className="flex items-center justify-between gap-4 pt-4 border-t">
+                    {/* Error message when rows have errors */}
+                    {hasValidated && invalidRows.length > 0 && (
+                        <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm">
+                            <AlertCircle className="w-4 h-4" />
+                            <span>
+                                {invalidRows.length} row(s) have errors - please fix before uploading
+                            </span>
+                        </div>
+                    )}
                     {/* Warning message when rows have warnings */}
-                    {hasValidated && warningRows.length > 0 && (
+                    {hasValidated && invalidRows.length === 0 && warningRows.length > 0 && (
                         <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-sm">
                             <AlertTriangle className="w-4 h-4" />
                             <span>
-                                {warningRows.length} row(s) have warnings - please fix before uploading
+                                {warningRows.length} row(s) have warnings
                             </span>
                         </div>
                     )}

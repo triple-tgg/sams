@@ -12,6 +12,8 @@ import { dateTimeUtils } from '@/lib/dayjs'
 import { useStaffDocumentTypes } from '@/lib/api/master/staff/staffDocumentTypes.hooks'
 import type { StaffDocumentType } from '@/lib/api/master/staff/staffDocumentTypes'
 import { groupCombinationDisplayLabels } from '@/lib/utils/aircraftEngineDisplay'
+import { useStaffsTypesAll } from '@/lib/api/hooks/useStaffsTypes'
+import { useAmelCategories } from '@/lib/api/master/amel-categories.hooks'
 
 // ── Form State ──
 interface StaffForm {
@@ -93,13 +95,7 @@ const INITIAL_FORM: StaffForm = {
 }
 
 // POSITIONS and DEPARTMENTS are now fetched from the API via organization hooks
-
-const STAFF_TYPES = [
-    { id: 1, name: 'MECH' },
-    { id: 2, name: 'CS' },
-    { id: 3, name: 'Operational Staff' },
-    { id: 4, name: 'Back Office' },
-]
+// STAFF_TYPES are now fetched from the API via useStaffsTypesAll()
 
 const TITLE_NAMES = ['Mr.', 'Mrs.', 'Ms.', 'Miss']
 
@@ -107,14 +103,7 @@ const TITLE_NAMES = ['Mr.', 'Mrs.', 'Ms.', 'Miss']
 
 // AIRCRAFT_TYPE_LICENSES removed — now fetched from API via useCombinations()
 
-const AMEL_LICENSE_CATEGORIES = [
-    { code: 'B1.1', label: 'B1.1 — Aeroplane Turbine' },
-    { code: 'B1.2', label: 'B1.2 — Aeroplane Piston' },
-    { code: 'B1.3', label: 'B1.3 — Helicopter Turbine' },
-    { code: 'B1.4', label: 'B1.4 — Helicopter Piston' },
-    { code: 'B2', label: 'B2 — Avionics' },
-    { code: 'C', label: 'C — Base Maintenance' },
-]
+// AMEL_LICENSE_CATEGORIES are now fetched from API via useAmelCategories()
 
 // ── Validation Rules ──
 const VALIDATION_RULES: Record<string, { validate: (v: string) => string | null }> = {
@@ -253,6 +242,9 @@ export default function NewStaffPage() {
     // ── Fetch departments & positions from API ──
     const { data: deptData } = useStaffDepartments()
     const { data: posData } = useStaffDepartmentPositions()
+    const { staffTypes: staffTypesList } = useStaffsTypesAll()
+    const { data: amelCategoriesData } = useAmelCategories()
+    const amelCategories = useMemo(() => (amelCategoriesData || []).filter(c => !c.isdelete), [amelCategoriesData])
 
     // ── Fetch aircraft engine combinations from API ──
     const { data: combinationsData } = useCombinations()
@@ -461,7 +453,10 @@ export default function NewStaffPage() {
     const buildRequestBody = (): UpsertStaffRequest => {
         // Position/department are now stored as IDs
         const positionId = form.position ? Number(form.position) : 0
-        const staffstypeid = STAFF_TYPES.find(s => s.name === form.staffType)?.id ?? 1
+        const selectedStaffTypeId = Number(form.staffType)
+        const staffstypeid = !isNaN(selectedStaffTypeId) && selectedStaffTypeId > 0
+            ? selectedStaffTypeId
+            : (staffTypesList.find(s => s.code === form.staffType || s.name === form.staffType)?.id ?? 1)
         const positionName = allPositions.find(p => p.id === positionId)?.name || ''
 
         return {
@@ -516,7 +511,7 @@ export default function NewStaffPage() {
                 ? [{
                     id: 0,
                     licenseNumber: amelLicense.licenseNumber,
-                    categoryId: AMEL_LICENSE_CATEGORIES.findIndex(c => c.code === amelLicense.selectedCategories[0]) + 1 || 0,
+                    categoryId: amelCategories.find(c => c.code === amelLicense.selectedCategories[0])?.id || 0,
                     issuedDate: amelLicense.issuedDate || '',
                     expiryDate: amelLicense.expiryDate || '',
                     attachmentFilePath: amelLicense.attachmentFilePath || '',
@@ -699,7 +694,9 @@ export default function NewStaffPage() {
                                     <Field label="Staff Type">
                                         <select value={form.staffType} onChange={e => update('staffType', e.target.value)} className={selectNormal}>
                                             <option value="">Select Staff Type</option>
-                                            {STAFF_TYPES.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                                            {staffTypesList.map(s => (
+                                                <option key={s.id} value={s.id.toString()}>{s.code || s.name}</option>
+                                            ))}
                                         </select>
                                     </Field>
                                     <Field label="Job Note">
@@ -956,8 +953,10 @@ export default function NewStaffPage() {
                                                 className={selectNormal}
                                             >
                                                 <option value="">Select Category</option>
-                                                {AMEL_LICENSE_CATEGORIES.map(cat => (
-                                                    <option key={cat.code} value={cat.code}>{cat.label}</option>
+                                                {amelCategories.map(cat => (
+                                                    <option key={cat.id} value={cat.code}>
+                                                        {cat.code} — {cat.name}
+                                                    </option>
                                                 ))}
                                             </select>
                                         </Field>

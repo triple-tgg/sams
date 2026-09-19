@@ -13,6 +13,7 @@ import { Trash2, Users } from 'lucide-react'
 import { ServicesFormInputs } from '../types'
 import { StaffTypeOption } from '@/lib/api/hooks/useStaffsTypes'
 import { CustomDateInput } from '@/components/ui/input-date/CustomDateInput'
+import { CustomTimeInput } from '@/components/ui/input-time/CustomTimeInput'
 import { FlightFormData } from '@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId'
 import SearchableStaffSelect from './SearchableStaffSelect'
 import dayjs from 'dayjs'
@@ -307,7 +308,7 @@ export const PersonnelSection: React.FC<{
                                     render={({ field }) => (
                                       <FormItem className="space-y-0">
                                         <FormControl>
-                                          <Input type="time" {...field} className="h-9" />
+                                          <CustomTimeInput {...field} className="h-9" />
                                         </FormControl>
                                         <FormMessage />
                                       </FormItem>
@@ -344,7 +345,7 @@ export const PersonnelSection: React.FC<{
                                     render={({ field }) => (
                                       <FormItem className="space-y-0">
                                         <FormControl>
-                                          <Input type="time" {...field} className="h-9" />
+                                          <CustomTimeInput {...field} className="h-9" />
                                         </FormControl>
                                         <FormMessage />
                                       </FormItem>

@@ -60,20 +60,3 @@ export async function addFlight(
   }
 }
 
-// กรณี bulk import (array)
-export async function importFlights(
-  flights: FlightData[],
-  opts: ReqOpts = {}
-): Promise<AddFlightRes> {
-  try {
-    const res = await axios.post<AddFlightRes>("/flight/import", flights, {
-      signal: opts.signal,
-      headers: opts.token ? { Authorization: `Bearer ${opts.token}` } : undefined,
-    });
-    return res.data;
-  } catch (e) {
-    const err = e as AxiosError<{ message?: string }>;
-    const msg = err.response?.data?.message ?? err.message ?? "Import flights failed";
-    throw new Error(msg);
-  }
-}

@@ -10,10 +10,14 @@ export function useMapContractsV2() {
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ["flightList"] });
             qc.invalidateQueries({ queryKey: ["thfDocumentList"] });
+            qc.invalidateQueries({ queryKey: ["preInvoice"] });
             toast.success("Pre-Invoice generated successfully.");
         },
         onError: (error: any) => {
-            toast.error(error?.response?.data?.message || error?.message || "Failed to generate Pre-Invoice.");
+            toast.error(error?.response?.data?.message || error?.message || "Failed to generate Pre-Invoice.", {
+                duration: Infinity,
+                closeButton: true,
+            });
         }
     });
 }

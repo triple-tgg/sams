@@ -12,6 +12,7 @@ import {
 import { FieldError } from '@/components/ui/field-error'
 import type { Option } from './types'
 import { CustomDateInput } from '@/components/ui/input-date/CustomDateInput'
+import { CustomTimeInput } from '@/components/ui/input-time/CustomTimeInput'
 import { AlertTriangle } from 'lucide-react'
 
 interface SelectFieldProps {
@@ -167,14 +168,23 @@ export const InputField = ({
     <Controller
       name={name}
       control={control}
-      render={({ field }) => (
-        <Input
-          {...field}
-          value={field.value || ''}
-          placeholder={placeholder}
-          type={type}
-        />
-      )}
+      render={({ field }) =>
+        type === "time" ? (
+          <CustomTimeInput
+            value={field.value || ""}
+            onChange={field.onChange}
+            onBlur={field.onBlur}
+            placeholder={placeholder || "HH:mm"}
+          />
+        ) : (
+          <Input
+            {...field}
+            value={field.value || ""}
+            placeholder={placeholder}
+            type={type}
+          />
+        )
+      }
     />
     <FieldError msg={errorMessage} />
   </div>

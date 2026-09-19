@@ -120,7 +120,7 @@ const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, ti
         >
             <div className="flex h-[80vh] w-full overflow-hidden rounded-md border bg-white shadow-xl">
                 {/* Left Sidebar - Blue */}
-                <div className="w-1/4 min-w-[280px] bg-blue-600 h-full flex flex-col">
+                <div className="w-1/4 min-w-[280px] bg-blue-600 h-full flex flex-col shrink-0">
                     <VerticalStepper
                         steps={steps}
                         activeStep={activeStep}
@@ -135,9 +135,9 @@ const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, ti
                 </div>
 
                 {/* Right Content - White */}
-                <div className="flex-1 flex flex-col h-full bg-slate-50 relative">
+                <div className="flex-1 flex flex-col h-full min-h-0 bg-slate-50 relative">
                     {/* Header */}
-                    <div className="px-8 py-5 border-b bg-white flex justify-between items-center sticky top-0 z-10">
+                    <div className="px-8 py-5 border-b bg-white flex justify-between items-center shrink-0">
                         <div>
                             <h2 className="text-xl font-bold text-slate-800">{steps[currentStep].label}</h2>
                             <p className="text-sm text-slate-500">
@@ -152,15 +152,18 @@ const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, ti
                     </div>
 
                     {/* Scrollable Content Area */}
-                    <ScrollArea className="flex-1 p-0">
-                        <div className="px-8 py-6 pb-24">
+                    <ScrollArea
+                        className="flex-1 h-full min-h-0 p-0 [&>div>div[style]]:block! [&>div>div[style]]:min-h-full [&>[data-radix-scroll-area-viewport]]:h-full"
+                        viewportClassName="h-full w-full [&>div]:min-h-full [&>div]:block!"
+                    >
+                        <div className="px-8 py-6 pb-8 min-h-full">
                             <div className="max-w-4xl">
                                 {revisionRecord?.state === 'revision_required' && (
                                     <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 rounded-lg flex items-start gap-3 shadow-xs">
                                         <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                                         <div className="text-xs text-amber-900 dark:text-amber-200 flex-1">
                                             <div className="font-semibold text-sm text-amber-800 dark:text-amber-300 flex items-center justify-between">
-                                                <span>คำขอแก้ไขจากแผนกบัญชี ({revisionRecord.requestedBy || 'Accounting'})</span>
+                                                <span>Revision Request from Accounting ({revisionRecord.requestedBy || 'Accounting'})</span>
                                                 {revisionRecord.requestedAt && (
                                                     <span className="text-[11px] font-normal text-amber-600 dark:text-amber-400">
                                                         {new Date(revisionRecord.requestedAt).toLocaleString()}
@@ -168,11 +171,11 @@ const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, ti
                                                 )}
                                             </div>
                                             <p className="mt-1.5 text-slate-800 dark:text-slate-200 font-medium bg-white/85 dark:bg-slate-900/85 p-2.5 rounded border border-amber-200/60 dark:border-amber-900/60">
-                                                {revisionRecord.reason || 'กรุณาตรวจสอบและปรับปรุงข้อมูลให้ถูกต้องตามที่ระบุ'}
+                                                {revisionRecord.reason || 'Please review and update the information as requested.'}
                                             </p>
                                             {revisionRecord.category && (
                                                 <div className="mt-1.5 text-[11px] text-amber-700 dark:text-amber-400 font-medium">
-                                                    หมวดหมู่ข้อผิดพลาด: <span className="underline">{revisionRecord.category}</span>
+                                                    Error Category: <span className="underline">{revisionRecord.category}</span>
                                                 </div>
                                             )}
                                         </div>
@@ -184,7 +187,7 @@ const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, ti
                     </ScrollArea>
 
                     {/* Footer Actions */}
-                    <div className="border-t bg-white p-4 px-8 flex justify-end gap-3 sticky bottom-0 z-10">
+                    <div className="border-t bg-white p-4 px-8 flex justify-end gap-3 shrink-0">
                         {!isSuccess && (
                             <Button
                                 variant="outline"

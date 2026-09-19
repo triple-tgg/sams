@@ -534,9 +534,9 @@ const ListTable = ({
                     <div className="mx-6 mb-3 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 rounded-lg flex items-center justify-between text-xs text-amber-900 dark:text-amber-200 shadow-xs">
                         <div className="flex items-center gap-2 font-medium">
                             <AlertTriangle className="h-4 w-4 text-amber-600 animate-pulse" />
-                            <span>มี <strong>{revisionRequiredCount}</strong> เที่ยวบินที่แผนกบัญชีส่งกลับมาให้แก้ไขเอกสาร THF (Revision Required)</span>
+                            <span><strong>{revisionRequiredCount}</strong> flight{revisionRequiredCount > 1 ? "s" : ""} have THF revisions requested by Accounting (Revision Required)</span>
                         </div>
-                        <span className="text-[11px] text-amber-700 dark:text-amber-400">กรุณาตรวจสอบและกด <strong>Edit THF (Revision Required)</strong> ในเที่ยวบินที่มีแถบสีส้ม</span>
+                        <span className="text-[11px] text-amber-700 dark:text-amber-400">Please review and click <strong>Edit THF (Revision Required)</strong> on the highlighted flight{revisionRequiredCount > 1 ? "s" : ""}.</span>
                     </div>
                 );
             })()}

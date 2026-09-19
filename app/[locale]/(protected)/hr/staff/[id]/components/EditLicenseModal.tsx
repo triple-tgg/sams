@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { X, Award } from 'lucide-react'
+import { useAmelCategories } from '@/lib/api/master/amel-categories.hooks'
 
 interface LicenseFormData {
     licenseNumber: string
@@ -17,14 +18,7 @@ interface EditLicenseModalProps {
     onSave: (data: any) => void
 }
 
-const CATEGORY_OPTIONS = [
-    { id: 1, label: 'B1.1 — Aeroplane Turbine' },
-    { id: 2, label: 'B1.2 — Aeroplane Piston' },
-    { id: 3, label: 'B1.3 — Helicopter Turbine' },
-    { id: 4, label: 'B1.4 — Helicopter Piston' },
-    { id: 5, label: 'B2 — Avionics' },
-    { id: 6, label: 'C — Base Maintenance' },
-]
+// Category options are now fetched from API via useAmelCategories()
 
 function emptyForm(): LicenseFormData {
     return {
@@ -58,6 +52,12 @@ function toLicense(form: LicenseFormData): any {
 }
 
 export function EditLicenseModal({ isOpen, onClose, initialLicense, onSave }: EditLicenseModalProps) {
+    const { data: amelCategoriesData } = useAmelCategories()
+    const amelCategories = useMemo(
+        () => (amelCategoriesData || []).filter(c => !c.isdelete),
+        [amelCategoriesData]
+    )
+
     const [form, setForm] = useState<LicenseFormData>(emptyForm())
 
     useEffect(() => {
@@ -132,8 +132,10 @@ export function EditLicenseModal({ isOpen, onClose, initialLicense, onSave }: Ed
                                 className={inputClass}
                             >
                                 <option value="">Select Category</option>
-                                {CATEGORY_OPTIONS.map(c => (
-                                    <option key={c.id} value={c.id}>{c.label}</option>
+                                {amelCategories.map(c => (
+                                    <option key={c.id} value={c.id.toString()}>
+                                        {c.code} — {c.name}
+                                    </option>
                                 ))}
                             </select>
                         </div>

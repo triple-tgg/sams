@@ -110,6 +110,7 @@ export interface StaffData {
     previousEmployment?: PreviousEmployment[]
     jobNote?: string
     staffType?: string
+    staffTypeId?: number
 }
 
 export type TabName = 'Profile' | 'Training' | 'Experience' | 'Logbook Records'

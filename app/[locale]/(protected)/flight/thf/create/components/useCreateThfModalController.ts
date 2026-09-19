@@ -9,9 +9,10 @@ import { useState, useEffect } from 'react'
 
 interface UseCreateThfModalControllerProps {
     flightInfosId: number | null
+    open?: boolean
 }
 
-export const useCreateThfModalController = ({ flightInfosId }: UseCreateThfModalControllerProps) => {
+export const useCreateThfModalController = ({ flightInfosId, open = true }: UseCreateThfModalControllerProps) => {
     // Flight & THF Data
     const {
         isLoading: loadingFlight,
@@ -61,13 +62,19 @@ export const useCreateThfModalController = ({ flightInfosId }: UseCreateThfModal
     // Latch the initial creation mode so it doesn't change from 'New' to 'Edit' when step 1 is saved
     const [isInitialCreationMode, setIsInitialCreationMode] = useState<boolean | null>(null)
     
+    // Reset when modal closes or flightInfosId changes
+    useEffect(() => {
+        if (!open || !flightInfosId) {
+            setIsInitialCreationMode(null)
+        }
+    }, [open, flightInfosId])
+
     useEffect(() => {
         if (!loadingFlight && flightData && isInitialCreationMode === null) {
-            // Determine if it was initially a creation session based on the state being 'plan'
-            // or if there is no lineMaintenanceData yet.
-            const isPlan = flightData.state === 'plan'
-            const hasNoMaintenance = !lineMaintenanceData?.id
-            setIsInitialCreationMode(isPlan || hasNoMaintenance)
+            // A flight is in creation mode ONLY if it is initially in 'plan' state
+            // and has no existing THF number
+            const hasExistingThf = !!(flightData.thfNumber || lineMaintenanceData?.thfNumber || (flightData.state && flightData.state !== 'plan'))
+            setIsInitialCreationMode(!hasExistingThf)
         }
     }, [loadingFlight, flightData, lineMaintenanceData, isInitialCreationMode])
 
@@ -80,7 +87,9 @@ export const useCreateThfModalController = ({ flightInfosId }: UseCreateThfModal
             lineMaintenanceData, // Needed for ID and Number
             equipmentData,
             fullData: data,
-            isInitialCreationMode: isInitialCreationMode !== null ? isInitialCreationMode : (flightData?.state === 'plan' || !lineMaintenanceData?.id)
+            isInitialCreationMode: isInitialCreationMode !== null 
+                ? isInitialCreationMode 
+                : (flightData ? !(flightData.thfNumber || lineMaintenanceData?.thfNumber || (flightData.state && flightData.state !== 'plan')) : false)
         },
         options: {
             customers: {

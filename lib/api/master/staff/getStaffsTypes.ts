@@ -4,6 +4,8 @@ import axiosConfig from '@/lib/axios.config';
 export interface StaffType {
   id: number;
   code: string;
+  name?: string | null;
+  color?: string | null;
 }
 
 export interface StaffsTypesResponse {

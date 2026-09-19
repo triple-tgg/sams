@@ -20,11 +20,11 @@ interface RequestRevisionModalProps {
 }
 
 const CATEGORIES = [
-    { value: "Manpower", label: "ข้อมูลช่างและชั่วโมงแรงงาน (Manpower)" },
-    { value: "Parts & Tools", label: "รายการอะไหล่และอุปกรณ์ (Parts & Tools)" },
-    { value: "Fluid / Servicing", label: "การเติมสารเหลวและบริการ (Fluid / Servicing)" },
-    { value: "Attachments", label: "เอกสารแนบและรูปถ่าย (Attachments)" },
-    { value: "General", label: "อื่นๆ / รายละเอียดทั่วไป (General)" },
+    { value: "Manpower", label: "Manpower & Labor Hours" },
+    { value: "Parts & Tools", label: "Parts & Equipment" },
+    { value: "Fluid / Servicing", label: "Fluids & Servicing" },
+    { value: "Attachments", label: "Attachments & Photos" },
+    { value: "General", label: "General / Other" },
 ];
 
 export function RequestRevisionModal({ open, onOpenChange, flight, onSuccess }: RequestRevisionModalProps) {
@@ -37,7 +37,7 @@ export function RequestRevisionModal({ open, onOpenChange, flight, onSuccess }: 
         if (!flight) return;
 
         if (!reason.trim()) {
-            toast.error("กรุณาระบุรายละเอียดที่ต้องแก้ไข");
+            toast.error("Please provide revision details.");
             return;
         }
 
@@ -68,8 +68,8 @@ export function RequestRevisionModal({ open, onOpenChange, flight, onSuccess }: 
                 requestedBy: "Accounting Department",
             });
 
-            toast.warning(`ส่งคำขอแก้ไขเอกสาร THF ${flight.thfNumber || ""} เรียบร้อยแล้ว`, {
-                description: "ระบบได้แจ้งเตือนไปยังหน้า Flight List สำหรับทีมช่างแล้ว",
+            toast.warning(`Revision request for THF ${flight.thfNumber || ""} submitted`, {
+                description: "Maintenance team has been notified on the Flight List page.",
             });
 
             onSuccess?.();
@@ -77,7 +77,7 @@ export function RequestRevisionModal({ open, onOpenChange, flight, onSuccess }: 
             setReason("");
         } catch (error) {
             console.error("Failed to request revision:", error);
-            toast.error("เกิดข้อผิดพลาดในการส่งคำขอแก้ไข");
+            toast.error("Failed to submit revision request.");
         } finally {
             setIsSubmitting(false);
         }
@@ -92,28 +92,32 @@ export function RequestRevisionModal({ open, onOpenChange, flight, onSuccess }: 
                     <DialogHeader>
                         <div className="flex items-center gap-2 text-amber-600">
                             <AlertCircle className="h-5 w-5" />
-                            <DialogTitle className="text-lg">ส่งกลับแก้ไขเอกสาร THF (Request Revision)</DialogTitle>
+                            <DialogTitle className="text-lg">Request THF Revision</DialogTitle>
                         </div>
                         <DialogDescription className="text-xs text-muted-foreground pt-1">
-                            ระบุข้อผิดพลาดหรือจุดที่ต้องการให้ทีมช่างทำการแก้ไข เอกสารนี้จะถูกกักไว้และไม่สามารถนำไป Create Pre-Invoice ได้จนกว่าจะแก้ไขเรียบร้อย
+                            Specify the errors or items requiring maintenance team corrections. This document will be held and cannot be used to Create Pre-Invoice until updated.
                         </DialogDescription>
                     </DialogHeader>
 
                     {/* Flight & THF Info Card */}
                     <div className="my-4 p-3 bg-slate-50 border rounded-lg text-xs grid grid-cols-2 gap-2 text-slate-700">
-                        <div>
+                        <div className="col-span-2">
                             <span className="text-muted-foreground">THF Number: </span>
                             <span className="font-semibold text-slate-900">{flight.thfNumber || "-"}</span>
                         </div>
-                        <div>
+                        <div className="col-span-2">
                             <span className="text-muted-foreground">Flight No: </span>
-                            <span className="font-semibold text-slate-900">{flight.arrivalFlightNo || flight.departureFlightNo || "-"}</span>
+                            <span className="font-semibold text-slate-900">
+                                {flight.arrivalFlightNo && flight.departureFlightNo && flight.arrivalFlightNo !== flight.departureFlightNo && !flight.arrivalFlightNo.includes(flight.departureFlightNo)
+                                    ? `${flight.arrivalFlightNo} / ${flight.departureFlightNo}`
+                                    : (flight.arrivalFlightNo || flight.departureFlightNo || "-")}
+                            </span>
                         </div>
-                        <div>
+                        <div className="pt-1.5 border-t border-slate-200/60">
                             <span className="text-muted-foreground">Airline: </span>
                             <span className="font-semibold text-slate-900">{flight.airlineObj?.code || "-"}</span>
                         </div>
-                        <div>
+                        <div className="pt-1.5 border-t border-slate-200/60">
                             <span className="text-muted-foreground">Station: </span>
                             <span className="font-semibold text-slate-900">{flight.stationObj?.code || "-"}</span>
                         </div>
@@ -123,11 +127,11 @@ export function RequestRevisionModal({ open, onOpenChange, flight, onSuccess }: 
                         {/* Error Category */}
                         <div className="space-y-1.5">
                             <Label htmlFor="category" className="text-xs font-semibold text-slate-700">
-                                หมวดหมู่ข้อผิดพลาด <span className="text-destructive">*</span>
+                                Error Category <span className="text-destructive">*</span>
                             </Label>
                             <Select value={category} onValueChange={setCategory}>
                                 <SelectTrigger id="category" className="h-9 text-xs">
-                                    <SelectValue placeholder="เลือกหมวดหมู่" />
+                                    <SelectValue placeholder="Select category" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {CATEGORIES.map((c) => (
@@ -142,11 +146,11 @@ export function RequestRevisionModal({ open, onOpenChange, flight, onSuccess }: 
                         {/* Revision Details / Note */}
                         <div className="space-y-1.5">
                             <Label htmlFor="reason" className="text-xs font-semibold text-slate-700">
-                                รายละเอียดและสิ่งที่ต้องแก้ไข <span className="text-destructive">*</span>
+                                Revision Details & Requirements <span className="text-destructive">*</span>
                             </Label>
                             <Textarea
                                 id="reason"
-                                placeholder="เช่น ชั่วโมงแรงงานไม่ตรงกับใบล็อกบุ๊ก, ขอให้แนบรูปถ่ายใบล็อกบุ๊กหน้า 2 เพิ่มเติม, หรือแก้ไขจำนวนน้ำมันหล่อลื่น..."
+                                placeholder="e.g. Labor hours do not match logbook, please attach additional photo of logbook page 2, or correct lubrication quantity..."
                                 className="min-h-[100px] text-xs resize-none"
                                 value={reason}
                                 onChange={(e) => setReason(e.target.value)}
@@ -155,7 +159,7 @@ export function RequestRevisionModal({ open, onOpenChange, flight, onSuccess }: 
                         </div>
                     </div>
 
-                    <DialogFooter className="mt-4 gap-2 sm:gap-0">
+                    <DialogFooter className="mt-4 gap-2 sm:gap-1">
                         <Button
                             type="button"
                             variant="outline"
@@ -163,7 +167,7 @@ export function RequestRevisionModal({ open, onOpenChange, flight, onSuccess }: 
                             onClick={() => onOpenChange(false)}
                             disabled={isSubmitting}
                         >
-                            ยกเลิก
+                            Cancel
                         </Button>
                         <Button
                             type="submit"
@@ -173,7 +177,7 @@ export function RequestRevisionModal({ open, onOpenChange, flight, onSuccess }: 
                             disabled={isSubmitting || !reason.trim()}
                         >
                             <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-                            {isSubmitting ? "กำลังบันทึก..." : "ยืนยันส่งกลับแก้ไข"}
+                            {isSubmitting ? "Submitting..." : "Confirm Request Revision"}
                         </Button>
                     </DialogFooter>
                 </form>

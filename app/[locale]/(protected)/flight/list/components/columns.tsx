@@ -23,6 +23,7 @@ export function getFlightColumns({
   acTypeField = "code",
   onRequestRevision,
   onRequestUnlock,
+  onReviewUnlock,
   getRevisionRecord,
 }: {
   onCreateTHF?: (flight: FlightItem) => void;
@@ -38,6 +39,7 @@ export function getFlightColumns({
   acTypeField?: "code" | "familyCode";
   onRequestRevision?: (flight: FlightItem) => void;
   onRequestUnlock?: (flight: FlightItem) => void;
+  onReviewUnlock?: (flight: FlightItem) => void;
   getRevisionRecord?: (flight: FlightItem) => ThfRevisionRecord | undefined;
 }): ColumnDef<FlightItem>[] {
   return [
@@ -104,6 +106,7 @@ export function getFlightColumns({
         const isRevisionRequired = flight.state === "revision_required" || revRecord?.state === "revision_required";
         const isPendingUnlock = flight.state === "pending_unlock" || revRecord?.state === "pending_unlock";
         const isRevised = flight.mappingStatus === "REVISED" || revRecord?.mappingStatus === "REVISED";
+        const isLockedFromEdit = (flight.state === "save" || flight.state === "submitted") && !isRevisionRequired && !isPendingUnlock;
 
         return (
           <div className="flex items-center justify-end gap-1.5">
@@ -125,7 +128,7 @@ export function getFlightColumns({
                     <p className="font-semibold text-amber-500">Revision Requested by {flight.revisionRequestedBy || revRecord?.requestedBy || 'Accounting'}:</p>
                     <p className="text-slate-100 mt-0.5">{flight.revisionReason || revRecord?.reason || 'Please review and update this THF.'}</p>
                     {(flight.revisionCategory || revRecord?.category) && (
-                      <p className="text-[10px] text-slate-400 mt-1">หมวดหมู่: {flight.revisionCategory || revRecord?.category}</p>
+                      <p className="text-[10px] text-slate-400 mt-1">Category: {flight.revisionCategory || revRecord?.category}</p>
                     )}
                   </TooltipContent>
                 </Tooltip>
@@ -231,7 +234,7 @@ export function getFlightColumns({
                 )}
 
                 {/* Create / Edit THF */}
-                {onCreateTHF && (
+                {onCreateTHF && !isLockedFromEdit && (
                   <PermissionActionGuard menuCode="THF" action={flight.state === "plan" ? "canCreate" : "canEdit"}>
                     <DropdownMenuItem
                       className={clsx(
@@ -267,6 +270,7 @@ export function getFlightColumns({
                   <DropdownMenuItem
                     className="cursor-pointer text-blue-600 focus:text-blue-600"
                     disabled={flight.statusObj?.code === "Cancel"}
+                    onSelect={() => onRequestUnlock(flight)}
                     onClick={() => onRequestUnlock(flight)}
                   >
                     <LockKeyhole className="h-4 w-4 mr-2" />
@@ -275,14 +279,28 @@ export function getFlightColumns({
                 )}
 
                 {/* Accounting: Request Revision (in Invoice THF DOCUMENT) */}
-                {hideStatusActions && onRequestRevision && (
+                {hideStatusActions && onRequestRevision && !isPendingUnlock && !isRevisionRequired && (
                   <DropdownMenuItem
                     className="cursor-pointer text-amber-600 focus:text-amber-600"
                     disabled={flight.statusObj?.code === "Cancel"}
+                    onSelect={() => onRequestRevision(flight)}
                     onClick={() => onRequestRevision(flight)}
                   >
                     <RotateCcw className="h-4 w-4 mr-2" />
                     Request Revision
+                  </DropdownMenuItem>
+                )}
+
+                {/* Accounting: Review Unlock / Edit Request (in Invoice THF DOCUMENT) */}
+                {hideStatusActions && isPendingUnlock && onReviewUnlock && (
+                  <DropdownMenuItem
+                    className="cursor-pointer text-blue-600 focus:text-blue-600 font-medium bg-blue-50/50"
+                    disabled={flight.statusObj?.code === "Cancel"}
+                    onSelect={() => onReviewUnlock(flight)}
+                    onClick={() => onReviewUnlock(flight)}
+                  >
+                    <LockKeyhole className="h-4 w-4 mr-2 text-blue-600" />
+                    Review Edit Request
                   </DropdownMenuItem>
                 )}
 
@@ -302,7 +320,7 @@ export function getFlightColumns({
                 {onPreInvoice && (
                   <DropdownMenuItem
                     className="cursor-pointer"
-                    disabled={flight.statusObj?.code === "Cancel" || isRevisionRequired}
+                    disabled={flight.statusObj?.code === "Cancel" || isRevisionRequired || isPendingUnlock}
                     onClick={() => onPreInvoice(flight)}
                   >
                     <BadgeDollarSign className="h-4 w-4 mr-2" />

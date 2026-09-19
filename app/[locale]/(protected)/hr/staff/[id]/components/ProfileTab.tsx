@@ -20,6 +20,7 @@ import { useStaffDocumentTypes } from '@/lib/api/master/staff/staffDocumentTypes
 import type { StaffDocumentType } from '@/lib/api/master/staff/staffDocumentTypes'
 import { useStaffDocumentStatuses } from '@/lib/api/master/staff/staffDocumentStatuses.hooks'
 import type { StaffDocumentStatus } from '@/lib/api/master/staff/staffDocumentStatuses'
+import { useAmelCategories } from '@/lib/api/master/amel-categories.hooks'
 
 // ── Constants ──
 const AIRCRAFT_TYPE_LICENSES = [
@@ -181,6 +182,8 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
 
     // ── Document types from API ──
     const { data: docTypesResp } = useStaffDocumentTypes()
+    const { data: amelCategoriesData } = useAmelCategories()
+    const amelCategories = useMemo(() => (amelCategoriesData || []).filter(c => !c.isdelete), [amelCategoriesData])
     const docTypesList = useMemo(() => {
         const raw = docTypesResp?.responseData ?? []
         return raw.map((dt: StaffDocumentType) => ({ key: dt.code, label: dt.name, id: dt.id }))
@@ -376,13 +379,18 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
 
     const handleSaveEmployment = (data: any) => {
         const staffTypeIdMap: Record<string, number> = { 'MECH': 1, 'CS': 2, 'Operational Staff': 3, 'Back Office': 4 }
+        const selectedId = Number(data.staffType)
+        const staffstypeid = !isNaN(selectedId) && selectedId > 0
+            ? selectedId
+            : (staffTypeIdMap[data.staffType] || (apiData?.staffstypeObj?.id || 0))
+
         const payload = buildUpsertPayload({
             employeeId: data.empId,
             startDate: data.startDate,
             endWorkingDate: data.endWorkingDate || null,
             staffDepartmentPositionId: data.position ? Number(data.position) : (apiData?.positionObj?.id || 0),
             jobTitle: data.jobNote || '',
-            staffstypeid: staffTypeIdMap[data.staffType] || (apiData?.staffstypeObj?.id || 0),
+            staffstypeid: staffstypeid,
         })
         if (!payload) return
 
@@ -531,8 +539,10 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
     }
 
     const getCategoryLabel = (categoryId: number) => {
-        const cat = AMEL_LICENSE_CATEGORIES[categoryId - 1]
-        return cat ? cat.label : `Category ${categoryId}`
+        const cat = amelCategories.find(c => c.id === categoryId)
+        if (cat) return `${cat.code} — ${cat.name}`
+        const fallback = AMEL_LICENSE_CATEGORIES[categoryId - 1]
+        return fallback ? fallback.label : `Category ${categoryId}`
     }
 
     const groupedAircraftLabels = useMemo(

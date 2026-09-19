@@ -3,7 +3,6 @@ import { Icon } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { ExcelImportButton } from "@/components/excel-import-button";
 import { useTemplateDownload } from "@/hooks/use-template-download";
 import { useDashboardFlight } from "@/lib/api/hooks/useDashboardFlight";
 import { Download, Plus, CalendarPlus, CalendarCheck, CalendarX, AlignStartVertical } from "lucide-react";
@@ -14,13 +13,6 @@ const ProjectWrapper = ({ children }: { children: React.ReactNode }) => {
 
     const { handleDownloadTemplate } = useTemplateDownload();
     const { data: dashboard, isLoading: dashboardLoading, error: dashboardError } = useDashboardFlight();
-
-    // Callback เมื่อ import สำเร็จ
-    const handleImportSuccess = () => {
-        // อาจจะต้อง refresh data ในหน้า list
-        // window.location.reload(); // หรือใช้ react-query invalidate
-        console.log('Import completed successfully');
-    };
 
     return (
         <div className="space-y-5">

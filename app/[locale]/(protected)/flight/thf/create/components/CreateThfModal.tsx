@@ -35,7 +35,7 @@ const CreateThfModal: React.FC<CreateThfModalProps> = ({
     onClose
 }) => {
     // Separation of Concerns: Logic extracted to hook
-    const { flightDataState, options } = useCreateThfModalController({ flightInfosId })
+    const { flightDataState, options } = useCreateThfModalController({ flightInfosId, open })
 
     const { record: revisionRecord } = useThfRevision({
         flightId: flightInfosId,
@@ -46,7 +46,8 @@ const CreateThfModal: React.FC<CreateThfModalProps> = ({
     // Determine if this is an Edit (existing THF) vs New (no THF yet)
     // We use isInitialCreationMode to prevent the modal from switching to 'Edit' mode
     // midway through the process if step 1 is saved and lineMaintenanceData is created.
-    const isEdit = flightDataState.isInitialCreationMode === false
+    const isEdit = flightDataState.isInitialCreationMode !== true &&
+        (flightDataState.isInitialCreationMode === false || (flightDataState.rawFlightData ? flightDataState.rawFlightData.state !== 'plan' : false))
     const title = isEdit ? 'Edit THF' : 'New THF'
     const status = revisionRecord?.state ?? flightDataState.rawFlightData?.state ?? undefined
     const canNavigate = isEdit
@@ -59,8 +60,9 @@ const CreateThfModal: React.FC<CreateThfModalProps> = ({
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
+                hideClose
                 size="lg"
-                className="max-w-[75vw] w-[1200px] max-h-[90vh] p-0 border-0 bg-transparent shadow-none sm:rounded-xl"
+                className="max-w-[75vw] w-[1200px] max-h-[90vh] p-0 border-0 bg-transparent shadow-none sm:rounded-xl gap-0"
                 onInteractOutside={(e) => {
                     e.preventDefault()
                 }}

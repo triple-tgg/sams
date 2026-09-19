@@ -52,7 +52,7 @@ export default async function RootLayout({
                   </DirectionProvider>
                 </MountedProvider>
                 {/* <Toaster /> */}
-                <SonnerToaster position="top-center" richColors />
+                <SonnerToaster position="top-center" richColors closeButton />
               </ThemeProvider>
             </AuthProvider>
           </NextIntlClientProvider>

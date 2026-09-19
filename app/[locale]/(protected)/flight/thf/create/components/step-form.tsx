@@ -74,10 +74,13 @@ const StepForm = () => {
   const [isInitialCreationMode, setIsInitialCreationMode] = useState<boolean | null>(null)
   
   useEffect(() => {
+    setIsInitialCreationMode(null)
+  }, [flightInfosId])
+
+  useEffect(() => {
     if (!loadingFlight && flightData && isInitialCreationMode === null) {
-      const isPlan = flightData.state === 'plan'
-      const hasNoMaintenance = !lineMaintenanceData?.id
-      setIsInitialCreationMode(isPlan || hasNoMaintenance)
+      const hasExistingThf = !!(flightData.thfNumber || lineMaintenanceData?.thfNumber || (flightData.state && flightData.state !== 'plan'))
+      setIsInitialCreationMode(!hasExistingThf)
     }
   }, [loadingFlight, flightData, lineMaintenanceData, isInitialCreationMode])
 

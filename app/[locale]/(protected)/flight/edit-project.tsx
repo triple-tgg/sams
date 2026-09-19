@@ -4,6 +4,7 @@ import * as React from "react";
 import { useForm, SubmitHandler, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { cn } from "@/lib/utils";
 
 import {
   Dialog,
@@ -35,6 +36,7 @@ import { useStatusOptions } from "@/lib/api/hooks/useStatus";
 import { FieldError } from "@/components/ui/field-error";
 import { convertDateToBackend } from "@/lib/utils/formatPicker";
 import { CustomDateInput } from "@/components/ui/input-date/CustomDateInput";
+import { CustomTimeInput } from "@/components/ui/input-time/CustomTimeInput";
 import { SearchableSelectField } from "@/components/ui/search-select";
 import { CreatableRouteSelect } from "@/components/ui/creatable-route-select";
 import { useAircraftTypes } from "@/lib/api/hooks/useAircraftTypes";
@@ -289,14 +291,14 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
     }
   }, [flightInfoData, reset]);
 
-  // Extract initial staff data for PersonnelSection
+  // Extract initial staff data for PersonnelSection (prioritize English names)
   const initialCsList = useMemo(() => {
     const csList = flightInfoData?.responseData?.flight?.csList;
     if (!csList) return [];
     return csList.map((staff: any) => ({
       id: staff.id,
       code: staff.code || staff.staffCode || '',
-      name: staff.name || staff.staffName || '',
+      name: staff.fullNameEn || staff.nameEn || staff.displayName || staff.name || staff.staffName || '',
     }));
   }, [flightInfoData]);
 
@@ -306,7 +308,7 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
     return mechList.map((staff: any) => ({
       id: staff.id,
       code: staff.code || staff.staffCode || '',
-      name: staff.name || staff.staffName || '',
+      name: staff.fullNameEn || staff.nameEn || staff.displayName || staff.name || staff.staffName || '',
     }));
   }, [flightInfoData]);
 
@@ -323,10 +325,10 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
       acTypeCode: values.acType!.value.trim(),
       arrivalFlightNo: values.flightArrival.trim(),
       arrivalStaDate: combineFormToUtcDatetime(values.arrivalDate, values.sta),
-      arrivalAtaDate: combineFormToUtcDatetime(values.arrivalDate, values.ata),
+      arrivalAtaDate: values.ata?.trim() ? combineFormToUtcDatetime(values.arrivalDate, values.ata) : "",
       departureFlightNo: (values.flightDeparture ?? "").trim(),
-      departureStdDate: combineFormToUtcDatetime(values.departureDate ?? "", values.std),
-      departureAtdDate: combineFormToUtcDatetime(values.departureDate ?? "", values.atd),
+      departureStdDate: values.departureDate && values.std ? combineFormToUtcDatetime(values.departureDate, values.std) : "",
+      departureAtdDate: values.departureDate && values.atd?.trim() ? combineFormToUtcDatetime(values.departureDate, values.atd) : "",
       bayNo: (values.bay ?? "").trim(),
       thfNo: (values.thfNumber ?? "").trim(),
       statusCode: values.status?.value ?? "Normal",
@@ -691,12 +693,36 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
                       </div>
                       <div className="space-y-1">
                         <Label htmlFor="sta">STA (Local)</Label>
-                        <Input type="time" {...register("sta")} />
+                        <Controller
+                          name="sta"
+                          control={control}
+                          render={({ field }) => (
+                            <CustomTimeInput
+                              value={field.value}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              placeholder="HH:mm"
+                              className={cn(errors.sta && "border-red-500 focus-visible:ring-red-500")}
+                            />
+                          )}
+                        />
                         <FieldError msg={errors.sta?.message} />
                       </div>
                       <div className="space-y-1">
                         <Label htmlFor="ata">ATA (Local)</Label>
-                        <Input type="time" {...register("ata")} />
+                        <Controller
+                          name="ata"
+                          control={control}
+                          render={({ field }) => (
+                            <CustomTimeInput
+                              value={field.value}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              placeholder="HH:mm"
+                              className={cn(errors.ata && "border-red-500 focus-visible:ring-red-500")}
+                            />
+                          )}
+                        />
                         <FieldError msg={errors.ata?.message} />
                       </div>
                     </div>
@@ -728,12 +754,36 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
                       </div>
                       <div className="space-y-1">
                         <Label htmlFor="std">STD (Local)</Label>
-                        <Input type="time" {...register("std")} />
+                        <Controller
+                          name="std"
+                          control={control}
+                          render={({ field }) => (
+                            <CustomTimeInput
+                              value={field.value}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              placeholder="HH:mm"
+                              className={cn(errors.std && "border-red-500 focus-visible:ring-red-500")}
+                            />
+                          )}
+                        />
                         <FieldError msg={errors.std?.message} />
                       </div>
                       <div className="space-y-1">
                         <Label htmlFor="atd">ATD (Local)</Label>
-                        <Input type="time" {...register("atd")} />
+                        <Controller
+                          name="atd"
+                          control={control}
+                          render={({ field }) => (
+                            <CustomTimeInput
+                              value={field.value}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              placeholder="HH:mm"
+                              className={cn(errors.atd && "border-red-500 focus-visible:ring-red-500")}
+                            />
+                          )}
+                        />
                         <FieldError msg={errors.atd?.message} />
                       </div>
 
