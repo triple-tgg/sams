@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { ChevronLeft, ChevronRight, Download, FileText, Plus, Upload, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -49,6 +49,7 @@ const ContractPage = () => {
   const [searchContractNo, setSearchContractNo] = useState("");
   const [selectedAirline, setSelectedAirline] = useState<string>("all");
   const [selectedStatusList, setSelectedStatusList] = useState<number[]>([]);
+  const [expiresOnMonth, setExpiresOnMonth] = useState<3 | 6 | undefined>(undefined);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [page, setPage] = useState(1);
@@ -73,9 +74,10 @@ const ContractPage = () => {
     dateStart: startDate,
     dateEnd: endDate,
     contractStatusList: selectedStatusList,
+    expiresOnMonth,
     page,
     perPage,
-  }), [searchContractNo, selectedAirline, startDate, endDate, selectedStatusList, page, perPage]);
+  }), [searchContractNo, selectedAirline, startDate, endDate, selectedStatusList, expiresOnMonth, page, perPage]);
 
   // Fetch contract list
   const {
@@ -211,25 +213,11 @@ const ContractPage = () => {
             Manage airline maintenance service contracts and agreements.
           </CardDescription>
           <div className="flex items-center gap-2 ml-auto">
-            <Button variant="outline" color="success">
-              <FileText className="h-4 w-4 mr-2" />
-              Template
-            </Button>
-            <Button variant="outline" color="primary">
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
             <PermissionActionGuard menuCode="CONTRACT" action="canCreate">
-              <>
-                <Button variant="outline">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Import
-                </Button>
-                <Button onClick={handleAddNew} color="primary">
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Contract
-                </Button>
-              </>
+              <Button onClick={handleAddNew} color="primary">
+                <Plus className="h-4 w-4 mr-2" />
+                New Contract
+              </Button>
             </PermissionActionGuard>
           </div>
         </CardHeader>
@@ -247,6 +235,11 @@ const ContractPage = () => {
             onEndDateChange={setEndDate}
             selectedStatusList={selectedStatusList}
             onStatusListChange={setSelectedStatusList}
+            expiresOnMonth={expiresOnMonth}
+            onExpiresOnMonthChange={(value) => {
+              setExpiresOnMonth(value);
+              setPage(1);
+            }}
             onSearch={handleSearch}
           />
 

@@ -77,6 +77,7 @@ export interface ContractListRequest {
     dateStart: string;
     dateEnd: string;
     contractStatusList: number[];
+    expiresOnMonth?: 3 | 6;
     page: number;
     perPage: number;
 }

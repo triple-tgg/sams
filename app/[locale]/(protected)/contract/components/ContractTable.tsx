@@ -15,9 +15,10 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Eye, Pencil, Trash2, CheckCircle2, XCircle } from "lucide-react";
+import { MoreHorizontal, Eye, Pencil, Trash2, CheckCircle2, XCircle, AlertTriangle, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Contract } from "./types";
+import { getContractExpiryWarning } from "@/lib/utils/contractExpiry";
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard";
 
 interface ContractTableProps {
@@ -81,64 +82,83 @@ export const ContractTable = ({
                         </TableCell>
                     </TableRow>
                 ) : (
-                    contracts.map((contract) => (
-                        <TableRow key={contract.id}>
-                            <TableCell className="font-medium">{contract.contractNo}</TableCell>
-                            <TableCell>{contract.contractType}</TableCell>
-                            <TableCell>{contract.customerAirline}</TableCell>
-                            <TableCell>{formatDate(contract.effective)}</TableCell>
-                            <TableCell>{formatDate(contract.expires)}</TableCell>
-                            <TableCell>
-                                <div className="flex items-center justify-center">
-                                    {contract.noExpiry ? (
-                                        <CheckCircle2 className="h-5 w-5 text-success" />
-                                    ) : (
-                                        <XCircle className="h-5 w-5 text-muted-foreground/40" />
-                                    )}
-                                </div>
-                            </TableCell>
-                            <TableCell>{contract.location}</TableCell>
-                            <TableCell>{getStatusBadge(contract.status)}</TableCell>
-                            <TableCell>
-                                <div className="flex items-center justify-center">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                <MoreHorizontal className="h-4 w-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem
-                                                className="cursor-pointer"
-                                                onClick={() => onView?.(contract)}
+                    contracts.map((contract) => {
+                        const expiryWarning = getContractExpiryWarning(contract.expires, contract.noExpiry);
+                        return (
+                            <TableRow key={contract.id}>
+                                <TableCell className="font-medium">
+                                    <div className="flex flex-col items-start gap-1.5">
+                                        <span>{contract.contractNo}</span>
+                                        {expiryWarning && (
+                                            <Badge
+                                                className={`gap-1 px-1.5 py-0.5 text-[10px] leading-3 font-medium whitespace-nowrap ${expiryWarning === "under-3-months"
+                                                    ? "bg-red-50 text-red-700 border-red-200"
+                                                    : "bg-amber-50 text-amber-800 border-amber-200"}`}
                                             >
-                                                <Eye className="h-4 w-4 mr-2" />
-                                                View
-                                            </DropdownMenuItem>
-                                            <PermissionActionGuard menuCode="CONTRACT" action="canEdit">
+                                                {expiryWarning === "under-3-months"
+                                                    ? <AlertTriangle className="h-2.5 w-2.5" aria-hidden="true" />
+                                                    : <Clock className="h-2.5 w-2.5" aria-hidden="true" />}
+                                                {expiryWarning === "under-3-months" ? "Expires in < 3 months" : "Expires in < 6 months"}
+                                            </Badge>
+                                        )}
+                                    </div>
+                                </TableCell>
+                                <TableCell>{contract.contractType}</TableCell>
+                                <TableCell>{contract.customerAirline}</TableCell>
+                                <TableCell>{formatDate(contract.effective)}</TableCell>
+                                <TableCell>{contract.noExpiry || !contract.expires ? "-" : formatDate(contract.expires)}</TableCell>
+                                <TableCell>
+                                    <div className="flex items-center justify-center">
+                                        {contract.noExpiry ? (
+                                            <CheckCircle2 className="h-5 w-5 text-success" />
+                                        ) : (
+                                            <XCircle className="h-5 w-5 text-muted-foreground/40" />
+                                        )}
+                                    </div>
+                                </TableCell>
+                                <TableCell>{contract.location}</TableCell>
+                                <TableCell>{getStatusBadge(contract.status)}</TableCell>
+                                <TableCell>
+                                    <div className="flex items-center justify-center">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
                                                 <DropdownMenuItem
                                                     className="cursor-pointer"
-                                                    onClick={() => onEdit?.(contract)}
+                                                    onClick={() => onView?.(contract)}
                                                 >
-                                                    <Pencil className="h-4 w-4 mr-2" />
-                                                    Edit
+                                                    <Eye className="h-4 w-4 mr-2" />
+                                                    View
                                                 </DropdownMenuItem>
-                                            </PermissionActionGuard>
-                                            <PermissionActionGuard menuCode="CONTRACT" action="canDelete">
-                                                <DropdownMenuItem
-                                                    className="cursor-pointer text-destructive focus:text-destructive"
-                                                    onClick={() => onDelete?.(contract)}
-                                                >
-                                                    <Trash2 className="h-4 w-4 mr-2" />
-                                                    Delete
-                                                </DropdownMenuItem>
-                                            </PermissionActionGuard>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </div>
-                            </TableCell>
-                        </TableRow>
-                    ))
+                                                <PermissionActionGuard menuCode="CONTRACT" action="canEdit">
+                                                    <DropdownMenuItem
+                                                        className="cursor-pointer"
+                                                        onClick={() => onEdit?.(contract)}
+                                                    >
+                                                        <Pencil className="h-4 w-4 mr-2" />
+                                                        Edit
+                                                    </DropdownMenuItem>
+                                                </PermissionActionGuard>
+                                                <PermissionActionGuard menuCode="CONTRACT" action="canDelete">
+                                                    <DropdownMenuItem
+                                                        className="cursor-pointer text-destructive focus:text-destructive"
+                                                        onClick={() => onDelete?.(contract)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4 mr-2" />
+                                                        Delete
+                                                    </DropdownMenuItem>
+                                                </PermissionActionGuard>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        );
+                    })
                 )}
             </TableBody>
         </Table>

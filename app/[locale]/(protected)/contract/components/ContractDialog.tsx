@@ -56,7 +56,7 @@ const transformApiToFormData = (data: ContractDetail): ContractFormData => {
         expiresOn: data.expiresOn,
         isNoExpiryDate: data.isNoExpiryDate ?? false,
         domicileCountry: data.domicileCountry || "",
-        currency: data.currencyType || "",
+        currency: data.currencyType?.trim().toLowerCase() || "",
         status: data.contractStatusObj?.code || "",
         pricingRates: data.pricingDataList?.map((p) => ({
             id: p.id,

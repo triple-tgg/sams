@@ -170,18 +170,18 @@ export default function HRStaffListPage() {
                 </CardHeader>
                 <CardContent className="p-0">
                     {/* Search bar and Filters */}
-                    <div className="px-5 py-3 border-b bg-muted/30 flex flex-col lg:flex-row gap-3 items-center justify-between">
-                        <div className="relative w-full lg:max-w-sm shrink-0">
+                    <div className="px-5 py-3 border-b bg-muted/30 flex flex-col md:flex-row gap-2.5 items-stretch md:items-center justify-between">
+                        <div className="relative flex-1 min-w-[200px] max-w-sm">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
                                 placeholder="Search by name..."
                                 value={searchQuery}
                                 onChange={(e) => handleSearchChange(e.target.value)}
-                                className="pl-9 h-9"
+                                className="pl-9 h-9 w-full bg-white text-xs"
                             />
                         </div>
                         
-                        <div className="flex items-center gap-2 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0">
+                        <div className="flex flex-wrap items-center gap-2">
                             <Select
                                 value={filterDepartment}
                                 onValueChange={(val) => {
@@ -191,7 +191,7 @@ export default function HRStaffListPage() {
                                 }}
                                 disabled={isLoadingDepartments}
                             >
-                                <SelectTrigger className="h-9 min-w-[150px] bg-white text-xs">
+                                <SelectTrigger className="h-9 w-auto min-w-[130px] bg-white text-xs">
                                     <SelectValue placeholder="Department" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -209,7 +209,7 @@ export default function HRStaffListPage() {
                                 onValueChange={(val) => { setFilterPosition(val); setPage(1); }}
                                 disabled={isLoadingPositions}
                             >
-                                <SelectTrigger className="h-9 min-w-[150px] bg-white text-xs">
+                                <SelectTrigger className="h-9 w-auto min-w-[130px] bg-white text-xs">
                                     <SelectValue placeholder="Position" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -223,7 +223,7 @@ export default function HRStaffListPage() {
                             </Select>
 
                             <Select value={filterStatus} onValueChange={(val) => { setFilterStatus(val); setPage(1); }}>
-                                <SelectTrigger className="h-9 min-w-[120px] bg-white text-xs">
+                                <SelectTrigger className="h-9 w-auto min-w-[110px] bg-white text-xs">
                                     <SelectValue placeholder="Status" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -247,9 +247,9 @@ export default function HRStaffListPage() {
                                     setTimeout(() => refetch(), 0)
                                 }}
                                 disabled={isFetching}
-                                className="h-9"
+                                className="h-9 px-3 text-xs bg-white"
                             >
-                                <RefreshCw className={`h-4 w-4 mr-1.5 ${isFetching ? 'animate-spin' : ''}`} />
+                                <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isFetching ? 'animate-spin' : ''}`} />
                                 Refresh
                             </Button>
                         </div>

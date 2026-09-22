@@ -30,6 +30,8 @@ interface ContractFiltersProps {
     onEndDateChange: (value: string) => void;
     selectedStatusList: number[];
     onStatusListChange: (value: number[]) => void;
+    expiresOnMonth?: 3 | 6;
+    onExpiresOnMonthChange: (value: 3 | 6 | undefined) => void;
     onSearch: () => void;
 }
 
@@ -44,6 +46,8 @@ export const ContractFilters = ({
     onEndDateChange,
     selectedStatusList,
     onStatusListChange,
+    expiresOnMonth,
+    onExpiresOnMonthChange,
     onSearch
 }: ContractFiltersProps) => {
     const { options: airlineOptions, isLoading: loadingAirlines } = useAirlineOptions();
@@ -64,7 +68,7 @@ export const ContractFilters = ({
 
     return (
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6 py-6 px-4 rounded-lg bg-slate-100 shadow-sm">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
                 <div className="flex items-center gap-2">
                     <Input
                         placeholder="Contract No."
@@ -170,21 +174,39 @@ export const ContractFilters = ({
                 </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+                <label htmlFor="contract-expires-on" className="text-sm text-muted-foreground whitespace-nowrap">
+                    Expires on
+                </label>
+                <Select
+                    value={expiresOnMonth === undefined ? "all" : String(expiresOnMonth)}
+                    onValueChange={(value) => onExpiresOnMonthChange(value === "3" ? 3 : value === "6" ? 6 : undefined)}
+                >
+                    <SelectTrigger id="contract-expires-on" className="w-36">
+                        <SelectValue placeholder="All" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All</SelectItem>
+                        <SelectItem value="3">3 Months</SelectItem>
+                        <SelectItem value="6">6 Months</SelectItem>
+                    </SelectContent>
+                </Select>
                 <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground whitespace-nowrap">
-                    From
-                </span>
+                <label htmlFor="contract-effective-from" className="text-sm text-muted-foreground whitespace-nowrap">
+                    Effective From *
+                </label>
                 <Input
+                    id="contract-effective-from"
                     type="date"
                     value={startDate}
                     onChange={(e) => onStartDateChange(e.target.value)}
                     className="w-40"
                 />
-                <span className="text-sm text-muted-foreground whitespace-nowrap">
+                <label htmlFor="contract-effective-to" className="text-sm text-muted-foreground whitespace-nowrap">
                     To
-                </span>
+                </label>
                 <Input
+                    id="contract-effective-to"
                     type="date"
                     value={endDate}
                     onChange={(e) => onEndDateChange(e.target.value)}
