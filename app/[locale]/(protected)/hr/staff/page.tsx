@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/select'
 import {
     ChevronLeft, ChevronRight, Plus, MoreHorizontal, Eye, Search, Users, RefreshCw, AlertCircle, User, FileUp,
+    ArrowUpDown, ArrowUp, ArrowDown,
 } from 'lucide-react'
 import { useQAStaffList } from '@/lib/api/hooks/useQAStaffManagement'
 import type { QAStaffItem } from '@/lib/api/qa/staff-management'
@@ -48,6 +49,7 @@ export default function HRStaffListPage() {
 
     const [filterPosition, setFilterPosition] = useState<string>("0")
     const [filterDepartment, setFilterDepartment] = useState<string>("0")
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
     const [showImportModal, setShowImportModal] = useState(false)
     const [selectedImportFile, setSelectedImportFile] = useState<File | null>(null)
     const importFileInputRef = useRef<HTMLInputElement>(null)
@@ -98,21 +100,21 @@ export default function HRStaffListPage() {
     // ── API Hook — uses the correct endpoint ──
     const { data, isLoading, error, refetch, isFetching } = useQAStaffList(
         {
+            sortBy: 'employeeId',
+            sortDirection,
             name: debouncedSearch,
             employeeId: '',
             positionId: Number(filterPosition),
             departmentId: Number(filterDepartment),
             staffstypeId: 0,
+            isActive: filterStatus === 'inactive' ? false : true,
             page,
             perPage,
         },
         true
     )
 
-    const rawStaffList = data?.responseData ?? []
-    const staffList = filterStatus === 'all'
-        ? rawStaffList
-        : rawStaffList.filter((s) => filterStatus === 'active' ? s.isActive : !s.isActive)
+    const staffList = data?.responseData ?? []
     const totalAll = data?.totalAll ?? 0
     const totalPages = Math.ceil(totalAll / perPage)
 
@@ -242,6 +244,7 @@ export default function HRStaffListPage() {
                                     setFilterPosition('0')
                                     setFilterDepartment('0')
                                     setFilterStatus('all')
+                                    setSortDirection('asc')
                                     setPage(1)
                                     if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
                                     setTimeout(() => refetch(), 0)
@@ -273,7 +276,22 @@ export default function HRStaffListPage() {
                                 <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="whitespace-nowrap min-w-[220px]">Employee Name</TableHead>
+                                        <TableHead className="whitespace-nowrap min-w-[220px]">
+                                            <button
+                                                className="flex items-center gap-1.5 hover:text-primary transition-colors font-semibold"
+                                                onClick={() => {
+                                                    setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')
+                                                    setPage(1)
+                                                }}
+                                            >
+                                                Employee Name
+                                                {sortDirection === 'asc' ? (
+                                                    <ArrowUp className="h-3.5 w-3.5" />
+                                                ) : (
+                                                    <ArrowDown className="h-3.5 w-3.5" />
+                                                )}
+                                            </button>
+                                        </TableHead>
                                         <TableHead className="w-[160px]">Department</TableHead>
                                         <TableHead className="w-[200px]">Position</TableHead>
                                         <TableHead className="w-[100px]">Status</TableHead>

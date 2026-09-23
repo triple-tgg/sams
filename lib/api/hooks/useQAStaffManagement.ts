@@ -40,11 +40,14 @@ import {
  */
 export const useQAStaffList = (
     params: QAStaffListRequest = {
+        sortBy: "employeeId",
+        sortDirection: "asc",
         name: "",
         employeeId: "",
         positionId: 0,
         departmentId: 0,
         staffstypeId: 0,
+        isActive: true,
         page: 1,
         perPage: 20,
     },
@@ -53,6 +56,8 @@ export const useQAStaffList = (
     return useQuery({
         queryKey: [
             "qa-staff-list",
+            params.sortBy,
+            params.sortDirection,
             params.page,
             params.perPage,
             params.name,
@@ -60,6 +65,7 @@ export const useQAStaffList = (
             params.positionId,
             params.departmentId,
             params.staffstypeId,
+            params.isActive,
         ],
         queryFn: () => getQAStaffList(params),
         enabled,

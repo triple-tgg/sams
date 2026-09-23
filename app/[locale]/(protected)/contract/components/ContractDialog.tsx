@@ -100,6 +100,9 @@ const transformApiToFormData = (data: ContractDetail): ContractFormData => {
             highPressureN2: p.highPressureN2 || 0,
             defectRectificationTools: p.defectRectificationTools || 0,
             materialHandlingFee: p.materialHandlingFee || 0,
+            disbursement: p.disbursement || 0,
+            escalation: p.escalation || 0,
+            latePenalty: p.latePenalty || 0,
         })) || [],
         yearlyIncreaseRate: "",
         billingAttn: "",
@@ -170,6 +173,9 @@ const transformFormDataToRequest = (
         highPressureN2: rate.highPressureN2,
         defectRectificationTools: rate.defectRectificationTools,
         materialHandlingFee: rate.materialHandlingFee,
+        disbursement: rate.disbursement,
+        escalation: rate.escalation,
+        latePenalty: rate.latePenalty,
     }));
 
     return {

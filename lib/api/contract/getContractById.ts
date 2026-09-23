@@ -109,6 +109,9 @@ export interface ContractDetailPricingData {
     highPressureN2: number;
     defectRectificationTools: number;
     materialHandlingFee: number;
+    disbursement: number | null;
+    escalation: number | null;
+    latePenalty: number | null;
     isDelete: boolean;
     createdDate: string;
     createdBy: string;

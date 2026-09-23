@@ -82,6 +82,9 @@ const ManagerMappingPage = () => {
     positionId: 0,
     departmentId: 0,
     staffstypeId: 0,
+    sortBy: "",
+    sortDirection: "",
+    isActive: true,
     page: 1,
     perPage: 9999,
   });

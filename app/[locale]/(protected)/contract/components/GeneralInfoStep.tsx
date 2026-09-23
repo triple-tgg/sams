@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
     Select,
     SelectContent,
@@ -11,9 +12,10 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Upload, FileText, X, ExternalLink, Loader2, CheckCircle2 } from "lucide-react";
+import { Upload, FileText, X, ExternalLink, Loader2, CheckCircle2, AlertTriangle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StepProps } from "./types";
+import { getContractExpiryWarning } from "@/lib/utils/contractExpiry";
 import { useAirlineOptions } from "@/lib/api/hooks/useAirlines";
 import { useContractStatusOptions } from "@/lib/api/hooks/useContractStatus";
 import { useContractTypesOptions } from "@/lib/api/hooks/useContractTypes";
@@ -42,6 +44,11 @@ export const GeneralInfoStep = ({
 }: GeneralInfoStepProps) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isDragOver, setIsDragOver] = useState(false);
+
+    // Compute expiry warning for the Expires On field
+    const expiryWarning = useMemo(() => {
+        return getContractExpiryWarning(formData.expiresOn, formData.isNoExpiryDate);
+    }, [formData.expiresOn, formData.isNoExpiryDate]);
     const { options: airlineOptions, isLoading: isLoadingAirlines } = useAirlineOptions();
     const { options: statusOptions, isLoading: isLoadingStatus } = useContractStatusOptions();
     const { options: contractTypeOptions, isLoading: isLoadingContractTypes } = useContractTypesOptions();
@@ -196,7 +203,23 @@ export const GeneralInfoStep = ({
                     </div>
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor="expiresOn">Expires On <span className="text-destructive">*</span></Label>
+                    <div className="flex items-center gap-2">
+                        <Label htmlFor="expiresOn">Expires On <span className="text-destructive">*</span></Label>
+                        {expiryWarning && (
+                            <Badge
+                                className={`gap-1 px-1.5 py-0.5 text-[10px] leading-3 font-medium whitespace-nowrap ${
+                                    expiryWarning === "under-3-months"
+                                        ? "bg-red-50 text-red-700 border-red-200"
+                                        : "bg-amber-50 text-amber-800 border-amber-200"
+                                }`}
+                            >
+                                {expiryWarning === "under-3-months"
+                                    ? <AlertTriangle className="h-2.5 w-2.5" aria-hidden="true" />
+                                    : <Clock className="h-2.5 w-2.5" aria-hidden="true" />}
+                                {expiryWarning === "under-3-months" ? "Expires in < 3 months" : "Expires in < 6 months"}
+                            </Badge>
+                        )}
+                    </div>
                     <Input
                         id="expiresOn"
                         type="date"

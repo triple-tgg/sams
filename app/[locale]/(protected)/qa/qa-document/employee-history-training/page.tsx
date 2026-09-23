@@ -36,6 +36,9 @@ export default function EmployeeHistoryTrainingPage() {
     positionId: 0,
     departmentId: 0,
     staffstypeId: 0,
+    sortBy: 'name',
+    sortDirection: 'asc',
+    isActive: true,
     page: 1,
     perPage: 50
   })

@@ -53,6 +53,9 @@ export default function WorkExperienceRecordsPage() {
     positionId: positionId === 'all' ? 0 : Number(positionId),
     departmentId: departmentId === 'all' ? 0 : Number(departmentId),
     staffstypeId: 0,
+    sortBy: '',
+    sortDirection: '',
+    isActive: true,
     page,
     perPage
   })

@@ -1227,11 +1227,39 @@ export function StaffExcelImportModal({
             }
         }
 
+        // Build a map of column index -> header for Employee ID columns
+        // so we can read the formatted text (w) to preserve leading zeros
+        const employeeIdColIndices: number[] = [];
+        headers.forEach((h, idx) => {
+            const nk = normalizeKey(h);
+            if (nk === 'employeeid' || nk === 'employeeno' || nk === 'employeecode') {
+                employeeIdColIndices.push(idx);
+            }
+        });
+
+        // Helper: get formatted text from worksheet cell (preserves leading zeros)
+        const getFormattedCellValue = (rowIdx: number, colIdx: number): string | null => {
+            const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+            const cellAddress = XLSX.utils.encode_cell({ r: rowIdx + 1 + range.s.r, c: colIdx + range.s.c }); // +1 for header row
+            const cell = worksheet[cellAddress];
+            if (!cell) return null;
+            // Use formatted text (w) if available, otherwise fall back to value (v)
+            if (cell.w !== undefined) return cell.w;
+            if (cell.v !== undefined) return String(cell.v);
+            return null;
+        };
+
         const rows: ParsedStaffRow[] = jsonData.map((row, index) => ({
             rowIndex: index + 1,
-            data: headers.reduce((acc, header) => {
+            data: headers.reduce((acc, header, hIdx) => {
                 const isDate = isDateColumn(header);
-                acc[header] = formatExcelDate(row[header] ?? '', isDate);
+                // For Employee ID columns, use the formatted text from worksheet to preserve leading zeros
+                if (employeeIdColIndices.includes(hIdx)) {
+                    const formatted = getFormattedCellValue(index, hIdx);
+                    acc[header] = formatted !== null ? formatted : formatExcelDate(row[header] ?? '', isDate);
+                } else {
+                    acc[header] = formatExcelDate(row[header] ?? '', isDate);
+                }
                 return acc;
             }, {} as Record<string, string>),
         }));

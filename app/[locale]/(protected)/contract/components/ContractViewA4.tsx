@@ -379,7 +379,7 @@ export const ContractViewA4 = ({ formData, isLoading }: ContractViewA4Props) => 
 
                                         {/* Other Charges */}
                                         <div>
-                                            <p className="font-semibold text-primary mb-1">Other Charges (% Per Service)</p>
+                                            <p className="font-semibold text-primary mb-1">Other Charges</p>
                                             <div className="grid grid-cols-2 gap-2">
                                                 <div>
                                                     <span className="text-muted-foreground">Defect Rectification Tools:</span>
@@ -388,6 +388,18 @@ export const ContractViewA4 = ({ formData, isLoading }: ContractViewA4Props) => 
                                                 <div>
                                                     <span className="text-muted-foreground">Material Handling Fee:</span>
                                                     <span className="font-medium ml-1">{formatCurrency(rate.materialHandlingFee)}%/service</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-muted-foreground">Escalation:</span>
+                                                    <span className="font-medium ml-1">{formatCurrency(rate.escalation)}%/year</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-muted-foreground">Disbursement:</span>
+                                                    <span className="font-medium ml-1">{formatCurrency(rate.disbursement)}% of invoice</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-muted-foreground">Late Penalty:</span>
+                                                    <span className="font-medium ml-1">{formatCurrency(rate.latePenalty)}% of invoice</span>
                                                 </div>
                                             </div>
                                         </div>

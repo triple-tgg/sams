@@ -17,18 +17,18 @@ export const itemReport = [
     description: 'THF Document Report',
     reportType: 'thf' as const
   },
-  {
-    id: '4',
-    name: 'THF Document V.2',
-    description: 'THF Document Calculate Report',
-    reportType: 'thf-2' as const
-  },
-  {
-    id: '5',
-    name: 'THF Document File',
-    description: 'THF Document File Report (file.zip)',
-    reportType: 'thf-file' as const
-  },
+  // {
+  //   id: '4',
+  //   name: 'THF Document V.2',
+  //   description: 'THF Document Calculate Report',
+  //   reportType: 'thf-2' as const
+  // },
+  // {
+  //   id: '5',
+  //   name: 'THF Document File',
+  //   description: 'THF Document File Report (file.zip)',
+  //   reportType: 'thf-file' as const
+  // },
 ]
 
 export type ReportType = 'equipment' | 'partstools' | 'thf' | 'thf-2' | 'thf-file'

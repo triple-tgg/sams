@@ -47,6 +47,8 @@ const ContractPage = () => {
   // State
   const [activeTab, setActiveTab] = useState<ContractStatus>("all");
   const [searchContractNo, setSearchContractNo] = useState("");
+  // Debounced copy of searchContractNo — keeps typing from firing a request per keystroke
+  const [appliedContractNo, setAppliedContractNo] = useState("");
   const [selectedAirline, setSelectedAirline] = useState<string>("all");
   const [selectedStatusList, setSelectedStatusList] = useState<number[]>([]);
   const [expiresOnMonth, setExpiresOnMonth] = useState<3 | 6 | undefined>(undefined);
@@ -54,6 +56,20 @@ const ContractPage = () => {
   const [endDate, setEndDate] = useState("");
   const [page, setPage] = useState(1);
   const perPage = 10;
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setAppliedContractNo(searchContractNo.trim());
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchContractNo]);
+
+  // Any filter change invalidates the current page offset
+  const handleFilterChange = <T,>(setter: (value: T) => void) => (value: T) => {
+    setter(value);
+    setPage(1);
+  };
 
   // Add Contract Dialog State
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -68,7 +84,7 @@ const ContractPage = () => {
   // Build request object
   const contractListRequest = useMemo(() => ({
     ...defaultContractListRequest,
-    contractNo: searchContractNo,
+    contractNo: appliedContractNo,
     airlineId: selectedAirline !== "all" ? parseInt(selectedAirline) : 0,
     stationCodeList: [], // Can be updated based on user's station selection
     dateStart: startDate,
@@ -77,12 +93,13 @@ const ContractPage = () => {
     expiresOnMonth,
     page,
     perPage,
-  }), [searchContractNo, selectedAirline, startDate, endDate, selectedStatusList, expiresOnMonth, page, perPage]);
+  }), [appliedContractNo, selectedAirline, startDate, endDate, selectedStatusList, expiresOnMonth, page, perPage]);
 
   // Fetch contract list
   const {
     data: contractListData,
     isLoading,
+    isFetching,
     isError,
     error,
     refetch
@@ -116,6 +133,8 @@ const ContractPage = () => {
   );
 
   const handleSearch = () => {
+    // Bypass the debounce so Enter / the Search button apply the typed value at once
+    setAppliedContractNo(searchContractNo.trim());
     setPage(1);
     refetch();
   };
@@ -228,19 +247,18 @@ const ContractPage = () => {
             searchContractNo={searchContractNo}
             onSearchChange={setSearchContractNo}
             selectedAirline={selectedAirline}
-            onAirlineChange={setSelectedAirline}
+            onAirlineChange={handleFilterChange(setSelectedAirline)}
             startDate={startDate}
-            onStartDateChange={setStartDate}
+            onStartDateChange={handleFilterChange(setStartDate)}
             endDate={endDate}
-            onEndDateChange={setEndDate}
+            onEndDateChange={handleFilterChange(setEndDate)}
             selectedStatusList={selectedStatusList}
-            onStatusListChange={setSelectedStatusList}
+            onStatusListChange={handleFilterChange(setSelectedStatusList)}
             expiresOnMonth={expiresOnMonth}
-            onExpiresOnMonthChange={(value) => {
-              setExpiresOnMonth(value);
-              setPage(1);
-            }}
+            onExpiresOnMonthChange={handleFilterChange(setExpiresOnMonth)}
             onSearch={handleSearch}
+            resultCount={isLoading || isError ? undefined : totalAll}
+            isSearching={isFetching}
           />
 
           {/* Tabs */}

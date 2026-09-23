@@ -16,11 +16,14 @@ export function MechAuthTab() {
     const debouncedSearch = useDebounce(search, 500)
 
     const { data, isLoading } = useQAStaffList({
+        sortBy: "employeeId",
+        sortDirection: "asc",
         name: debouncedSearch,
         employeeId: "",
         positionId: 0,
         departmentId: 0,
         staffstypeId: 0,
+        isActive: true,
         page: 1,
         perPage: 20
     })

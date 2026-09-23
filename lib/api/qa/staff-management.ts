@@ -77,11 +77,14 @@ export interface QAStaffItem {
 // ── Request / Response ──
 
 export interface QAStaffListRequest {
+    sortBy: string;
+    sortDirection: string;
     name: string;
     employeeId: string;
     positionId: number;
     departmentId: number;
     staffstypeId: number;
+    isActive: boolean;
     page: number;
     perPage: number;
 }

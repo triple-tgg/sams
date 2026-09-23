@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import { ContractFormData, PricingRate } from "./types";
 import { defaultPricingRate } from "./data";
 import { useStationsOptions } from "@/lib/api/hooks/useStations";
-import { useAircraftTypes } from "@/lib/api/hooks/useAircraftTypes";
+import { useSystemConfigs } from "@/lib/api/master/aircraft-engine/aircraftEngine.hooks";
 import {
     Popover,
     PopoverContent,
@@ -132,7 +132,19 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
         return groups ? groups.has(groupKey) : false;
     };
     const { options: stationOptions, isLoading: isLoadingStations } = useStationsOptions();
-    const { options: aircraftTypeOptions, isLoading: isLoadingAircraftTypes } = useAircraftTypes();
+    const { data: systemConfigsData } = useSystemConfigs();
+    const aircraftTypeOptions = useMemo(() => {
+        if (!systemConfigsData) return [];
+        const seen = new Set<string>();
+        return systemConfigsData
+            .filter((c) => {
+                if (!c.familyCode || seen.has(c.familyCode)) return false;
+                seen.add(c.familyCode);
+                return true;
+            })
+            .map((c) => ({ value: c.familyCode, label: c.familyCode }));
+    }, [systemConfigsData]);
+    const isLoadingAircraftTypes = !systemConfigsData;
 
     // Check if a rate combination would be duplicate with other rates
     const checkDuplicateRate = (
@@ -738,6 +750,27 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                         value={rate.materialHandlingFee}
                                         onChange={handleNumberChange("materialHandlingFee")}
                                         suffix="%/Service" currencyLabel={currencyLabel}
+                                    />
+                                    <PriceInput
+                                        id={`${rate.id}-escalation`}
+                                        label="Escalation"
+                                        value={rate.escalation}
+                                        onChange={handleNumberChange("escalation")}
+                                        suffix="%/Year" currencyLabel={currencyLabel}
+                                    />
+                                    <PriceInput
+                                        id={`${rate.id}-disbursement`}
+                                        label="Disbursement"
+                                        value={rate.disbursement}
+                                        onChange={handleNumberChange("disbursement")}
+                                        suffix="% of Invoice" currencyLabel={currencyLabel}
+                                    />
+                                    <PriceInput
+                                        id={`${rate.id}-latePenalty`}
+                                        label="Late Penalty"
+                                        value={rate.latePenalty}
+                                        onChange={handleNumberChange("latePenalty")}
+                                        suffix="% of Invoice" currencyLabel={currencyLabel}
                                     />
                                 </div>
                             </div>

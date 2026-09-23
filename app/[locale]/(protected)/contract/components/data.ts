@@ -149,6 +149,9 @@ export const defaultPricingRate: Omit<PricingRate, 'id'> = {
     // Service Rates - Other
     defectRectificationTools: 0,
     materialHandlingFee: 0,
+    disbursement: 0,
+    escalation: 0,
+    latePenalty: 0,
 };
 
 export const defaultFormData: ContractFormData = {

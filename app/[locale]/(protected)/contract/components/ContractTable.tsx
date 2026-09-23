@@ -63,15 +63,15 @@ export const ContractTable = ({
         <Table>
             <TableHeader>
                 <TableRow>
-                    <TableHead>Contract No.</TableHead>
-                    <TableHead>Contract Type</TableHead>
-                    <TableHead>Customer Airline</TableHead>
-                    <TableHead>Effective</TableHead>
-                    <TableHead>Expires</TableHead>
-                    <TableHead className="text-center">No Expiry</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-center">Action</TableHead>
+                    <TableHead className="whitespace-nowrap">Contract No.</TableHead>
+                    <TableHead className="whitespace-nowrap">Contract Type</TableHead>
+                    <TableHead className="whitespace-nowrap">Customer Airline</TableHead>
+                    <TableHead className="whitespace-nowrap">Effective</TableHead>
+                    <TableHead className="whitespace-nowrap">Expires</TableHead>
+                    <TableHead className="whitespace-nowrap text-center">No Expiry</TableHead>
+                    <TableHead className="whitespace-nowrap">Location</TableHead>
+                    <TableHead className="whitespace-nowrap">Status</TableHead>
+                    <TableHead className="whitespace-nowrap text-center">Action</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -103,10 +103,10 @@ export const ContractTable = ({
                                         )}
                                     </div>
                                 </TableCell>
-                                <TableCell>{contract.contractType}</TableCell>
-                                <TableCell>{contract.customerAirline}</TableCell>
-                                <TableCell>{formatDate(contract.effective)}</TableCell>
-                                <TableCell>{contract.noExpiry || !contract.expires ? "-" : formatDate(contract.expires)}</TableCell>
+                                <TableCell className="whitespace-nowrap">{contract.contractType}</TableCell>
+                                <TableCell className="whitespace-nowrap">{contract.customerAirline}</TableCell>
+                                <TableCell className="whitespace-nowrap">{formatDate(contract.effective)}</TableCell>
+                                <TableCell className="whitespace-nowrap">{contract.noExpiry || !contract.expires ? "-" : formatDate(contract.expires)}</TableCell>
                                 <TableCell>
                                     <div className="flex items-center justify-center">
                                         {contract.noExpiry ? (
@@ -116,7 +116,7 @@ export const ContractTable = ({
                                         )}
                                     </div>
                                 </TableCell>
-                                <TableCell>{contract.location}</TableCell>
+                                <TableCell className="whitespace-nowrap">{contract.location}</TableCell>
                                 <TableCell>{getStatusBadge(contract.status)}</TableCell>
                                 <TableCell>
                                     <div className="flex items-center justify-center">

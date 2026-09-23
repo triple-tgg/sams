@@ -702,11 +702,14 @@ export async function fetchKnownStaffIndex(
 
     for (let page = 1; page <= maxPages; page++) {
         const res = await getQAStaffList({
+            sortBy: "",
+            sortDirection: "",
             name: "",
             employeeId: "",
             positionId: 0,
             departmentId: 0,
             staffstypeId: 0,
+            isActive: true,
             page,
             perPage: pageSize,
         });

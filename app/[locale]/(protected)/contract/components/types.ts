@@ -78,6 +78,9 @@ export interface PricingRate {
     // Service Rates - Other
     defectRectificationTools: number;
     materialHandlingFee: number;
+    disbursement: number;
+    escalation: number;
+    latePenalty: number;
 }
 
 // Contract Form Data interface

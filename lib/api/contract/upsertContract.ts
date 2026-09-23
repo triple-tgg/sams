@@ -49,6 +49,9 @@ export interface ContractPricingDataRequest {
     highPressureN2: number;
     defectRectificationTools: number;
     materialHandlingFee: number;
+    disbursement: number;
+    escalation: number;
+    latePenalty: number;
 }
 
 // Interface for personnel in request

@@ -282,9 +282,16 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                                         onChange={(selectedOption: any) => {
                                             setForm({ ...form, aircraftEngineCombinationId: selectedOption ? selectedOption.value : null })
                                         }}
-                                        placeholder="Select Aircraft Type"
+                                        placeholder="Search Aircraft Type..."
                                         className="text-sm"
                                         isClearable
+                                        isSearchable
+                                        filterOption={(option, inputValue) => {
+                                            if (!inputValue) return true;
+                                            return option.label.toLowerCase().includes(inputValue.toLowerCase());
+                                        }}
+                                        noOptionsMessage={({ inputValue }) => inputValue ? `No results for "${inputValue}"` : 'No aircraft types available'}
+                                        menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
                                         styles={{
                                             control: (base, state) => ({
                                                 ...base,
@@ -293,7 +300,8 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                                                 '&:hover': {
                                                     borderColor: state.isFocused ? '#3b82f6' : '#cbd5e1'
                                                 }
-                                            })
+                                            }),
+                                            menuPortal: (base) => ({ ...base, zIndex: 9999 }),
                                         }}
                                     />
                                     {submitted && !form.aircraftEngineCombinationId && <p className="text-[11px] text-red-500 mt-1">Aircraft Type License is required</p>}
