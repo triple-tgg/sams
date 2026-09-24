@@ -2,6 +2,7 @@
 
 import React, { useState, Children, ReactNode, useEffect, useRef } from 'react'
 import VerticalStepper from './stepper/vertical-stepper'
+import MobileStepper from './stepper/mobile-stepper'
 import { StepContext, SubmitPhase } from './step-context'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -118,9 +119,21 @@ const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, ti
                 setSubmitPhase
             }}
         >
-            <div className="flex h-[80vh] w-full overflow-hidden rounded-md border bg-white shadow-xl">
-                {/* Left Sidebar - Blue */}
-                <div className="w-1/4 min-w-[280px] bg-blue-600 h-full flex flex-col shrink-0">
+            <div className="flex flex-col lg:flex-row h-dvh w-full overflow-hidden bg-white shadow-xl">
+                {/* Mobile / Tablet Header Stepper */}
+                <div className="lg:hidden">
+                    <MobileStepper
+                        steps={steps}
+                        activeStep={activeStep}
+                        title={title}
+                        status={status}
+                        onClose={onClose}
+                        onStepClick={canNavigate ? (stepIndex: number) => goToStep(stepIndex) : undefined}
+                    />
+                </div>
+
+                {/* Left Sidebar - Blue (desktop) */}
+                <div className="hidden lg:flex w-1/4 min-w-[280px] bg-blue-600 h-full flex-col shrink-0">
                     <VerticalStepper
                         steps={steps}
                         activeStep={activeStep}
@@ -135,9 +148,9 @@ const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, ti
                 </div>
 
                 {/* Right Content - White */}
-                <div className="flex-1 flex flex-col h-full min-h-0 bg-slate-50 relative">
-                    {/* Header */}
-                    <div className="px-8 py-5 border-b bg-white flex justify-between items-center shrink-0">
+                <div className="flex-1 flex flex-col lg:h-full min-h-0 min-w-0 bg-slate-50 relative">
+                    {/* Header (desktop — mobile/tablet uses MobileStepper) */}
+                    <div className="hidden lg:flex px-8 py-5 border-b bg-white justify-between items-center shrink-0">
                         <div>
                             <h2 className="text-xl font-bold text-slate-800">{steps[currentStep].label}</h2>
                             <p className="text-sm text-slate-500">
@@ -156,13 +169,13 @@ const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, ti
                         className="flex-1 h-full min-h-0 p-0 [&>div>div[style]]:block! [&>div>div[style]]:min-h-full [&>[data-radix-scroll-area-viewport]]:h-full"
                         viewportClassName="h-full w-full [&>div]:min-h-full [&>div]:block!"
                     >
-                        <div className="px-8 py-6 pb-8 min-h-full">
-                            <div className="max-w-4xl">
+                        <div className="px-3 py-4 pb-6 sm:px-6 sm:py-5 lg:px-8 lg:py-6 lg:pb-8 min-h-full">
+                            <div className="w-full">
                                 {revisionRecord?.state === 'revision_required' && (
                                     <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 rounded-lg flex items-start gap-3 shadow-xs">
                                         <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                                         <div className="text-xs text-amber-900 dark:text-amber-200 flex-1">
-                                            <div className="font-semibold text-sm text-amber-800 dark:text-amber-300 flex items-center justify-between">
+                                            <div className="font-semibold text-sm text-amber-800 dark:text-amber-300 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5">
                                                 <span>Revision Request from Accounting ({revisionRecord.requestedBy || 'Accounting'})</span>
                                                 {revisionRecord.requestedAt && (
                                                     <span className="text-[11px] font-normal text-amber-600 dark:text-amber-400">
@@ -187,7 +200,7 @@ const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, ti
                     </ScrollArea>
 
                     {/* Footer Actions */}
-                    <div className="border-t bg-white p-4 px-8 flex justify-end gap-3 shrink-0">
+                    <div className="border-t bg-white px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4 sm:px-6 lg:px-8 flex justify-end gap-2 sm:gap-3 shrink-0 [&>button]:flex-1 sm:[&>button]:flex-none">
                         {!isSuccess && (
                             <Button
                                 variant="outline"

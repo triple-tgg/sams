@@ -115,6 +115,8 @@ export interface SchedulerSessionDetail {
     updateddate: string | null;
     updatedby: string | null;
   };
+  linkUrl?: string;
+  linkMaterials?: string;
   requiredFor?: string[];
   format?: 'Online' | 'Onsite';
   link?: string;
@@ -155,6 +157,8 @@ export interface SchedulerUpsertRequest {
   totalHours: number;
   courseInstructorId: number;
   courseObjective: string;
+  linkUrl: string;
+  linkMaterials: string;
   venue: string;
   targetDepartmentId: number;
   trainingDataStatusesId: number;

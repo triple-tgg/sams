@@ -240,9 +240,9 @@ export const PersonnelSection: React.FC<{
                             />
 
                             {/* Row 1: Type + From + To */}
-                            <div className="grid grid-cols-5 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                               {/* Type */}
-                              <div className="col-span-1">
+                              <div className="sm:col-span-2 lg:col-span-1">
                                 <FormField
                                   control={form.control}
                                   name={`personnel.${index}.type`}
@@ -281,7 +281,7 @@ export const PersonnelSection: React.FC<{
                               </div>
 
                               {/* From: Date + Time */}
-                              <div className="col-span-2">
+                              <div className="sm:col-span-1 lg:col-span-2">
                                 <FormLabel className="text-xs text-muted-foreground mb-1 block">From *</FormLabel>
                                 <div className="grid grid-cols-2 gap-2">
                                   <div className="space-y-0">
@@ -318,7 +318,7 @@ export const PersonnelSection: React.FC<{
                               </div>
 
                               {/* To: Date + Time */}
-                              <div className="col-span-2">
+                              <div className="sm:col-span-1 lg:col-span-2">
                                 <FormLabel className="text-xs text-muted-foreground mb-1 block">To *</FormLabel>
                                 <div className="grid grid-cols-2 gap-2">
                                   <div className="space-y-0">

@@ -61,8 +61,8 @@ const CreateThfModal: React.FC<CreateThfModalProps> = ({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
                 hideClose
-                size="lg"
-                className="max-w-[75vw] w-[1200px] max-h-[90vh] p-0 border-0 bg-transparent shadow-none sm:rounded-xl gap-0"
+                size="full"
+                className="w-full h-dvh max-w-none max-h-dvh rounded-none p-0 border-0 bg-transparent shadow-none gap-0"
                 onInteractOutside={(e) => {
                     e.preventDefault()
                 }}

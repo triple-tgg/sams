@@ -272,13 +272,13 @@ const FlightStep = (props: FlightStepProps) => {
       <form onSubmit={handleSubmit(onSubmit, focusFirstError)} className="space-y-6 mt-6">
         {/* Airlines Info Section */}
         <Card className='border border-blue-200'>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
             <CardTitle>Airlines Info</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
               {/* Row 1: Customer/Airlines & Station */}
-              <div className="grid lg:grid-cols-2 gap-6">
+              <div className="grid md:grid-cols-2 gap-4 md:gap-6">
                 <SelectField
                   name="customer"
                   control={control}
@@ -304,7 +304,7 @@ const FlightStep = (props: FlightStepProps) => {
               </div>
 
               {/* Row 2: A/C Reg & A/C Type */}
-              <div className="grid lg:grid-cols-2 gap-6">
+              <div className="grid md:grid-cols-2 gap-4 md:gap-6">
                 <InputField
                   name="acReg"
                   control={control}
@@ -324,7 +324,7 @@ const FlightStep = (props: FlightStepProps) => {
               </div>
 
               {/* Row 3: Route From & Route To */}
-              <div className="grid lg:grid-cols-2 gap-6">
+              <div className="grid md:grid-cols-2 gap-4 md:gap-6">
                 <CreatableRouteSelect
                   name="routeFrom"
                   control={control}
@@ -346,9 +346,9 @@ const FlightStep = (props: FlightStepProps) => {
 
         {/* Aircraft-Engine Section */}
         <Card className='border border-blue-200'>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
             <CardTitle>Aircraft-Engine</CardTitle>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <Switch
                 checked={comboMode === 'combination'}
                 onCheckedChange={(checked) => handleModeChange(checked ? 'combination' : 'manual')}
@@ -361,8 +361,8 @@ const FlightStep = (props: FlightStepProps) => {
           <CardContent>
             {comboMode === 'combination' ? (
               /* ── Combination mode ── */
-              <div className="grid grid-cols-5 gap-4">
-                <div className="col-span-2 space-y-1">
+              <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                <div className="sm:col-span-3 lg:col-span-2 space-y-1">
                   <Label>Combination</Label>
                   <ShadSelect
                     value={selectedComboId || undefined}
@@ -394,7 +394,7 @@ const FlightStep = (props: FlightStepProps) => {
               </div>
             ) : (
               /* ── Manual mode ── */
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <Label>Family Code</Label>
                   <Input value={mappedFamilyCode || ''} readOnly disabled placeholder="Select A/C Type first" className="bg-slate-50" />
@@ -438,7 +438,7 @@ const FlightStep = (props: FlightStepProps) => {
         <div className="grid lg:grid-cols-2 gap-4">
           {/* Arrival Section */}
           <Card className='border border-blue-200'>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
               <CardTitle>Arrival (UTC)</CardTitle>
             </CardHeader>
             <CardContent>
@@ -479,7 +479,7 @@ const FlightStep = (props: FlightStepProps) => {
 
           {/* Departure Section */}
           <Card className='border border-blue-200'>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
               <CardTitle>Departure (UTC)</CardTitle>
             </CardHeader>
             <CardContent>
@@ -523,11 +523,11 @@ const FlightStep = (props: FlightStepProps) => {
 
         {/* THF Document Info Section */}
         <Card className='border border-blue-200'>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
             <CardTitle>THF Document Info</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid lg:grid-cols-2 gap-6">
+            <div className="grid md:grid-cols-2 gap-4 md:gap-6">
               <div className="space-y-4">
                 <InputField
                   name="thfNumber"
@@ -536,7 +536,7 @@ const FlightStep = (props: FlightStepProps) => {
                   placeholder="Enter THF Number"
                   errorMessage={errors.thfNumber?.message}
                 />
-                <div className="grid lg:grid-cols-2 gap-6">
+                <div className="grid md:grid-cols-2 gap-4 md:gap-6">
                   <InputField
                     name="bay"
                     control={control}

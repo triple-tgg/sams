@@ -160,6 +160,8 @@ export interface ConfirmAttendanceSchedule {
   updateddate: string;
   updatedby: string;
   trainingAttendanceTypeId: number;
+  linkUrl?: string;
+  linkMaterials?: string;
   courseObj: ConfirmAttendanceCourseObj;
   categoryObj: {
     id: number;

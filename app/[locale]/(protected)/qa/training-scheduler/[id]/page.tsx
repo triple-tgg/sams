@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Clock, MapPin, Search, UserPlus, Trash2, Calendar as CalendarIcon, AlertCircle, Users, GraduationCap, Mail, Printer, Lock, MoreVertical, CheckCircle, FileEdit, Unlock, PlayCircle, Edit3, XCircle, Award, File, Video, Loader2, ChevronLeft, ChevronRight, UserRoundCog, Eye, FileText, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, Clock, MapPin, Search, UserPlus, Trash2, Calendar as CalendarIcon, AlertCircle, Users, GraduationCap, Mail, Printer, Lock, MoreVertical, CheckCircle, FileEdit, Unlock, PlayCircle, Edit3, XCircle, Award, File, Video, Loader2, ChevronLeft, ChevronRight, UserRoundCog, Eye, FileText, CheckCircle2, Link2, BookOpen } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { PrintAttendanceModal } from '../components/PrintAttendanceModal'
 import { EvidenceUploadModal } from '../components/EvidenceUploadModal'
@@ -23,6 +23,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import type { StaffForEnrollmentItem } from '@/lib/api/qa/enrollment'
 import { toast } from 'sonner'
+import { groupAircraftEngineDisplayLabels } from '@/lib/utils/aircraftEngineDisplay'
+import type { StaffAircraftLicenseItem } from '@/lib/api/qa/staff-management'
 
 // Staff item shape used by this page
 interface StaffItem {
@@ -92,7 +94,13 @@ export default function ScheduleDetailPage() {
                 enrollmentId: s.enrollmentId,
                 name: s.employeeName ?? '',
                 code: s.employeeId ?? '',
-                license: s.license || '-',
+                license: (() => {
+                    const list = (s.aircraftEngineCombinationsObjList || []) as any[]
+                    const labels = groupAircraftEngineDisplayLabels(
+                        list.map((item: any) => ({ aircraftEngineObj: item })) as StaffAircraftLicenseItem[]
+                    )
+                    return labels.length > 0 ? labels.join('\n') : '-'
+                })(),
                 dept: s.department || '-',
                 date: s.enrolledDate ? s.enrolledDate.split('T')[0] : '-',
                 status: s.trainingEnrollmentStatus?.name ?? s.status ?? 'Enrolled',
@@ -661,24 +669,43 @@ export default function ScheduleDetailPage() {
                                     </div>
                                 </div>
 
-                                {/* Location / Meeting Link */}
+                                {/* Venue */}
                                 <div className="flex items-start gap-2 text-xs mt-1 overflow-hidden">
-                                    {session.attendanceTypeName?.toLowerCase().includes('online') ? (
-                                        <Video className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
-                                    ) : (
-                                        <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
-                                    )}
+                                    <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
                                     <div className="min-w-0 flex-1">
-                                        <span className="text-muted-foreground/60 text-[9px] font-semibold uppercase block">
-                                            {session.attendanceTypeName?.toLowerCase().includes('online') ? 'Meeting Link' : 'Location'}
-                                        </span>
-                                        {session.attendanceTypeName?.toLowerCase().includes('online') && session.link ? (
-                                            <a href={session.link} target="_blank" rel="noopener noreferrer"
+                                        <span className="text-muted-foreground/60 text-[9px] font-semibold uppercase block">Venue</span>
+                                        <span className="text-foreground font-medium">{session.venue || '-'}</span>
+                                    </div>
+                                </div>
+
+                                {/* Link URL */}
+                                <div className="flex items-start gap-2 text-xs mt-1 overflow-hidden">
+                                    <Link2 className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                                    <div className="min-w-0 flex-1">
+                                        <span className="text-muted-foreground/60 text-[9px] font-semibold uppercase block">Link URL</span>
+                                        {session.linkUrl ? (
+                                            <a href={session.linkUrl} target="_blank" rel="noopener noreferrer"
                                                 className="text-primary font-medium hover:underline block truncate">
-                                                {session.link}
+                                                {session.linkUrl}
                                             </a>
                                         ) : (
-                                            <span className="text-foreground font-medium">{session.venue}</span>
+                                            <span className="text-muted-foreground font-medium">-</span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Link Materials */}
+                                <div className="flex items-start gap-2 text-xs mt-1 overflow-hidden">
+                                    <BookOpen className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                                    <div className="min-w-0 flex-1">
+                                        <span className="text-muted-foreground/60 text-[9px] font-semibold uppercase block">Link Materials</span>
+                                        {session.linkMaterials ? (
+                                            <a href={session.linkMaterials} target="_blank" rel="noopener noreferrer"
+                                                className="text-primary font-medium hover:underline block truncate">
+                                                {session.linkMaterials}
+                                            </a>
+                                        ) : (
+                                            <span className="text-muted-foreground font-medium">-</span>
                                         )}
                                     </div>
                                 </div>
@@ -1019,12 +1046,16 @@ export default function ScheduleDetailPage() {
                                                         <TooltipProvider>
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
-                                                                    <button type="button" title={staff.license} className="w-full text-left bg-transparent border-none p-0 cursor-default outline-none text-xs font-semibold text-foreground truncate block">
-                                                                        {staff.license}
+                                                                    <button type="button" title={staff.license} className="w-full text-left bg-transparent border-none p-0 cursor-default outline-none text-xs font-semibold text-foreground block">
+                                                                        {staff.license.split('\n').map((line, i) => (
+                                                                            <span key={i} className="block truncate">{line}</span>
+                                                                        ))}
                                                                     </button>
                                                                 </TooltipTrigger>
                                                                 <TooltipContent side="top">
-                                                                    <p>{staff.license}</p>
+                                                                    {staff.license.split('\n').map((line, i) => (
+                                                                        <p key={i}>{line}</p>
+                                                                    ))}
                                                                 </TooltipContent>
                                                             </Tooltip>
                                                         </TooltipProvider>

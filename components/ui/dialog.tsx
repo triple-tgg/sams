@@ -22,6 +22,7 @@ const dialogVariants = cva(
         default: "md:max-w-[444px] w-[90%]",
         md: "md:max-w-[996px] w-[90%]",
         lg: "md:max-w-[90%] w-[90%]",
+        full: "md:max-w-none w-full",
       },
     },
     defaultVariants: {

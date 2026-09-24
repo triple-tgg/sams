@@ -1,6 +1,6 @@
 'use client'
 
-import { Calendar, Clock, MapPin, User, Tag, Building2, Pencil, Trash2, X, Video, Link as LinkIcon } from 'lucide-react'
+import { Calendar, Clock, MapPin, User, Tag, Building2, Pencil, Trash2, X, Video, Link as LinkIcon, BookOpen } from 'lucide-react'
 import { Session, STATUS_CONFIG, CAT_COLOR, formatDate, sessionDays } from '../types'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
@@ -33,6 +33,8 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
     const trainingAttendanceTypeId = detail?.trainingAttendanceTypeObj?.id ?? s.trainingAttendanceTypeId ?? 1
     const attendanceTypeName = detail?.trainingAttendanceTypeObj?.name ?? (trainingAttendanceTypeId === 2 ? 'Online' : 'Onsite')
     const link = detail?.link ?? s.link ?? ''
+    const linkUrl = detail?.linkUrl ?? s.linkUrl ?? ''
+    const linkMaterials = detail?.linkMaterials ?? s.linkMaterials ?? ''
     const note = detail?.note ?? null
     const isOnline = attendanceTypeName.toLowerCase().includes('online')
 
@@ -142,20 +144,47 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
                                         </div>
                                     </div>
                                 ))}
-                                {/* Location / Meeting Link — continues in the same grid */}
+                                {/* Venue */}
                                 <div className="flex items-start gap-2.5">
                                     <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center shrink-0 mt-0.5">
-                                        {isOnline ? <LinkIcon className="w-3.5 h-3.5 text-muted-foreground" /> : <MapPin className="w-3.5 h-3.5 text-muted-foreground" />}
+                                        <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
                                     </div>
                                     <div className="min-w-0">
-                                        <p className="text-xs text-muted-foreground">{isOnline ? 'Meeting Link' : 'Location'}</p>
-                                        {isOnline && link ? (
-                                            <a href={link} target="_blank" rel="noopener noreferrer"
+                                        <p className="text-xs text-muted-foreground">Venue</p>
+                                        <p className="text-sm text-foreground font-medium truncate">{venue || <span className="text-muted-foreground italic">—</span>}</p>
+                                    </div>
+                                </div>
+                                {/* Link URL */}
+                                <div className="flex items-start gap-2.5">
+                                    <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center shrink-0 mt-0.5">
+                                        <LinkIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-xs text-muted-foreground">Link URL</p>
+                                        {linkUrl ? (
+                                            <a href={linkUrl} target="_blank" rel="noopener noreferrer"
                                                 className="text-sm text-primary font-medium truncate block hover:underline">
-                                                {link.replace(/^https?:\/\//, '').substring(0, 35)}{link.length > 42 ? '...' : ''}
+                                                {linkUrl.replace(/^https?:\/\//, '').substring(0, 35)}{linkUrl.length > 42 ? '...' : ''}
                                             </a>
                                         ) : (
-                                            <p className="text-sm text-foreground font-medium truncate">{venue || <span className="text-muted-foreground italic">—</span>}</p>
+                                            <p className="text-sm text-muted-foreground italic">—</p>
+                                        )}
+                                    </div>
+                                </div>
+                                {/* Link Materials */}
+                                <div className="flex items-start gap-2.5">
+                                    <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center shrink-0 mt-0.5">
+                                        <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-xs text-muted-foreground">Link Materials</p>
+                                        {linkMaterials ? (
+                                            <a href={linkMaterials} target="_blank" rel="noopener noreferrer"
+                                                className="text-sm text-primary font-medium truncate block hover:underline">
+                                                {linkMaterials.replace(/^https?:\/\//, '').substring(0, 35)}{linkMaterials.length > 42 ? '...' : ''}
+                                            </a>
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground italic">—</p>
                                         )}
                                     </div>
                                 </div>

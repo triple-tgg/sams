@@ -58,6 +58,8 @@ export function mapSchedulerDetailToSession(d: SchedulerSessionDetail): Session 
     note: d.note || d.courseObj?.additionalNote || undefined,
     trainingAttendanceTypeId: d.trainingAttendanceTypeObj?.id || 1,
     attendanceTypeName: d.trainingAttendanceTypeObj?.name,
+    linkUrl: d.linkUrl ?? "",
+    linkMaterials: d.linkMaterials ?? "",
   };
 }
 

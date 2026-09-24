@@ -6,7 +6,7 @@ import { Check, ChevronDown, ChevronUp } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { cva, type VariantProps } from "class-variance-authority"
-import { InputColor, size } from "@/lib/type"
+import { InputColor } from "@/lib/type"
 
 const Select = SelectPrimitive.Root
 
@@ -50,7 +50,7 @@ const selectVariants = cva(
 );
 interface SelectTriggerProps extends React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>,
   VariantProps<typeof selectVariants> {
-  size?: size
+  size?: "default" | "sm" | "md" | "lg"
   color?: InputColor
 }
 const SelectTrigger = React.forwardRef<

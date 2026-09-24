@@ -52,11 +52,11 @@ function SuccessCard({ data, emailStatus, attendanceTypeName }: { data: ConfirmA
 
             {/* Session Details Card */}
             <div className="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-5 text-left">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm table-fixed">
                     <tbody className="[&_td]:py-1.5">
                         <tr>
                             <td className="text-slate-400 font-medium w-28 align-top pr-3">Course:</td>
-                            <td className="text-slate-800 font-semibold">{course.courseName}</td>
+                            <td className="text-slate-800 font-semibold break-words">{course.courseName}</td>
                         </tr>
                         <tr>
                             <td className="text-slate-400 font-medium align-top pr-3">Course Code:</td>
@@ -64,7 +64,7 @@ function SuccessCard({ data, emailStatus, attendanceTypeName }: { data: ConfirmA
                         </tr>
                         <tr>
                             <td className="text-slate-400 font-medium align-top pr-3">Date:</td>
-                            <td className="text-slate-800 font-medium">
+                            <td className="text-slate-800 font-medium break-words">
                                 {formatDisplayDate(schedule.startDate)}
                                 {schedule.endDate !== schedule.startDate && ` — ${formatDisplayDate(schedule.endDate)}`}
                             </td>
@@ -86,11 +86,31 @@ function SuccessCard({ data, emailStatus, attendanceTypeName }: { data: ConfirmA
                             <td className="text-slate-800 font-medium">{attendanceTypeName || '-'}</td>
                         </tr>
                         <tr>
-                            <td className="text-slate-400 font-medium align-top pr-3">Location:</td>
-                            <td className="text-slate-800 font-medium">
-                                {schedule.venue || schedule.trainingAttendanceTypeObj?.name || '-'}
-                            </td>
+                            <td className="text-slate-400 font-medium align-top pr-3">Venue:</td>
+                            <td className="text-slate-800 font-medium">{schedule.venue || '-'}</td>
                         </tr>
+                        {schedule.linkUrl && (
+                            <tr>
+                                <td className="text-slate-400 font-medium align-top pr-3">Link URL:</td>
+                                <td className="break-all">
+                                    <a href={schedule.linkUrl} target="_blank" rel="noopener noreferrer"
+                                        className="text-primary font-medium hover:underline">
+                                        {schedule.linkUrl}
+                                    </a>
+                                </td>
+                            </tr>
+                        )}
+                        {schedule.linkMaterials && (
+                            <tr>
+                                <td className="text-slate-400 font-medium align-top pr-3">Link Materials:</td>
+                                <td className="break-all">
+                                    <a href={schedule.linkMaterials} target="_blank" rel="noopener noreferrer"
+                                        className="text-primary font-medium hover:underline">
+                                        {schedule.linkMaterials}
+                                    </a>
+                                </td>
+                            </tr>
+                        )}
                     </tbody>
                 </table>
             </div>

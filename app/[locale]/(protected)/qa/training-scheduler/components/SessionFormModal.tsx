@@ -10,7 +10,7 @@ import { getCourseList, type CourseData } from '@/lib/api/qa/course'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Calendar } from '@/components/ui/calendar'
-import { Check, ChevronsUpDown, CalendarIcon, Clock, Link2, MapPin, Info } from 'lucide-react'
+import { Check, ChevronsUpDown, CalendarIcon, Clock, Link2, MapPin, Info, FileText } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { format, parse } from 'date-fns'
@@ -314,7 +314,7 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
                         </div>
                         <div>
                             <label className="text-xs font-medium text-muted-foreground block mb-1.5">Attendance Type</label>
-                            <select value={form.trainingAttendanceTypeId || 1} onChange={e => { f('trainingAttendanceTypeId', Number(e.target.value)); f('venue', '') }}
+                            <select value={form.trainingAttendanceTypeId || 1} onChange={e => { f('trainingAttendanceTypeId', Number(e.target.value)); f('venue', ''); f('linkUrl', '') }}
                                 className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 cursor-pointer">
                                 {attendanceTypes.length > 0 ? (
                                     attendanceTypes.map((at: AttendanceType) => (
@@ -325,25 +325,48 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
                         </div>
                     </div>
 
-                    {/* Venue or Link */}
-                    <div>
-                        {attendanceTypes.find((at: AttendanceType) => at.id === form.trainingAttendanceTypeId)?.code === 'Online' ? (
-                            <div>
-                                <label className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1"><Link2 className="w-3.5 h-3.5" />Meeting Link</label>
-                                <input type="url" value={form.venue} onChange={e => f('venue', e.target.value)} placeholder="e.g. https://zoom.us/..."
-                                    className={cn('w-full px-3 py-2 text-sm border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10', form.venue && !/^https?:\/\/.+/i.test(form.venue) ? 'border-red-400 focus:ring-red-200' : 'border-border')} />
-                                {form.venue && !/^https?:\/\/.+/i.test(form.venue) && (
-                                    <p className="text-[11px] text-red-500 mt-1">Please enter a valid URL (e.g. https://zoom.us/...)</p>
+                    {/* Venue and/or Link based on Attendance Type */}
+                    {(() => {
+                        const selectedAttendance = attendanceTypes.find((at: AttendanceType) => at.id === form.trainingAttendanceTypeId)
+                        const attendanceCode = selectedAttendance?.name || selectedAttendance?.code || ''
+                        const isOnline = attendanceCode === 'Online'
+                        const isOnsite = attendanceCode === 'Onsite'
+                        const isBoth = attendanceCode === 'Online&Onsite'
+
+                        return (
+                            <>
+                                {/* Meeting Link — shown for Online and Online&Onsite */}
+                                {(isOnline || isBoth) && (
+                                    <div>
+                                        <label className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1"><Link2 className="w-3.5 h-3.5" />Meeting Link</label>
+                                        <input type="url" value={form.linkUrl || ''} onChange={e => f('linkUrl', e.target.value)} placeholder="e.g. https://zoom.us/..."
+                                            className={cn('w-full px-3 py-2 text-sm border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10', form.linkUrl && !/^https?:\/\/.+/i.test(form.linkUrl) ? 'border-red-400 focus:ring-red-200' : 'border-border')} />
+                                        {form.linkUrl && !/^https?:\/\/.+/i.test(form.linkUrl) && (
+                                            <p className="text-[11px] text-red-500 mt-1">Please enter a valid URL (e.g. https://zoom.us/...)</p>
+                                        )}
+                                    </div>
                                 )}
-                            </div>
-                        ) : (
-                            <div>
-                                <label className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />Location (Venue)</label>
-                                <input type="text" value={form.venue} onChange={e => f('venue', e.target.value)} placeholder="e.g. BKK Base Room 1"
-                                    className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10" />
-                            </div>
-                        )}
-                    </div>
+
+                                {/* Venue — shown for Onsite and Online&Onsite */}
+                                {(isOnsite || isBoth) && (
+                                    <div>
+                                        <label className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />Location (Venue)</label>
+                                        <input type="text" value={form.venue || ''} onChange={e => f('venue', e.target.value)} placeholder="e.g. BKK Base Room 1"
+                                            className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10" />
+                                    </div>
+                                )}
+
+                                {/* Fallback: if no attendance type matched, show venue */}
+                                {!isOnline && !isOnsite && !isBoth && (
+                                    <div>
+                                        <label className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />Location (Venue)</label>
+                                        <input type="text" value={form.venue || ''} onChange={e => f('venue', e.target.value)} placeholder="e.g. BKK Base Room 1"
+                                            className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10" />
+                                    </div>
+                                )}
+                            </>
+                        )
+                    })()}
 
                     {/* Status + Total Hours + Max participants */}
                     <div className="grid grid-cols-3 gap-4">
@@ -371,6 +394,16 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
                             <input type="number" min={1} max={200} value={form.maxParticipants} onChange={e => f('maxParticipants', parseInt(e.target.value) || 1)}
                                 className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10" />
                         </div>
+                    </div>
+
+                    {/* Link Materials */}
+                    <div className="flex flex-col">
+                        <label className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1"><FileText className="w-3.5 h-3.5" />Link Materials</label>
+                        <input type="url" value={form.linkMaterials || ''} onChange={e => f('linkMaterials', e.target.value)} placeholder="e.g. https://drive.google.com/..."
+                            className={cn('w-full px-3 py-2 text-sm border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10', form.linkMaterials && !/^https?:\/\/.+/i.test(form.linkMaterials) ? 'border-red-400 focus:ring-red-200' : 'border-border')} />
+                        {form.linkMaterials && !/^https?:\/\/.+/i.test(form.linkMaterials) && (
+                            <p className="text-[11px] text-red-500 mt-1">Please enter a valid URL</p>
+                        )}
                     </div>
 
                     {/* Course Objective */}

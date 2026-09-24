@@ -24,6 +24,8 @@ export interface Session {
     attendanceTypeName?: string
     trainingDataStatusesId?: number
     link?: string
+    linkUrl?: string
+    linkMaterials?: string
     totalHours?: number
 }
 
@@ -94,5 +96,5 @@ export const BLANK_FORM: SessionFormData = {
     dateStart: '', dateEnd: '', timeStart: '09:00', timeEnd: '17:00',
     instructor: '', courseInstructorId: 0, venue: '', dept: 'All Departments',
     maxParticipants: 20, enrolled: 0, status: 'Scheduled', type: 'Initial',
-    note: '', trainingAttendanceTypeId: 1, link: '', totalHours: 0
+    note: '', trainingAttendanceTypeId: 1, link: '', linkUrl: '', linkMaterials: '', totalHours: 0
 }

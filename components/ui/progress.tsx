@@ -3,7 +3,7 @@ import * as React from "react";
 import * as ProgressPrimitive from "@radix-ui/react-progress";
 import { cva } from "class-variance-authority";
 import { cn } from "@/lib/utils";
-import { color, size } from "@/lib/type";
+import { color } from "@/lib/type";
 
 const progressVariants = cva(
   "relative overflow-hidden rounded-full bg-default-200 dark:bg-default-300",
@@ -33,7 +33,7 @@ const progressVariants = cva(
 );
 
 interface ProgressProps extends React.ComponentPropsWithoutRef<typeof ProgressPrimitive.Root> {
-  size?: size,
+  size?: "default" | "sm" | "md" | "lg",
   value?: number,
   showValue?: boolean,
   color?: color,

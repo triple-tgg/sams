@@ -131,7 +131,7 @@ const PreviewStep: React.FC<PreviewStepProps> = ({ flightInfosId }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
               <SubHeader icon={PlaneLanding}>Arrival (UTC)</SubHeader>
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <LabelValue label="Flight No" value={formData?.flightArrival} />
                 <LabelValue label="Date" value={formData?.arrivalDate} />
                 <LabelValue label="STA (UTC)" value={formData?.sta} />
@@ -140,7 +140,7 @@ const PreviewStep: React.FC<PreviewStepProps> = ({ flightInfosId }) => {
             </div>
             <div>
               <SubHeader icon={PlaneTakeoff}>Departure (UTC)</SubHeader>
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <LabelValue label="Flight No" value={formData?.flightDeparture} />
                 <LabelValue label="Date" value={formData?.departureDate} />
                 <LabelValue label="STD (UTC)" value={formData?.std} />

@@ -84,7 +84,7 @@ const PartsToolsCardItem: React.FC<PartsToolsCardItemProps> = ({
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
             <div className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
                 {/* Card Header */}
-                <div className="flex items-center justify-between px-5 py-3 bg-linear-to-r from-slate-50 to-gray-50 border-b border-gray-100">
+                <div className="flex items-center justify-between px-3 sm:px-5 py-3 bg-linear-to-r from-slate-50 to-gray-50 border-b border-gray-100">
                     <CollapsibleTrigger asChild>
                         <button type="button" className="flex items-center gap-2.5 flex-1 min-w-0 text-left">
                             <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
@@ -106,17 +106,17 @@ const PartsToolsCardItem: React.FC<PartsToolsCardItemProps> = ({
                         onClick={() => onRemove(index)}
                         className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 px-2 ml-2 shrink-0"
                     >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        <span className="text-xs">Remove</span>
+                        <Trash2 className="h-4 w-4 sm:mr-1" />
+                        <span className="text-xs hidden sm:inline">Remove</span>
                     </Button>
                 </div>
 
                 <CollapsibleContent>
-                    <div className="p-5 space-y-5">
+                    <div className="p-3 sm:p-5 space-y-5">
                         {/* ── Section 1: Main Info ── */}
-                        <div className="grid grid-cols-6 gap-4">
+                        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
                             {/* Parts/Tools Name - 4 cols */}
-                            <div className="col-span-4">
+                            <div className="col-span-2 lg:col-span-4">
                                 <Label className="text-xs font-medium text-gray-600 mb-1.5 block">
                                     Parts/Tools Name <span className="text-red-500">*</span>
                                 </Label>
@@ -181,7 +181,7 @@ const PartsToolsCardItem: React.FC<PartsToolsCardItemProps> = ({
                                     Tracking IDs
                                 </span>
                             </div>
-                            <div className="grid grid-cols-4 gap-3">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                 {/* Part No (P/N) */}
                                 <div>
                                     <Label className="text-[10px] text-gray-400 mb-1 block">Part No. (P/N)</Label>
@@ -232,7 +232,7 @@ const PartsToolsCardItem: React.FC<PartsToolsCardItemProps> = ({
                                     Operational Period (UTC)
                                 </span>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {/* From */}
                                 <div className="space-y-2">
                                     <Label className="text-xs font-medium text-gray-600">From</Label>
