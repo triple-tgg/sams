@@ -65,7 +65,7 @@ const ButtonFilter = (props: { active: boolean, value: string, onClick: () => vo
   return (
     <span
       className={cn(
-        "flex-1 text-xs font-medium px-3 py-1.5 transition-all duration-200 rounded-md cursor-pointer text-center whitespace-nowrap",
+        "flex-1 text-[11px] sm:text-xs font-medium px-2 sm:px-3 py-1 sm:py-1.5 transition-all duration-200 rounded-md cursor-pointer text-center whitespace-nowrap",
         "hover:bg-slate-100 dark:hover:bg-slate-600",
         {
           "bg-sky-500 text-white shadow-sm hover:bg-sky-600 dark:hover:bg-sky-600":

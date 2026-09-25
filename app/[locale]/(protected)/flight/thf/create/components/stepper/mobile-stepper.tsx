@@ -22,34 +22,34 @@ const MobileStepper: React.FC<MobileStepperProps> = ({ steps, activeStep, title 
     const current = steps.find((s) => s.step === activeStep) ?? steps[0]
 
     return (
-        <div className="bg-blue-600 text-white px-4 pt-3 pb-3 sm:px-6 shrink-0">
+        <div className="bg-blue-600 text-white px-4 pt-5 pb-1.5 sm:px-6 shrink-0">
             {/* Title row */}
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-lg leading-tight">{title}</span>
+                        <span className="font-bold text-base leading-tight">{title}</span>
                         {status && (
-                            <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-white/20 text-white capitalize">
+                            <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/20 text-white capitalize">
                                 {status}
                             </span>
                         )}
                     </div>
-                    <div className="text-blue-100 text-xs">Technical Handling Form</div>
+                    <div className="text-blue-100 text-xs">{`Technical Handling Form`}</div>
                 </div>
                 {onClose && (
                     <button
                         type="button"
                         onClick={onClose}
                         aria-label="Close"
-                        className="shrink-0 -mr-1 flex h-9 w-9 items-center justify-center rounded-full hover:bg-white/10 transition-colors"
+                        className="shrink-0 -mr-1 flex h-8 w-8 items-center justify-center rounded-full hover:bg-white/10 transition-colors"
                     >
-                        <X className="w-5 h-5" />
+                        <X className="w-4 h-4" />
                     </button>
                 )}
             </div>
 
             {/* Step indicators */}
-            <div className="mt-3 flex items-center">
+            <div className="mt-2 flex items-center">
                 {steps.map((item, index) => {
                     const isActive = activeStep === item.step
                     const isCompleted = activeStep > item.step
@@ -64,7 +64,7 @@ const MobileStepper: React.FC<MobileStepperProps> = ({ steps, activeStep, title 
                                 aria-label={item.label}
                                 aria-current={isActive ? 'step' : undefined}
                                 className={clsx(
-                                    "flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 text-xs sm:text-sm font-semibold transition-colors shrink-0 disabled:cursor-default",
+                                    "flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-full border-2 text-[10px] sm:text-xs font-semibold transition-colors shrink-0 disabled:cursor-default",
                                     isActive
                                         ? "bg-white text-blue-600 border-white"
                                         : isCompleted
@@ -72,7 +72,7 @@ const MobileStepper: React.FC<MobileStepperProps> = ({ steps, activeStep, title 
                                             : "border-blue-300 text-blue-100"
                                 )}
                             >
-                                {isCompleted ? <Check className="w-3.5 h-3.5" /> : item.step}
+                                {isCompleted ? <Check className="w-3 h-3" /> : item.step}
                             </button>
                             {!isLast && (
                                 <div
@@ -88,14 +88,14 @@ const MobileStepper: React.FC<MobileStepperProps> = ({ steps, activeStep, title 
             </div>
 
             {/* Current step label */}
-            <div className="mt-2.5 flex items-baseline justify-between gap-2">
+            <div className="mt-1.5 flex items-baseline justify-between gap-2">
                 <div className="min-w-0">
-                    <div className="font-semibold text-base leading-tight truncate">{current.label}</div>
+                    <div className="font-semibold text-sm leading-tight truncate">{current.label}</div>
                     {current.description && (
-                        <div className="text-xs text-blue-100 truncate">{current.description}</div>
+                        <div className="text-[11px] text-blue-100 truncate">{current.description}</div>
                     )}
                 </div>
-                <span className="shrink-0 text-xs text-blue-100">
+                <span className="shrink-0 text-[11px] text-blue-100">
                     Step {activeStep}/{steps.length}
                 </span>
             </div>

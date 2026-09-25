@@ -68,11 +68,11 @@ const DateRangeFilter = ({
   };
 
   return (
-    <div className={cn("grid gap-4 sm:grid-cols-2", className)}>
+    <div className={cn("grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 w-full", className)}>
       {/* From Date Input */}
-      <div className="space-y-2 flex items-center justify-center space-x-2">
+      <div className="flex items-center space-x-2">
         {labels.from && (
-          <Label htmlFor="from-date" className="text-sm font-medium mb-0">
+          <Label htmlFor="from-date" className="text-xs sm:text-sm font-medium mb-0 flex-none w-10 sm:w-auto">
             {labels.from}
             {required && <span className="text-red-500 ml-1">*</span>}
           </Label>
@@ -82,16 +82,16 @@ const DateRangeFilter = ({
           onChange={handleFromDateChange}
           placeholder={placeholder}
           className={cn(
-            "w-full",
+            "w-full h-8 sm:h-9 text-xs sm:text-sm",
             !isValidRange() && "border-red-500 focus:border-red-500"
           )}
         />
       </div>
 
       {/* To Date Input */}
-      <div className="space-y-2 flex items-center space-x-2">
+      <div className="flex items-center space-x-2">
         {labels.to && (
-          <Label htmlFor="to-date" className="text-sm font-medium mb-0">
+          <Label htmlFor="to-date" className="text-xs sm:text-sm font-medium mb-0 flex-none w-10 sm:w-auto">
             {labels.to}
             {required && <span className="text-red-500 ml-1">*</span>}
           </Label>
@@ -101,7 +101,7 @@ const DateRangeFilter = ({
           onChange={handleToDateChange}
           placeholder={placeholder}
           className={cn(
-            "w-full",
+            "w-full h-8 sm:h-9 text-xs sm:text-sm",
             !isValidRange() && "border-red-500 focus:border-red-500"
           )}
         />
@@ -110,7 +110,7 @@ const DateRangeFilter = ({
       {/* Error message for invalid range */}
       {!isValidRange() && (
         <div className="col-span-full">
-          <p className="text-sm text-red-500 mt-1">
+          <p className="text-xs text-red-500 mt-1">
             From date cannot be after to date
           </p>
         </div>

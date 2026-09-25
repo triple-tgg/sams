@@ -64,7 +64,7 @@ export default function FlightList() {
     //     return <TableSkeleton columns={7} rows={5} />;
     // }
     return (
-        <div className="space-y-3">
+        <div className="space-y-3 w-full max-w-full overflow-hidden">
             {/* <div className="text-sm text-gray-500">
                 {isFetching ? "กำลังอัปเดตข้อมูล…" : "ข้อมูลล่าสุด"}
             </div> */}

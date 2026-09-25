@@ -41,33 +41,33 @@ export const Pagination: React.FC<PaginationProps> = ({
   const visiblePages = getVisiblePages();
 
   return (
-    <div className="flex items-center justify-end py-4 px-10">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-3 px-4 sm:px-6 border-t border-slate-100 dark:border-slate-800">
       {/* Left side: Go to page */}
-      <div className="flex-1 flex items-center gap-3">
+      <div className="flex items-center justify-between sm:justify-start w-full sm:w-auto gap-3">
         <div className="flex gap-2 items-center">
-          <div className="text-sm font-medium text-muted-foreground">Go</div>
+          <div className="text-xs sm:text-sm font-medium text-muted-foreground">Go</div>
           <Input
             type="number"
-            className="w-16 px-2"
+            className="w-14 sm:w-16 h-8 text-xs sm:text-sm px-2"
             value={pageIndex + 1}
             onChange={handleInputChange}
           />
         </div>
-        <div className="text-sm font-medium text-muted-foreground">
+        <div className="text-xs sm:text-sm font-medium text-muted-foreground">
           Page {pageIndex + 1} of {pageCount}
         </div>
       </div>
 
       {/* Right side: Pagination buttons */}
-      <div className="flex items-center gap-2 flex-none">
+      <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-center sm:justify-end">
         <Button
           variant="outline"
           size="icon"
           onClick={onPrevPage}
           disabled={pageIndex === 0}
-          className="w-8 h-8"
+          className="w-7 h-7 sm:w-8 sm:h-8"
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </Button>
 
         {/* First page */}
@@ -76,14 +76,14 @@ export const Pagination: React.FC<PaginationProps> = ({
             <Button
               onClick={() => onPageChange(0)}
               size="icon"
-              className={`w-8 h-8 ${pageIndex === 0
+              className={`w-7 h-7 sm:w-8 sm:h-8 text-xs sm:text-sm ${pageIndex === 0
                   ? "bg-primary text-white"
                   : "bg-muted text-foreground hover:bg-muted/80"
                 }`}
             >
               1
             </Button>
-            {visiblePages[0] > 1 && <span className="text-muted-foreground">…</span>}
+            {visiblePages[0] > 1 && <span className="text-muted-foreground text-xs sm:text-sm">…</span>}
           </>
         )}
 
@@ -93,7 +93,7 @@ export const Pagination: React.FC<PaginationProps> = ({
             key={`page-${i}`}
             onClick={() => onPageChange(i)}
             size="icon"
-            className={`w-8 h-8 ${pageIndex === i
+            className={`w-7 h-7 sm:w-8 sm:h-8 text-xs sm:text-sm ${pageIndex === i
                 ? "bg-primary text-white"
                 : "bg-muted text-foreground hover:bg-muted/80"
               }`}
@@ -106,12 +106,12 @@ export const Pagination: React.FC<PaginationProps> = ({
         {visiblePages[visiblePages.length - 1] < pageCount - 1 && (
           <>
             {visiblePages[visiblePages.length - 1] < pageCount - 2 && (
-              <span className="text-muted-foreground">…</span>
+              <span className="text-muted-foreground text-xs sm:text-sm">…</span>
             )}
             <Button
               onClick={() => onPageChange(pageCount - 1)}
               size="icon"
-              className={`w-8 h-8 ${pageIndex === pageCount - 1
+              className={`w-7 h-7 sm:w-8 sm:h-8 text-xs sm:text-sm ${pageIndex === pageCount - 1
                   ? "bg-primary text-white"
                   : "bg-muted text-foreground hover:bg-muted/80"
                 }`}
@@ -126,9 +126,9 @@ export const Pagination: React.FC<PaginationProps> = ({
           size="icon"
           onClick={onNextPage}
           disabled={pageIndex >= pageCount - 1}
-          className="w-8 h-8"
+          className="w-7 h-7 sm:w-8 sm:h-8"
         >
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </Button>
       </div>
     </div>

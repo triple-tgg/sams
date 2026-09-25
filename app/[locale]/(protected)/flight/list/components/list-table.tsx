@@ -295,7 +295,7 @@ const ListTable = ({
         setEditFlightId(null);
     }
     return (
-        <Card>
+        <Card className="w-full max-w-full overflow-hidden shadow-sm">
             <EditFlight open={openEditFlight} setOpen={setOpenEditFlight} flightInfosId={editFlightId} onClose={onEditFlightClose} />
             <CreateProject open={open} setOpen={setOpen} />
 
@@ -320,79 +320,83 @@ const ListTable = ({
                 onSuccess={() => setSelectedUnlockFlight(null)}
             />
             {/* Header Section with Title and Buttons */}
-            <CardHeader className="pb-4">
-                <CardTitle>Flight List</CardTitle>
-                <CardDescription>
-                    Manage flight schedules and maintenance service records.
-                </CardDescription>
-                <div className="flex items-center gap-2 ml-auto">
-                    <PermissionActionGuard menuCode="FLIGHT" action="canCreate">
-                        <>
-                            <Button color="primary" onClick={() => setOpen(true)} size="md">
-                                <Plus className="w-4 h-4 mr-2" />
-                                <span>Add Flight</span>
-                            </Button>
+            <CardHeader className="p-4 sm:p-6 pb-3 sm:pb-4 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                        <CardTitle className="text-xl sm:text-2xl font-bold">Flight List</CardTitle>
+                        <CardDescription className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                            Manage flight schedules and maintenance service records.
+                        </CardDescription>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                        <PermissionActionGuard menuCode="FLIGHT" action="canCreate">
+                            <>
+                                <Button color="primary" onClick={() => setOpen(true)} size="sm" className="h-8 sm:h-9 text-xs sm:text-sm">
+                                    <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5" />
+                                    <span>Add Flight</span>
+                                </Button>
 
-                            {/* Import Button with Excel Preview Modal (same as Flight Timeline) */}
-                            <input
-                                type="file"
-                                ref={excelImport.fileInputRef}
-                                onChange={excelImport.handleFileSelect}
-                                accept=".xlsx,.xls"
-                                className="hidden"
-                            />
-                            <Button
-                                className="flex-none"
-                                color="primary"
-                                variant="outline"
-                                onClick={excelImport.openFilePicker}
-                                disabled={excelImport.isParsing}
-                                size="md"
-                            >
-                                <FileUp className="w-4 h-4 mr-2" />
-                                <span>{excelImport.isParsing ? 'Loading...' : 'Import'}</span>
+                                {/* Import Button with Excel Preview Modal (same as Flight Timeline) */}
+                                <input
+                                    type="file"
+                                    ref={excelImport.fileInputRef}
+                                    onChange={excelImport.handleFileSelect}
+                                    accept=".xlsx,.xls"
+                                    className="hidden"
+                                />
+                                <Button
+                                    className="flex-none h-8 sm:h-9 text-xs sm:text-sm"
+                                    color="primary"
+                                    variant="outline"
+                                    onClick={excelImport.openFilePicker}
+                                    disabled={excelImport.isParsing}
+                                    size="sm"
+                                >
+                                    <FileUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5" />
+                                    <span>{excelImport.isParsing ? 'Loading...' : 'Import'}</span>
+                                </Button>
+                            </>
+                        </PermissionActionGuard>
+                        {/* Download Template Button (same as Flight Timeline) */}
+                        <Button
+                            className="flex-none h-8 sm:h-9 text-xs sm:text-sm"
+                            color="secondary"
+                            variant="outline"
+                            onClick={downloadTemplate}
+                            disabled={isDownloadingTemplate}
+                            size="sm"
+                        >
+                            {isDownloadingTemplate
+                                ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 animate-spin" />
+                                : <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5" />}
+                            <span>Template</span>
+                        </Button>
+                        <PermissionActionGuard menuCode="FLIGHT_TIMELINE" action="canView">
+                            <Button color="default" onClick={() => window.open(`/${locale}/views-flight-timeline`, '_blank')} size="sm" className="h-8 sm:h-9 text-xs sm:text-sm">
+                                <AlignStartVertical className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5" />
+                                <span>Timeline</span>
                             </Button>
-                        </>
-                    </PermissionActionGuard>
-                    {/* Download Template Button (same as Flight Timeline) */}
-                    <Button
-                        className="flex-none"
-                        color="secondary"
-                        variant="outline"
-                        onClick={downloadTemplate}
-                        disabled={isDownloadingTemplate}
-                        size="md"
-                    >
-                        {isDownloadingTemplate
-                            ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            : <Download className="w-4 h-4 mr-2" />}
-                        <span>Template</span>
-                    </Button>
-                    <PermissionActionGuard menuCode="FLIGHT_TIMELINE" action="canView">
-                    <Button color="default" onClick={() => window.open(`/${locale}/views-flight-timeline`, '_blank')} size="md">
-                        <AlignStartVertical className="w-4 h-4 mr-2" />
-                        <span>Timeline</span>
-                    </Button>
-                    </PermissionActionGuard>
+                        </PermissionActionGuard>
+                    </div>
                 </div>
             </CardHeader>
 
             {/* Filter Section */}
             <FormProvider {...{ register, handleSubmit, control, watch, setValue, getValues, ...props }}>
                 <form onSubmit={handleSubmit(onSubmit)}>
-                    <div className="px-6 pb-4">
-                        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 shadow-sm">
+                    <div className="px-3 sm:px-6 pb-4">
+                        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 shadow-sm overflow-hidden">
                             {/* Filter Row */}
-                            <div className="flex flex-wrap items-end justify-between gap-4 p-4">
-                                <div className="flex gap-4">
+                            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-3 sm:gap-4 p-3 sm:p-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-4 w-full lg:w-auto flex-1">
                                     {/* Flight No. */}
-                                    <div className="flex flex-col gap-1.5 min-w-[160px]">
-                                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <div className="flex flex-col gap-1 w-full min-w-0">
+                                        <label className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                                             <Search className="h-3 w-3" />
                                             Flight No.
                                         </label>
                                         <Input
-                                            className="h-9 text-sm bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600"
+                                            className="h-8 sm:h-9 text-xs sm:text-sm bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 w-full"
                                             type="text"
                                             placeholder="Search..."
                                             {...register("search")}
@@ -406,8 +410,8 @@ const ListTable = ({
                                     </div>
 
                                     {/* Station */}
-                                    <div className="flex flex-col gap-1.5 min-w-[160px]">
-                                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <div className="flex flex-col gap-1 w-full min-w-0">
+                                        <label className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                                             <MapPin className="h-3 w-3" />
                                             Station
                                         </label>
@@ -419,7 +423,7 @@ const ListTable = ({
                                                     field.onChange(value);
                                                     handleSubmit(onSubmit)();
                                                 }}>
-                                                    <SelectTrigger className="h-9 text-sm bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600">
+                                                    <SelectTrigger className="h-8 sm:h-9 text-xs sm:text-sm bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 w-full">
                                                         <SelectValue placeholder="All Stations" />
                                                     </SelectTrigger>
                                                     <SelectContent>
@@ -435,8 +439,8 @@ const ListTable = ({
                                     </div>
 
                                     {/* Airline */}
-                                    <div className="flex flex-col gap-1.5 min-w-[160px]">
-                                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <div className="flex flex-col gap-1 w-full min-w-0">
+                                        <label className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                                             <Plane className="h-3 w-3" />
                                             Airline
                                         </label>
@@ -448,7 +452,7 @@ const ListTable = ({
                                                     field.onChange(value);
                                                     handleSubmit(onSubmit)();
                                                 }}>
-                                                    <SelectTrigger className="h-9 text-sm bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600">
+                                                    <SelectTrigger className="h-8 sm:h-9 text-xs sm:text-sm bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 w-full">
                                                         <SelectValue placeholder="All Airlines" />
                                                     </SelectTrigger>
                                                     <SelectContent>
@@ -465,11 +469,11 @@ const ListTable = ({
 
                                 </div>
                                 {/* Separator */}
-                                <div className="hidden lg:block w-px h-9 bg-slate-200 dark:bg-slate-600" />
+                                <div className="hidden lg:block w-px h-9 bg-slate-200 dark:bg-slate-600 flex-none self-center" />
 
                                 {/* Date Range */}
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <div className="flex flex-col gap-1 w-full lg:w-auto flex-none">
+                                    <label className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                                         <Calendar className="h-3 w-3" />
                                         Date Range
                                     </label>
@@ -493,7 +497,7 @@ const ListTable = ({
                             </div>
 
                             {/* Total Count Bar */}
-                            <div className="flex items-center justify-between px-4 py-2 border-t border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/30 rounded-b-xl">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-3 sm:px-4 py-2 border-t border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/30 rounded-b-xl">
                                 <div className="flex items-center gap-2">
                                     <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
                                         Showing
@@ -504,8 +508,8 @@ const ListTable = ({
                                     </span>
                                 </div>
                                 {/* Quick Range */}
-                                <div className="flex gap-1.5">
-                                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <div className="flex items-center gap-1.5 self-end sm:self-auto">
+                                    <label className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
                                         <Zap className="h-3 w-3" />
                                         Quick
                                     </label>
@@ -531,9 +535,9 @@ const ListTable = ({
                 if (revisionRequiredCount === 0) return null;
 
                 return (
-                    <div className="mx-6 mb-3 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 rounded-lg flex items-center justify-between text-xs text-amber-900 dark:text-amber-200 shadow-xs">
+                    <div className="mx-3 sm:mx-6 mb-3 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-amber-900 dark:text-amber-200 shadow-xs">
                         <div className="flex items-center gap-2 font-medium">
-                            <AlertTriangle className="h-4 w-4 text-amber-600 animate-pulse" />
+                            <AlertTriangle className="h-4 w-4 text-amber-600 animate-pulse flex-none" />
                             <span><strong>{revisionRequiredCount}</strong> flight{revisionRequiredCount > 1 ? "s" : ""} have THF revisions requested by Accounting (Revision Required)</span>
                         </div>
                         <span className="text-[11px] text-amber-700 dark:text-amber-400">Please review and click <strong>Edit THF (Revision Required)</strong> on the highlighted flight{revisionRequiredCount > 1 ? "s" : ""}.</span>
@@ -543,7 +547,7 @@ const ListTable = ({
 
             {(isLoading || isFetching) && <TableSkeleton columns={7} rows={5} />}
             {!isLoading && !isFetching && (
-                <CardContent className="p-0 overflow-x-auto">
+                <CardContent className="p-0 overflow-x-auto w-full max-w-full">
                     <Table className="relative">
                         <TableHeader>
                             {table.getHeaderGroups().map((hg) => (
