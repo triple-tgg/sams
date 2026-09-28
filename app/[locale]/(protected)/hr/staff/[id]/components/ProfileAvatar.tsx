@@ -60,7 +60,7 @@ export function ProfileAvatar({ initials, avatarBg, profileImage, onUpload }: Pr
         <div className="relative group shrink-0">
             {/* Avatar Circle */}
             <div
-                className={`w-50 h-50 rounded-md overflow-hidden border-[3px] border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.08)] ${!imageUrl ? 'bg-muted flex items-center justify-center' : ''}`}
+                className={`w-28 h-28 sm:w-40 sm:h-40 lg:w-50 lg:h-50 rounded-md overflow-hidden border-[3px] border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.08)] ${!imageUrl ? 'bg-muted flex items-center justify-center' : ''}`}
             >
                 {imageUrl ? (
                     <Image

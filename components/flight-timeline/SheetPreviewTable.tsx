@@ -41,6 +41,7 @@ import { useRoutesOptions, useSearchRoutes, useUpsertRoute } from '@/lib/api/hoo
 import { useStaffListForImport, StaffOption } from '@/lib/api/hooks/useStaffListForImport';
 import { useMaintenanceStatus } from '@/lib/api/hooks/useMaintenanceStatus';
 import { useStationsOptions } from '@/lib/api/hooks/useStations';
+import { useStatusOptions } from '@/lib/api/hooks/useStatus';
 import useReduxAuth from '@/lib/api/hooks/useReduxAuth';
 
 // Columns that should use Select dropdowns in edit mode
@@ -55,8 +56,14 @@ const STAFF_COLUMNS = ['CS', 'MECH'];
 // CHECK column - MaintenanceStatus
 const CHECK_COLUMNS = ['CHECK'];
 
+// STATUS column - flight status (/master/Status)
+const STATUS_COLUMNS = ['STATUS'];
+
 // Time columns that should be formatted as HH:mm
 const TIME_COLUMNS = ['STA', 'STD', 'ETA', 'ETD', 'ATA', 'ATD'];
+// Whole-word match so e.g. "STATUS" is not mistaken for an STA time column
+const TIME_COLUMN_PATTERN = new RegExp(`\\b(${TIME_COLUMNS.join('|')})\\b`);
+const isTimeRelatedHeader = (headerUpper: string) => TIME_COLUMN_PATTERN.test(headerUpper);
 
 // Option type for validation
 interface SelectOption {
@@ -104,10 +111,8 @@ const formatCellValue = (
 
     // Check if this is a time column (exclude Date columns like 'STA Date', 'STD Date')
     const headerUpper = header.toUpperCase();
-    const isDateColumn = headerUpper.includes('DATE') && TIME_COLUMNS.some(col => headerUpper.includes(col));
-    const isTimeColumn = !isDateColumn && TIME_COLUMNS.some(
-        (col) => headerUpper.includes(col)
-    );
+    const isDateColumn = headerUpper.includes('DATE') && isTimeRelatedHeader(headerUpper);
+    const isTimeColumn = !isDateColumn && isTimeRelatedHeader(headerUpper);
 
     // Date columns: format Excel date serial as DD/MM/YYYY
     if (isDateColumn) {
@@ -400,6 +405,9 @@ export function SheetPreviewTable({
     // Fetch CHECK column options (MaintenanceStatus)
     const { options: checkStatusOptions } = useMaintenanceStatus();
 
+    // Fetch STATUS column options (/master/Status)
+    const { options: flightStatusOptions } = useStatusOptions();
+
     // Create a map of row index to validation status for quick lookup
     const validationMap = new Map<number, ValidatedRow>();
     validatedRows?.forEach((vr) => {
@@ -557,9 +565,10 @@ export function SheetPreviewTable({
                                             const isStationColumn = STATION_COLUMNS.includes(header.toUpperCase());
                                             const isStaffColumn = STAFF_COLUMNS.includes(header.toUpperCase());
                                             const staffType = header.toUpperCase() === 'CS' ? 'CS' : 'MECH';
-                                            const isDateColumn = header.toUpperCase().includes('DATE') && TIME_COLUMNS.some(col => header.toUpperCase().includes(col));
-                                            const isTimeColumn = !isDateColumn && TIME_COLUMNS.some(col => header.toUpperCase().includes(col));
+                                            const isDateColumn = header.toUpperCase().includes('DATE') && isTimeRelatedHeader(header.toUpperCase());
+                                            const isTimeColumn = !isDateColumn && isTimeRelatedHeader(header.toUpperCase());
                                             const isCheckColumn = CHECK_COLUMNS.includes(header.toUpperCase());
+                                            const isStatusColumn = STATUS_COLUMNS.includes(header.toUpperCase());
 
                                             // Render edit input based on column type
                                             const renderEditInput = () => {
@@ -801,6 +810,27 @@ export function SheetPreviewTable({
                                                     );
                                                 }
 
+                                                // STATUS column: Select dropdown (/master/Status)
+                                                if (isStatusColumn) {
+                                                    return (
+                                                        <Select
+                                                            value={editData[header] ?? ''}
+                                                            onValueChange={(value) => handleEditChange(header, value)}
+                                                        >
+                                                            <SelectTrigger className="h-7 min-w-[140px] text-sm">
+                                                                <SelectValue placeholder="Select Status..." />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {flightStatusOptions.map((option) => (
+                                                                    <SelectItem key={option.value} value={option.value}>
+                                                                        {option.label}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    );
+                                                }
+
                                                 // Default: Input field with placeholder
                                                 return (
                                                     <Input
@@ -849,6 +879,12 @@ export function SheetPreviewTable({
                                                     if (!match) {
                                                         optionError = `Status "${cellValue}" not found in database`;
                                                     }
+                                                } else if (isStatusColumn && flightStatusOptions.length > 0) {
+                                                    // Check if STATUS value exists in /master/Status options
+                                                    const match = findOptionMatch(cellValue, flightStatusOptions, 'value');
+                                                    if (!match) {
+                                                        optionError = `Flight status "${cellValue}" not found in database`;
+                                                    }
                                                 }
                                             }
 
@@ -856,7 +892,8 @@ export function SheetPreviewTable({
                                                 (e) => e.column === header ||
                                                     e.column.toLowerCase().includes(header.toLowerCase().replace(/[^a-z]/gi, ''))
                                             );
-                                            const isError = cellHasError || (hasValidation && optionError !== null);
+                                            // STATUS mismatches are flagged immediately (before Validate); other columns after Validate
+                                            const isError = cellHasError || ((hasValidation || isStatusColumn) && optionError !== null);
 
                                             return (
                                                 <td

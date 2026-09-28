@@ -92,18 +92,18 @@ function MetricCard({
       type="button"
       onClick={onClick}
       className={cn(
-        'group min-w-0 rounded-xl border p-4 text-left transition-all',
+        'group min-w-0 rounded-xl border p-3 sm:p-4 text-left transition-all',
         colors.card,
         onClick && 'hover:-translate-y-0.5 hover:shadow-sm',
       )}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', colors.icon)}>
-          <Icon className="h-5 w-5" />
+        <div className={cn('flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-lg sm:rounded-xl', colors.icon)}>
+          <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
         </div>
         {onClick && <ArrowRight className="h-4 w-4 text-slate-400 transition-transform group-hover:translate-x-0.5" />}
       </div>
-      <p className={cn('mt-3 text-2xl font-extrabold tracking-tight', colors.text)}>{value}</p>
+      <p className={cn('mt-2 sm:mt-3 text-xl sm:text-2xl font-extrabold tracking-tight', colors.text)}>{value}</p>
       <p className="mt-0.5 text-xs font-bold text-slate-800">{label}</p>
       <p className="mt-1 text-[10px] leading-4 text-slate-500">{detail}</p>
     </button>
@@ -243,17 +243,17 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 to-blue-50/60 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+      <div className="flex items-start justify-between gap-3 rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 to-blue-50/60 p-3 sm:items-center sm:p-4">
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-blue-600" />
-            <h2 className="text-base font-extrabold text-slate-900">Authorization compliance overview</h2>
+            <ShieldCheck className="h-4 w-4 shrink-0 text-blue-600 sm:h-5 sm:w-5" />
+            <h2 className="text-sm font-extrabold text-slate-900 sm:text-base">Authorization compliance overview</h2>
           </div>
-          <p className="mt-1 text-xs text-slate-500">Live summary of SAMS, customer and authority authorizations</p>
+          <p className="mt-1 text-[11px] text-slate-500 sm:text-xs">Live summary of SAMS, customer and authority authorizations</p>
         </div>
-        <Button type="button" variant="outline" size="sm" onClick={refresh} disabled={isRefreshing} className="bg-white">
-          <RefreshCw className={cn('mr-2 h-3.5 w-3.5', isRefreshing && 'animate-spin')} />
-          Refresh data
+        <Button type="button" variant="outline" size="sm" onClick={refresh} disabled={isRefreshing} className="shrink-0 bg-white px-2.5 sm:px-3" aria-label="Refresh data">
+          <RefreshCw className={cn('h-3.5 w-3.5 sm:mr-2', isRefreshing && 'animate-spin')} />
+          <span className="hidden sm:inline">Refresh data</span>
         </Button>
       </div>
 
@@ -264,24 +264,24 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
         <MetricCard icon={Users} label="Staff monitored" value={totalStaff} detail="Certifying staff in SAMS authorization" tone="neutral" onClick={() => onNavigate('sams')} />
         <MetricCard icon={BadgeCheck} label="Valid SAMS" value={dashboard.samsCounts.valid} detail={`${percentage(dashboard.samsCounts.valid, samsRows.length)}% of loaded staff`} tone="success" onClick={() => onNavigate('sams')} />
         <MetricCard icon={CircleAlert} label="Action required" value={attentionTotal} detail={`${dashboard.samsCounts.expired} expired · ${dashboard.samsCounts.expiring} expiring · ${dashboard.samsCounts.notIssued} not issued`} tone={attentionTotal > 0 ? 'danger' : 'success'} onClick={() => onNavigate('sams')} />
         <MetricCard icon={UserRoundCheck} label="CRS ready" value={dashboard.crsReady} detail="Valid SAMS and at least 1 valid customer auth" tone={dashboard.crsReady > 0 ? 'success' : 'warning'} onClick={() => onNavigate('monitoring')} />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)]">
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-            <div>
+          <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-3 py-3 sm:items-center sm:px-4">
+            <div className="min-w-0">
               <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
                 <AlertTriangle className="h-4 w-4 text-red-500" />
                 Priority actions
               </h3>
               <p className="mt-0.5 text-[10px] text-slate-500">Expired, expiring and not-issued SAMS records ordered by urgency</p>
             </div>
-            <button type="button" onClick={() => onNavigate('sams')} className="text-[11px] font-bold text-blue-600 hover:text-blue-700">
+            <button type="button" onClick={() => onNavigate('sams')} className="shrink-0 whitespace-nowrap text-[11px] font-bold text-blue-600 hover:text-blue-700">
               View all <ArrowRight className="ml-1 inline h-3 w-3" />
             </button>
           </div>
@@ -324,7 +324,7 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
           </div>
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-4">
+        <section className="rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
           <div className="mb-2">
             <h3 className="text-sm font-bold text-slate-900">Authorization health</h3>
             <p className="mt-0.5 text-[10px] text-slate-500">Valid records across each authorization source</p>
@@ -337,7 +337,7 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
         </section>
       </div>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4">
+      <section className="rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
@@ -348,7 +348,7 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
           </div>
           <p className="text-[10px] text-slate-400">Based on the current expiry date</p>
         </div>
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-4 sm:gap-3 lg:grid-cols-4">
           {dashboard.expiryWindows.map(item => (
             <button key={item.label} type="button" onClick={() => onNavigate('sams')} className="rounded-lg border border-slate-100 bg-slate-50/70 p-3 text-left hover:border-slate-200 hover:bg-slate-50">
               <div className="flex items-center justify-between">

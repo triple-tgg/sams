@@ -51,7 +51,7 @@ export function StatusMatrix({ employees, courses, selectedId, onSelect, sortFie
                                 </th>
                             ))}
                             <th
-                                className="px-3 py-2 text-center text-muted-foreground font-bold border-l-2 border-border cursor-pointer hover:text-foreground transition-colors select-none sticky right-0 z-20 bg-slate-100 dark:bg-slate-900 shadow-[-1px_0_0_0_var(--border)]"
+                                className="px-3 py-2 text-center text-muted-foreground font-bold border-l-2 border-border cursor-pointer hover:text-foreground transition-colors select-none md:sticky right-0 md:z-20 bg-slate-100 dark:bg-slate-900 shadow-[-1px_0_0_0_var(--border)]"
                                 style={{ minWidth: 90 }}
                                 onClick={() => onSort('expiry')}
                             >
@@ -84,8 +84,8 @@ export function StatusMatrix({ employees, courses, selectedId, onSelect, sortFie
                                         hasIssue ? (ri % 2 === 0 ? 'bg-amber-100' : 'bg-amber-50') :
                                             ri % 2 === 0 ? 'bg-card' : 'bg-slate-50'
                                         } hover:!bg-slate-100`}>
-                                    <td className="px-3 py-1.5 font-semibold text-foreground whitespace-nowrap sticky left-0 z-10 bg-inherit shadow-[1px_0_0_0_var(--border)]">{emp.name}</td>
-                                    <td className="px-3 py-1.5 text-primary font-bold text-[11px]">{emp.id}</td>
+                                    <td className="px-3 py-1.5 font-semibold text-foreground whitespace-nowrap max-w-[140px] sm:max-w-none truncate sticky left-0 z-10 bg-inherit shadow-[1px_0_0_0_var(--border)]">{emp.name}</td>
+                                    <td className="px-3 py-1.5 text-primary font-bold text-[11px] whitespace-nowrap">{emp.id}</td>
                                     <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap text-[11px]">{emp.pos}</td>
                                     {courses.map(c => {
                                         const due = emp.courses[c.id]
@@ -210,7 +210,7 @@ export function StatusMatrix({ employees, courses, selectedId, onSelect, sortFie
                                             </td>
                                         )
                                     })}
-                                    <td className="px-3 py-1.5 text-center border-l-2 border-border font-bold sticky right-0 z-10 bg-inherit shadow-[-1px_0_0_0_var(--border)]">
+                                    <td className="px-3 py-1.5 text-center border-l-2 border-border font-bold md:sticky right-0 md:z-10 bg-inherit shadow-[-1px_0_0_0_var(--border)]">
                                         {nearestExpiry ? (
                                             <div className="flex flex-col items-center">
                                                 <span className="text-[11px] text-foreground">

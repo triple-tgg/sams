@@ -110,8 +110,11 @@ export const ThfDocumentTable = ({
     const cancelFlightMutation = useCancelFlightMutation();
     const mapContractsMutation = useMapContractsV2();
 
+    const isPreInvoiceProcessing = mapContractsMutation.isProcessing;
+
     const handleCreatePreInvoice = useCallback(async (ids: number[]) => {
-        if (!ids.length) return;
+        // Block duplicate submissions while a request runs or is being re-checked after a timeout
+        if (!ids.length || isPreInvoiceProcessing) return;
         try {
             await mapContractsMutation.mutateAsync({
                 lineMaintenanceIdLiist: ids,
@@ -123,7 +126,7 @@ export const ThfDocumentTable = ({
         } catch {
             // Error toast is handled in useMapContractsV2 onError
         }
-    }, [mapContractsMutation, reMapSuccess]);
+    }, [mapContractsMutation, reMapSuccess, isPreInvoiceProcessing]);
 
     const handleRequestRevision = useCallback((flight: FlightItem) => {
         setSelectedRevisionFlight(flight);
@@ -149,6 +152,7 @@ export const ThfDocumentTable = ({
                     setPreviewThfOpen(true);
                 }
             },
+            isPreInvoiceLoading: isPreInvoiceProcessing,
             onPreInvoice: (flight) => {
                 if (flight.lineMaintenancesId) {
                     handleCreatePreInvoice([flight.lineMaintenancesId]);
@@ -316,7 +320,7 @@ export const ThfDocumentTable = ({
             },
             ...baseColumns
         ];
-    }, [getRevisionForFlight, handleRequestRevision, handleReviewUnlock]);
+    }, [getRevisionForFlight, handleRequestRevision, handleReviewUnlock, handleCreatePreInvoice, isPreInvoiceProcessing]);
 
     const table = useReactTable({
         data: rows,
@@ -428,7 +432,7 @@ export const ThfDocumentTable = ({
                     </span>
                     <Button 
                         size="sm" 
-                        disabled={mapContractsMutation.isPending}
+                        disabled={isPreInvoiceProcessing}
                         onClick={() => {
                             const selectedRows = table.getSelectedRowModel().rows;
                             const ids = selectedRows
@@ -520,16 +524,18 @@ export const ThfDocumentTable = ({
                 flightInfosId={selectedPreviewThfId}
             />
 
-            {mapContractsMutation.isPending && (
+            {isPreInvoiceProcessing && (
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-xs">
                     <div className="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-2xl flex flex-col items-center gap-3 border border-slate-200 dark:border-slate-800 min-w-[280px]">
                         <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
                         <div className="text-center">
                             <p className="font-semibold text-slate-800 dark:text-slate-100 text-sm">
-                                Creating Pre-Invoice...
+                                {mapContractsMutation.isAwaitingServer ? "Pre-Invoice is still processing..." : "Creating Pre-Invoice..."}
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">
-                                Sending contract mapping request, please wait...
+                                {mapContractsMutation.isAwaitingServer
+                                    ? "Please wait a moment — the list will refresh automatically."
+                                    : "Sending contract mapping request, please wait..."}
                             </p>
                         </div>
                     </div>

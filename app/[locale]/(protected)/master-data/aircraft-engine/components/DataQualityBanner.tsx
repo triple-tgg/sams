@@ -2,22 +2,34 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { ChevronDown, ShieldCheck, AlertTriangle } from "lucide-react";
-import type { DataQualityCategory, DataQualityFinding } from "@/lib/api/master/aircraft-engine/aircraftEngine.types";
+import { ChevronDown, ShieldCheck, AlertTriangle, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard";
+import type { CombinationPrefill, DataQualityCategory, DataQualityFinding } from "@/lib/api/master/aircraft-engine/aircraftEngine.types";
+import { AE_MENU } from "./shared";
 
 const TAG_STYLE: Record<DataQualityCategory, string> = {
   MISSING_CONFIG: "bg-orange-400 text-orange-950",
   NAMING: "bg-rose-400 text-rose-950",
   DUPLICATE_ICAO: "bg-red-500 text-white",
+  NO_COMBINATION: "bg-amber-400 text-amber-950",
 };
 
 const TAG_LABEL: Record<DataQualityCategory, string> = {
   MISSING_CONFIG: "MISSING",
   NAMING: "NAMING",
   DUPLICATE_ICAO: "DUPLICATE",
+  NO_COMBINATION: "NO COMBINATION",
 };
 
-export function DataQualityBanner({ findings }: { findings: DataQualityFinding[] }) {
+export function DataQualityBanner({
+  findings,
+  onCreateCombination,
+}: {
+  findings: DataQualityFinding[];
+  /** Opens "Add Aircraft-Engine combination" pre-filled for a NO_COMBINATION finding. */
+  onCreateCombination?: (prefill: CombinationPrefill) => void;
+}) {
   const [open, setOpen] = useState(false);
 
   // Any `red` finding (CR-1: a group stuck below `complete` past the 3-day SLA)
@@ -61,19 +73,32 @@ export function DataQualityBanner({ findings }: { findings: DataQualityFinding[]
             <div
               key={f.id}
               className={cn(
-                "flex items-start gap-2.5 rounded-lg border bg-white/70 px-3 py-2",
+                "flex flex-wrap items-center gap-2.5 rounded-lg border bg-white/70 px-3 py-2 sm:flex-nowrap",
                 f.severity === "red" ? "border-red-300" : "border-amber-200",
               )}
             >
-              <span className={cn("mt-0.5 shrink-0 rounded px-1.5 py-0.5  text-[10px] font-semibold", TAG_STYLE[f.category])}>
+              <span className={cn("shrink-0 rounded px-1.5 py-0.5  text-[10px] font-semibold", TAG_STYLE[f.category])}>
                 {TAG_LABEL[f.category]}
               </span>
-              <div className="text-[12.5px] leading-snug text-slate-800">
+              <div className="min-w-0 flex-1 text-[12.5px] leading-snug text-slate-800">
                 {f.message}
                 {f.suggestion && (
                   <span className="text-amber-700"> — might refer to <b className="">{f.suggestion}</b></span>
                 )}
               </div>
+              {f.combinationPrefill && onCreateCombination && (
+                <PermissionActionGuard menuCode={AE_MENU} action="canCreate">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="ml-auto h-7 shrink-0 gap-1 bg-white px-2.5 text-xs"
+                    onClick={() => onCreateCombination(f.combinationPrefill!)}
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Combination
+                  </Button>
+                </PermissionActionGuard>
+              )}
             </div>
           ))}
         </div>

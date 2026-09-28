@@ -67,7 +67,7 @@ export function LogbookTab({ staff }: { staff: StaffData }) {
     return (
         <div>
             {/* Summary Card */}
-            <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 mb-4">
+            <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-4 px-4 sm:py-6 sm:px-7 mb-4">
                 <div className="flex items-center justify-between mb-5 pb-3.5 border-b border-slate-100">
                     <div className="flex items-center gap-2.5 text-base font-bold text-slate-800">
                         <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-blue-50 text-blue-600">
@@ -96,7 +96,7 @@ export function LogbookTab({ staff }: { staff: StaffData }) {
 
             {/* Pending Sign-off Card */}
             {pendingEntries.length > 0 && (
-                <div className="bg-white border  rounded-[14px] py-6 px-7 mb-4">
+                <div className="bg-white border  rounded-[14px] py-4 px-4 sm:py-6 sm:px-7 mb-4">
                     <div className="flex items-center justify-between mb-5 pb-3.5 border-b ">
                         <div className="flex items-center gap-2.5 text-base font-bold text-slate-800">
                             <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-red-50 text-red-500">
@@ -258,7 +258,7 @@ export function LogbookTab({ staff }: { staff: StaffData }) {
             )}
 
             {/* Maintenance Logbook Table */}
-            <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 mb-4">
+            <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-4 px-4 sm:py-6 sm:px-7 mb-4">
                 <div className="flex items-center justify-between mb-5 pb-3.5 border-b border-slate-100">
                     <div className="flex items-center gap-2.5 text-base font-bold text-slate-800">
                         <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-green-50 text-emerald-600">
@@ -314,7 +314,8 @@ export function LogbookTab({ staff }: { staff: StaffData }) {
                 </div>
 
                 {apiRecords && apiRecords.length > 0 ? (
-                    <table className="w-full border-collapse">
+                    <div className="-mx-1 overflow-x-auto px-1">
+                    <table className="w-full min-w-[640px] border-collapse">
                         <thead>
                             <tr>
                                 {['Date', 'Aircraft', 'Reg. No.', 'Task Type', 'THF No.', 'Description'].map(h => (
@@ -366,6 +367,7 @@ export function LogbookTab({ staff }: { staff: StaffData }) {
                             })}
                         </tbody>
                     </table>
+                    </div>
                 ) : (
                     <p className="text-slate-400 text-sm">No logbook records.</p>
                 )}

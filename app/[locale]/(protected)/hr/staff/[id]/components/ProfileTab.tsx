@@ -87,7 +87,7 @@ function Section({
     children: React.ReactNode
 }) {
     return (
-        <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 mb-4">
+        <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-4 px-4 sm:py-6 sm:px-7 mb-4">
             <div className="flex items-center justify-between mb-5 pb-3.5 border-b border-slate-100">
                 <div className="flex items-center gap-2.5 text-base font-bold text-slate-800">
                     <div
@@ -344,8 +344,9 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
             title: data.titleNameTH || data.titleNameEN || '',
             fullNameTh: data.name,
             fullNameEn: data.nameEn,
-            dateOfBirth: data.dob,
-            placeOfBirth: data.placeOfBirth,
+            // '-' is a display placeholder, not a date — the backend rejects it as DateOnly
+            dateOfBirth: data.dob && data.dob !== '-' ? data.dob : '',
+            placeOfBirth: data.placeOfBirth === '-' ? '' : data.placeOfBirth,
             idCardNo: data.idCard,
             nationality: data.nationality,
         })
@@ -554,8 +555,8 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
 
     return (
         <>
-            <div className="grid grid-cols-12 gap-4">
-                <div className="col-span-8">
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+                <div className="min-w-0 xl:col-span-8">
                     {/* Personal Info */}
                     <Section icon={<User className="h-4 w-4" />} iconBg="#eff6ff" iconColor="#2563eb" title="Personal Info" onEdit={() => setShowEditPersonal(true)}>
                         <div className="grid grid-cols-3 gap-y-5 gap-x-8 max-md:grid-cols-1">
@@ -602,7 +603,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                     </Section>
 
                     {/* ── Documents ── */}
-                    <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 mb-4">
+                    <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-4 px-4 sm:py-6 sm:px-7 mb-4">
                         <div className="flex items-center justify-between mb-5 pb-3.5 border-b border-slate-100">
                             <div className="flex items-center gap-2.5 text-base font-bold text-slate-800">
                                 <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-blue-50 text-blue-600">
@@ -797,9 +798,9 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                         )}
                     </div>
                 </div>
-                <div className="col-span-4 min-w-0">
+                <div className="min-w-0 xl:col-span-4">
                     {/* ── AMEL License ── */}
-                    <div className="min-w-0 bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 mb-4">
+                    <div className="min-w-0 bg-white border border-[#e8ecf1] rounded-[14px] py-4 px-4 sm:py-6 sm:px-7 mb-4">
                         <div className="flex items-center justify-between mb-5 pb-3.5 border-b border-slate-100">
                             <div className="flex items-center gap-2.5 text-base font-bold text-slate-800">
                                 <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-blue-50 text-blue-800">
@@ -935,7 +936,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                         )}
                     </div>
                     {/* ── Aircraft Type License ── */}
-                    <div className="min-w-0 bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 mb-4">
+                    <div className="min-w-0 bg-white border border-[#e8ecf1] rounded-[14px] py-4 px-4 sm:py-6 sm:px-7 mb-4">
                         <div className="flex items-center justify-between gap-2 mb-5 pb-3.5 border-b border-slate-100">
                             <div className="flex items-center gap-2 min-w-0 text-sm font-bold text-slate-800">
                                 <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-green-50 text-green-600">

@@ -132,15 +132,15 @@ export function CalendarView({ calYear, calMonth, prevMonth, nextMonth, sessions
     return (
         <div ref={containerRef}>
             {/* Month Nav */}
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                    <h2 className="text-lg font-semibold text-foreground">{MONTHS[calMonth]} {calYear}</h2>
+            <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-center sm:justify-between sm:mb-4">
+                <div className="flex items-center gap-2 sm:gap-3">
+                    <h2 className="text-base sm:text-lg font-semibold text-foreground whitespace-nowrap">{MONTHS[calMonth]} {calYear}</h2>
                     {currentYM === todayYM && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">This month</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium whitespace-nowrap">This month</span>
                     )}
                 </div>
-                <div className="flex items-center gap-2">
-                    {filterSlot}
+                <div className="flex items-center gap-1 sm:gap-2">
+                    {filterSlot && <div className="min-w-0 flex-1 sm:flex-none">{filterSlot}</div>}
                     <button onClick={prevMonth} className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors cursor-pointer border-none bg-transparent">
                         <ChevronLeft className="w-4 h-4" />
                     </button>
@@ -151,14 +151,14 @@ export function CalendarView({ calYear, calMonth, prevMonth, nextMonth, sessions
             </div>
 
             {/* Day headers */}
-            <div className="grid grid-cols-7 gap-1 mb-1">
+            <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-1">
                 {DAYS_SHORT.map(d => (
-                    <div key={d} className={`text-center text-xs py-1.5 font-medium ${d === 'Sun' || d === 'Sat' ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}>{d}</div>
+                    <div key={d} className={`text-center text-[10px] sm:text-xs py-1 sm:py-1.5 font-medium ${d === 'Sun' || d === 'Sat' ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}>{d}</div>
                 ))}
             </div>
 
             {/* Cells */}
-            <div className="grid grid-cols-7 gap-1">
+            <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
                 {cells.map((day, i) => {
                     if (!day) return <div key={`e-${i}`} />
                     const dayStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
@@ -169,13 +169,13 @@ export function CalendarView({ calYear, calMonth, prevMonth, nextMonth, sessions
 
                     return (
                         <div key={day}
-                            className={`min-h-24 rounded-xl border p-2 transition-colors ${isToday ? 'border-primary/40 bg-primary/5' : 'border-border bg-card hover:border-border/80'} ${isSun || isSat ? 'bg-muted/30' : ''}`}>
+                            className={`min-w-0 min-h-14 sm:min-h-24 rounded-lg sm:rounded-xl border p-1 sm:p-2 transition-colors ${isToday ? 'border-primary/40 bg-primary/5' : 'border-border bg-card hover:border-border/80'} ${isSun || isSat ? 'bg-muted/30' : ''}`}>
                             <div className="flex items-center justify-between mb-1">
-                                <span className={`text-xs w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-primary text-white font-semibold' : isSun || isSat ? 'text-muted-foreground/50' : 'text-foreground/70'}`}>
+                                <span className={`text-[11px] sm:text-xs w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-primary text-white font-semibold' : isSun || isSat ? 'text-muted-foreground/50' : 'text-foreground/70'}`}>
                                     {day}
                                 </span>
                                 {daySessions.length > 0 && (
-                                    <span className="text-xs text-muted-foreground">{daySessions.length}</span>
+                                    <span className="hidden sm:inline text-xs text-muted-foreground">{daySessions.length}</span>
                                 )}
                             </div>
                             <div className="space-y-0.5">
@@ -199,14 +199,14 @@ export function CalendarView({ calYear, calMonth, prevMonth, nextMonth, sessions
                                                 })
                                             }}
                                             onMouseLeave={() => { setHoveredSession(null); setTooltipPos(null) }}
-                                            className={`w-full text-left px-1.5 py-0.5 rounded text-xs leading-snug transition-all hover:opacity-80 cursor-pointer border-none ${selectedSession?.id === s.id ? 'ring-2 ring-offset-0' : ''}`}
+                                            className={`w-full text-left px-1 sm:px-1.5 py-0.5 rounded text-[9px] sm:text-xs leading-snug transition-all hover:opacity-80 cursor-pointer border-none ${selectedSession?.id === s.id ? 'ring-2 ring-offset-0' : ''}`}
                                             style={{ background: cc.light, color: cc.text, borderLeft: `3px solid ${cc.bar}` }}>
                                             <span className="truncate block">{isStart ? s.courseCode : '↳'}</span>
                                         </button>
                                     )
                                 })}
                                 {daySessions.length > 3 && (
-                                    <p className="text-xs text-muted-foreground pl-1">+{daySessions.length - 3} more</p>
+                                    <p className="text-[9px] sm:text-xs text-muted-foreground pl-1">+{daySessions.length - 3}<span className="hidden sm:inline"> more</span></p>
                                 )}
                             </div>
                         </div>

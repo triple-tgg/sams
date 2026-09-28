@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useMemo, useCallback } from 'react'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { CollapsibleCard } from './CollapsibleCard'
 import { BookOpen, History, Pencil, Check, X as XIcon, ClipboardList, Calendar, Building2, Clock, AlertTriangle, ShieldCheck, Trash2, Plus, Loader2 } from 'lucide-react'
 import { StaffData, CurrentTrainingRecord } from '../types'
 import { formatDate } from '../utils'
@@ -75,14 +77,7 @@ function TrainingNeedsMatrixFromApi({ matrix }: { matrix: TrainingDashboardRespo
 
     if (!matrix || total === 0) {
         return (
-            <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 mb-4">
-                {/* Header */}
-                <div className="flex items-center gap-2.5 text-base font-bold text-slate-800 mb-5 pb-3.5 border-b border-slate-100">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-emerald-50 text-emerald-600">
-                        <ClipboardList className="h-4 w-4" />
-                    </div>
-                    Training Needs Matrix
-                </div>
+            <CollapsibleCard icon={<ClipboardList className="h-4 w-4" />} iconClassName="bg-emerald-50 text-emerald-600" title="Training Needs Matrix">
                 {/* Warning */}
                 <div className="flex flex-col items-center justify-center py-8 text-center">
                     <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center mb-3">
@@ -93,19 +88,12 @@ function TrainingNeedsMatrixFromApi({ matrix }: { matrix: TrainingDashboardRespo
                         Please select <span className="font-semibold text-slate-500">Position</span> and <span className="font-semibold text-slate-500">Department</span> in Employment info to view required courses.
                     </p>
                 </div>
-            </div>
+            </CollapsibleCard>
         )
     }
 
     return (
-        <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 mb-4">
-            {/* Header */}
-            <div className="flex items-center gap-2.5 text-base font-bold text-slate-800 mb-5 pb-3.5 border-b border-slate-100">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-emerald-50 text-emerald-600">
-                    <ClipboardList className="h-4 w-4" />
-                </div>
-                Training Needs Matrix
-            </div>
+        <CollapsibleCard icon={<ClipboardList className="h-4 w-4" />} iconClassName="bg-emerald-50 text-emerald-600" title="Training Needs Matrix">
 
             {/* Donut chart */}
             <DonutChart percentage={percentage} />
@@ -118,7 +106,8 @@ function TrainingNeedsMatrixFromApi({ matrix }: { matrix: TrainingDashboardRespo
             </div>
 
             {/* Course checklist */}
-            <div className="space-y-2">
+            <ScrollArea viewportClassName="max-h-[500px]">
+            <div className="space-y-2 pr-3">
                 {courses.map((c, i) => (
                     <div key={c.courseId ?? i} className="flex items-start gap-2.5 py-1.5">
                         {/* Icon */}
@@ -133,9 +122,23 @@ function TrainingNeedsMatrixFromApi({ matrix }: { matrix: TrainingDashboardRespo
                         )}
                         {/* Course info */}
                         <div className="flex-1 min-w-0">
-                            <span className={`text-[13px] font-medium leading-tight ${c.completed ? 'text-slate-700' : 'text-slate-500'}`}>
-                                {c.name}
-                            </span>
+                            {(() => {
+                                const courseName = c.name || (c as { courseName?: string }).courseName || '-'
+                                return (
+                                    <TooltipProvider delayDuration={0}>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <span className={`line-clamp-2 break-words cursor-default text-[13px] font-medium leading-snug ${c.completed ? 'text-slate-700' : 'text-slate-500'}`}>
+                                                    {courseName}
+                                                </span>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top" className="z-[9999] max-w-sm text-xs font-normal bg-slate-900 text-slate-50 shadow-md px-2.5 py-1.5 rounded">
+                                                {courseName}
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                )
+                            })()}
                         </div>
                         {/* Status badge */}
                         {!c.completed && (
@@ -146,7 +149,8 @@ function TrainingNeedsMatrixFromApi({ matrix }: { matrix: TrainingDashboardRespo
                     </div>
                 ))}
             </div>
-        </div>
+            </ScrollArea>
+        </CollapsibleCard>
     )
 }
 
@@ -168,14 +172,7 @@ function TrainingNeedsMatrix({ staff }: { staff: StaffData }) {
 
     if (matrix.total === 0) {
         return (
-            <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 mb-4">
-                {/* Header */}
-                <div className="flex items-center gap-2.5 text-base font-bold text-slate-800 mb-5 pb-3.5 border-b border-slate-100">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-emerald-50 text-emerald-600">
-                        <ClipboardList className="h-4 w-4" />
-                    </div>
-                    Training Needs Matrix
-                </div>
+            <CollapsibleCard icon={<ClipboardList className="h-4 w-4" />} iconClassName="bg-emerald-50 text-emerald-600" title="Training Needs Matrix">
                 {/* Warning */}
                 <div className="flex flex-col items-center justify-center py-8 text-center">
                     <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center mb-3">
@@ -186,19 +183,12 @@ function TrainingNeedsMatrix({ staff }: { staff: StaffData }) {
                         Please select <span className="font-semibold text-slate-500">Position</span> and <span className="font-semibold text-slate-500">Department</span> in Employment info to view required courses.
                     </p>
                 </div>
-            </div>
+            </CollapsibleCard>
         )
     }
 
     return (
-        <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 mb-4">
-            {/* Header */}
-            <div className="flex items-center gap-2.5 text-base font-bold text-slate-800 mb-5 pb-3.5 border-b border-slate-100">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-emerald-50 text-emerald-600">
-                    <ClipboardList className="h-4 w-4" />
-                </div>
-                Training Needs Matrix
-            </div>
+        <CollapsibleCard icon={<ClipboardList className="h-4 w-4" />} iconClassName="bg-emerald-50 text-emerald-600" title="Training Needs Matrix">
 
             {/* Donut chart */}
             <DonutChart percentage={matrix.percentage} />
@@ -211,7 +201,8 @@ function TrainingNeedsMatrix({ staff }: { staff: StaffData }) {
             </div>
 
             {/* Course checklist */}
-            <div className="space-y-2">
+            <ScrollArea viewportClassName="max-h-[500px]">
+            <div className="space-y-2 pr-3">
                 {matrix.courses.map((c, i) => (
                     <div key={i} className="flex items-start gap-2.5 py-1.5">
                         {/* Icon */}
@@ -226,9 +217,23 @@ function TrainingNeedsMatrix({ staff }: { staff: StaffData }) {
                         )}
                         {/* Course info */}
                         <div className="flex-1 min-w-0">
-                            <span className={`text-[13px] font-medium leading-tight ${c.completed ? 'text-slate-700' : 'text-slate-500'}`}>
-                                {c.name}
-                            </span>
+                            {(() => {
+                                const courseName = c.name || (c as { courseName?: string }).courseName || '-'
+                                return (
+                                    <TooltipProvider delayDuration={0}>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <span className={`line-clamp-2 break-words cursor-default text-[13px] font-medium leading-snug ${c.completed ? 'text-slate-700' : 'text-slate-500'}`}>
+                                                    {courseName}
+                                                </span>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top" className="z-[9999] max-w-sm text-xs font-normal bg-slate-900 text-slate-50 shadow-md px-2.5 py-1.5 rounded">
+                                                {courseName}
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                )
+                            })()}
                         </div>
                         {/* Status badge */}
                         {!c.completed && (
@@ -239,7 +244,8 @@ function TrainingNeedsMatrix({ staff }: { staff: StaffData }) {
                     </div>
                 ))}
             </div>
-        </div>
+            </ScrollArea>
+        </CollapsibleCard>
     )
 }
 
@@ -360,18 +366,18 @@ function TrainingDetailModal({ record, onClose }: { record: CurrentTrainingRecor
 // ── Loading Skeleton ──
 function TrainingLoadingSkeleton() {
     return (
-        <div className="grid grid-cols-12 gap-4 animate-pulse">
-            <div className="col-span-4">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 animate-pulse">
+            <div className="min-w-0 xl:col-span-4">
                 <div className="grid grid-cols-2 gap-3 mb-4">
                     {[...Array(4)].map((_, i) => (
-                        <div key={i} className="bg-white border border-[#e8ecf1] rounded-[14px] py-5 px-5">
+                        <div key={i} className="bg-white border border-[#e8ecf1] rounded-[14px] py-3.5 px-3.5 sm:py-5 sm:px-5 min-w-0">
                             <div className="w-8 h-8 rounded-lg bg-slate-100 mb-3" />
                             <div className="h-8 w-12 bg-slate-100 rounded mb-1" />
                             <div className="h-3 w-24 bg-slate-100 rounded" />
                         </div>
                     ))}
                 </div>
-                <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7">
+                <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-4 px-4 sm:py-6 sm:px-7">
                     <div className="h-5 w-40 bg-slate-100 rounded mb-5" />
                     <div className="w-[140px] h-[140px] rounded-full bg-slate-100 mx-auto mb-5" />
                     <div className="h-4 w-32 bg-slate-100 rounded mx-auto mb-5" />
@@ -382,8 +388,8 @@ function TrainingLoadingSkeleton() {
                     </div>
                 </div>
             </div>
-            <div className="col-span-8">
-                <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 mb-4">
+            <div className="min-w-0 xl:col-span-8">
+                <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-4 px-4 sm:py-6 sm:px-7 mb-4">
                     <div className="h-5 w-40 bg-slate-100 rounded mb-5" />
                     <div className="space-y-3">
                         {[...Array(4)].map((_, i) => (
@@ -416,6 +422,7 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
     const [editingId, setEditingId] = useState<number | null>(null)
     const [editingData, setEditingData] = useState<EditingHistoryRow>(emptyHistoryRow())
     const [isAdding, setIsAdding] = useState(false)
+    const [previousOpen, setPreviousOpen] = useState(false)
     const [addingData, setAddingData] = useState<EditingHistoryRow>(emptyHistoryRow())
     const [deletingId, setDeletingId] = useState<number | null>(null)
 
@@ -581,52 +588,52 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
                 </div>
             )}
 
-            <div className="grid grid-cols-12 gap-4">
-                <div className="col-span-4 ">
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+                <div className="min-w-0 xl:col-span-4">
                     {/* Summary Stat Cards */}
-                    <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-2 gap-2 sm:gap-3 mb-4">
                         {/* Training Course Count */}
-                        <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-5 px-5">
+                        <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-3.5 px-3.5 sm:py-5 sm:px-5 min-w-0">
                             <div className="flex items-center gap-2.5 mb-3">
                                 <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-blue-50 text-blue-600">
                                     <BookOpen className="h-4 w-4" />
                                 </div>
                             </div>
-                            <div className="text-3xl font-bold text-slate-800 mb-1">{stats.total}</div>
-                            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Training Courses</div>
+                            <div className="text-2xl sm:text-3xl font-bold text-slate-800 mb-1">{stats.total}</div>
+                            <div className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wide sm:tracking-wider break-words">Training Courses</div>
                         </div>
 
                         {/* Training Expired Count */}
-                        <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-5 px-5">
+                        <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-3.5 px-3.5 sm:py-5 sm:px-5 min-w-0">
                             <div className="flex items-center gap-2.5 mb-3">
                                 <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-red-50 text-red-500">
                                     <Clock className="h-4 w-4" />
                                 </div>
                             </div>
-                            <div className={`text-3xl font-bold mb-1 ${stats.expired > 0 ? 'text-red-500' : 'text-slate-800'}`}>{stats.expired}</div>
-                            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Expired</div>
+                            <div className={`text-2xl sm:text-3xl font-bold mb-1 ${stats.expired > 0 ? 'text-red-500' : 'text-slate-800'}`}>{stats.expired}</div>
+                            <div className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wide sm:tracking-wider break-words">Expired</div>
                         </div>
 
                         {/* Training Permanent Count */}
-                        <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-5 px-5">
+                        <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-3.5 px-3.5 sm:py-5 sm:px-5 min-w-0">
                             <div className="flex items-center gap-2.5 mb-3">
                                 <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-sky-50 text-sky-500">
                                     <ShieldCheck className="h-4 w-4" />
                                 </div>
                             </div>
-                            <div className="text-3xl font-bold text-slate-800 mb-1">{stats.permanent}</div>
-                            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Permanent</div>
+                            <div className="text-2xl sm:text-3xl font-bold text-slate-800 mb-1">{stats.permanent}</div>
+                            <div className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wide sm:tracking-wider break-words">Permanent</div>
                         </div>
 
                         {/* Training Expiring Soon Count */}
-                        <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-5 px-5">
+                        <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-3.5 px-3.5 sm:py-5 sm:px-5 min-w-0">
                             <div className="flex items-center gap-2.5 mb-3">
                                 <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-amber-50 text-amber-500">
                                     <AlertTriangle className="h-4 w-4" />
                                 </div>
                             </div>
-                            <div className={`text-3xl font-bold mb-1 ${stats.expiringSoon > 0 ? 'text-amber-500' : 'text-slate-800'}`}>{stats.expiringSoon}</div>
-                            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Expiring Soon</div>
+                            <div className={`text-2xl sm:text-3xl font-bold mb-1 ${stats.expiringSoon > 0 ? 'text-amber-500' : 'text-slate-800'}`}>{stats.expiringSoon}</div>
+                            <div className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wide sm:tracking-wider break-words">Expiring Soon</div>
                         </div>
                     </div>
 
@@ -637,24 +644,20 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
                         <TrainingNeedsMatrix staff={staff} />
                     )}
                 </div>
-                <div className="col-span-8">
+                {/* On xl the right column is taken out of the row-height calculation (absolute) so the
+                    left column (stats + Needs Matrix) alone sets the height and the right side fills it */}
+                <div className="min-w-0 xl:col-span-8 xl:relative">
+                <div className="xl:absolute xl:inset-0 xl:flex xl:flex-col">
                     {/* Training Records */}
-                    <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 mb-4">
-                        <div className="flex items-center justify-between mb-5 pb-3.5 border-b border-slate-100">
-                            <div className="flex items-center gap-2.5 text-base font-bold text-slate-800">
-                                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-orange-50 text-orange-600">
-                                    <BookOpen className="h-4 w-4" />
-                                </div>
-                                Training Records
-                            </div>
-                        </div>
+                    <CollapsibleCard icon={<BookOpen className="h-4 w-4" />} iconClassName="bg-orange-50 text-orange-600" title="Training Records" defaultOpen>
                         {currentTraining.length > 0 ? (
                             <TooltipProvider delayDuration={0}>
-                                <table className="w-full border-collapse">
+                                <ScrollArea scrollbars="both" className="-mx-1" viewportClassName="max-h-[500px] px-1">
+                                <table className="w-full min-w-[560px] border-collapse">
                                 <thead>
                                     <tr>
-                                        {['Training Course', 'Valid Until', 'By', 'Status'].map(h => (
-                                            <th key={h} className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider py-2.5 px-3.5 border-b border-[#e8ecf1] text-left">
+                                        {['Training Course', 'Valid Until', 'By', 'Status'].map((h, i) => (
+                                            <th key={h} className={`text-[11px] font-semibold text-slate-400 uppercase tracking-wider py-2.5 px-3.5 bg-white sticky top-0 text-left whitespace-nowrap ${i === 0 ? 'left-0 z-[3] shadow-[inset_0_-1px_0_#e8ecf1,1px_0_0_0_#f1f5f9]' : 'z-[2] shadow-[inset_0_-1px_0_#e8ecf1]'}`}>
                                                 {h}
                                             </th>
                                         ))}
@@ -664,12 +667,12 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
                                     {currentTraining.map((t, i) => {
                                         const status = getTrainingStatus(t.validUntil)
                                         return (
-                                            <tr key={i} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => setSelectedTraining(t)}>
-                                                <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700 font-medium max-w-[280px]">
+                                            <tr key={i} className="group hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => setSelectedTraining(t)}>
+                                                <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700 font-medium min-w-[180px] max-w-[320px] bg-white group-hover:bg-slate-50 transition-colors sticky left-0 z-[1] shadow-[1px_0_0_0_#f1f5f9]">
                                                     {t.course ? (
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
-                                                                <span className="block truncate cursor-default">
+                                                                <span className="line-clamp-2 break-words leading-snug cursor-default">
                                                                     {t.course}
                                                                 </span>
                                                             </TooltipTrigger>
@@ -691,6 +694,7 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
                                     })}
                                 </tbody>
                             </table>
+                                </ScrollArea>
                         </TooltipProvider>
                         ) : (
                             <div className="flex flex-col items-center justify-center py-10 text-center">
@@ -703,39 +707,40 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
                                 </p>
                             </div>
                         )}
-                    </div>
+                    </CollapsibleCard>
 
-                    {/* Previous Training Records — Inline Editable Table */}
-                    <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 mb-4">
-                        <div className="flex items-center justify-between mb-5 pb-3.5 border-b border-slate-100">
-                            <div className="flex items-center gap-2.5 text-base font-bold text-slate-800">
-                                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-violet-50 text-violet-600">
-                                    <History className="h-4 w-4" />
-                                </div>
-                                Previous Training Records
-                            </div>
-                            {!isAdding && editingId === null && (
-                                <button
-                                    onClick={startAdd}
-                                    disabled={isAnyMutating}
-                                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-primary rounded-lg cursor-pointer transition-all duration-200 hover:bg-primary/80 border-none disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <Plus className="h-3.5 w-3.5" /> Add Record
-                                </button>
-                            )}
-                        </div>
+                    {/* Previous Training Records — Inline Editable Table (stretches to match the Needs Matrix column on xl) */}
+                    <CollapsibleCard
+                        icon={<History className="h-4 w-4" />}
+                        iconClassName="bg-violet-50 text-violet-600"
+                        title="Previous Training Records"
+                        open={previousOpen}
+                        onOpenChange={setPreviousOpen}
+                        className="xl:flex xl:flex-1 xl:flex-col xl:min-h-0"
+                        bodyClassName="xl:flex xl:flex-1 xl:flex-col xl:min-h-0"
+                        action={!isAdding && editingId === null && (
+                            <button
+                                onClick={() => { setPreviousOpen(true); startAdd() }}
+                                disabled={isAnyMutating}
+                                className="inline-flex shrink-0 items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-primary rounded-lg cursor-pointer transition-all duration-200 hover:bg-primary/80 border-none disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <Plus className="h-3.5 w-3.5" /> Add Record
+                            </button>
+                        )}
+                    >
 
 
                         {apiHistories.length > 0 || isAdding ? (
                             <TooltipProvider delayDuration={0}>
-                                <table className="w-full border-collapse">
+                                <ScrollArea scrollbars="both" className="-mx-1 xl:h-0 xl:min-h-[240px] xl:flex-1" viewportClassName="max-h-[500px] px-1 xl:max-h-none">
+                                <table className="w-full min-w-[560px] border-collapse">
                                 <thead>
                                     <tr>
-                                        <th className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider py-2.5 px-3.5 border-b border-[#e8ecf1] text-left">Course Name</th>
-                                        <th className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider py-2.5 px-3.5 border-b border-[#e8ecf1] text-left">Academy / Venue</th>
-                                        <th className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider py-2.5 px-3.5 border-b border-[#e8ecf1] text-left">Date From</th>
-                                        <th className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider py-2.5 px-3.5 border-b border-[#e8ecf1] text-left">Date To</th>
-                                        <th className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider py-2.5 px-3.5 border-b border-[#e8ecf1] text-center w-[100px]">Actions</th>
+                                        <th className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider py-2.5 px-3.5 bg-white sticky top-0 left-0 z-[3] shadow-[inset_0_-1px_0_#e8ecf1,1px_0_0_0_#f1f5f9] text-left whitespace-nowrap">Course Name</th>
+                                        <th className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider py-2.5 px-3.5 bg-white sticky top-0 z-[2] shadow-[inset_0_-1px_0_#e8ecf1] text-left whitespace-nowrap">Academy / Venue</th>
+                                        <th className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider py-2.5 px-3.5 bg-white sticky top-0 z-[2] shadow-[inset_0_-1px_0_#e8ecf1] text-left whitespace-nowrap">Date From</th>
+                                        <th className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider py-2.5 px-3.5 bg-white sticky top-0 z-[2] shadow-[inset_0_-1px_0_#e8ecf1] text-left whitespace-nowrap">Date To</th>
+                                        <th className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider py-2.5 px-3.5 bg-white sticky top-0 z-[2] shadow-[inset_0_-1px_0_#e8ecf1] text-center w-[100px]">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -746,7 +751,7 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
                                         if (isEditing) {
                                             return (
                                                 <tr key={h.id} className="bg-blue-50/50">
-                                                    <td className="py-2 px-2 border-b border-slate-100">
+                                                    <td className="py-2 px-2 border-b border-slate-100 min-w-[200px] bg-[#f5f8ff] sticky left-0 z-[1] shadow-[1px_0_0_0_#f1f5f9]">
                                                         <input type="text" value={editingData.courseName} onChange={e => setEditingData(d => ({ ...d, courseName: e.target.value }))} placeholder="Course name" className="w-full px-3 py-2 text-sm text-slate-800 bg-white border border-slate-200 rounded-lg outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
                                                     </td>
                                                     <td className="py-2 px-2 border-b border-slate-100">
@@ -773,12 +778,12 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
                                         }
 
                                         return (
-                                            <tr key={h.id} className={`hover:bg-slate-50 transition-colors ${isLocked ? 'opacity-50 pointer-events-none' : ''} ${deletingId === h.id ? 'bg-red-50/50' : ''}`}>
-                                                <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700 font-medium max-w-[280px]">
+                                            <tr key={h.id} className={`group hover:bg-slate-50 transition-colors ${isLocked ? 'opacity-50 pointer-events-none' : ''} ${deletingId === h.id ? 'bg-red-50/50' : ''}`}>
+                                                <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700 font-medium min-w-[180px] max-w-[320px] bg-white group-hover:bg-slate-50 transition-colors sticky left-0 z-[1] shadow-[1px_0_0_0_#f1f5f9]">
                                                     {h.courseName ? (
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
-                                                                <span className="block truncate cursor-default">
+                                                                <span className="line-clamp-2 break-words leading-snug cursor-default">
                                                                     {h.courseName}
                                                                 </span>
                                                             </TooltipTrigger>
@@ -790,7 +795,7 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
                                                         '-'
                                                     )}
                                                 </td>
-                                                <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-500">{h.academyName}</td>
+                                                <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-500 min-w-[140px]">{h.academyName || '-'}</td>
                                                 <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700 whitespace-nowrap">{formatDate(h.dateFrom)}</td>
                                                 <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700 whitespace-nowrap">{formatDate(h.dateTo)}</td>
                                                 <td className="py-3 px-3.5 border-b border-slate-100">
@@ -810,7 +815,7 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
                                     {/* Add new row */}
                                     {isAdding && (
                                         <tr className="bg-emerald-50/30">
-                                            <td className="py-2 px-2 border-b border-slate-100">
+                                            <td className="py-2 px-2 border-b border-slate-100 min-w-[200px] bg-[#f7fcf9] sticky left-0 z-[1] shadow-[1px_0_0_0_#f1f5f9]">
                                                 <input type="text" value={addingData.courseName} onChange={e => setAddingData(d => ({ ...d, courseName: e.target.value }))} placeholder="Course name" autoFocus className="w-full px-3 py-2 text-sm text-slate-800 bg-white border border-slate-200 rounded-lg outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100" />
                                             </td>
                                             <td className="py-2 px-2 border-b border-slate-100">
@@ -836,6 +841,7 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
                                     )}
                                 </tbody>
                             </table>
+                                </ScrollArea>
                         </TooltipProvider>
                         ) : (
                             <div className="flex flex-col items-center justify-center py-10 text-center">
@@ -853,7 +859,8 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
                                 </button>
                             </div>
                         )}
-                    </div>
+                    </CollapsibleCard>
+                </div>
                 </div>
             </div>
 

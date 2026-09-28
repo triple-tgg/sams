@@ -9,7 +9,12 @@ import {
 } from "./aircraft-types";
 
 export const aircraftTypeKeys = {
-  list: ["aircraftTypes"] as const,
+  // fetchAircraftTypes resolves to AircraftType[] — shares its cache with useAircraftTypesFull().
+  // Must NOT be ["aircraftTypes"]: other hooks cache the raw { responseData } response under that key,
+  // and whichever page loads first would hand the wrong shape to the other (".map is not a function").
+  list: ["aircraftTypesFull"] as const,
+  /** Legacy key used by the dropdown hooks — invalidated on writes so they refresh too. */
+  legacyList: ["aircraftTypes"] as const,
 };
 
 export function useAircraftTypes() {
@@ -25,6 +30,7 @@ export function useUpsertAircraftType() {
     mutationFn: (data: AircraftTypeUpsertRequest) => upsertAircraftType(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: aircraftTypeKeys.list });
+      qc.invalidateQueries({ queryKey: aircraftTypeKeys.legacyList });
     },
   });
 }
@@ -35,6 +41,7 @@ export function useDeleteAircraftType() {
     mutationFn: (id: number) => deleteAircraftType(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: aircraftTypeKeys.list });
+      qc.invalidateQueries({ queryKey: aircraftTypeKeys.legacyList });
     },
   });
 }

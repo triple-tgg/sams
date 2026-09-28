@@ -26,7 +26,7 @@ export function CourseTable({
 }: CourseTableProps) {
     return (
         <div className="overflow-hidden rounded-xl border border-border bg-card">
-            <div className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center">
+            <div className="flex flex-col gap-2 border-b border-border px-3 py-3 sm:gap-3 sm:px-4 sm:flex-row sm:items-center">
                 <div className="relative w-full sm:max-w-xs">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <input
@@ -37,7 +37,7 @@ export function CourseTable({
                         className="w-full rounded-lg border border-border bg-card py-2 pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10"
                     />
                 </div>
-                <span className="text-sm text-muted-foreground sm:ml-auto">
+                <span className="text-xs sm:text-sm text-muted-foreground sm:ml-auto">
                     {courses.length} {courses.length === 1 ? 'course' : 'courses'}
                 </span>
             </div>

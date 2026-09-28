@@ -163,6 +163,15 @@ export function suggestEngineName(label: string, engines: EngineMaster[]): strin
   return best;
 }
 
+const normalizeFamily = (value: string | null | undefined) => (value ?? "").trim().toUpperCase();
+
+/** "A330-300" with family "A330" → "300"; anything not in `{family}-{series}` form → "". */
+export function seriesFromModel(family: string, modelSubName: string | null | undefined): string {
+  const model = (modelSubName ?? "").trim();
+  const prefix = `${family}-`;
+  return model.toUpperCase().startsWith(prefix.toUpperCase()) ? model.slice(prefix.length).trim() : "";
+}
+
 // ══════════════════════════════════════════════════════════════
 // The full data-quality scan.
 // ══════════════════════════════════════════════════════════════
@@ -170,12 +179,24 @@ export function computeDataQuality(data: Datasets): DataQualityFinding[] {
   const { combinations, aircraftTypes } = data;
   const findings: DataQualityFinding[] = [];
 
-  const comboFamilies = new Set(combinations.map((c) => c.familyCode));
-  const typeFamilies = new Set(aircraftTypes.map((t) => t.modelName).filter(Boolean));
+  // Duplicate ICAO codes are intentionally allowed.
 
-  // Duplicate ICAO codes are intentionally allowed
-  // Additional checks between combinations and aircraftTypes can go here
-  // For now, no strict cross-validation on families since Aircraft Family is removed.
+  // NO_COMBINATION — an Aircraft system config row (ICAO) whose family ("Family" column = modelName)
+  // has no Aircraft-Engine combination yet. Combinations are keyed by family + series (no ICAO),
+  // so coverage is checked at family level.
+  const comboFamilies = new Set(combinations.map((c) => normalizeFamily(c.familyCode)));
+  aircraftTypes.forEach((t) => {
+    if (t.isDelete) return;
+    const family = (t.modelName || t.familyCode || "").trim();
+    if (!family || comboFamilies.has(normalizeFamily(family))) return;
+    const model = t.modelSubName ? ` (${t.modelSubName})` : "";
+    findings.push({
+      id: `NO_COMBINATION:${t.id}`,
+      category: "NO_COMBINATION",
+      message: `ICAO ${t.code}${model} — family ${family} has no Aircraft-Engine combination`,
+      combinationPrefill: { icaoCode: t.code, familyCode: family, series: seriesFromModel(family, t.modelSubName) },
+    });
+  });
 
   return findings;
 }

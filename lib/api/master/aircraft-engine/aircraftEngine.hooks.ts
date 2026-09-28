@@ -9,19 +9,18 @@ import { useQuery, useMutation, useQueryClient, type QueryClient } from "@tansta
 import {
   deleteCombination,
   deleteEngine,
-  deleteSystemConfig,
   fetchAuthGroups,
   fetchCombinations,
   fetchEngines,
-  fetchSystemConfigs,
+  toSystemConfigs,
   saveAuthGroupDraft,
   transitionAuthGroup,
   upsertCombination,
   upsertEngine,
-  upsertSystemConfig,
   type AuthGroupTransition,
   type FetchAuthGroupsOptions,
 } from "./aircraftEngine";
+import { fetchAircraftTypes } from "../aircraft-types/aircraft-types";
 import {
   emitAircraftEngineUpdated,
   type AircraftEngineTable,
@@ -37,7 +36,12 @@ export const aircraftEngineKeys = {
   authGroups: ["ae", "authGroups"] as const,
   /** Parameterised auth-group reads (CR-3 asOf, CR-1 downstream gate, CR-2 customer). */
   authGroupsWith: (opts: FetchAuthGroupsOptions) => ["ae", "authGroups", opts] as const,
-  systemConfigs: ["ae", "systemConfigs"] as const,
+  /**
+   * Aircraft system config = Aircraft Types (POST /master/aircraftTypes/list). Shares the raw
+   * AircraftType[] cache with useAircraftTypes()/useAircraftTypesFull(), so a save on the
+   * Aircraft system config tab refreshes every consumer. Mapping happens in `select`.
+   */
+  systemConfigs: ["aircraftTypesFull"] as const,
 };
 
 /**
@@ -89,12 +93,12 @@ export function useFamilies() {
     queryFn: async () => {
       const [combinations, configs] = await Promise.all([
         qc.ensureQueryData({ queryKey: aircraftEngineKeys.combinations, queryFn: () => fetchCombinations() }),
-        qc.ensureQueryData({ queryKey: aircraftEngineKeys.systemConfigs, queryFn: fetchSystemConfigs }),
+        qc.ensureQueryData({ queryKey: aircraftEngineKeys.systemConfigs, queryFn: fetchAircraftTypes }),
       ]);
       const codes = new Set([
         ...combinations.map((item) => item.familyCode),
-        ...configs.map((item) => item.familyCode),
-      ]);
+        ...toSystemConfigs(configs).map((item) => item.familyCode),
+      ].filter(Boolean));
       return Array.from(codes)
         .sort((a, b) => a.localeCompare(b))
         .map((familyCode) => ({ familyCode, familyName: familyCode }));
@@ -179,21 +183,8 @@ export function useTransitionAuthGroup() {
   });
 }
 
-// ── aircraft_system_config ──
+// ── aircraft_system_config (read-only; sourced from Aircraft Types) ──
+// Writes go through useUpsertAircraftType / useDeleteAircraftType (aircraft-types.hooks).
 export function useSystemConfigs() {
-  return useQuery({ queryKey: aircraftEngineKeys.systemConfigs, queryFn: fetchSystemConfigs });
-}
-export function useUpsertSystemConfig() {
-  const emit = useEmitAndInvalidate();
-  return useMutation({
-    mutationFn: upsertSystemConfig,
-    onSuccess: (_result, input) => emit("aircraft_system_config", "upsert", input.icaoCode),
-  });
-}
-export function useDeleteSystemConfig() {
-  const emit = useEmitAndInvalidate();
-  return useMutation({
-    mutationFn: deleteSystemConfig,
-    onSuccess: (_r, icaoCode) => emit("aircraft_system_config", "delete", icaoCode),
-  });
+  return useQuery({ queryKey: aircraftEngineKeys.systemConfigs, queryFn: fetchAircraftTypes, select: toSystemConfigs });
 }

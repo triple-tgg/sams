@@ -9,6 +9,7 @@ import {
 } from "@/lib/api/master/aircraft-engine/aircraftEngine.hooks";
 import { useAircraftTypes } from "@/lib/api/master/aircraft-types/aircraft-types.hooks";
 import { computeDataQuality } from "@/lib/api/master/aircraft-engine/aircraftEngine.validation";
+import type { CombinationPrefill } from "@/lib/api/master/aircraft-engine/aircraftEngine.types";
 import { DataQualityBanner } from "./components/DataQualityBanner";
 import { CombinationsTab } from "./components/CombinationsTab";
 import { SystemConfigTab } from "./components/SystemConfigTab";
@@ -35,6 +36,13 @@ export default function AircraftEnginePage() {
   const [tab, setTab] = useState(
     ["combo", "sys", "engine"].includes(requestedTab ?? "") ? (requestedTab as string) : "combo",
   );
+
+  // Set by the data-quality banner's "Combination" button; consumed by CombinationsTab to open a pre-filled Add form.
+  const [combinationPrefill, setCombinationPrefill] = useState<CombinationPrefill | null>(null);
+  const openCombinationFor = (prefill: CombinationPrefill) => {
+    setTab("combo");
+    setCombinationPrefill(prefill);
+  };
 
   const findings = useMemo(
     () => computeDataQuality({ engines, combinations, aircraftTypes }),
@@ -77,7 +85,7 @@ export default function AircraftEnginePage() {
               <Loader2 className="h-4 w-4 animate-spin" /> Loading Aircraft-Engine master data…
             </div>
           ) : (
-            <DataQualityBanner findings={findings} />
+            <DataQualityBanner findings={findings} onCreateCombination={openCombinationFor} />
           )}
 
           {/* Tabs */}
@@ -104,7 +112,9 @@ export default function AircraftEnginePage() {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="combo" className="mt-5"><CombinationsTab /></TabsContent>
+            <TabsContent value="combo" className="mt-5">
+              <CombinationsTab prefill={combinationPrefill} onPrefillConsumed={() => setCombinationPrefill(null)} />
+            </TabsContent>
             <TabsContent value="sys" className="mt-5"><SystemConfigTab /></TabsContent>
             <TabsContent value="engine" className="mt-5"><EngineMasterTab /></TabsContent>
           </Tabs>

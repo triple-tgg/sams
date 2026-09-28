@@ -12,6 +12,9 @@ import {
     ValidatedRow,
     FlightImportData,
     EXCEL_COLUMN_MAPPING,
+    STATUS_COLUMN,
+    DEFAULT_FLIGHT_STATUS,
+    withStatusColumn,
     FlightValidateRequestItem,
     FlightValidateResponse,
 } from '@/components/flight-timeline/types/flight-import.types';
@@ -22,6 +25,11 @@ import { useRoutesOptions } from '@/lib/api/hooks/useRoutes';
 import { useStaffListForImport } from '@/lib/api/hooks/useStaffListForImport';
 import { useMaintenanceStatus } from '@/lib/api/hooks/useMaintenanceStatus';
 import { useStationsOptions } from '@/lib/api/hooks/useStations';
+import { useStatusOptions } from '@/lib/api/hooks/useStatus';
+import { useAircraftTypesFull } from '@/lib/api/hooks/useAircraftTypesFull';
+import { useCombinations } from '@/lib/api/master/aircraft-engine/aircraftEngine.hooks';
+import { useReduxAuth } from '@/lib/api/hooks/useReduxAuth';
+import { resolveAircraftEngine as resolveAircraftEngineFields } from '@/lib/flight-import/resolveAircraftEngine';
 
 // Enable dayjs plugins
 dayjs.extend(customParseFormat);
@@ -53,6 +61,19 @@ export const useFlightExcelImport = () => {
     const { parseAndMatchStaff } = useStaffListForImport();
     const { options: checkStatusOptions } = useMaintenanceStatus();
     const { options: stationOptions } = useStationsOptions();
+    // Flight status options (/master/Status) for the STATUS column
+    const { options: flightStatusOptions } = useStatusOptions();
+
+    // Aircraft-Engine resolution (familyCode / series / engineCode / aircraftEngineId)
+    const { data: aircraftTypesFull = [] } = useAircraftTypesFull();
+    const { data: aircraftEngineCombinations = [] } = useCombinations();
+    const { users: authUser } = useReduxAuth();
+    const currentUserName = authUser?.username || authUser?.fullName || 'system';
+
+    const resolveAircraftEngine = useCallback(
+        (row: Record<string, any>) => resolveAircraftEngineFields(row, aircraftTypesFull, aircraftEngineCombinations),
+        [aircraftTypesFull, aircraftEngineCombinations],
+    );
 
     /**
      * Find option match and return the option with ID
@@ -407,7 +428,10 @@ export const useFlightExcelImport = () => {
                 // Parse sheet name as date
                 const sheetDate = parseSheetNameDate(sheetName);
 
-                return { name: sheetName, headers, rows, sheetDate };
+                // Ensure a STATUS column (after CHECK), defaulting to "Normal"
+                const normalized = withStatusColumn(headers, rows);
+
+                return { name: sheetName, headers: normalized.headers, rows: normalized.rows, sheetDate };
             });
 
         return parsedSheets;
@@ -571,6 +595,7 @@ export const useFlightExcelImport = () => {
                     airlinesId,
                     stationId,
                     acTypeId,
+                    ...resolveAircraftEngine(row),
                     acReg: row['A/C REG'] || '',
                     arrivalFlightNo: row['FLT NO. ARRIVAL'] || row['ARR FLT'] || row['ARRIVAL FLT'] || '',
                     departureFlightNo: row['FLT NO. DEPARTURE'] || row['FLT NO. DEOARTURE'] || row['DEP FLT'] || row['DEPARTURE FLT'] || '',
@@ -583,6 +608,8 @@ export const useFlightExcelImport = () => {
                     csIdList,
                     mechIdList,
                     maintenanceStatusId,
+                    statusCode: findOptionMatch(row[STATUS_COLUMN], flightStatusOptions, 'value')?.value
+                        || String(row[STATUS_COLUMN] || DEFAULT_FLIGHT_STATUS).trim(),
                     note: row['NOTE'] || row['REMARK'] || '',
                     datasource: 'plan',
                 };
@@ -689,6 +716,13 @@ export const useFlightExcelImport = () => {
                             message: `Status "${row['CHECK']}" not found in database`,
                         });
                     }
+                    if (row[STATUS_COLUMN] && !findOptionMatch(row[STATUS_COLUMN], flightStatusOptions, 'value')) {
+                        errors.push({
+                            row: rowId,
+                            column: STATUS_COLUMN,
+                            message: `Flight status "${row[STATUS_COLUMN]}" not found in database`,
+                        });
+                    }
 
                     // Check staff columns
                     if (row['CS']) {
@@ -748,7 +782,7 @@ export const useFlightExcelImport = () => {
         } finally {
             setIsValidating(false);
         }
-    }, [sheets, mapRowToApiFormat, findOptionMatch, airlineOptions, aircraftTypeOptions, routeOptions, stationOptions, parseAndMatchStaff, checkStatusOptions, formatDateTime]);
+    }, [sheets, mapRowToApiFormat, findOptionMatch, airlineOptions, aircraftTypeOptions, routeOptions, stationOptions, parseAndMatchStaff, checkStatusOptions, flightStatusOptions, formatDateTime, resolveAircraftEngine]);
 
     /**
      * Upload valid rows from ALL sheets to the API
@@ -874,6 +908,7 @@ export const useFlightExcelImport = () => {
                     airlinesId,
                     stationId,
                     acTypeId,
+                    ...resolveAircraftEngine(row),
                     acReg: row['A/C REG'] || '',
                     arrivalFlightNo: row['FLT NO. ARRIVAL'] || row['ARR FLT'] || row['ARRIVAL FLT'] || '',
                     departureFlightNo: row['FLT NO. DEPARTURE'] || row['FLT NO. DEOARTURE'] || row['DEP FLT'] || row['DEPARTURE FLT'] || '',
@@ -886,9 +921,11 @@ export const useFlightExcelImport = () => {
                     csIdList,
                     mechIdList,
                     maintenanceStatusId,
+                    statusCode: findOptionMatch(row[STATUS_COLUMN], flightStatusOptions, 'value')?.value
+                        || String(row[STATUS_COLUMN] || DEFAULT_FLIGHT_STATUS).trim(),
                     note: row['NOTE'] || row['REMARK'] || '',
                     datasource: 'plan',
-                    userName: 'system', // TODO: Get from auth context
+                    userName: currentUserName,
                 };
             });
 
@@ -910,7 +947,7 @@ export const useFlightExcelImport = () => {
         } finally {
             setIsUploading(false);
         }
-    }, [validatedRowsBySheet, sheets, queryClient, findOptionMatch, airlineOptions, aircraftTypeOptions, stationOptions, parseAndMatchStaff, checkStatusOptions]);
+    }, [validatedRowsBySheet, sheets, queryClient, findOptionMatch, airlineOptions, aircraftTypeOptions, stationOptions, parseAndMatchStaff, checkStatusOptions, flightStatusOptions, resolveAircraftEngine, currentUserName]);
 
     /**
      * Open file picker
@@ -1002,6 +1039,9 @@ export const useFlightExcelImport = () => {
                         if (updatedData['CHECK'] && !checkMatch) {
                             errors.push({ row: rowId, column: 'CHECK', message: `Status "${updatedData['CHECK']}" not found in database` });
                         }
+                        if (updatedData[STATUS_COLUMN] && !findOptionMatch(updatedData[STATUS_COLUMN], flightStatusOptions, 'value')) {
+                            errors.push({ row: rowId, column: STATUS_COLUMN, message: `Flight status "${updatedData[STATUS_COLUMN]}" not found in database` });
+                        }
 
                         // Check staff columns
                         if (updatedData['CS']) {
@@ -1036,7 +1076,7 @@ export const useFlightExcelImport = () => {
         });
 
         toast.success('Row updated successfully');
-    }, [activeSheetIndex, findOptionMatch, airlineOptions, aircraftTypeOptions, routeOptions, stationOptions, checkStatusOptions, parseAndMatchStaff]);
+    }, [activeSheetIndex, findOptionMatch, airlineOptions, aircraftTypeOptions, routeOptions, stationOptions, checkStatusOptions, flightStatusOptions, parseAndMatchStaff]);
 
     /**
      * Update sheet name and re-parse as date

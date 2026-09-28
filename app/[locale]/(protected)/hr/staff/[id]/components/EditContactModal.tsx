@@ -69,19 +69,22 @@ function FormTextarea({ label, name, value, onChange, placeholder, rows = 3 }: {
     )
 }
 
+// StaffData uses '-' as a display placeholder for missing values — never edit/save it as real data
+const blankIfDash = (value?: string | null) => (!value || value.trim() === '-' ? '' : value)
+
 export function EditContactModal({ isOpen, onClose, staff, onSave }: EditContactModalProps) {
     const [form, setForm] = useState<ContactFormData>({
-        phone: staff.phone,
-        email: staff.email,
-        address: staff.address,
+        phone: blankIfDash(staff.phone),
+        email: blankIfDash(staff.email),
+        address: blankIfDash(staff.address),
     })
 
     useEffect(() => {
         if (isOpen) {
             setForm({
-                phone: staff.phone,
-                email: staff.email,
-                address: staff.address,
+                phone: blankIfDash(staff.phone),
+                email: blankIfDash(staff.email),
+                address: blankIfDash(staff.address),
             })
         }
     }, [isOpen, staff])

@@ -77,6 +77,35 @@ export interface ImportState {
 /**
  * Excel column to API field mapping
  */
+/** Flight-status column shown in the import preview (right after CHECK). */
+export const STATUS_COLUMN = 'STATUS';
+/** Used when the Excel file has no Status column, or a Status cell is empty. */
+export const DEFAULT_FLIGHT_STATUS = 'Normal';
+
+/**
+ * Normalise the flight-status column of a parsed sheet:
+ * - Accepts "STATUS" / "Status" / "status" (any case) and renames it to STATUS.
+ * - Adds the column when missing. Empty values default to "Normal".
+ * - Places STATUS right after CHECK (or last when there is no CHECK column).
+ */
+export function withStatusColumn(headers: string[], rows: Record<string, any>[]) {
+    const existing = headers.find((h) => String(h).trim().toLowerCase() === 'status');
+    const otherHeaders = headers.filter((h) => h !== existing);
+    const checkIndex = otherHeaders.findIndex((h) => String(h).trim().toUpperCase() === 'CHECK');
+    const nextHeaders = [...otherHeaders];
+    nextHeaders.splice(checkIndex >= 0 ? checkIndex + 1 : nextHeaders.length, 0, STATUS_COLUMN);
+
+    const nextRows = rows.map((row) => {
+        const next = { ...row };
+        const raw = existing !== undefined ? row[existing] : '';
+        if (existing !== undefined && existing !== STATUS_COLUMN) delete next[existing];
+        next[STATUS_COLUMN] = String(raw ?? '').trim() || DEFAULT_FLIGHT_STATUS;
+        return next;
+    });
+
+    return { headers: nextHeaders, rows: nextRows };
+}
+
 export const EXCEL_COLUMN_MAPPING: Record<string, string> = {
     'Airlines Code': 'airlinesCode',
     'airlinesCode': 'airlinesCode',
@@ -105,6 +134,7 @@ export const EXCEL_COLUMN_MAPPING: Record<string, string> = {
     'departureAtdTime': '_departureAtdTime',
     'Bay': 'bayNo',
     'bayNo': 'bayNo',
+    'STATUS': 'statusCode',
     'Status': 'statusCode',
     'statusCode': 'statusCode',
     'Note': 'note',
@@ -119,6 +149,11 @@ export interface FlightValidateRequestItem {
     airlinesId: number;
     stationId: number;
     acTypeId: number;
+    /** Aircraft-Engine combination id (0 when not resolved). */
+    aircraftEngineId: number;
+    familyCode: string;
+    series: string;
+    engineCode: string;
     acReg: string;
     arrivalFlightNo: string;
     departureFlightNo: string;
@@ -131,6 +166,8 @@ export interface FlightValidateRequestItem {
     csIdList: number[];
     mechIdList: number[];
     maintenanceStatusId?: number;
+    /** Flight status code from /master/Status (e.g. "Normal"). */
+    statusCode?: string;
     note: string;
     datasource?: string;
     userName?: string;

@@ -66,16 +66,16 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
 
     return (
         <Dialog open onOpenChange={(open) => { if (!open) onClose() }} >
-            <DialogContent size='md' hideClose className="max-w-2xl w-full p-0 gap-0 overflow-hidden flex flex-col max-h-[90vh]" >
-                <DialogHeader className=" px-5 pt-5 pb-4 flex flex-row justify-between items-start">
-                    <div className="flex flex-col gap-1">
-                        <DialogTitle className="">{s.courseName}</DialogTitle>
+            <DialogContent size='md' hideClose className="w-screen max-w-none h-dvh max-h-dvh rounded-none border-0 sm:w-[calc(100vw-2rem)] sm:max-w-2xl sm:h-auto sm:max-h-[90vh] sm:rounded-xl sm:border p-0 gap-0 overflow-hidden flex flex-col" >
+                <DialogHeader className="shrink-0 px-4 pt-3 pb-3 sm:px-5 sm:pt-5 sm:pb-4 flex flex-row justify-between items-start gap-2 sm:gap-3 space-y-0 text-left border-b border-border sm:border-b-0">
+                    <div className="flex min-w-0 flex-1 flex-col gap-1 sm:gap-1.5">
+                        <DialogTitle className="text-sm sm:text-lg font-semibold leading-snug break-words line-clamp-3 sm:line-clamp-none">{s.courseName}</DialogTitle>
                         <DialogDescription className="text-sm text-muted-foreground">
                             <div className="flex items-start justify-between gap-2">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="text-xs px-2 py-0.5 rounded font-medium"
+                                    <span className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded font-medium"
                                         style={{ background: cc.light, color: cc.text }}>{s.courseCode}</span>
-                                    <span className={`text-xs px-2 py-0.5 rounded-full border font-medium flex items-center ${cfg.bg} ${cfg.text} ${cfg.border}`}>
+                                    <span className={`text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full border font-medium flex items-center ${cfg.bg} ${cfg.text} ${cfg.border}`}>
                                         <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 ${cfg.dot}`} />
                                         {s.status}
                                     </span>
@@ -83,10 +83,10 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
                             </div>
                         </DialogDescription>
                     </div>
-                    <div className="flex gap-1 justify-end items-start">
+                    <div className="flex shrink-0 gap-1 justify-end items-start pt-0.5 sm:pt-0">
                         <PermissionActionGuard menuCode="QA_MONITORING" action="canEdit">
                             <button onClick={onEdit}
-                                className="w-10 py-2 text-sm rounded-lg border border-border text-foreground hover:bg-muted transition-colors flex items-center justify-center gap-1.5 cursor-pointer bg-transparent">
+                                className="w-7 h-7 sm:w-10 sm:h-auto sm:py-2 text-sm rounded-md sm:rounded-lg border border-border text-foreground hover:bg-muted transition-colors flex items-center justify-center gap-1.5 cursor-pointer bg-transparent">
                                 <Pencil className="w-3.5 h-3.5" />
                             </button>
                         </PermissionActionGuard>
@@ -94,7 +94,7 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <button
-                                        className="w-10 py-2 text-sm rounded-lg border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
+                                        className="w-7 h-7 sm:w-10 sm:h-auto sm:py-2 text-sm rounded-md sm:rounded-lg border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
                                         <Trash2 className="w-3.5 h-3.5" />
                                     </button>
                                 </AlertDialogTrigger>
@@ -114,21 +114,21 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
                         </PermissionActionGuard>
                         <DialogClose asChild>
                             <button
-                                className="w-10 py-2 text-sm rounded-lg border border-border text-muted-foreground hover:bg-muted transition-colors flex items-center justify-center gap-1.5 cursor-pointer bg-transparent">
+                                className="w-7 h-7 sm:w-10 sm:h-auto sm:py-2 text-sm rounded-md sm:rounded-lg border border-border text-muted-foreground hover:bg-muted transition-colors flex items-center justify-center gap-1.5 cursor-pointer bg-transparent">
                                 <X className="w-3.5 h-3.5" />
                             </button>
                         </DialogClose>
                     </div>
                 </DialogHeader>
                 {/* Scrollable body — 2 column layout */}
-                <div className="px-5 py-4 flex-1 overflow-y-auto">
-                    <div className="grid grid-cols-2 gap-6">
+                <div className="px-4 py-3 sm:px-5 sm:py-4 flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-6">
                         {/* Left column: Info rows + Enrollment */}
-                        <div className="space-y-4">
+                        <div className="min-w-0 space-y-4">
                             {/* Info rows — 2 column grid */}
                             <div className="grid grid-cols-2 gap-x-4 gap-y-3.5">
                                 {INFO_ROWS.map(({ key, icon: Icon, label, val, isBadge }) => (
-                                    <div key={key} className="flex items-start gap-2.5">
+                                    <div key={key} className={`flex min-w-0 items-start gap-2.5 ${key === 'date' ? 'col-span-2 md:col-span-1' : ''}`}>
                                         <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center shrink-0 mt-0.5">
                                             <Icon className="w-3.5 h-3.5 text-muted-foreground" />
                                         </div>
@@ -139,13 +139,13 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
                                                     {String(val)}
                                                 </span>
                                             ) : (
-                                                <p className="text-sm text-foreground font-medium truncate">{val}</p>
+                                                <p className="text-sm text-foreground font-medium break-words md:truncate">{val || '—'}</p>
                                             )}
                                         </div>
                                     </div>
                                 ))}
                                 {/* Venue */}
-                                <div className="flex items-start gap-2.5">
+                                <div className="flex min-w-0 items-start gap-2.5">
                                     <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center shrink-0 mt-0.5">
                                         <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
                                     </div>
@@ -155,7 +155,7 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
                                     </div>
                                 </div>
                                 {/* Link URL */}
-                                <div className="flex items-start gap-2.5">
+                                <div className="flex min-w-0 items-start gap-2.5">
                                     <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center shrink-0 mt-0.5">
                                         <LinkIcon className="w-3.5 h-3.5 text-muted-foreground" />
                                     </div>
@@ -172,7 +172,7 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
                                     </div>
                                 </div>
                                 {/* Link Materials */}
-                                <div className="flex items-start gap-2.5">
+                                <div className="flex min-w-0 items-start gap-2.5">
                                     <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center shrink-0 mt-0.5">
                                         <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
                                     </div>
@@ -215,7 +215,7 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
                         </div>
 
                         {/* Right column: Manage Enrollment + Note + Course Objective + Regulatory Notes */}
-                        <div className="space-y-4">
+                        <div className="min-w-0 space-y-4">
 
                             {/* Course Objective */}
                             <div>
@@ -242,11 +242,11 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
                     </div>
                 </div>
 
-                <DialogFooter className="flex-1 gap-2 justify-end px-5 pb-5 pt-3 border-t border-border flex flex-col">
+                <DialogFooter className="shrink-0 gap-2 justify-end px-4 pb-4 pt-3 sm:px-5 sm:pb-5 border-t border-border flex flex-col">
                     {/* Actions */}
                     {/* Enrollment bar */}
-                    <div className="flex-1 flex justify-between items-center gap-8">
-                        <div className="flex-1 ">
+                    <div className="flex justify-between items-center gap-3 sm:gap-8">
+                        <div className="min-w-0 flex-1">
                             <div className="flex items-center justify-between mb-2">
                                 <p className="text-xs text-muted-foreground font-medium">Enrollment</p>
                                 <p className="text-xs text-foreground font-semibold">{enrolled} / {maxParticipants} <span className="text-muted-foreground font-normal">({pct}%)</span></p>
@@ -260,11 +260,11 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
                                 {pct >= 100 && <p className="text-xs text-amber-600 font-medium">Full</p>}
                             </div>
                         </div>
-                        <div className="">
+                        <div className="shrink-0">
                             {/* Manage Enrollment button */}
                             <PermissionActionGuard menuCode="QA_MONITORING" action="canEdit">
                                 <button onClick={() => window.location.href = `/en/qa/training-scheduler/${s.id}`}
-                                    className="w-30 py-2 text-sm rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors flex items-center justify-center gap-1.5 cursor-pointer font-medium border-none">
+                                    className="px-3 sm:w-30 sm:px-0 py-2 text-sm whitespace-nowrap rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors flex items-center justify-center gap-1.5 cursor-pointer font-medium border-none">
                                     <User className="w-4 h-4" />
                                     Enrollment
                                 </button>

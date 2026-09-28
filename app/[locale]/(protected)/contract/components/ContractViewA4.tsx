@@ -1,5 +1,6 @@
 "use client";
 
+import { useLayoutEffect, useRef, useState } from "react";
 import { ContractFormData } from "./types";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -27,8 +28,32 @@ const formatCurrency = (value: number) => {
 };
 
 // A4 paper aspect ratio: 210mm x 297mm (approximately 1:1.414)
+// 210mm at 96dpi — the paper is always laid out at this width and scaled down to fit narrow screens
+const PAPER_WIDTH_PX = 794;
+
 export const ContractViewA4 = ({ formData, isLoading }: ContractViewA4Props) => {
     const currencySymbol = formData.currency ? formData.currency.toUpperCase() : "n/a";
+    const viewportRef = useRef<HTMLDivElement>(null);
+    const paperRef = useRef<HTMLDivElement>(null);
+    const [scale, setScale] = useState(1);
+    const [paperHeight, setPaperHeight] = useState<number | null>(null);
+
+    useLayoutEffect(() => {
+        const viewport = viewportRef.current;
+        const paper = paperRef.current;
+        if (!viewport || !paper) return;
+        const update = () => {
+            const style = getComputedStyle(viewport);
+            const available = viewport.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+            setScale(Math.min(1, available / PAPER_WIDTH_PX));
+            setPaperHeight(paper.offsetHeight);
+        };
+        update();
+        const observer = new ResizeObserver(update);
+        observer.observe(viewport);
+        observer.observe(paper);
+        return () => observer.disconnect();
+    }, [isLoading]);
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-full">
@@ -38,9 +63,21 @@ export const ContractViewA4 = ({ formData, isLoading }: ContractViewA4Props) => 
     }
 
     return (
-        <div className="bg-slate-100 p-6 min-h-full">
+        <div ref={viewportRef} className="bg-slate-100 p-3 sm:p-6 min-h-full w-full min-w-0">
+            {/* Scaled sizer — reserves the scaled paper's footprint so scrolling matches what is visible */}
+            <div
+                className="mx-auto"
+                style={{
+                    width: PAPER_WIDTH_PX * scale,
+                    height: paperHeight !== null ? paperHeight * scale : undefined,
+                }}
+            >
             {/* A4 Paper Container */}
-            <div className="bg-white shadow-lg mx-auto max-w-[210mm] min-h-[297mm] p-8 relative">
+            <div
+                ref={paperRef}
+                className="bg-white shadow-lg min-h-[297mm] p-8 relative"
+                style={{ width: PAPER_WIDTH_PX, transform: `scale(${scale})`, transformOrigin: "top left" }}
+            >
                 {/* Header */}
                 <div className="border-b-2 border-primary pb-4 mb-6">
                     <div className="flex items-start justify-between">
@@ -395,11 +432,11 @@ export const ContractViewA4 = ({ formData, isLoading }: ContractViewA4Props) => 
                                                 </div>
                                                 <div>
                                                     <span className="text-muted-foreground">Disbursement:</span>
-                                                    <span className="font-medium ml-1">{formatCurrency(rate.disbursement)}% of invoice</span>
+                                                    <span className="font-medium ml-1">{formatCurrency(rate.disbursement)}% of actual amount</span>
                                                 </div>
                                                 <div>
                                                     <span className="text-muted-foreground">Late Penalty:</span>
-                                                    <span className="font-medium ml-1">{formatCurrency(rate.latePenalty)}% of invoice</span>
+                                                    <span className="font-medium ml-1">{formatCurrency(rate.latePenalty)}% of actual amount</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -438,6 +475,7 @@ export const ContractViewA4 = ({ formData, isLoading }: ContractViewA4Props) => 
                         <span>Page 1 of 1</span>
                     </div>
                 </div>
+            </div>
             </div>
         </div>
     );

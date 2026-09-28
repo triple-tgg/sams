@@ -133,12 +133,12 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
 
     return (
         <Dialog open onOpenChange={(open) => !open && onClose()}>
-            <DialogContent size="md" className="max-w-lg p-0 max-h-[90vh] flex flex-col gap-0">
-                <DialogHeader className="p-6 pb-4 border-b shrink-0">
-                    <DialogTitle>{isEditing ? 'Edit Course' : 'Add New Course'}</DialogTitle>
+            <DialogContent size="md" className="max-w-lg w-[calc(100vw-2rem)] rounded-xl p-0 max-h-[90vh] flex flex-col gap-0 overflow-hidden">
+                <DialogHeader className="px-4 py-3 sm:p-6 sm:pb-4 border-b shrink-0">
+                    <DialogTitle className="text-base sm:text-lg">{isEditing ? 'Edit Course' : 'Add New Course'}</DialogTitle>
                 </DialogHeader>
 
-                <div className="space-y-4 p-6 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 transition-all duration-300">
+                <div className="min-w-0 space-y-3 sm:space-y-4 p-4 sm:p-6 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 transition-all duration-300">
                     {isLoadingCourse ? (
                         <div className="py-12 flex justify-center items-center flex-col gap-3">
                             <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin"></div>
@@ -147,8 +147,8 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                     ) : (
                         <>
                             {/* Code + Category */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <div className="min-w-0">
                                     <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Course Code</label>
                                     <input
                                         className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary"
@@ -157,7 +157,7 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                                         onChange={e => setForm({ ...form, code: e.target.value })}
                                     />
                                 </div>
-                                <div>
+                                <div className="min-w-0">
                                     <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Category</label>
                                     <select
                                         className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary cursor-pointer"
@@ -186,7 +186,7 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                             {/* Type */}
                             <div>
                                 <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Type</label>
-                                <div className="flex items-center gap-3">
+                                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                                     <div className="flex gap-1 bg-muted p-1 rounded-lg">
                                         <button
                                             type="button"
@@ -361,7 +361,7 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                 </div>
 
                 {/* Actions */}
-                <DialogFooter className="p-6 pt-4 border-t shrink-0">
+                <DialogFooter className="flex-row gap-2 px-4 py-3 sm:p-6 sm:pt-4 border-t shrink-0">
                     <button
                         onClick={onClose}
                         disabled={isLoadingCourse}

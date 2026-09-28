@@ -88,16 +88,21 @@ function FormSelect({ label, name, value, onChange, options }: {
     )
 }
 
+// StaffData uses '-' as a display placeholder for missing values — never edit/save it as real data
+const blankIfDash = (value?: string | null) => (!value || value.trim() === '-' ? '' : value)
+// <input type="date"> needs YYYY-MM-DD; API may return a full ISO datetime
+const toDateInputValue = (value?: string | null) => blankIfDash(value).slice(0, 10)
+
 export function EditPersonalInfoModal({ isOpen, onClose, staff, onSave }: EditPersonalInfoModalProps) {
     const [form, setForm] = useState<PersonalInfoFormData>({
         titleNameTH: staff.titleName ?? '',
         titleNameEN: '',
-        name: staff.name,
-        nameEn: staff.nameEn,
-        dob: staff.dob,
-        placeOfBirth: staff.placeOfBirth,
-        idCard: staff.idCard,
-        nationality: staff.nationality,
+        name: blankIfDash(staff.name),
+        nameEn: blankIfDash(staff.nameEn),
+        dob: toDateInputValue(staff.dob),
+        placeOfBirth: blankIfDash(staff.placeOfBirth),
+        idCard: blankIfDash(staff.idCard),
+        nationality: blankIfDash(staff.nationality),
     })
 
     // Sync form when staff data changes or modal opens
@@ -106,12 +111,12 @@ export function EditPersonalInfoModal({ isOpen, onClose, staff, onSave }: EditPe
             setForm({
                 titleNameTH: staff.titleName ?? '',
                 titleNameEN: '',
-                name: staff.name,
-                nameEn: staff.nameEn,
-                dob: staff.dob,
-                placeOfBirth: staff.placeOfBirth,
-                idCard: staff.idCard,
-                nationality: staff.nationality,
+                name: blankIfDash(staff.name),
+                nameEn: blankIfDash(staff.nameEn),
+                dob: toDateInputValue(staff.dob),
+                placeOfBirth: blankIfDash(staff.placeOfBirth),
+                idCard: blankIfDash(staff.idCard),
+                nationality: blankIfDash(staff.nationality),
             })
         }
     }, [isOpen, staff])

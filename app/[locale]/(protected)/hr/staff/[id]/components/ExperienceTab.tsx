@@ -6,6 +6,8 @@ import { EditEducationModal } from './EditEducationModal'
 import { StaffByIdData, UpsertStaffRequest, UpsertEducation, UpsertWorkExperience, buildStaffUpsertRequest } from '@/lib/api/qa/staff-management'
 import { useUpsertStaff } from '@/lib/api/hooks/useQAStaffManagement'
 import { toast } from 'sonner'
+import { CollapsibleCard } from './CollapsibleCard'
+import { ScrollArea } from '@/components/ui/scroll-area'
 
 // ── Experience Tab ──
 export function ExperienceTab({ staff, apiData }: { staff: StaffData, apiData?: StaffByIdData }) {
@@ -79,26 +81,25 @@ export function ExperienceTab({ staff, apiData }: { staff: StaffData, apiData?: 
     return (
         <div>
             {/* Work Experience */}
-            <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 mb-4">
-                <div className="flex items-center justify-between mb-5 pb-3.5 border-b border-slate-100">
-                    <div className="flex items-center gap-2.5 text-base font-bold text-slate-800">
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-amber-100 text-amber-600">
-                            <Briefcase className="h-4 w-4" />
-                        </div>
-                        Work Experience
-                    </div>
-                    {staff.experience.length > 0 && (
-                        <button
-                            onClick={() => setShowEditExp(true)}
-                            className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] border border-slate-200 bg-white text-slate-400 cursor-pointer transition-all duration-200 hover:border-slate-400 hover:text-slate-700 hover:shadow-sm"
-                            title="Edit Work Experience"
-                        >
-                            <Pencil className="h-4 w-4" />
-                        </button>
-                    )}
-                </div>
+            <CollapsibleCard
+                icon={<Briefcase className="h-4 w-4" />}
+                iconClassName="bg-amber-100 text-amber-600"
+                title="Work Experience"
+                collapsibleOn="always"
+                defaultOpen
+                action={staff.experience.length > 0 && (
+                    <button
+                        onClick={() => setShowEditExp(true)}
+                        className="inline-flex shrink-0 items-center justify-center w-9 h-9 rounded-[10px] border border-slate-200 bg-white text-slate-400 cursor-pointer transition-all duration-200 hover:border-slate-400 hover:text-slate-700 hover:shadow-sm"
+                        title="Edit Work Experience"
+                    >
+                        <Pencil className="h-4 w-4" />
+                    </button>
+                )}
+            >
                 {staff.experience.length > 0 ? (
-                    <div className="relative ml-2">
+                    <ScrollArea viewportClassName="max-h-[550px]">
+                    <div className="relative ml-2 pr-3">
                         {/* Timeline vertical line */}
                         <div className="absolute left-[54px] top-2 bottom-2 w-[2px] bg-slate-200" />
 
@@ -141,6 +142,7 @@ export function ExperienceTab({ staff, apiData }: { staff: StaffData, apiData?: 
                             )
                         })}
                     </div>
+                    </ScrollArea>
                 ) : (
                     <div className="flex flex-col items-center justify-center py-10 text-center">
                         <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center mb-4">
@@ -157,29 +159,29 @@ export function ExperienceTab({ staff, apiData }: { staff: StaffData, apiData?: 
                         </button>
                     </div>
                 )}
-            </div>
+            </CollapsibleCard>
 
             {/* Education */}
-            <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-6 px-7 mb-4">
-                <div className="flex items-center justify-between mb-5 pb-3.5 border-b border-slate-100">
-                    <div className="flex items-center gap-2.5 text-base font-bold text-slate-800">
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-blue-50 text-blue-600">
-                            <GraduationCap className="h-4 w-4" />
-                        </div>
-                        Education
-                    </div>
-                    {staff.education.length > 0 && (
-                        <button
-                            onClick={() => setShowEditEdu(true)}
-                            className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] border border-slate-200 bg-white text-slate-400 cursor-pointer transition-all duration-200 hover:border-slate-400 hover:text-slate-700 hover:shadow-sm"
-                            title="Edit Education"
-                        >
-                            <Pencil className="h-4 w-4" />
-                        </button>
-                    )}
-                </div>
+            <CollapsibleCard
+                icon={<GraduationCap className="h-4 w-4" />}
+                iconClassName="bg-blue-50 text-blue-600"
+                title="Education"
+                collapsibleOn="always"
+                defaultOpen
+                action={staff.education.length > 0 && (
+                    <button
+                        onClick={() => setShowEditEdu(true)}
+                        className="inline-flex shrink-0 items-center justify-center w-9 h-9 rounded-[10px] border border-slate-200 bg-white text-slate-400 cursor-pointer transition-all duration-200 hover:border-slate-400 hover:text-slate-700 hover:shadow-sm"
+                        title="Edit Education"
+                    >
+                        <Pencil className="h-4 w-4" />
+                    </button>
+                )}
+            >
                 {staff.education.length > 0 ? (
-                    staff.education.map((edu, i) => (
+                    <ScrollArea viewportClassName="max-h-[550px]">
+                    <div className="pr-3">
+                    {staff.education.map((edu, i) => (
                         <div key={i} className="border border-[#e8ecf1] rounded-xl py-4.5 px-5.5 mb-3 bg-[#fafbfc] transition-all duration-200 hover:border-blue-300 hover:shadow-[0_2px_8px_rgba(37,99,235,0.06)] last:mb-0">
                             <div className="flex justify-between items-start mb-1.5">
                                 <span className="text-sm font-semibold text-slate-800">{edu.degree}</span>
@@ -188,7 +190,9 @@ export function ExperienceTab({ staff, apiData }: { staff: StaffData, apiData?: 
                             <div className="text-[13px] text-slate-600 mb-1.5">{edu.institution}</div>
                             <div className="text-xs text-slate-400 leading-relaxed">{edu.field}</div>
                         </div>
-                    ))
+                    ))}
+                    </div>
+                    </ScrollArea>
                 ) : (
                     <div className="flex flex-col items-center justify-center py-10 text-center">
                         <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mb-4">
@@ -205,7 +209,7 @@ export function ExperienceTab({ staff, apiData }: { staff: StaffData, apiData?: 
                         </button>
                     </div>
                 )}
-            </div>
+            </CollapsibleCard>
 
             {/* Edit Work Experience Modal */}
             <EditWorkExperienceModal

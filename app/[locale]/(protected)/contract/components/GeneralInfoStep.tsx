@@ -134,7 +134,7 @@ export const GeneralInfoStep = ({
             {/* Contract Info */}
             <div className="bg-muted/30 p-4 rounded-lg space-y-4">
                 <h4 className="text-sm font-semibold text-primary">Contract Info</h4>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="contractCode">Contract No. <span className="text-destructive">*</span></Label>
                         <Input
@@ -178,7 +178,7 @@ export const GeneralInfoStep = ({
                         )}
                     </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="effectiveFrom">Effective From <span className="text-destructive">*</span></Label>
                         <Input

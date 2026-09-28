@@ -498,23 +498,24 @@ export default function ScheduleDetailPage() {
     }
 
     return (
-        <div>
-            <Card>
-                <CardHeader className="pb-4">
-                    <div className="flex items-center gap-3">
+        <div className="w-full min-w-0 overflow-x-clip">
+            <Card className="w-full min-w-0 overflow-x-clip">
+                <CardHeader className="p-4 sm:p-6 pb-3 sm:pb-4">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                         <button
                             onClick={() => router.back()}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer border border-border bg-white"
+                            className="flex shrink-0 items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer border border-border bg-white"
                         >
                             <ArrowLeft className="w-3.5 h-3.5" />
-                            Back to Sessions
+                            <span className="sm:hidden">Back</span>
+                            <span className="hidden sm:inline">Back to Sessions</span>
                         </button>
-                        <div className="w-px h-6 bg-border" />
-                        <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
+                        <div className="hidden sm:block w-px h-6 bg-border" />
+                        <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
+                            <span className="text-[10px] font-bold whitespace-nowrap text-primary bg-primary/10 px-2 py-0.5 rounded-md">
                                 {session.courseCode}
                             </span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${sessionStatus === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
+                            <span className={`text-[10px] font-bold whitespace-nowrap px-2 py-0.5 rounded-md ${sessionStatus === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
                                 sessionStatus === 'Cancelled' ? 'bg-red-100 text-red-700' :
                                     sessionStatus === 'Grading' ? 'bg-purple-100 text-purple-700' :
                                         sessionStatus === 'In Progress' ? 'bg-blue-100 text-blue-700' :
@@ -525,21 +526,21 @@ export default function ScheduleDetailPage() {
                                 {sessionStatus}
                             </span>
                         </div>
-                        <div className="flex items-center gap-2 ml-auto">
+                        <div className="flex w-full items-center gap-2 sm:w-auto sm:ml-auto">
                             {sessionStatus === 'Completed' && (
                                 <button
                                     onClick={() => openCertificateModal()}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-primary border border-primary hover:bg-primary/5 transition-colors cursor-pointer bg-white"
+                                    className="flex shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold text-primary border border-primary hover:bg-primary/5 transition-colors cursor-pointer bg-white"
                                 >
                                     <Award className="w-3.5 h-3.5" />
                                     Issue Certificates
                                 </button>
                             )}
-                            <div className="relative">
+                            <div className="relative min-w-0 flex-1 sm:flex-none">
                                 <select
                                     value={sessionStatus}
                                     onChange={(e) => handleStatusChange(e.target.value)}
-                                    className="appearance-none pl-3 pr-8 py-1.5 rounded-lg text-xs font-semibold border border-border bg-white text-foreground transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                    className="w-full appearance-none pl-3 pr-8 py-1.5 rounded-lg text-xs font-semibold border border-border bg-white text-foreground transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20"
                                 >
                                     <option value="Draft" disabled={isStatusDisabled('Draft')}>Draft</option>
                                     <option value="Open Registration" disabled={isStatusDisabled('Open Registration')}>Open Registration</option>
@@ -553,16 +554,16 @@ export default function ScheduleDetailPage() {
                             </div>
                         </div>
                     </div>
-                    <CardTitle className="mt-2">{session.courseName}</CardTitle>
-                    <CardDescription>Manage staff enrollment for this training session</CardDescription>
+                    <CardTitle className="mt-2 text-base sm:text-xl leading-snug break-words">{session.courseName}</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Manage staff enrollment for this training session</CardDescription>
                 </CardHeader>
 
-                <CardContent className="space-y-5">
-                    <div className="grid grid-cols-1 xl:grid-cols-[340px_1fr] gap-5">
+                <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0 space-y-4 sm:space-y-5 min-w-0">
+                    <div className="grid grid-cols-1 xl:grid-cols-[340px_1fr] gap-4 sm:gap-5">
                         {/* Left — Session Info */}
-                        <div className="space-y-4">
+                        <div className="min-w-0 space-y-4">
                             {/* SessionInfoCard Replica */}
-                            <div className="bg-gradient-to-br from-slate-50 to-white rounded-xl border border-border p-5 space-y-4">
+                            <div className="bg-gradient-to-br from-slate-50 to-white rounded-xl border border-border p-4 sm:p-5 space-y-3 sm:space-y-4">
                                 {/* Course Title & Status */}
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="flex-1 min-w-0">
@@ -871,7 +872,7 @@ export default function ScheduleDetailPage() {
                                     )}
                                 </div>
                             ) : (
-                                <div className="bg-slate-50 rounded-xl border border-border p-8 text-center flex flex-col items-center justify-center h-[300px]">
+                                <div className="bg-slate-50 rounded-xl border border-border p-6 sm:p-8 text-center flex flex-col items-center justify-center h-[220px] sm:h-[300px]">
                                     <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border border-border mb-3 shadow-sm">
                                         <Lock className="w-5 h-5 text-muted-foreground" />
                                     </div>
@@ -882,8 +883,8 @@ export default function ScheduleDetailPage() {
                         </div>
 
                         {/* Right — Enrolled Staff List */}
-                        <div className="bg-white rounded-xl border border-border overflow-hidden">
-                            <div className="p-4 bg-slate-50/80 border-b border-border flex flex-col gap-3">
+                        <div className="min-w-0 bg-white rounded-xl border border-border overflow-hidden">
+                            <div className="p-3 sm:p-4 bg-slate-50/80 border-b border-border flex flex-col gap-3">
                                 <div className="flex items-center gap-3">
                                     <Users className="w-4 h-4 text-primary shrink-0" />
                                     <span className="text-sm font-bold text-foreground whitespace-nowrap">Enrolled Staff</span>
@@ -977,7 +978,7 @@ export default function ScheduleDetailPage() {
                                                     className="w-3.5 h-3.5 rounded border-border cursor-pointer accent-primary"
                                                 />
                                             </th>
-                                            <th className="sticky left-[48px] z-30 bg-slate-50 px-2 py-2.5 text-left min-w-[150px]">Employee Name</th>
+                                            <th className="sticky left-[48px] z-30 bg-slate-50 px-2 py-2.5 text-left min-w-[120px] sm:min-w-[150px]">Employee Name</th>
                                             <th className="px-2 py-2.5 text-left w-[120px]">License</th>
                                             <th className="px-2 py-2.5 text-left w-[130px]">Department</th>
                                             <th className="px-2 py-2.5 text-left w-[110px]">Status</th>

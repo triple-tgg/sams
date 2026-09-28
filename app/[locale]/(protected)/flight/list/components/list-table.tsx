@@ -17,6 +17,10 @@ import { useParams, useRouter } from "next/navigation"
 import { DateRange } from "react-day-picker"
 import dayjs from "dayjs"
 import { useCancelFlightMutation } from "@/lib/api/hooks/useCancelFlightMutation"
+import { useDeleteFlightInfosMutation } from "@/lib/api/hooks/useDeleteFlightInfosMutation"
+import { useMenuPermission } from "@/hooks/use-menu-permission"
+import { Trash2 } from "lucide-react"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import clsx from "clsx"
 import FilterRange from "./FilterRange"
 import DateRangeFilter from "./DateRange"
@@ -131,6 +135,13 @@ const ListTable = ({
     // Cancel flight mutation
     const cancelFlightMutation = useCancelFlightMutation();
 
+    // Delete flight(s) — POST /flight/delete-flightinfos, gated by FLIGHT › canDelete
+    const { canDelete: canDeleteFlight } = useMenuPermission("FLIGHT");
+    const deleteFlightsMutation = useDeleteFlightInfosMutation();
+    const [deleteTargets, setDeleteTargets] = React.useState<FlightItem[] | null>(null);
+    // Flights with an issued Pre-Invoice (isMapping) can't be deleted
+    const isDeletableFlight = (flight: FlightItem) => !!flight.flightInfosId && flight.isMapping !== true;
+
     // Convert initialFilters to form format
     const initialDateRange = React.useMemo(() => {
         if (initialFilters?.dateStart && initialFilters?.dateEnd) {
@@ -196,6 +207,8 @@ const ListTable = ({
             }
         },
         isCancelLoading: cancelFlightMutation.isPending,
+        onDelete: (flight) => setDeleteTargets([flight]),
+        enableSelection: canDeleteFlight,
         onSendEmail: (flight) => {
             setSelectedEmailFlight(flight);
             setEmailModalOpen(true);
@@ -218,6 +231,8 @@ const ListTable = ({
         onColumnFiltersChange: setColumnFilters,
         onColumnVisibilityChange: setColumnVisibility,
         onRowSelectionChange: setRowSelection,
+        getRowId: (row, index) => (row.flightInfosId ? String(row.flightInfosId) : `row-${index}`),
+        enableRowSelection: (row) => canDeleteFlight && isDeletableFlight(row.original),
 
         // bridge การเปลี่ยนหน้า/ขนาดหน้า -> callback พาเรนต์
         onPaginationChange: (updater) => {
@@ -237,6 +252,21 @@ const ListTable = ({
 
         filterFns: { stationInList },
     })
+
+    // Selection is per page — drop it whenever the page data changes (paging, filters, refetch after delete)
+    React.useEffect(() => { setRowSelection({}) }, [projects])
+    const selectedFlights = table.getSelectedRowModel().rows.map((row) => row.original)
+
+    const confirmDelete = () => {
+        if (!deleteTargets?.length) return
+        const ids = deleteTargets.map((flight) => flight.flightInfosId).filter((id): id is number => !!id)
+        deleteFlightsMutation.mutate(ids, {
+            onSuccess: () => {
+                setDeleteTargets(null)
+                setRowSelection({})
+            },
+        })
+    }
 
     // ✅ ใช้ id คอลัมน์ให้ตรงกับ accessor จริง (มักเป็น "arrivalFlightNo")
     // React.useEffect(() => {
@@ -506,6 +536,21 @@ const ListTable = ({
                                         </span>
                                         flights
                                     </span>
+                                    {selectedFlights.length > 0 && (
+                                        <PermissionActionGuard menuCode="FLIGHT" action="canDelete">
+                                            <span className="text-xs font-medium text-slate-500">· {selectedFlights.length} selected</span>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                color="destructive"
+                                                className="h-7 gap-1 px-2.5 text-xs"
+                                                disabled={deleteFlightsMutation.isPending}
+                                                onClick={() => setDeleteTargets(selectedFlights)}
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" /> Delete selected
+                                            </Button>
+                                        </PermissionActionGuard>
+                                    )}
                                 </div>
                                 {/* Quick Range */}
                                 <div className="flex items-center gap-1.5 self-end sm:self-auto">
@@ -638,6 +683,41 @@ const ListTable = ({
                 onOpenChange={setPreviewThfOpen}
                 flightInfosId={selectedPreviewThfId}
             />
+            {/* Delete flight(s) confirmation */}
+            <AlertDialog open={!!deleteTargets} onOpenChange={(open) => { if (!open && !deleteFlightsMutation.isPending) setDeleteTargets(null) }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            Delete {deleteTargets && deleteTargets.length > 1 ? `${deleteTargets.length} flights` : "flight"}?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription asChild>
+                            <div className="space-y-2">
+                                <p>This permanently removes the flight information. This action cannot be undone.</p>
+                                <ul className="max-h-40 overflow-y-auto rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-foreground">
+                                    {deleteTargets?.map((flight) => (
+                                        <li key={flight.flightInfosId ?? flight.arrivalFlightNo}>
+                                            {[flight.arrivalFlightNo, flight.departureFlightNo].filter(Boolean).join(" / ") || `#${flight.flightInfosId}`}
+                                            {flight.stationObj?.code && <span className="text-muted-foreground"> · {flight.stationObj.code}</span>}
+                                            {flight.acReg && <span className="text-muted-foreground"> · {flight.acReg}</span>}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deleteFlightsMutation.isPending}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={(e) => { e.preventDefault(); confirmDelete() }}
+                            disabled={deleteFlightsMutation.isPending}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {deleteFlightsMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </Card>
     )
 }

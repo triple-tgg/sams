@@ -250,7 +250,7 @@ export default function StaffProfilePage() {
     // ── Loading State ──
     if (isLoading) {
         return (
-            <div className="p-8 min-h-screen rounded-xl">
+            <div className="min-h-screen rounded-xl">
                 <div className="bg-slate-50 rounded-xl p-8 flex items-center justify-center min-h-[400px]">
                     <div className="flex flex-col items-center gap-3">
                         <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
@@ -264,7 +264,7 @@ export default function StaffProfilePage() {
     // ── Error State ──
     if (isError) {
         return (
-            <div className="p-8 min-h-screen rounded-xl">
+            <div className="min-h-screen rounded-xl">
                 <div className="bg-slate-50 rounded-xl p-8 flex items-center justify-center min-h-[400px]">
                     <div className="flex flex-col items-center gap-3 text-center">
                         <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center">
@@ -286,10 +286,10 @@ export default function StaffProfilePage() {
 
     return (
         <>
-            <div className="p-8 min-h-screen rounded-xl ">
-                <div className="bg-slate-50 rounded-xl p-8 grid grid-cols-12 gap-4">
+            <div className="w-full min-w-0 overflow-x-clip min-h-screen rounded-xl">
+                <div className="bg-slate-50 rounded-xl p-3 sm:p-5 lg:p-8 grid grid-cols-1 gap-3 sm:gap-4">
                     {/* ── Top Bar ── */}
-                    <div className="col-span-12 flex items-center gap-3 ">
+                    <div className="flex items-center gap-3">
                         <button
                             className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] border border-slate-200 bg-white text-slate-600 cursor-pointer transition-all duration-200 shrink-0 hover:border-slate-400 hover:text-slate-800 hover:shadow-sm"
                             onClick={() => router.push('/en/hr/staff')}
@@ -298,10 +298,10 @@ export default function StaffProfilePage() {
                         </button>
                         <span className=" font-bold text-slate-800">Back</span>
                     </div>
-                    <div className="col-span-12">
+                    <div className="min-w-0">
                         {/* ── Profile Header Card ── */}
                         <div className="bg-white border border-[#e8ecf1] rounded-t-[14px] py-7 px-8 mb-0 flex items-center gap-6 relative max-md:flex-col max-md:items-start max-md:gap-4 max-md:p-5">
-                            <div className="absolute top-5 right-6 flex items-center gap-2">
+                            <div className="absolute top-3 right-3 sm:top-5 sm:right-6 flex items-center gap-2 z-10">
                                 <button
                                     className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] border border-slate-200 bg-white text-slate-500 cursor-pointer transition-all duration-200 hover:border-slate-400 hover:text-slate-800 hover:shadow-sm"
                                     onClick={() => setShowPrintPreview(true)}
@@ -317,7 +317,7 @@ export default function StaffProfilePage() {
                                 onUpload={handleProfileImageUpload}
                             />
                             <div className="flex-1 min-w-0">
-                                <div className="text-xl font-bold text-slate-800 mb-0.5">{staff.nameEn}</div>
+                                <div className="text-lg sm:text-xl font-bold text-slate-800 mb-0.5 break-words">{staff.nameEn}</div>
                                 <div className="text-sm text-slate-500 mb-2.5">{staff.name}</div>
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-lg whitespace-nowrap bg-blue-50 text-blue-600 border border-blue-200">
@@ -330,20 +330,20 @@ export default function StaffProfilePage() {
                                         {staff.status === 'active' ? '● Active' : '● Inactive'}
                                     </span>
                                 </div>
-                                <div className="flex items-center gap-5 mt-2.5 text-[13px] text-slate-400">
-                                    <span className="flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" /> {staff.department}</span>
-                                    <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> Joined {staff.startDate ? formatDate(staff.startDate) : '-'}</span>
-                                    <span className="flex items-center gap-1.5"><FileText className="h-3.5 w-3.5" /> {staff.empId}</span>
+                                <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 mt-2.5 text-xs sm:text-[13px] text-slate-400">
+                                    <span className="flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5 shrink-0" /> {staff.department}</span>
+                                    <span className="flex items-center gap-1.5 whitespace-nowrap"><Calendar className="h-3.5 w-3.5 shrink-0" /> Joined {staff.startDate ? formatDate(staff.startDate) : '-'}</span>
+                                    <span className="flex items-center gap-1.5 whitespace-nowrap"><FileText className="h-3.5 w-3.5 shrink-0" /> {staff.empId}</span>
                                 </div>
                             </div>
                         </div>
 
                         {/* ── Tabs ── */}
-                        <div className="flex gap-1 bg-white border border-[#e8ecf1] border-t-0 rounded-b-[14px] py-2 px-7 mb-3 max-md:overflow-x-auto">
+                        <div className="flex gap-1 bg-white border border-[#e8ecf1] border-t-0 rounded-b-[14px] py-2 px-2 sm:px-7 mb-3 overflow-x-auto no-scrollbar">
                             {TABS.map(t => (
                                 <button
                                     key={t.name}
-                                    className={`inline-flex items-center gap-[7px] py-2.5 px-5 text-[13px] font-medium cursor-pointer border-none bg-transparent rounded-[10px] transition-all duration-200 whitespace-nowrap ${activeTab === t.name
+                                    className={`inline-flex shrink-0 items-center gap-[7px] py-2 sm:py-2.5 px-3 sm:px-5 text-xs sm:text-[13px] font-medium cursor-pointer border-none bg-transparent rounded-[10px] transition-all duration-200 whitespace-nowrap ${activeTab === t.name
                                         ? 'text-blue-600 !bg-slate-100 font-semibold! '
                                         : 'text-slate-500 hover:text-slate-800 hover:bg-[#f8f9fb]'
                                         }`}

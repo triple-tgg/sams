@@ -136,52 +136,52 @@ export function MonitoringCrsTab() {
     return (
         <div className="space-y-4">
             {/* Status Legend */}
-            <div className="rounded-xl border border-border bg-muted/30 p-4">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Status Legend:</span>
+            <div className="rounded-xl border border-border bg-muted/30 p-3 sm:p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2">
+                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide shrink-0">Status Legend:</span>
                         {authorizationStatusesLoading ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
                         ) : authorizationStatuses.map((status: StaffAuthorizationAirlineStatus) => {
                             const meta = CUST_STATUS_META[mapCustomerAuthStatus(status.code)]
                             return (
-                                <div key={status.id} className="flex items-center gap-1.5 text-[11px]">
-                                    <span className="w-2.5 h-2.5 rounded-full" style={{ background: meta.dot }} />
+                                <div key={status.id} className="flex items-center gap-1.5 text-[11px] whitespace-nowrap">
+                                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: meta.dot }} />
                                     <span className="font-semibold" style={{ color: meta.text }}>{status.name}</span>
                                 </div>
                             )
                         })}
                     </div>
-                    <div className="text-[10px] text-muted-foreground max-w-sm text-right">
-                        <AlertTriangle className="w-3 h-3 inline mr-1 text-amber-500" />
+                    <div className="text-[10px] text-muted-foreground text-left sm:text-right border-t sm:border-t-0 pt-2 sm:pt-0 border-border/60 shrink-0">
+                        <AlertTriangle className="w-3 h-3 inline mr-1 text-amber-500 shrink-0" />
                         CRS requires <strong>both</strong> active SAMS + ≥1 Customer authorization
                     </div>
                 </div>
             </div>
 
             {/* Search + Filter + Matrix Table */}
-            <div>
-                <div className="flex items-center gap-3 mb-3">
+            <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                     <h3 className="text-sm font-semibold text-foreground">
                         Authorization Matrix — Certifying Staff ({listQuery.data?.total ?? filteredStaff.length})
                     </h3>
-                    <div className="ml-auto flex items-center gap-2">
-                        <div className="relative">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        <div className="relative w-full sm:w-56">
                             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                             <input
                                 type="text"
                                 placeholder="Search staff…"
                                 value={searchTerm}
                                 onChange={event => setSearchTerm(event.target.value)}
-                                className="pl-8 pr-3 py-1.5 text-xs border border-border rounded-lg bg-card focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary w-56"
+                                className="w-full pl-8 pr-3 py-1.5 text-xs border border-border rounded-lg bg-card focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                             />
                         </div>
-                        <div className="relative">
-                            <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                        <div className="relative w-full sm:w-auto">
+                            <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
                             <select
                                 value={filterStatus}
                                 onChange={event => setFilterStatus(event.target.value as typeof filterStatus)}
-                                className="pl-8 pr-3 py-1.5 text-xs border border-border rounded-lg bg-card focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary appearance-none cursor-pointer"
+                                className="w-full sm:w-auto pl-8 pr-8 py-1.5 text-xs border border-border rounded-lg bg-card focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary appearance-none cursor-pointer"
                             >
                                 <option value="all">All Staff</option>
                                 <option value="issues">⚠ Has Issues</option>
@@ -191,7 +191,7 @@ export function MonitoringCrsTab() {
                         </div>
                     </div>
                 </div>
-                <div className="rounded-xl border border-border overflow-hidden">
+                <div className="rounded-xl border border-border overflow-hidden bg-card">
                     {listQuery.isLoading ? (
                         <div className="flex items-center justify-center gap-2 py-20 text-sm text-muted-foreground">
                             <Loader2 className="w-5 h-5 animate-spin text-primary" /> Loading authorization data…

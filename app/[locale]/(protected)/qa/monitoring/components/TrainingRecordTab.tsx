@@ -261,20 +261,20 @@ export function TrainingRecordTab() {
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-2">
                 <div>
-                    <h3 className="text-lg font-bold">Training Monitoring</h3>
+                    <h3 className="text-base sm:text-lg font-bold">Training Monitoring</h3>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="grid grid-cols-4 gap-2 sm:flex sm:items-center sm:gap-3">
                     {[
                         { label: 'Staff', val: stats.total, color: '#1a56db', bg: '#eff6ff', border: '#bfdbfe' },
                         { label: 'Expired', val: stats.expired, color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
                         { label: 'Warning', val: stats.warning, color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
                         { label: 'Valid', val: stats.valid, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
                     ].map(k => (
-                        <div key={k.label} className="rounded-xl px-4 py-2 text-center min-w-[72px]"
+                        <div key={k.label} className="rounded-xl px-2 sm:px-4 py-2 text-center sm:min-w-[72px]"
                             style={{ background: k.bg, border: `1px solid ${k.border}` }}>
-                            <div className="text-xl font-extrabold leading-tight" style={{ color: k.color }}>{k.val}</div>
+                            <div className="text-lg sm:text-xl font-extrabold leading-tight" style={{ color: k.color }}>{k.val}</div>
                             <div className="text-[10px] font-semibold mt-0.5" style={{ color: k.color + 'aa' }}>{k.label}</div>
                         </div>
                     ))}
@@ -283,15 +283,15 @@ export function TrainingRecordTab() {
 
             <div className="space-y-4">
                 {/* Filters */}
-                <div className="flex items-center gap-3 flex-wrap bg-card rounded-xl border border-border p-3">
-                    <div className="relative">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 sm:flex-wrap bg-card rounded-xl border border-border p-3">
+                    <div className="relative w-full sm:w-auto">
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                         <input type="text" value={search} onChange={e => setSearch(e.target.value)}
                             placeholder="Search name or ID…"
-                            className="pl-8 pr-3 py-1.5 text-xs border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 w-48" />
+                            className="pl-8 pr-3 py-1.5 text-xs border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 w-full sm:w-48" />
                     </div>
 
-                    <div className="flex items-center gap-1 ml-auto">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-1 sm:ml-auto">
                         <select
                             value={courseSelect}
                             onChange={e => {
@@ -303,7 +303,7 @@ export function TrainingRecordTab() {
                                 )
                                 if (category) setTab(category.key)
                             }}
-                            className="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-card text-foreground focus:outline-none border-border hover:border-border/80 mr-2 max-w-[200px]"
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-card text-foreground focus:outline-none border-border hover:border-border/80 sm:mr-2 min-w-0 flex-1 sm:flex-none max-w-full sm:max-w-[200px]"
                         >
                             <option value="All">All Courses</option>
                             {apiCourses.map(c => (
@@ -313,7 +313,7 @@ export function TrainingRecordTab() {
                         <select
                             value={monthFilter}
                             onChange={e => setMonthFilter(e.target.value)}
-                            className="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-card text-foreground focus:outline-none border-border hover:border-border/80 mr-2"
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-card text-foreground focus:outline-none border-border hover:border-border/80 sm:mr-2 shrink-0"
                         >
                             {MONTH_FILTERS.map(m => (
                                 <option key={m.value} value={m.value}>{m.label}</option>
@@ -339,7 +339,7 @@ export function TrainingRecordTab() {
                     <div ref={tabsContainerRef} className="flex min-w-0 gap-0.5 relative z-10">
                         {visibleTabs.map(t => (
                             <button key={t.key} onClick={() => setTab(t.key)}
-                                className={`px-5 py-2 rounded-t-xl text-xs font-bold border cursor-pointer transition-all ${tab === t.key
+                                className={`min-w-0 truncate px-3 sm:px-5 py-2 rounded-t-xl text-xs font-bold border cursor-pointer transition-all ${tab === t.key
                                     ? 'bg-muted text-foreground border-border z-10 relative'
                                     : 'bg-card text-muted-foreground border-border/50 hover:text-foreground'
                                     }`}>
@@ -422,7 +422,7 @@ export function TrainingRecordTab() {
                 </div>
 
                 {/* Legend */}
-                <div className="flex items-center gap-4 flex-wrap">
+                <div className="flex items-center gap-x-4 gap-y-1.5 flex-wrap">
                     {Object.entries(STATUS_META).map(([k, m]) => (
                         <div key={k} className="flex items-center gap-1.5 text-xs text-muted-foreground">
                             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: m.dot }} />
@@ -430,7 +430,7 @@ export function TrainingRecordTab() {
                                 k === 'expired' ? 'Expired' : k === 'na' ? 'N/A' : 'No data'}
                         </div>
                     ))}
-                    <span className="ml-auto text-[10px] text-muted-foreground">
+                    <span className="w-full sm:w-auto sm:ml-auto text-[10px] text-muted-foreground">
                         Showing {sorted.length} of {stats.total} staff · Click row to expand
                     </span>
                 </div>

@@ -234,88 +234,90 @@ export function AuthMatrix({ staff, customers, pagination }: AuthMatrixProps) {
     return (
         <>
             {/* Airline Column Filter Bar */}
-            <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-muted/20">
-                <div className="relative" ref={dropdownRef}>
-                    <button
-                        onClick={() => setShowDropdown(v => !v)}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all ${
-                            isColumnFiltered
-                                ? 'bg-primary/10 text-primary border-primary/30'
-                                : 'bg-white text-muted-foreground border-border hover:border-primary/40 hover:text-foreground'
-                        }`}
-                    >
-                        <Filter className="w-3 h-3" />
-                        Airlines
-                        {isColumnFiltered && (
-                            <span className="bg-primary text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none">
-                                {airlineFilter.size}/{allIds.length}
-                            </span>
-                        )}
-                    </button>
-                    {showDropdown && (
-                        <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-xl border border-border shadow-xl z-50 p-2 animate-in fade-in slide-in-from-top-1 duration-150">
-                            <div className="flex items-center justify-between px-2 pb-2 mb-2 border-b border-border">
-                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Show Columns</span>
-                                <div className="flex gap-1.5">
-                                    <button onClick={selectAll} className="text-[10px] text-primary hover:underline font-medium">All</button>
-                                    <span className="text-muted-foreground/40">|</span>
-                                    <button onClick={deselectAll} className="text-[10px] text-primary hover:underline font-medium">Reset</button>
+            <div className="flex flex-wrap items-center justify-between gap-2 px-3 sm:px-4 py-2 sm:py-2.5 border-b border-border bg-muted/20">
+                <div className="flex items-center gap-2 flex-wrap">
+                    <div className="relative" ref={dropdownRef}>
+                        <button
+                            onClick={() => setShowDropdown(v => !v)}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all ${
+                                isColumnFiltered
+                                    ? 'bg-primary/10 text-primary border-primary/30'
+                                    : 'bg-white text-muted-foreground border-border hover:border-primary/40 hover:text-foreground'
+                            }`}
+                        >
+                            <Filter className="w-3 h-3" />
+                            Airlines
+                            {isColumnFiltered && (
+                                <span className="bg-primary text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                                    {airlineFilter.size}/{allIds.length}
+                                </span>
+                            )}
+                        </button>
+                        {showDropdown && (
+                            <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-xl border border-border shadow-xl z-50 p-2 animate-in fade-in slide-in-from-top-1 duration-150">
+                                <div className="flex items-center justify-between px-2 pb-2 mb-2 border-b border-border">
+                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Show Columns</span>
+                                    <div className="flex gap-1.5">
+                                        <button onClick={selectAll} className="text-[10px] text-primary hover:underline font-medium">All</button>
+                                        <span className="text-muted-foreground/40">|</span>
+                                        <button onClick={deselectAll} className="text-[10px] text-primary hover:underline font-medium">Reset</button>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-0.5 max-h-[240px] overflow-y-auto">
-                                {customers.map(c => (
-                                    <button
-                                        key={c.id}
-                                        onClick={() => toggleAirline(c.id)}
-                                        className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-all text-[11px] ${
-                                            airlineFilter.has(c.id)
-                                                ? 'bg-primary/10 text-foreground font-semibold'
-                                                : 'text-muted-foreground hover:bg-muted/50'
-                                        }`}
-                                    >
-                                        <div
-                                            className={`w-3 h-3 rounded border-2 flex items-center justify-center transition-all ${
+                                <div className="grid grid-cols-2 gap-0.5 max-h-[240px] overflow-y-auto">
+                                    {customers.map(c => (
+                                        <button
+                                            key={c.id}
+                                            onClick={() => toggleAirline(c.id)}
+                                            className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-all text-[11px] ${
                                                 airlineFilter.has(c.id)
-                                                    ? 'border-primary bg-primary'
-                                                    : 'border-slate-300 bg-white'
+                                                    ? 'bg-primary/10 text-foreground font-semibold'
+                                                    : 'text-muted-foreground hover:bg-muted/50'
                                             }`}
                                         >
-                                            {airlineFilter.has(c.id) && (
-                                                <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                                </svg>
-                                            )}
-                                        </div>
-                                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.color }} />
-                                        {c.code}
-                                    </button>
-                                ))}
+                                            <div
+                                                className={`w-3 h-3 rounded border-2 flex items-center justify-center transition-all ${
+                                                    airlineFilter.has(c.id)
+                                                        ? 'border-primary bg-primary'
+                                                        : 'border-slate-300 bg-white'
+                                                }`}
+                                            >
+                                                {airlineFilter.has(c.id) && (
+                                                    <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                )}
+                                            </div>
+                                            <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.color }} />
+                                            {c.code}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
+                        )}
+                    </div>
+                    {isColumnFiltered && (
+                        <>
+                            <span className="text-[11px] text-muted-foreground">
+                                {airlineFilter.size} of {allIds.length} airlines
+                            </span>
+                            <button
+                                onClick={deselectAll}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold text-red-500 bg-red-50 border border-red-200 hover:bg-red-100 transition-all"
+                            >
+                                <X className="w-3 h-3" />
+                                Clear
+                            </button>
+                        </>
                     )}
                 </div>
-                {isColumnFiltered && (
-                    <>
-                        <span className="text-[11px] text-muted-foreground">
-                            {airlineFilter.size} of {allIds.length} airlines
-                        </span>
-                        <button
-                            onClick={deselectAll}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold text-red-500 bg-red-50 border border-red-200 hover:bg-red-100 transition-all"
-                        >
-                            <X className="w-3 h-3" />
-                            Clear
-                        </button>
-                    </>
-                )}
             </div>
 
             {/* ── Table ── */}
-            <div className="overflow-x-auto relative" ref={tableContainerRef}>
+            <div className="overflow-x-auto relative w-full" ref={tableContainerRef}>
                 <table className="w-full border-collapse text-xs">
                     <thead>
                         <tr className="bg-muted/50 border-b-2 border-border">
-                            <th className="px-3 py-2 text-left text-muted-foreground font-bold whitespace-nowrap cursor-pointer hover:text-foreground transition-colors select-none" style={{ minWidth: 220 }} onClick={() => handleSort('name')}>
+                            <th className="px-3 py-2 text-left text-muted-foreground font-bold whitespace-nowrap cursor-pointer hover:text-foreground transition-colors select-none sticky left-0 z-10 bg-slate-50 border-r border-border" style={{ minWidth: 190 }} onClick={() => handleSort('name')}>
                                 <span className="inline-flex items-center gap-1">Employee Name <SortIcon field="name" /></span>
                             </th>
                             <th className="px-3 py-2 text-left text-muted-foreground font-bold whitespace-nowrap border-l border-border" style={{ minWidth: 130 }}>
@@ -384,13 +386,17 @@ export function AuthMatrix({ staff, customers, pagination }: AuthMatrixProps) {
                                         ri % 2 === 0 ? 'bg-card' : 'bg-muted/20'
                                     } hover:bg-muted/40`}
                                 >
-                                    <td className="px-3 py-1.5">
+                                    <td className={`px-3 py-1.5 sticky left-0 z-10 border-r border-border transition-colors ${
+                                        hasIssue
+                                            ? (ri % 2 === 0 ? 'bg-amber-50' : 'bg-amber-100/70')
+                                            : (ri % 2 === 0 ? 'bg-white' : 'bg-slate-50')
+                                    }`}>
                                         <div className="flex items-center gap-2.5">
                                             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-500">
                                                 <UserRound className="h-3.5 w-3.5" strokeWidth={1.5} />
                                             </div>
                                             <div className="min-w-0">
-                                                <div className="font-semibold text-foreground whitespace-nowrap">{s.name}</div>
+                                                <div className="font-semibold text-foreground whitespace-nowrap truncate max-w-[140px] sm:max-w-none">{s.name}</div>
                                                 <div className="text-[10px] text-primary font-bold">{s.staffId}</div>
                                             </div>
                                         </div>
@@ -451,14 +457,14 @@ export function AuthMatrix({ staff, customers, pagination }: AuthMatrixProps) {
             </div>
 
             {/* Pagination & Footer */}
-            <div className="flex items-center justify-between border border-t-0 border-border px-4 py-3 bg-white rounded-b-xl">
-                <div className="text-xs font-medium text-muted-foreground">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border border-t-0 border-border px-3 sm:px-4 py-3 bg-white rounded-b-xl">
+                <div className="text-xs font-medium text-muted-foreground text-center sm:text-left">
                     Showing <span className="font-semibold text-foreground">{totalEntries === 0 ? 0 : pageIndex * pageSize + 1}</span> to <span className="font-semibold text-foreground">{Math.min(pageIndex * pageSize + paginatedStaff.length, totalEntries)}</span> of <span className="font-semibold text-foreground">{totalEntries}</span> entries
                 </div>
                 
                 {totalPages > 1 && (
-                    <Pagination className="w-auto mx-0">
-                        <PaginationContent className="gap-1.5">
+                    <Pagination className="w-auto mx-0 justify-center">
+                        <PaginationContent className="gap-1 sm:gap-1.5 flex-wrap justify-center">
                             <PaginationItem>
                                 <PaginationLink 
                                     href="#" 

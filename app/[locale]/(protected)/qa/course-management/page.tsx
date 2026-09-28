@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useRef } from 'react'
-import { Plus, Building2, Briefcase, Wrench, ShieldCheck, Upload } from 'lucide-react'
+import { Plus, Building2, Briefcase, Wrench, ShieldCheck, Upload, SlidersHorizontal, ChevronDown } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -37,6 +37,7 @@ export default function CourseManagementPage() {
     const [editingCourse, setEditingCourse] = useState<Course | null>(null)
     const [coursePendingDelete, setCoursePendingDelete] = useState<Course | null>(null)
     const [expandedDept, setExpandedDept] = useState<string | null>(null)
+    const [showMobileFilters, setShowMobileFilters] = useState(false)
     const [importFile, setImportFile] = useState<File | null>(null)
     const importFileInputRef = useRef<HTMLInputElement>(null)
 
@@ -148,14 +149,14 @@ export default function CourseManagementPage() {
 
     return (
         <>
-            <div>
-                <Card>
-                    <CardHeader className="pb-4">
-                        <CardTitle>Course Management</CardTitle>
-                        <CardDescription>
+            <div className="w-full min-w-0 overflow-x-clip">
+                <Card className="w-full min-w-0 overflow-x-clip">
+                    <CardHeader className="p-4 sm:p-6 pb-3 sm:pb-4">
+                        <CardTitle className="text-base sm:text-xl">Course Management</CardTitle>
+                        <CardDescription className="text-xs sm:text-sm">
                             Manage training courses and requirements
                         </CardDescription>
-                        <div className="flex items-center gap-2 ml-auto">
+                        <div className="grid grid-cols-2 gap-2 pt-1 sm:flex sm:items-center sm:ml-auto sm:pt-0">
                             <PermissionActionGuard menuCode="QA_MONITORING" action="canCreate">
                                 <input
                                     ref={importFileInputRef}
@@ -168,21 +169,21 @@ export default function CourseManagementPage() {
                                         e.target.value = ''
                                     }}
                                 />
-                                <Button variant="outline" onClick={() => importFileInputRef.current?.click()}>
+                                <Button variant="outline" size="sm" className="sm:h-10 sm:px-4" onClick={() => importFileInputRef.current?.click()}>
                                     <Upload className="h-4 w-4 mr-2" />
                                     Import
                                 </Button>
-                                <Button onClick={() => setShowAddModal(true)} color="primary">
+                                <Button size="sm" className="sm:h-10 sm:px-4" onClick={() => setShowAddModal(true)} color="primary">
                                     <Plus className="h-4 w-4 mr-2" />
                                     Add Course
                                 </Button>
                             </PermissionActionGuard>
                         </div>
                     </CardHeader>
-                    <CardContent>
-                        <div className="flex gap-6">
+                    <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0 min-w-0">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:gap-6">
                             {/* ── Sidebar ── */}
-                            <aside className="w-52 shrink-0 space-y-4">
+                            <aside className="w-full min-w-0 space-y-3 lg:w-52 lg:shrink-0 lg:space-y-4">
                                 {/* Tab Toggle */}
                                 <div className="flex gap-1 bg-muted p-1 rounded-lg">
                                     {(['courses', 'matrix'] as const).map(tab => (
@@ -199,6 +200,22 @@ export default function CourseManagementPage() {
                                     ))}
                                 </div>
 
+                                {/* Mobile filter toggle */}
+                                <button
+                                    type="button"
+                                    onClick={() => setShowMobileFilters(v => !v)}
+                                    aria-expanded={showMobileFilters}
+                                    className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground lg:hidden"
+                                >
+                                    <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="min-w-0 flex-1 truncate text-left">
+                                        {apiDepartments.find(d => d.id === selectedDept)?.name ?? 'All Departments'}
+                                        {selectedCategory !== 'All' && ` · ${selectedCategory}`}
+                                    </span>
+                                    <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${showMobileFilters ? 'rotate-180' : ''}`} />
+                                </button>
+
+                                <div className={`${showMobileFilters ? 'block' : 'hidden'} space-y-4 rounded-lg border border-border p-3 lg:block lg:rounded-none lg:border-0 lg:p-0`}>
                                 {/* Department Filter */}
                                 <div>
                                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Departments</p>
@@ -290,6 +307,7 @@ export default function CourseManagementPage() {
                                         ))}
                                     </div>
                                 </div>
+                                </div>
                             </aside>
 
                             {/* ── Main Content ── */}
@@ -298,7 +316,7 @@ export default function CourseManagementPage() {
                                     {activeTab === 'courses' ? (
                                         <>
                                             {/* Stats Row */}
-                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
                                                 <StatCard label="Total Courses" value={stats.total} color="hsl(var(--primary))" />
                                                 <StatCard label="Recurrent" value={stats.recurrent} color="#0ea5e9" />
                                                 <StatCard label="Initial" value={stats.initial} color="#6366f1" />
@@ -399,12 +417,12 @@ export default function CourseManagementPage() {
 // ── Stat Card ──
 function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
     return (
-        <div className="bg-card rounded-xl border border-border p-4">
-            <div className="flex items-center justify-between mb-2">
-                <p className="text-xs text-muted-foreground">{label}</p>
-                <div className="w-2 h-2 rounded-full" style={{ background: color }} />
+        <div className="min-w-0 bg-card rounded-xl border border-border p-3 sm:p-4">
+            <div className="flex items-center justify-between gap-2 mb-1 sm:mb-2">
+                <p className="truncate text-[11px] sm:text-xs text-muted-foreground">{label}</p>
+                <div className="w-2 h-2 shrink-0 rounded-full" style={{ background: color }} />
             </div>
-            <p className="text-2xl font-semibold" style={{ color }}>{value}</p>
+            <p className="text-xl sm:text-2xl font-semibold" style={{ color }}>{value}</p>
         </div>
     )
 }

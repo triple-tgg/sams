@@ -1,4 +1,5 @@
 import axiosConfig from "@/lib/axios.config";
+import { fetchAircraftTypes, type AircraftType } from "../aircraft-types/aircraft-types";
 import type {
   AircraftEngineCombination,
   AircraftSystemConfig,
@@ -34,18 +35,6 @@ export interface AuthGroupInput {
 }
 
 export type AuthGroupTransition = "SUBMIT" | "PUBLISH" | "REJECT";
-
-export interface SystemConfigInput {
-  icaoCode: string;
-  familyCode: string;
-  modelVariant: string;
-  classicNeo: ClassicNeo;
-  engineCount: number;
-  generatorCount: number;
-  hydraulicCount: number;
-  hasApu: boolean;
-  isNew: boolean;
-}
 
 export type EngineInput = Pick<EngineMaster, "engineCode" | "engineName" | "manufacturer" | "notes">;
 
@@ -256,26 +245,31 @@ export function normalizeAuthGroup(record: UnknownRecord): AuthorizationTypeGrou
   };
 }
 
-export function normalizeSystemConfig(record: UnknownRecord): AircraftSystemConfig {
-  const icaoCode = stringAt(record, ["icaoCode", "icao_code"]);
-  const familyCode = stringAt(record, ["familyCode", "family_code"]);
-  if (!icaoCode || !familyCode) {
-    throw new AircraftEngineApiError("System config response is missing icaoCode or familyCode", "INVALID_RESPONSE");
-  }
-  const classicNeoValue = stringAt(record, ["classicNeo", "classic_neo"], "CLASSIC").toUpperCase();
+/**
+ * Aircraft system config is now sourced from Aircraft Types (POST /master/aircraftTypes/list) — the
+ * same records shown in Master Data > Aircraft system config. The legacy /master/aircraft-system-config
+ * endpoint is no longer used. `familyCode` is the "Family" column (modelName) so it matches
+ * Aircraft-Engine combinations.
+ */
+export function aircraftTypeToSystemConfig(type: AircraftType): AircraftSystemConfig {
+  const count = (...flags: boolean[]) => flags.filter(Boolean).length;
   return {
-    icaoCode,
-    familyCode,
-    modelVariant: stringAt(record, ["modelVariant", "model_variant"]),
-    classicNeo: (classicNeoValue === "NEO" ? "NEO" : "CLASSIC") as ClassicNeo,
-    engineCount: numberAt(record, ["engineCount", "engine_count"]),
-    generatorCount: numberAt(record, ["generatorCount", "generator_count"]),
-    hydraulicCount: numberAt(record, ["hydraulicCount", "hydraulic_count"]),
-    hasApu: booleanAt(record, ["hasApu", "has_apu"]),
-    legacyEngineLabel: optionalStringAt(record, ["legacyEngineLabel", "legacy_engine_label"]),
-    updatedBy: updatedBy(record),
-    updatedAtUtc: updatedAtUtc(record),
+    icaoCode: type.code,
+    familyCode: (type.modelName || type.familyCode || "").trim(),
+    modelVariant: type.modelSubName || "",
+    classicNeo: ((type.classicOrNeo || "").toUpperCase() === "NEO" ? "NEO" : "CLASSIC") as ClassicNeo,
+    engineCount: count(type.flagEnging1, type.flagEnging2, type.flagEnging3, type.flagEnging4),
+    generatorCount: count(type.flagCsd1, type.flagCsd2, type.flagCsd3, type.flagCsd4),
+    hydraulicCount: count(type.flagHydrolicGreen, type.flagHydrolicBlue, type.flagHydrolicYellow),
+    hasApu: Boolean(type.flagApu),
+    updatedBy: type.updatedBy || type.createdBy || "",
+    updatedAtUtc: type.updatedDate || type.createdDate || "",
   };
+}
+
+/** Active aircraft types mapped to the system-config shape. */
+export function toSystemConfigs(types: AircraftType[]): AircraftSystemConfig[] {
+  return types.filter((type) => !type.isDelete && type.code).map(aircraftTypeToSystemConfig);
 }
 
 function normalizeRequestError(error: unknown, fallback: string): AircraftEngineApiError {
@@ -396,23 +390,8 @@ export async function transitionAuthGroup(groupId: string, action: AuthGroupTran
 
 export async function fetchSystemConfigs(): Promise<AircraftSystemConfig[]> {
   try {
-    const response = await axiosConfig.get("/master/aircraft-system-config");
-    return extractList(response.data, "aircraft system config").map(normalizeSystemConfig);
+    return toSystemConfigs(await fetchAircraftTypes());
   } catch (error) {
     throw normalizeRequestError(error, "Failed to fetch aircraft system configs");
   }
-}
-
-export async function upsertSystemConfig(input: SystemConfigInput): Promise<void> {
-  await writeRequest(
-    () => axiosConfig.post("/master/aircraft-system-config", input),
-    "Failed to save aircraft system config",
-  );
-}
-
-export async function deleteSystemConfig(icaoCode: string): Promise<void> {
-  await writeRequest(
-    () => axiosConfig.delete(`/master/aircraft-system-config/${encodeURIComponent(icaoCode)}`),
-    "Failed to delete aircraft system config",
-  );
 }

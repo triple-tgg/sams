@@ -139,7 +139,8 @@ export interface AircraftSystemConfig {
 export type DataQualityCategory =
   | "MISSING_CONFIG" // family in combinations but absent from system config (or reverse)
   | "NAMING" // engine label elsewhere doesn't match engine_master exactly
-  | "DUPLICATE_ICAO"; // ICAO code duplicated
+  | "DUPLICATE_ICAO" // ICAO code duplicated
+  | "NO_COMBINATION"; // aircraft system config (ICAO) whose family has no Aircraft-Engine combination
 
 /** Banner severity. A single `red` finding escalates the whole banner (CR-1). */
 export type DataQualitySeverity = "amber" | "red";
@@ -152,6 +153,15 @@ export interface DataQualityFinding {
   severity?: DataQualitySeverity;
   /** Suggested correction (e.g. the nearest engine_master name). */
   suggestion?: string;
+  /** NO_COMBINATION: default values for the "Add Aircraft-Engine combination" form. */
+  combinationPrefill?: CombinationPrefill;
+}
+
+/** Initial values for the Add Aircraft-Engine combination form. */
+export interface CombinationPrefill {
+  icaoCode: string;
+  familyCode: string;
+  series: string;
 }
 
 // ── Referential-integrity guard result (soft-block deletes) ───

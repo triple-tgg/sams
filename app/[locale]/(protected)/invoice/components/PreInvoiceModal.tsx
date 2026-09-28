@@ -22,11 +22,16 @@ export function PreInvoiceModal({ open, onOpenChange, lineMaintenanceIds }: PreI
     const mapContractsMutation = useMapContractsV2();
 
     const handleSubmit = async () => {
-        if (!lineMaintenanceIds.length) return;
-        
-        await mapContractsMutation.mutateAsync({
-            lineMaintenanceIdLiist: lineMaintenanceIds,
-        });
+        if (!lineMaintenanceIds.length || mapContractsMutation.isProcessing) return;
+
+        try {
+            await mapContractsMutation.mutateAsync({
+                lineMaintenanceIdLiist: lineMaintenanceIds,
+            });
+        } catch {
+            // Toasts (incl. the "still processing" timeout notice) are handled in useMapContractsV2
+            return;
+        }
 
         // Any revised items that were mapped into Pre-Invoice are now settled
         lineMaintenanceIds.forEach(id => {
@@ -81,9 +86,9 @@ export function PreInvoiceModal({ open, onOpenChange, lineMaintenanceIds }: PreI
                     </Button>
                     <Button 
                         onClick={handleSubmit} 
-                        disabled={mapContractsMutation.isPending || !currencyRate || lineMaintenanceIds.length === 0}
+                        disabled={mapContractsMutation.isProcessing || !currencyRate || lineMaintenanceIds.length === 0}
                     >
-                        {mapContractsMutation.isPending ? "Processing..." : "Confirm"}
+                        {mapContractsMutation.isProcessing ? "Processing..." : "Confirm"}
                     </Button>
                 </DialogFooter>
             </DialogContent>

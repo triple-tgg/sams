@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Search, Plus, Edit2, Trash2, RotateCw, AlertTriangle, Ban, ChevronsUpDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -18,7 +18,7 @@ import {
 import { useAircraftTypes } from "@/lib/api/master/aircraft-types/aircraft-types.hooks";
 import type { AircraftType } from "@/lib/api/master/aircraft-types/aircraft-types";
 import { buildDisplayLabel, checkCombinationReferences } from "@/lib/api/master/aircraft-engine/aircraftEngine.validation";
-import type { AircraftEngineCombination, EngineMaster } from "@/lib/api/master/aircraft-engine/aircraftEngine.types";
+import type { AircraftEngineCombination, CombinationPrefill, EngineMaster } from "@/lib/api/master/aircraft-engine/aircraftEngine.types";
 import { AE_MENU, Chip, UpdatedMeta, th } from "./shared";
 
 interface FormState {
@@ -34,7 +34,14 @@ const emptyForm: FormState = { icaoCode: "", familyCode: "", series: "", engineC
 
 const SIMILAR_TECHNOLOGY_OPTIONS = ["Group 1", "Group 2", "Group 3"];
 
-export function CombinationsTab() {
+export function CombinationsTab({
+  prefill,
+  onPrefillConsumed,
+}: {
+  /** When set, opens the Add form with these default values (from the data-quality banner). */
+  prefill?: CombinationPrefill | null;
+  onPrefillConsumed?: () => void;
+} = {}) {
   const { data: combinations = [], isFetching } = useCombinations();
   const { data: engines = [] } = useEngines();
   const { data: aircraftTypes = [] } = useAircraftTypes();
@@ -58,9 +65,11 @@ export function CombinationsTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [combinations, engines, search]);
 
-  const uniqueFamilyCodes = useMemo(() => {
+  // Family options = the "Family" column of Aircraft system config (modelName), deduplicated and
+  // narrowed to the selected ICAO code. Not familyCode — that field can hold ICAO-style codes (e.g. A32N).
+  const familyOptions = useMemo(() => {
     const list = form.icaoCode ? aircraftTypes.filter((t: AircraftType) => t.code === form.icaoCode) : aircraftTypes;
-    return Array.from(new Set(list.map((t: AircraftType) => t.familyCode).filter(Boolean))) as string[];
+    return Array.from(new Set(list.map((t: AircraftType) => t.modelName).filter(Boolean))) as string[];
   }, [aircraftTypes, form.icaoCode]);
 
   const previewLabel = (() => {
@@ -70,8 +79,17 @@ export function CombinationsTab() {
   })();
 
   const openAdd = () => { setForm(emptyForm); setModalMode("add"); };
+
+  useEffect(() => {
+    if (!prefill) return;
+    setForm({ ...emptyForm, ...prefill });
+    setModalMode("add");
+    onPrefillConsumed?.();
+  }, [prefill, onPrefillConsumed]);
   const openEdit = (c: AircraftEngineCombination) => {
-    const match = aircraftTypes.find((t: AircraftType) => t.familyCode === c.familyCode) || aircraftTypes.find((t: AircraftType) => t.code === c.familyCode);
+    const match = aircraftTypes.find((t: AircraftType) => t.modelName === c.familyCode)
+      || aircraftTypes.find((t: AircraftType) => t.familyCode === c.familyCode)
+      || aircraftTypes.find((t: AircraftType) => t.code === c.familyCode);
     setForm({ id: c.id, icaoCode: match?.code || c.familyCode, familyCode: c.familyCode, series: c.series, engineCode: c.engineCode, similarTechnology: c.similarTechnology || "" });
     setModalMode("edit");
   };
@@ -213,7 +231,7 @@ export function CombinationsTab() {
                             value={fam.code}
                             onSelect={(v) => {
                               const match = aircraftTypes.find((t: AircraftType) => t.code === v.toUpperCase());
-                              setForm((f) => ({ ...f, icaoCode: v.toUpperCase(), familyCode: match?.familyCode || v.toUpperCase() }));
+                              setForm((f) => ({ ...f, icaoCode: v.toUpperCase(), familyCode: match?.modelName || match?.familyCode || v.toUpperCase() }));
                               setFamilyOpen(false);
                             }}
                           >
@@ -227,12 +245,12 @@ export function CombinationsTab() {
                 </Popover>
               </div>
               <div>
-                <Label className="text-xs font-medium text-slate-600">Family Code</Label>
+                <Label className="text-xs font-medium text-slate-600">Family</Label>
                 <Select value={form.familyCode} onValueChange={(v) => setForm((f) => ({ ...f, familyCode: v }))}>
-                  <SelectTrigger className={cn("mt-1 h-9 text-sm", !form.familyCode && "text-muted-foreground")}><SelectValue placeholder="Select Family Code" /></SelectTrigger>
+                  <SelectTrigger className={cn("mt-1 h-9 text-sm", !form.familyCode && "text-muted-foreground")}><SelectValue placeholder="Select Family" /></SelectTrigger>
                   <SelectContent>
-                    {uniqueFamilyCodes.map((code) => (
-                      <SelectItem key={code} value={code}>{code}</SelectItem>
+                    {familyOptions.map((family) => (
+                      <SelectItem key={family} value={family}>{family}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

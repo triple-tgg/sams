@@ -11,7 +11,6 @@ vi.mock("@/lib/axios.config", () => ({ default: axiosMock }));
 import {
   deleteCombination,
   deleteEngine,
-  deleteSystemConfig,
   fetchAuthGroups,
   fetchCombinations,
   fetchEngines,
@@ -20,7 +19,6 @@ import {
   transitionAuthGroup,
   upsertCombination,
   upsertEngine,
-  upsertSystemConfig,
 } from "./aircraftEngine";
 
 const ok = (responseData: unknown = null) => ({ data: { message: "success", responseData, error: "" } });
@@ -100,24 +98,31 @@ describe("Aircraft-Engine API contract", () => {
     });
   });
 
-  it("loads and normalizes aircraft system config", async () => {
-    axiosMock.get.mockResolvedValue(ok([{
-      icao_code: "B738",
-      family_code: "B737",
-      model_variant: "737-800",
-      classic_neo: "CLASSIC",
-      engine_count: 2,
-      generator_count: 2,
-      hydraulic_count: 3,
-      has_apu: true,
-    }]));
+  it("loads aircraft system config from Aircraft Types (not the legacy aircraft-system-config endpoint)", async () => {
+    axiosMock.post.mockResolvedValue(ok([
+      {
+        id: 1, code: "B738", name: "B738", modelName: "B737", modelSubName: "B737-800",
+        classicOrNeo: "CLASSIC", familyCode: "B38X",
+        flagEnging1: true, flagEnging2: true, flagEnging3: false, flagEnging4: false,
+        flagCsd1: true, flagCsd2: true, flagCsd3: false, flagCsd4: false,
+        flagHydrolicGreen: true, flagHydrolicBlue: false, flagHydrolicYellow: true,
+        flagApu: true,
+      },
+      { id: 2, code: "OLD1", modelName: "OLD", isDelete: true },
+    ]));
 
     await expect(fetchSystemConfigs()).resolves.toEqual([expect.objectContaining({
       icaoCode: "B738",
-      familyCode: "B737",
+      familyCode: "B737", // Family column (modelName), not the raw familyCode field
+      modelVariant: "B737-800",
+      classicNeo: "CLASSIC",
+      engineCount: 2,
+      generatorCount: 2,
+      hydraulicCount: 2,
       hasApu: true,
     })]);
-    expect(axiosMock.get).toHaveBeenCalledWith("/master/aircraft-system-config");
+    expect(axiosMock.post).toHaveBeenCalledWith("/master/aircraftTypes/list", { page: 1, perPage: 500 });
+    expect(axiosMock.get).not.toHaveBeenCalledWith("/master/aircraft-system-config");
   });
 
   it("sends engine and combination upserts with the Postman request shapes", async () => {
@@ -183,25 +188,14 @@ describe("Aircraft-Engine API contract", () => {
     });
   });
 
-  it("sends system-config upsert and all documented delete requests", async () => {
-    axiosMock.post.mockResolvedValue(ok());
+  it("sends all documented delete requests", async () => {
     axiosMock.delete.mockResolvedValue(ok());
 
-    await upsertSystemConfig({
-      icaoCode: "B738", familyCode: "B737", modelVariant: "737-800 (NG)",
-      classicNeo: "CLASSIC", engineCount: 2, generatorCount: 2,
-      hydraulicCount: 3, hasApu: true, isNew: true,
-    });
-    await deleteSystemConfig("B738");
     await deleteEngine("CFM56");
     await deleteCombination(1);
 
-    expect(axiosMock.post).toHaveBeenCalledWith("/master/aircraft-system-config", expect.objectContaining({
-      icaoCode: "B738", isNew: true,
-    }));
-    expect(axiosMock.delete).toHaveBeenNthCalledWith(1, "/master/aircraft-system-config/B738");
-    expect(axiosMock.delete).toHaveBeenNthCalledWith(2, "/master/engine/CFM56");
-    expect(axiosMock.delete).toHaveBeenNthCalledWith(3, "/master/aircraft-engine-combination/1");
+    expect(axiosMock.delete).toHaveBeenNthCalledWith(1, "/master/engine/CFM56");
+    expect(axiosMock.delete).toHaveBeenNthCalledWith(2, "/master/aircraft-engine-combination/1");
   });
 
   it("rejects a success-status response that carries an envelope error", async () => {

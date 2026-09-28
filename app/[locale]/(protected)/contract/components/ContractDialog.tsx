@@ -469,22 +469,22 @@ export const ContractDialog = ({
     if (isViewMode) {
         return (
             <Dialog open={open} onOpenChange={handleClose}>
-                <DialogContent size="lg" className="max-h-[95vh] overflow-hidden p-0">
-                    <div className="h-[90vh] flex flex-col">
+                <DialogContent size="lg" className="grid-cols-1 w-screen max-w-none h-dvh max-h-dvh rounded-none border-0 md:w-[90%] md:max-w-[90%] md:h-auto md:max-h-[95vh] md:rounded-lg md:border overflow-hidden p-0">
+                    <div className="h-full min-h-0 min-w-0 md:h-[90vh] flex flex-col">
                         {/* Header */}
-                        <div className="flex items-center justify-between px-6 py-4 border-b bg-background">
-                            <div>
-                                <DialogTitle className="text-lg font-semibold">View Contract</DialogTitle>
-                                <DialogDescription className="text-sm text-muted-foreground">Contract details and pricing information</DialogDescription>
+                        <div className="flex items-center justify-between px-4 py-2.5 pr-12 md:px-6 md:py-4 border-b bg-background">
+                            <div className="min-w-0">
+                                <DialogTitle className="text-sm md:text-lg font-semibold">View Contract</DialogTitle>
+                                <DialogDescription className="hidden md:block text-sm text-muted-foreground">Contract details and pricing information</DialogDescription>
                             </div>
                         </div>
 
                         {/* Tabs */}
-                        <div className="flex border-b bg-background px-6">
+                        <div className="flex border-b bg-background px-2 md:px-6">
                             <button
                                 onClick={() => setViewTab("info")}
                                 className={cn(
-                                    "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors",
+                                    "px-3 md:px-4 py-2 md:py-2.5 text-xs md:text-sm font-medium whitespace-nowrap border-b-2 transition-colors",
                                     viewTab === "info"
                                         ? "border-primary text-primary"
                                         : "border-transparent text-muted-foreground hover:text-foreground"
@@ -495,7 +495,7 @@ export const ContractDialog = ({
                             <button
                                 onClick={() => setViewTab("contacts")}
                                 className={cn(
-                                    "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors",
+                                    "px-3 md:px-4 py-2 md:py-2.5 text-xs md:text-sm font-medium whitespace-nowrap border-b-2 transition-colors",
                                     viewTab === "contacts"
                                         ? "border-primary text-primary"
                                         : "border-transparent text-muted-foreground hover:text-foreground"
@@ -511,11 +511,11 @@ export const ContractDialog = ({
                         </div>
 
                         {/* Tab Content */}
-                        <div className="flex-1 overflow-y-auto">
+                        <div className="flex-1 min-h-0 min-w-0 overflow-auto">
                             {viewTab === "info" ? (
                                 <ContractViewA4 formData={formData} isLoading={isLoadingContract} />
                             ) : (
-                                <div className="p-6 space-y-4">
+                                <div className="p-4 md:p-6 space-y-4">
                                     {isLoadingContract ? (
                                         <div className="flex items-center justify-center h-32">
                                             <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -545,14 +545,14 @@ export const ContractDialog = ({
                                                             <p className="text-xs text-muted-foreground">Contact #{index + 1}</p>
                                                         </div>
                                                     </div>
-                                                    <div className="grid grid-cols-2 gap-3 text-sm">
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                                                         <div>
                                                             <p className="text-xs text-muted-foreground mb-0.5">Phone</p>
                                                             <p className="font-medium">{contact.phoneNo || "-"}</p>
                                                         </div>
                                                         <div>
                                                             <p className="text-xs text-muted-foreground mb-0.5">Email</p>
-                                                            <p className="font-medium">{contact.email || "-"}</p>
+                                                            <p className="font-medium break-all">{contact.email || "-"}</p>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -564,8 +564,8 @@ export const ContractDialog = ({
                         </div>
 
                         {/* Footer */}
-                        <div className="px-6 py-4 border-t bg-background flex justify-end">
-                            <Button variant="outline" onClick={handleClose}>
+                        <div className="px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:px-6 md:py-4 border-t bg-background flex justify-end">
+                            <Button variant="outline" size="sm" className="h-8 md:h-10 md:px-4 md:text-sm" onClick={handleClose}>
                                 Close
                             </Button>
                         </div>
@@ -578,22 +578,22 @@ export const ContractDialog = ({
     // Render step wizard for create/edit mode
     return (
         <Dialog open={open} onOpenChange={handleClose}>
-            <DialogContent size="md" className="max-h-[90vh] overflow-hidden p-0">
-                <div className="flex h-[80vh]">
-                    {/* Left Sidebar - Vertical Stepper */}
-                    <div className="w-64 bg-primary text-primary-foreground p-6 flex flex-col">
-                        <DialogHeader className="mb-8">
-                            <DialogTitle className="text-primary-foreground text-lg">
+            <DialogContent size="md" className="w-screen max-w-none h-dvh max-h-dvh rounded-none border-0 md:w-[90%] md:max-w-[996px] md:h-auto md:max-h-[90vh] md:rounded-lg md:border overflow-hidden p-0">
+                <div className="flex h-full min-h-0 flex-col md:h-[80vh] md:flex-row">
+                    {/* Left Sidebar - Vertical Stepper (horizontal bar on mobile) */}
+                    <div className="w-full shrink-0 bg-primary text-primary-foreground px-3 pt-2.5 pb-2 md:w-64 md:p-6 flex flex-col">
+                        <DialogHeader className="mb-1.5 pr-8 space-y-0 text-left md:mb-8 md:pr-0 md:space-y-1.5">
+                            <DialogTitle className="text-primary-foreground text-sm md:text-lg">
                                 {getDialogTitle()}
                             </DialogTitle>
-                            <p className="text-primary-foreground/70 text-sm">
+                            <p className="hidden text-primary-foreground/70 text-sm md:block">
                                 {getDialogSubtitle()}
                             </p>
                         </DialogHeader>
 
                         {/* Steps */}
-                        <div className="flex-1 relative">
-                            <div className="space-y-2">
+                        <div className="relative md:flex-1">
+                            <div className="flex gap-1 md:flex-col md:gap-2">
                                 {FORM_STEPS.map((step) => {
                                     const isCompleted = currentStep > step.id;
                                     const isActive = currentStep === step.id;
@@ -609,15 +609,16 @@ export const ContractDialog = ({
                                             onClick={() => handleStepClick(step.id)}
                                             disabled={!isClickable}
                                             className={cn(
-                                                "w-full flex items-center gap-4 p-3 rounded-lg transition-all text-left",
+                                                "flex min-w-0 flex-1 items-center justify-center gap-1.5 px-1.5 py-1 rounded-md transition-all md:w-full md:flex-none md:justify-start md:gap-4 md:p-3 md:rounded-lg md:text-left",
                                                 isActive && "bg-white/20",
                                                 isClickable && !isActive && "hover:bg-white/10",
-                                                !isClickable && "opacity-50 cursor-not-allowed"
+                                                !isClickable && !isActive && "opacity-50 cursor-not-allowed",
+                                                isActive && "cursor-default"
                                             )}
                                         >
                                             <div
                                                 className={cn(
-                                                    "relative z-10 w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold border-2 transition-all",
+                                                    "relative z-10 w-5 h-5 shrink-0 rounded-full flex items-center justify-center text-[10px] font-semibold border md:border-2 transition-all md:w-10 md:h-10 md:text-sm",
                                                     isCompleted
                                                         ? "bg-white text-primary border-white"
                                                         : isActive
@@ -626,15 +627,15 @@ export const ContractDialog = ({
                                                 )}
                                             >
                                                 {isCompleted ? (
-                                                    <Check className="h-5 w-5" />
+                                                    <Check className="h-3 w-3 md:h-5 md:w-5" />
                                                 ) : (
                                                     step.id
                                                 )}
                                             </div>
-                                            <div className="flex-1">
+                                            <div className="min-w-0 md:flex-1">
                                                 <span
                                                     className={cn(
-                                                        "font-medium",
+                                                        "block truncate text-[11px] leading-tight font-medium md:whitespace-normal md:text-base md:leading-normal",
                                                         isActive || isCompleted
                                                             ? "text-primary-foreground"
                                                             : "text-primary-foreground/70"
@@ -644,7 +645,7 @@ export const ContractDialog = ({
                                                 </span>
                                             </div>
                                             {isActive && (
-                                                <ChevronRight className="h-5 w-5 text-primary-foreground" />
+                                                <ChevronRight className="hidden h-5 w-5 shrink-0 text-primary-foreground md:block" />
                                             )}
                                         </button>
                                     );
@@ -654,43 +655,43 @@ export const ContractDialog = ({
                     </div>
 
                     {/* Right Content Area */}
-                    <div className="flex-1 flex flex-col bg-background">
+                    <div className="flex-1 min-h-0 min-w-0 flex flex-col bg-background">
                         {/* Content Header */}
-                        <div className="p-6 border-b">
-                            <h3 className="text-lg font-semibold">
+                        <div className="hidden md:block md:p-6 border-b">
+                            <h3 className="text-base md:text-lg font-semibold">
                                 {FORM_STEPS[currentStep - 1].title}
                             </h3>
-                            <p className="text-sm text-muted-foreground">
+                            <p className="text-xs md:text-sm text-muted-foreground">
                                 {FORM_STEPS[currentStep - 1].titleEn}
                             </p>
                         </div>
 
                         {/* Step Content */}
-                        <div className="flex-1 overflow-y-auto p-6">
+                        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 md:p-6">
                             {renderStepContent()}
                         </div>
 
                         {/* Footer */}
-                        <DialogFooter className="p-6 border-t flex justify-between">
+                        <DialogFooter className="flex-row items-center justify-between gap-2 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:p-6 border-t">
                             <div>
                                 {currentStep > 1 && (
-                                    <Button onClick={handlePrev}>
+                                    <Button size="sm" className="h-8 md:h-10 md:px-4 md:text-sm" onClick={handlePrev}>
                                         <ChevronLeft className="h-4 w-4 mr-1" />
                                         Back
                                     </Button>
                                 )}
                             </div>
                             <div className="flex gap-2">
-                                <Button variant="outline" onClick={handleClose}>
+                                <Button size="sm" className="h-8 md:h-10 md:px-4 md:text-sm" variant="outline" onClick={handleClose}>
                                     Cancel
                                 </Button>
                                 {currentStep < FORM_STEPS.length ? (
-                                    <Button onClick={handleNext}>
+                                    <Button size="sm" className="h-8 md:h-10 md:px-4 md:text-sm" onClick={handleNext}>
                                         Next
                                         <ChevronRight className="h-4 w-4 ml-1" />
                                     </Button>
                                 ) : (
-                                    <Button onClick={handleSubmit} disabled={isSubmitting}>
+                                    <Button size="sm" className="h-8 md:h-10 md:px-4 md:text-sm" onClick={handleSubmit} disabled={isSubmitting}>
                                         {isSubmitting ? (
                                             <>
                                                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />

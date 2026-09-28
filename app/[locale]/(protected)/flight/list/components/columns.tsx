@@ -3,7 +3,8 @@ import { ColumnDef } from "@tanstack/react-table";
 import type { FlightItem } from "@/lib/api/flight/filghtlist.interface";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { CircleOff, MoreHorizontal, FileCheck, FilePenLine, Paperclip, SquarePen, Eye, Mail, BadgeDollarSign, AlertTriangle, Lock, LockKeyhole, RotateCcw, RefreshCw } from "lucide-react";
+import { CircleOff, MoreHorizontal, FileCheck, FilePenLine, Paperclip, SquarePen, Eye, Mail, BadgeDollarSign, AlertTriangle, Lock, LockKeyhole, RotateCcw, RefreshCw, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import clsx from "clsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatUtcToLocalDisplay } from "@/lib/utils/flightDatetime";
@@ -16,10 +17,13 @@ export function getFlightColumns({
   onPreviewTHF,
   onAttach,
   onCancel,
+  onDelete,
+  enableSelection = false,
   onSendEmail,
   isCancelLoading = false,
   hideStatusActions = false,
   onPreInvoice,
+  isPreInvoiceLoading = false,
   acTypeField = "code",
   onRequestRevision,
   onRequestUnlock,
@@ -31,10 +35,16 @@ export function getFlightColumns({
   onPreviewTHF?: (flight: FlightItem) => void;
   onAttach?: (filePath: string) => void;
   onCancel?: (flight: FlightItem) => void;
+  /** Delete Flight action (POST /flight/delete-flightinfos). Menu item is gated by FLIGHT › canDelete. */
+  onDelete?: (flight: FlightItem) => void;
+  /** Adds a leading checkbox column for multi-select delete. Pass only when the user has FLIGHT › canDelete. */
+  enableSelection?: boolean;
   onSendEmail?: (flight: FlightItem) => void;
   isCancelLoading?: boolean;
   hideStatusActions?: boolean;
   onPreInvoice?: (flight: FlightItem) => void;
+  /** Disables "Create Pre-Invoice" while a Pre-Invoice request is running / being re-checked. */
+  isPreInvoiceLoading?: boolean;
   /** Which field of acTypeObj the "A/C Type" column shows */
   acTypeField?: "code" | "familyCode";
   onRequestRevision?: (flight: FlightItem) => void;
@@ -42,7 +52,29 @@ export function getFlightColumns({
   onReviewUnlock?: (flight: FlightItem) => void;
   getRevisionRecord?: (flight: FlightItem) => ThfRevisionRecord | undefined;
 }): ColumnDef<FlightItem>[] {
+  const selectColumn: ColumnDef<FlightItem> = {
+    id: "select",
+    enableSorting: false,
+    enableHiding: false,
+    header: ({ table }) => (
+      <Checkbox
+        checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all flights on this page"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        disabled={!row.getCanSelect()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select flight"
+      />
+    ),
+  };
+
   return [
+    ...(enableSelection ? [selectColumn] : []),
     // {
     //   accessorKey: "status", header: "-",
     //   cell: ({ row }) => <div className="bg-primary/10 border-l-4 border-l-red-600 px-6 h-20"></div>
@@ -106,7 +138,8 @@ export function getFlightColumns({
         const isRevisionRequired = flight.state === "revision_required" || revRecord?.state === "revision_required";
         const isPendingUnlock = flight.state === "pending_unlock" || revRecord?.state === "pending_unlock";
         const isRevised = flight.mappingStatus === "REVISED" || revRecord?.mappingStatus === "REVISED";
-        const isLockedFromEdit = (flight.state === "save" || flight.state === "submitted") && !isRevisionRequired && !isPendingUnlock;
+        // THF is locked for editing only once a Pre-Invoice has been issued (isMapping from /flight/listdata)
+        const isLockedFromEdit = flight.isMapping === true && !isRevisionRequired && !isPendingUnlock;
 
         return (
           <div className="flex items-center justify-end gap-1.5">
@@ -196,13 +229,15 @@ export function getFlightColumns({
                       tabIndex={-1}
                       disabled
                     >
-                      <FileCheck className="h-4 w-4" />
+                      {isLockedFromEdit ? <Lock className="h-4 w-4" /> : <FileCheck className="h-4 w-4" />}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    {(flight.state === "save" || flight.state === "submitted")
-                      ? `Done (THF:${flight.thfNumber})`
-                      : `Draft (THF:${flight.thfNumber})`}
+                    {isLockedFromEdit
+                      ? `Locked – Pre-Invoice issued (THF:${flight.thfNumber})`
+                      : (flight.state === "save" || flight.state === "submitted")
+                        ? `Done (THF:${flight.thfNumber})`
+                        : `Draft (THF:${flight.thfNumber})`}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -265,17 +300,19 @@ export function getFlightColumns({
                   </PermissionActionGuard>
                 )}
 
-                {/* Engineer Request Edit (when THF is already saved/done) */}
-                {!hideStatusActions && (flight.state === "save" || flight.state === "submitted") && !isRevisionRequired && !isPendingUnlock && onRequestUnlock && (
-                  <DropdownMenuItem
-                    className="cursor-pointer text-blue-600 focus:text-blue-600"
-                    disabled={flight.statusObj?.code === "Cancel"}
-                    onSelect={() => onRequestUnlock(flight)}
-                    onClick={() => onRequestUnlock(flight)}
-                  >
-                    <LockKeyhole className="h-4 w-4 mr-2" />
-                    Request Edit
-                  </DropdownMenuItem>
+                {/* Engineer Request Edit (only when THF is locked by an issued Pre-Invoice) */}
+                {!hideStatusActions && isLockedFromEdit && onRequestUnlock && (
+                  <PermissionActionGuard menuCode="THF" action="canEdit">
+                    <DropdownMenuItem
+                      className="cursor-pointer text-blue-600 focus:text-blue-600"
+                      disabled={flight.statusObj?.code === "Cancel"}
+                      onSelect={() => onRequestUnlock(flight)}
+                      onClick={() => onRequestUnlock(flight)}
+                    >
+                      <LockKeyhole className="h-4 w-4 mr-2" />
+                      Request Edit
+                    </DropdownMenuItem>
+                  </PermissionActionGuard>
                 )}
 
                 {/* Accounting: Request Revision (in Invoice THF DOCUMENT) */}
@@ -320,7 +357,7 @@ export function getFlightColumns({
                 {onPreInvoice && (
                   <DropdownMenuItem
                     className="cursor-pointer"
-                    disabled={flight.statusObj?.code === "Cancel" || isRevisionRequired || isPendingUnlock}
+                    disabled={flight.statusObj?.code === "Cancel" || isRevisionRequired || isPendingUnlock || isPreInvoiceLoading}
                     onClick={() => onPreInvoice(flight)}
                   >
                     <BadgeDollarSign className="h-4 w-4 mr-2" />
@@ -346,6 +383,20 @@ export function getFlightColumns({
                     >
                       <CircleOff className="h-4 w-4 mr-2" />
                       Cancel Flight
+                    </DropdownMenuItem>
+                  </PermissionActionGuard>
+                )}
+                {onDelete && (
+                  <PermissionActionGuard menuCode="FLIGHT" action="canDelete">
+                    {!onCancel && <DropdownMenuSeparator />}
+                    <DropdownMenuItem
+                      className="cursor-pointer text-destructive focus:text-destructive"
+                      // A flight with an issued Pre-Invoice (isMapping) must not be deleted
+                      disabled={!flight.flightInfosId || flight.isMapping === true}
+                      onClick={() => onDelete(flight)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Flight
                     </DropdownMenuItem>
                   </PermissionActionGuard>
                 )}

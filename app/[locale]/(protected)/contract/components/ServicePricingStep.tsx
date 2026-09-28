@@ -320,7 +320,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                 {/* With Certificate */}
                                 <div className="space-y-2">
                                     <p className="text-xs font-bold text-muted-foreground">With Certificate</p>
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <PriceInput
                                             id={`${rate.id}-tsChkUnder2hrsCert`}
                                             label="Transit Check <2hrs"
@@ -369,7 +369,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                 {/* Without Certificate */}
                                 <div className="space-y-2">
                                     <p className="text-xs font-bold text-muted-foreground">Without Certificate</p>
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <PriceInput
                                             id={`${rate.id}-tsChkUnder2hrsNoCert`}
                                             label="Transit Check <2hrs"
@@ -418,7 +418,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                 {/* Other */}
                                 <div className="space-y-2">
                                     <p className="text-xs font-bold text-muted-foreground">Other</p>
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <PriceInput
                                             id={`${rate.id}-standbyPerCheck`}
                                             label="Stand-by"
@@ -459,7 +459,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                         </CollapsibleTrigger>
                         <CollapsibleContent>
                             <div className="px-4 pb-4">
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <PriceInput
                                         id={`${rate.id}-dailyCheck`}
                                         label="Daily Check"
@@ -513,7 +513,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                         </CollapsibleTrigger>
                         <CollapsibleContent>
                             <div className="px-4 pb-4">
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <PriceInput
                                         id={`${rate.id}-additionalLaeMhHr`}
                                         label="Additional LAE MH"
@@ -553,7 +553,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                         </CollapsibleTrigger>
                         <CollapsibleContent>
                             <div className="px-4 pb-4">
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <PriceInput
                                         id={`${rate.id}-lhOrRhNoseWheelRpl`}
                                         label="LH or RH Nose Wheel RPL"
@@ -621,7 +621,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                         </CollapsibleTrigger>
                         <CollapsibleContent>
                             <div className="px-4 pb-4">
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <PriceInput
                                         id={`${rate.id}-towingPerService`}
                                         label="Towing"
@@ -682,7 +682,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                         </CollapsibleTrigger>
                         <CollapsibleContent>
                             <div className="px-4 pb-4">
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <PriceInput
                                         id={`${rate.id}-engineOilQuad`}
                                         label="Engine Oil"
@@ -736,7 +736,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                         </CollapsibleTrigger>
                         <CollapsibleContent>
                             <div className="px-4 pb-4">
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <PriceInput
                                         id={`${rate.id}-defectRectificationTools`}
                                         label="Defect Rectification Tools"
@@ -763,14 +763,14 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                         label="Disbursement"
                                         value={rate.disbursement}
                                         onChange={handleNumberChange("disbursement")}
-                                        suffix="% of Invoice" currencyLabel={currencyLabel}
+                                        suffix="% of Actual Amount" currencyLabel={currencyLabel}
                                     />
                                     <PriceInput
                                         id={`${rate.id}-latePenalty`}
                                         label="Late Penalty"
                                         value={rate.latePenalty}
                                         onChange={handleNumberChange("latePenalty")}
-                                        suffix="% of Invoice" currencyLabel={currencyLabel}
+                                        suffix="% of Actual Amount" currencyLabel={currencyLabel}
                                     />
                                 </div>
                             </div>
@@ -885,7 +885,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                     <CollapsibleContent>
                                         <div className="p-4 border-t space-y-4">
                                             {/* Service Location & Aircraft Types */}
-                                            <div className="grid grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                                                 {/* Service Location */}
                                                 <div className="space-y-2">
                                                     <Label>Service Location <span className="text-destructive">*</span></Label>
@@ -918,7 +918,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                                                 <ChevronDown className="h-4 w-4 shrink-0 opacity-50 text-slate-500" />
                                                             </Button>
                                                         </PopoverTrigger>
-                                                        <PopoverContent className="w-[300px] p-2" align="start">
+                                                        <PopoverContent className="w-[min(300px,calc(100vw-2rem))] p-2" align="start">
                                                             <div className="space-y-1 max-h-[200px] overflow-y-auto">
                                                                 {stationOptions.map((station) => (
                                                                     <div
@@ -985,7 +985,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                                                 <ChevronDown className="h-4 w-4 shrink-0 opacity-50 text-slate-500" />
                                                             </Button>
                                                         </PopoverTrigger>
-                                                        <PopoverContent className="w-[300px] p-2" align="start">
+                                                        <PopoverContent className="w-[min(300px,calc(100vw-2rem))] p-2" align="start">
                                                             <div className="space-y-1 max-h-[200px] overflow-y-auto">
                                                                 {aircraftTypeOptions.map((aircraft) => (
                                                                     <div

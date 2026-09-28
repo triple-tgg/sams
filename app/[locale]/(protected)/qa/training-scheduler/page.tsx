@@ -258,7 +258,7 @@ export default function TrainingSchedulerPage() {
         <Popover open={courseOpen} onOpenChange={setCourseOpen}>
             <PopoverTrigger asChild>
                 <button type="button" role="combobox" aria-expanded={courseOpen}
-                    className="flex items-center gap-2 px-3 py-1.5 text-xs border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 cursor-pointer w-[240px] justify-between">
+                    className="flex items-center gap-2 px-3 py-1.5 text-xs border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 cursor-pointer w-full sm:w-[240px] min-w-0 justify-between">
                     <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                     <span className={cn('truncate flex-1 text-left', !filterCourseId && 'text-muted-foreground')}>
                         {filterCourseId
@@ -268,7 +268,7 @@ export default function TrainingSchedulerPage() {
                     <ChevronsUpDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                 </button>
             </PopoverTrigger>
-            <PopoverContent className="p-0 w-[340px]" align="start">
+            <PopoverContent className="p-0 w-[min(340px,calc(100vw-2rem))]" align="start">
                 <Command>
                     <CommandInput placeholder="Search course..." className="text-xs" />
                     <CommandList className="max-h-[280px] overflow-y-auto" data-vaul-no-drag>
@@ -295,15 +295,15 @@ export default function TrainingSchedulerPage() {
 
     return (
         <>
-            <div>
-                <Card>
-                    <CardHeader className="pb-4 flex flex-col xl:flex-row xl:items-start justify-between gap-4">
-                        <div>
-                            <CardTitle>Training Scheduler</CardTitle>
-                            <CardDescription>Schedule and manage training sessions</CardDescription>
+            <div className="w-full min-w-0 overflow-x-clip">
+                <Card className="w-full min-w-0 overflow-x-clip">
+                    <CardHeader className="p-4 sm:p-6 pb-3 sm:pb-4 flex flex-col xl:flex-row xl:items-start justify-between gap-4">
+                        <div className="min-w-0 w-full">
+                            <CardTitle className="text-base sm:text-xl">Training Scheduler</CardTitle>
+                            <CardDescription className="text-xs sm:text-sm">Schedule and manage training sessions</CardDescription>
 
                             {/* Stat Strip */}
-                            <div className="flex items-center gap-6 overflow-x-auto mt-5">
+                            <div className="grid grid-cols-2 gap-2 mt-3 sm:flex sm:items-center sm:gap-6 sm:overflow-x-auto sm:mt-5 no-scrollbar">
                                 {[
                                     { label: 'Total Sessions', val: stats.total, color: '#1a56db' },
                                     { label: 'Scheduled', val: stats.scheduled, color: '#3b82f6' },
@@ -311,12 +311,12 @@ export default function TrainingSchedulerPage() {
                                     { label: 'Completed', val: stats.completed, color: '#10b981' },
                                     { label: 'Full', val: stats.full, color: '#f59e0b' },
                                 ].map(({ label, val, color }) => (
-                                    <div key={label} className="flex items-center gap-2.5 shrink-0">
-                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: color + '18' }}>
+                                    <div key={label} className="flex items-center gap-2 sm:gap-2.5 min-w-0 sm:shrink-0">
+                                        <div className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 rounded-lg flex items-center justify-center" style={{ background: color + '18' }}>
                                             <span className="text-sm font-semibold" style={{ color }}>{val}</span>
                                         </div>
-                                        <span className="text-xs text-muted-foreground">{label}</span>
-                                        <div className="w-px h-5 bg-border ml-3" />
+                                        <span className="truncate text-[11px] sm:text-xs text-muted-foreground">{label}</span>
+                                        <div className="hidden sm:block w-px h-5 bg-border ml-3" />
                                     </div>
                                 ))}
                             </div>
@@ -325,13 +325,13 @@ export default function TrainingSchedulerPage() {
 
                     </CardHeader>
 
-                    <CardContent className="space-y-4 ">
-                        <div className="flex items-center justify-between gap-2 xl:ml-auto shrink-0 border-t border-border pt-4" >
+                    <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0 space-y-3 sm:space-y-4 min-w-0">
+                        <div className="flex items-center justify-between gap-2 xl:ml-auto border-t border-border pt-3 sm:pt-4" >
                             {/* View Switcher */}
-                            <div className="flex items-center bg-muted rounded-lg p-1 gap-0.5">
+                            <div className="flex flex-1 sm:flex-none min-w-0 items-center bg-muted rounded-lg p-1 gap-0.5">
                                 {VIEW_OPTIONS.map(({ id, label, icon: Icon }) => (
                                     <button key={id} onClick={() => setView(id)}
-                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-all cursor-pointer border-none ${view === id ? 'bg-card text-foreground shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground bg-transparent'
+                                        className={`flex flex-1 sm:flex-none items-center justify-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-md text-xs whitespace-nowrap transition-all cursor-pointer border-none ${view === id ? 'bg-card text-foreground shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground bg-transparent'
                                             }`}>
                                         <Icon className="w-3.5 h-3.5" />
                                         {label}
@@ -339,23 +339,23 @@ export default function TrainingSchedulerPage() {
                                 ))}
                             </div>
                             <PermissionActionGuard menuCode="QA_MONITORING" action="canCreate">
-                                <Button onClick={openAdd} color="primary">
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    New Session
+                                <Button onClick={openAdd} color="primary" size="sm" className="shrink-0 px-2.5 sm:h-10 sm:px-4" aria-label="New Session">
+                                    <Plus className="h-4 w-4 sm:mr-2" />
+                                    <span className="hidden sm:inline">New Session</span>
                                 </Button>
                             </PermissionActionGuard>
                         </div>
                         {/* Filter Bar */}
                         {view === 'list' && (
-                            <div className="flex items-center gap-3 flex-wrap">
-                                {courseFilterSlot}
+                            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-3 sm:flex-wrap">
+                                <div className="col-span-2 min-w-0 sm:col-span-1">{courseFilterSlot}</div>
                                 <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-                                    className="text-xs border border-border rounded-lg px-3 py-1.5 bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 cursor-pointer">
+                                    className="w-full min-w-0 sm:w-auto text-xs border border-border rounded-lg px-3 py-1.5 bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 cursor-pointer">
                                     {STATUSES.map(s => <option key={s} value={s}>{s === 'All' ? 'All Status' : s}</option>)}
                                 </select>
 
                                 <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
-                                    className="text-xs border border-border rounded-lg px-3 py-1.5 bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 cursor-pointer">
+                                    className="w-full min-w-0 sm:w-auto text-xs border border-border rounded-lg px-3 py-1.5 bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 cursor-pointer">
                                     <option value="All">All Categories</option>
                                     {apiCategories.map(c => (
                                         <option key={c.id} value={c.name}>{c.name}</option>
@@ -368,7 +368,7 @@ export default function TrainingSchedulerPage() {
                                             type="button"
                                             role="combobox"
                                             aria-expanded={deptOpen}
-                                            className="flex items-center gap-2 px-3 py-1.5 text-xs border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 cursor-pointer min-w-[160px] justify-between"
+                                            className="flex items-center gap-2 px-3 py-1.5 text-xs border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 cursor-pointer w-full min-w-0 sm:w-auto sm:min-w-[160px] justify-between"
                                         >
                                             <span className={cn('truncate', filterDept === 'All Departments' && 'text-muted-foreground')}>
                                                 {filterDept}
@@ -376,7 +376,7 @@ export default function TrainingSchedulerPage() {
                                             <ChevronsUpDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                                         </button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="p-0 w-[260px]" align="start">
+                                    <PopoverContent className="p-0 w-[min(260px,calc(100vw-2rem))]" align="start">
                                         <Command>
                                             <CommandInput placeholder="Search department..." className="text-xs" />
                                             <CommandList className="max-h-[260px] overflow-y-auto" data-vaul-no-drag>
@@ -409,7 +409,7 @@ export default function TrainingSchedulerPage() {
 
                                 {/* Year filter for List tab — styled like Timeline */}
                                 <Select value={listYear.toString()} onValueChange={v => setListYear(parseInt(v))}>
-                                    <SelectTrigger className="w-[110px] h-8 text-xs font-semibold border-border">
+                                    <SelectTrigger className="w-full sm:w-[110px] h-8 text-xs font-semibold border-border">
                                         <SelectValue placeholder="Year" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -419,7 +419,7 @@ export default function TrainingSchedulerPage() {
                                     </SelectContent>
                                 </Select>
 
-                                <span className="ml-auto text-xs text-muted-foreground">{filtered.length} session{filtered.length !== 1 ? 's' : ''}</span>
+                                <span className="col-span-2 text-right sm:ml-auto text-xs text-muted-foreground">{filtered.length} session{filtered.length !== 1 ? 's' : ''}</span>
                             </div>
                         )}
 

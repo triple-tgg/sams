@@ -11,7 +11,7 @@ const FooterContent = ({ children }: { children: React.ReactNode }) => {
     const showSubmenuPanel = useSidebarHasSubmenu();
     const isMobile = useMediaQuery("(min-width: 768px)")
     if (!isMobile) {
-        return <footer className='bg-card dark:bg-default-300 bg-no-repeat  shadow-md  backdrop-filter backdrop-blur-[40px] fixed left-0 w-full z-50 bottom-0 py-[12px] px-4'>
+        return <footer className='bg-card dark:bg-default-300 bg-no-repeat  shadow-md  backdrop-filter backdrop-blur-[40px] fixed left-0 w-full z-50 bottom-0 border-t border-border px-2 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]'>
             {children}
         </footer>
     }

@@ -202,15 +202,15 @@ export default function MonitoringPage() {
     const overallPct = summaryData ? summaryData.overallCompliance.compliancePercentage : stats.overallCompliance
 
     return (
-        <div>
-            <Card>
-                <CardHeader className="pb-3">
+        <div className="w-full min-w-0 overflow-x-clip">
+            <Card className="w-full min-w-0 overflow-x-clip">
+                <CardHeader className="p-4 sm:p-6 pb-3 sm:pb-3">
                     <div className="flex items-start justify-between">
-                        <div>
-                            <CardTitle>Training Monitoring</CardTitle>
-                            <CardDescription>
-                                Quality assurance monitoring and compliance tracking
-                                <span className="inline-flex items-center gap-1 ml-3 text-xs text-muted-foreground/70">
+                        <div className="min-w-0">
+                            <CardTitle className="text-base sm:text-xl">Training Monitoring</CardTitle>
+                            <CardDescription className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:text-sm">
+                                <span>Quality assurance monitoring and compliance tracking</span>
+                                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground/70 shrink-0">
                                     <RefreshCw className="w-3 h-3" />
                                     As of {lastUpdated}
                                 </span>
@@ -219,19 +219,19 @@ export default function MonitoringPage() {
                     </div>
                 </CardHeader>
 
-                <CardContent className="pt-0">
+                <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0 min-w-0">
                     <Tabs defaultValue="calendar">
-                        <TabsList className="mb-4 border-b border-border rounded-none p-0 gap-0 w-full justify-start">
+                        <TabsList className="mb-3 sm:mb-4 border-b border-border rounded-none p-0 gap-0 w-full justify-start">
                             <TabsTrigger
                                 value="calendar"
-                                className="flex items-center gap-2 px-4 py-2.5 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent text-muted-foreground"
+                                className="flex flex-1 sm:flex-none items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent text-muted-foreground"
                             >
                                 <CalendarDays className="w-4 h-4" />
                                 Monitoring
                             </TabsTrigger>
                             <TabsTrigger
                                 value="training-records"
-                                className="flex items-center gap-2 px-4 py-2.5 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent text-muted-foreground"
+                                className="flex flex-1 sm:flex-none items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent text-muted-foreground"
                             >
                                 <ShieldCheck className="w-4 h-4" />
                                 Training
@@ -243,22 +243,22 @@ export default function MonitoringPage() {
                             <TrainingCalendar>
                                 <div className="space-y-6">
                                     {/* ─── Layer 1: KPI Cards ─── */}
-                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                        <Card className="p-4 flex flex-col justify-center">
-                                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Total Courses</p>
-                                            <p className="text-3xl font-black mt-1">{kpiStats.totalCourses}</p>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
+                                        <Card className="p-3 sm:p-4 flex flex-col justify-center">
+                                            <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-wide">Total Courses</p>
+                                            <p className="text-2xl sm:text-3xl font-black mt-1">{kpiStats.totalCourses}</p>
                                         </Card>
-                                        <Card className="p-4 flex flex-col justify-center">
-                                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Valid Count</p>
-                                            <p className="text-3xl font-black mt-1" style={{ color: COLORS.valid }}>{kpiStats.valid}</p>
+                                        <Card className="p-3 sm:p-4 flex flex-col justify-center">
+                                            <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-wide">Valid Count</p>
+                                            <p className="text-2xl sm:text-3xl font-black mt-1" style={{ color: COLORS.valid }}>{kpiStats.valid}</p>
                                         </Card>
-                                        <Card className="p-4 flex flex-col justify-center">
-                                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Warning Count</p>
-                                            <p className="text-3xl font-black mt-1" style={{ color: COLORS.warning }}>{kpiStats.warning}</p>
+                                        <Card className="p-3 sm:p-4 flex flex-col justify-center">
+                                            <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-wide">Warning Count</p>
+                                            <p className="text-2xl sm:text-3xl font-black mt-1" style={{ color: COLORS.warning }}>{kpiStats.warning}</p>
                                         </Card>
-                                        <Card className="p-4 flex flex-col justify-center bg-red-50/50 dark:bg-red-950/20 border-red-200 dark:border-red-900/50">
-                                            <p className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wide">Expired Count</p>
-                                            <p className="text-3xl font-black mt-1" style={{ color: COLORS.expired }}>{kpiStats.expired}</p>
+                                        <Card className="p-3 sm:p-4 flex flex-col justify-center bg-red-50/50 dark:bg-red-950/20 border-red-200 dark:border-red-900/50">
+                                            <p className="text-[10px] sm:text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wide">Expired Count</p>
+                                            <p className="text-2xl sm:text-3xl font-black mt-1" style={{ color: COLORS.expired }}>{kpiStats.expired}</p>
                                         </Card>
                                     </div>
 
@@ -307,7 +307,7 @@ export default function MonitoringPage() {
                                         </div>
 
                                         {/* Right: Stacked Bar Chart */}
-                                        <div className="rounded-xl border border-border bg-card p-5 flex-1 overflow-hidden">
+                                        <div className="rounded-xl border border-border bg-card p-3 sm:p-5 flex-1 min-w-0 overflow-hidden">
                                             <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-4">
                                                 Course Groups Breakdown
                                             </p>

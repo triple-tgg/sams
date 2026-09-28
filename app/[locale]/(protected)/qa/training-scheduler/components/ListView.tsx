@@ -72,9 +72,9 @@ function SessionCard({ session: s, onSelect, isSelected }: { session: Session; o
                 {/* Color bar */}
                 <div className="w-1 rounded-l-xl shrink-0" style={{ background: cc.bar }} />
 
-                <div className="flex-1 px-4 py-3 flex items-center gap-4">
+                <div className="flex-1 min-w-0 px-3 sm:px-4 py-3 flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-2 sm:gap-4">
                     {/* Date block */}
-                    <div className="shrink-0 text-center w-14">
+                    <div className="shrink-0 text-center w-11 sm:w-14">
                         <p className="text-xs text-muted-foreground">{formatDate(s.dateStart).slice(3, 6)}</p>
                         <p className="text-2xl text-foreground leading-none font-semibold">{s.dateStart.slice(8)}</p>
                         {days > 1 && <p className="text-xs text-muted-foreground mt-0.5">{days}d</p>}
@@ -113,14 +113,14 @@ function SessionCard({ session: s, onSelect, isSelected }: { session: Session; o
                     </div>
 
                     {/* Enrollment */}
-                    <div className="shrink-0 text-right w-24">
-                        <p className="text-sm text-foreground font-semibold">{s.enrolled}<span className="text-xs text-muted-foreground font-normal">/{s.maxParticipants}</span></p>
-                        <p className="text-xs text-muted-foreground mb-1">enrolled</p>
-                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div className="w-full sm:w-24 shrink-0 flex items-center gap-2 border-t border-border/60 pt-2 sm:block sm:border-0 sm:pt-0 sm:text-right">
+                        <p className="text-sm text-foreground font-semibold whitespace-nowrap">{s.enrolled}<span className="text-xs text-muted-foreground font-normal">/{s.maxParticipants}</span></p>
+                        <p className="text-xs text-muted-foreground sm:mb-1">enrolled</p>
+                        <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
                             <div className="h-full rounded-full transition-all"
                                 style={{ width: `${pct}%`, background: pct >= 100 ? '#f59e0b' : pct >= 80 ? '#3b82f6' : '#10b981' }} />
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">{pct}%</p>
+                        <p className="text-xs text-muted-foreground sm:mt-0.5">{pct}%</p>
                     </div>
                 </div>
             </div>

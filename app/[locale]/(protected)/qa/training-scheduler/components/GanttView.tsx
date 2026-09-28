@@ -145,11 +145,11 @@ export function GanttView({ sessions, calYear, calMonth, setCalYear, setCalMonth
     return (
         <div className="space-y-3">
             {/* Header */}
-            <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-2">
-                    {filterSlot}
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                <div className="flex flex-wrap items-center gap-2 min-w-0 flex-1">
+                    {filterSlot && <div className="w-full min-w-0 sm:w-auto">{filterSlot}</div>}
                     <Select value={calMonth.toString()} onValueChange={(v) => setCalMonth(parseInt(v))}>
-                        <SelectTrigger className="w-[140px] h-8 text-xs font-semibold bg-white border-border">
+                        <SelectTrigger className="w-[120px] sm:w-[140px] h-8 text-xs font-semibold bg-white border-border">
                             <SelectValue placeholder="Month" />
                         </SelectTrigger>
                         <SelectContent>
@@ -186,12 +186,13 @@ export function GanttView({ sessions, calYear, calMonth, setCalYear, setCalMonth
 
             {/* Grid */}
             <div ref={gridRef} className="bg-white rounded-xl border border-border overflow-auto relative">
+                <div className="min-w-full w-max">
                 {/* Day Header */}
-                <div className="flex border-b border-border sticky top-0 bg-white z-10">
-                    <div className="w-52 shrink-0 border-r border-border px-3 py-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                <div className="flex border-b border-border sticky top-0 bg-white z-20">
+                    <div className="w-36 sm:w-52 shrink-0 border-r border-border px-3 py-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider sticky left-0 z-10 bg-white">
                         Course
                     </div>
-                    <div className="flex-1 flex">
+                    <div className="flex-1 flex" style={{ minWidth: numDays * 26 }}>
                         {Array.from({ length: numDays }, (_, i) => {
                             const d = i + 1
                             const dateStr = `${currentYM}-${String(d).padStart(2, '0')}`
@@ -230,7 +231,7 @@ export function GanttView({ sessions, calYear, calMonth, setCalYear, setCalMonth
                                 onClick={() => onSelect(s)}
                             >
                                 {/* Course Info */}
-                                <div className={`w-52 shrink-0 border-r border-border px-3 py-2 flex items-center gap-2`}>
+                                <div className={`w-36 sm:w-52 shrink-0 border-r border-border px-2 sm:px-3 py-2 flex items-center gap-2 sticky left-0 z-[15] bg-white`}>
                                     <div className="w-1 h-9 rounded-full shrink-0" style={{ background: cc.bar }} />
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-1.5">
@@ -254,7 +255,7 @@ export function GanttView({ sessions, calYear, calMonth, setCalYear, setCalMonth
                                 </div>
 
                                 {/* Timeline Bar Area */}
-                                <div className="flex-1 relative" style={{ minHeight: 52 }}>
+                                <div className="flex-1 relative" style={{ minHeight: 52, minWidth: numDays * 26 }}>
                                     {/* Weekend shading */}
                                     <div className="absolute inset-0 flex pointer-events-none">
                                         {Array.from({ length: numDays }, (_, i) => {
@@ -299,10 +300,11 @@ export function GanttView({ sessions, calYear, calMonth, setCalYear, setCalMonth
                         )
                     })
                 )}
+                </div>
             </div>
 
             {/* Category Legend */}
-            <div className="flex items-center gap-4 flex-wrap px-1 pt-1">
+            <div className="flex items-center gap-x-4 gap-y-1.5 flex-wrap px-1 pt-1">
                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Legend:</span>
                 {Object.entries(CAT_COLOR).map(([cat, { bar }]) => (
                     <div key={cat} className="flex items-center gap-1.5">
