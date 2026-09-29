@@ -20,6 +20,7 @@ export interface FlightItem {
   acReg: string
   acType?: string
   acTypeObj: AcTypeObj | null
+  engineCode?: string   // e.g. "CFM56" — returned by /flight/listdata
   arrivalFlightNo: string
   arrivalStaDate: string | null    // UTC datetime "YYYY-MM-DD HH:mm"
   arrivalAtaDate: string | null    // UTC datetime "YYYY-MM-DD HH:mm"

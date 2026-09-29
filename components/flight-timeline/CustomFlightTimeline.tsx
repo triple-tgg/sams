@@ -1,17 +1,23 @@
 'use client';
 
 import { useMemo, useRef, useEffect, useState, useCallback } from 'react';
-import { FlightPlanbyItem } from '@/lib/api/flight/getFlightListPlanby';
 import { FlightItem } from '@/lib/api/flight/filghtlist.interface';
-import dayjs from 'dayjs';
+import dayjs, { Dayjs } from 'dayjs';
 import '@/lib/dayjs'; // ensures utc + timezone plugins are registered
 import { splitUtcDateTimeToLocal, formatUtcToLocalDisplay } from '@/lib/utils/flightDatetime';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, XCircle } from 'lucide-react';
+import {
+    formatFlightLabel,
+    getFlightBarStyle,
+    getFlightLocalRange,
+    getMissingStaff,
+    isFlightCancelled,
+    isFlightPlanning,
+} from './utils';
 
 
 interface CustomFlightTimelineProps {
-    flights: FlightPlanbyItem[];
-    flightDetails: FlightItem[];
+    flights: FlightItem[]; // from /flight/listdata — one item per flight
     selectedDate: Date;
     isFullscreen: boolean;
     minuteScale?: number; // 1, 5, 10, 15, 20, 30, 60
@@ -24,7 +30,6 @@ const TOTAL_HOURS = 24;
 
 export function CustomFlightTimeline({
     flights,
-    flightDetails,
     selectedDate,
     isFullscreen,
     minuteScale = 60,
@@ -46,8 +51,7 @@ export function CustomFlightTimeline({
 
     const TOTAL_WIDTH = HOUR_WIDTH * TOTAL_HOURS;
     const [tooltipInfo, setTooltipInfo] = useState<{
-        flight: FlightPlanbyItem;
-        detail?: FlightItem;
+        flight: FlightItem;
         x: number;   // cursor x relative to scroll container
         y: number;   // cursor y relative to scroll container
     } | null>(null);
@@ -65,64 +69,43 @@ export function CustomFlightTimeline({
         return () => observer.disconnect();
     }, []);
 
-    // Build lookup map from regular flight data for acType & staff
-    const detailMap = useMemo(() => {
-        const map = new Map<string, FlightItem>();
-        flightDetails.forEach((f) => {
-            // key by arrivalFlightNo + arrivalStaDate
-            if (f.arrivalFlightNo && f.arrivalStaDate) {
-                const dateKey = splitUtcDateTimeToLocal(f.arrivalStaDate).date;
-                map.set(`${f.arrivalFlightNo}|${dateKey}`, f);
-            }
-            if (f.flightInfosId) {
-                map.set(`fid|${f.flightInfosId}`, f);
-            }
-        });
-        return map;
-    }, [flightDetails]);
-
-    const findDetail = useCallback(
-        (f: FlightPlanbyItem): FlightItem | undefined => {
-            // Try by ID (strip suffix like "-arrival")
-            const numId = f.id?.replace(/-.*$/, '');
-            if (numId) {
-                const byId = detailMap.get(`fid|${numId}`);
-                if (byId) return byId;
-            }
-            // Try by arrivalFlightNo + arrivalDate
-            if (f.arrivalFlightNo && f.arrivalDate) {
-                const byKey = detailMap.get(`${f.arrivalFlightNo}|${f.arrivalDate}`);
-                if (byKey) return byKey;
-            }
-            return undefined;
-        },
-        [detailMap]
-    );
-
-    // Group flights by channelUuid (rows)
-    const rows = useMemo(() => {
-        const grouped = new Map<string, FlightPlanbyItem[]>();
-        flights.forEach((f) => {
-            const key = f.channelUuid || 'unknown';
-            if (!grouped.has(key)) grouped.set(key, []);
-            grouped.get(key)!.push(f);
-        });
-        return Array.from(grouped.entries()).sort((a, b) =>
-            a[0].localeCompare(b[0], undefined, { numeric: true })
-        );
-    }, [flights]);
-
-    // Calculate pixel position from UTC datetime string (API sends UTC)
+    // Pixel position of a local time relative to local midnight of the selected date
     const getPos = useCallback(
-        (timeStr: string) => {
-            // Parse as UTC → convert to local so bar aligns with local hour labels on the header
-            const t = dayjs.utc(timeStr).local();
-            const start = dayjs(selectedDate).startOf('day'); // local midnight of selected date
-            const mins = t.diff(start, 'minute');
-            return (mins / 60) * HOUR_WIDTH;
+        (t: Dayjs) => {
+            const start = dayjs(selectedDate).startOf('day');
+            return (t.diff(start, 'minute') / 60) * HOUR_WIDTH;
         },
         [selectedDate, HOUR_WIDTH]
     );
+
+    // Pack flights into rows so bars that overlap in time never render on top of each other
+    const rows = useMemo(() => {
+        const placed = flights
+            .flatMap((flight, idx) => {
+                const range = getFlightLocalRange(flight);
+                if (!range) return [];
+                const rawLeft = getPos(range.start);
+                const rawRight = getPos(range.end);
+                if (rawRight <= 0 || rawLeft >= TOTAL_WIDTH) return [];
+                const left = Math.max(0, rawLeft);
+                const right = Math.max(Math.min(TOTAL_WIDTH, rawRight), left + 36);
+                return [{ flight, key: String(flight.flightInfosId ?? `idx-${idx}`), rawLeft, rawRight, left, right }];
+            })
+            .sort((a, b) => a.left - b.left || b.right - a.right);
+
+        type PlacedFlight = (typeof placed)[number];
+        const lanes: { end: number; items: PlacedFlight[] }[] = [];
+        placed.forEach((p) => {
+            let lane = lanes.find((l) => l.end + 4 <= p.left);
+            if (!lane) {
+                lane = { end: 0, items: [] };
+                lanes.push(lane);
+            }
+            lane.end = p.right;
+            lane.items.push(p);
+        });
+        return lanes.map((l, i) => [String(i), l.items] as const);
+    }, [flights, getPos, TOTAL_WIDTH]);
 
     // Current time indicator
     useEffect(() => {
@@ -160,14 +143,14 @@ export function CustomFlightTimeline({
 
     const handleBarMouseEnter = (
         e: React.MouseEvent,
-        flight: FlightPlanbyItem
+        flight: FlightItem,
+        key: string
     ) => {
         const rect = scrollRef.current?.getBoundingClientRect();
         if (!rect) return;
-        setHoveredFlight(flight.id);
+        setHoveredFlight(key);
         setTooltipInfo({
             flight,
-            detail: findDetail(flight),
             x: e.clientX - rect.left + scrollRef.current!.scrollLeft,
             y: e.clientY - rect.top + scrollRef.current!.scrollTop,
         });
@@ -178,10 +161,10 @@ export function CustomFlightTimeline({
         setTooltipInfo(null);
     };
 
-    const renderTooltipTime = (utcDateStr: string | null | undefined, fallbackTime: string | undefined) => {
-        if (!utcDateStr) return fallbackTime || '-';
+    const renderTooltipTime = (utcDateStr: string | null | undefined) => {
+        if (!utcDateStr) return '-';
         const local = splitUtcDateTimeToLocal(utcDateStr);
-        if (!local.date) return fallbackTime || '-';
+        if (!local.date) return '-';
         
         // Check if it's the same day as selectedDate
         if (local.date === dayjs(selectedDate).format('YYYY-MM-DD')) {
@@ -345,71 +328,57 @@ export function CustomFlightTimeline({
                             ))}
 
                             {/* Flight bars */}
-                            {rows.map(([channelId, channelFlights], rowIdx) =>
-                                channelFlights.map((flight) => {
-                                    // Planby API returns arrivalStaDate / departureStdDate as correct UTC ISO strings.
-                                    // Use these for bar positioning (since/till from planby are 7h off due to backend bug).
-                                    const detail = findDetail(flight);
-
-                                    const sinceStr = flight.arrivalStaDate ?? flight.since;
-
-                                    const hasValidDep = flight.departureStdDate &&
-                                        !flight.departureStdDate.endsWith('T00:00:00.000Z');
-                                    const tillStr = hasValidDep
-                                        ? flight.departureStdDate!
-                                        : flight.till;
-
-                                    const rawLeft  = getPos(sinceStr);
-                                    const rawRight = getPos(tillStr);
-
-                                    // Detect next-day: local till exceeds midnight of selected date
-                                    const localTill = dayjs.utc(tillStr).local();
-                                    const dayEnd    = dayjs(selectedDate).startOf('day').add(1, 'day');
-                                    const isNextDay     = localTill.isAfter(dayEnd) || localTill.isSame(dayEnd) || rawRight > TOTAL_WIDTH;
+                            {rows.map(([, rowFlights], rowIdx) =>
+                                rowFlights.map(({ flight, key, rawLeft, rawRight, left, right }) => {
+                                    // Bars run STA → STD (local); clipped ends continue to the previous/next day
+                                    const isNextDay = rawRight >= TOTAL_WIDTH;
                                     const isPreviousDay = rawLeft < 0;
+                                    const width = right - left;
 
-                                    if (rawRight <= 0 || rawLeft >= TOTAL_WIDTH) return null;
+                                    const cancelled = isFlightCancelled(flight);
+                                    const missingStaff = getMissingStaff(flight);
+                                    const staffNames = [...(flight.csList ?? []), ...(flight.mechList ?? [])]
+                                        .map((s) => s.displayName || s.name)
+                                        .join(', ');
 
-                                    const left  = Math.max(0, rawLeft);
-                                    const right = Math.min(TOTAL_WIDTH, rawRight);
-                                    const width = Math.max(right - left, 36);
+                                    // "TG101 · A320 · CFM56"
+                                    const title = [formatFlightLabel(flight, ' / '), flight.acTypeObj?.code, flight.engineCode]
+                                        .filter(Boolean)
+                                        .join(' · ');
+                                    // "08:00–10:30" — dates are added when a side falls on another day
+                                    const range = getFlightLocalRange(flight);
+                                    const fmtTime = (t: Dayjs) => t.format(t.isSame(selectedDate, 'day') ? 'HH:mm' : 'DD MMM HH:mm');
+                                    const timeRange = range ? `${fmtTime(range.start)}–${fmtTime(range.end)}` : '-';
 
-                                    const acType = detail?.acTypeObj?.code || '';
-                                    const airlineName = detail?.airlineObj?.name || flight?.airlineObj?.name || '';
-                                    const csNames =
-                                        detail?.csList
-                                            ?.map((s) => s.displayName || s.name)
-                                            .join(', ') || '';
-                                    const mechNames =
-                                        detail?.mechList
-                                            ?.map((s) => s.displayName || s.name)
-                                            .join(', ') || '';
-
-                                    const isHovered = hoveredFlight === flight.id;
+                                    const isHovered = hoveredFlight === key;
                                     const barTop = rowIdx * ROW_HEIGHT + 4;
                                     const barHeight = ROW_HEIGHT - 8;
 
                                     return (
                                         <div
-                                            key={flight.id}
+                                            key={key}
                                             className={`absolute overflow-hidden cursor-pointer transition-all duration-150
                                                 ${isPreviousDay && isNextDay ? 'rounded-none' : isPreviousDay ? 'rounded-r-lg rounded-l-none' : isNextDay ? 'rounded-l-lg rounded-r-none' : 'rounded-lg'}
-                                                ${isHovered ? 'shadow-xl scale-[1.02] z-10' : 'shadow-md hover:shadow-lg'}`}
+                                                ${cancelled ? 'text-slate-600 dark:text-slate-300' : ''}
+                                                ${isHovered ? 'shadow-xl scale-[1.02] z-10' : cancelled ? '' : 'shadow-md hover:shadow-lg'}`}
                                             style={{
                                                 left,
                                                 top: barTop,
                                                 width,
                                                 height: barHeight,
-                                                background: flight.color?.background || '#3b82f6',
-                                                color: flight.color?.foreground || '#fff',
-                                                borderTop: `1px solid ${isHovered ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.15)'}`,
-                                                borderBottom: `1px solid ${isHovered ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.15)'}`,
-                                                borderRight: isNextDay ? 'none' : `1px solid ${isHovered ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.15)'}`,
-                                                borderLeft: isPreviousDay ? 'none' : `1px solid ${isHovered ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.15)'}`,
+                                                ...getFlightBarStyle(flight, { clipLeft: isPreviousDay, clipRight: isNextDay }),
                                             }}
-                                            onMouseEnter={(e) => handleBarMouseEnter(e, flight)}
+                                            onMouseEnter={(e) => handleBarMouseEnter(e, flight, key)}
                                             onMouseLeave={handleBarMouseLeave}
                                         >
+                                            {/* Missing staff marker */}
+                                            {missingStaff.length > 0 && (
+                                                <span
+                                                    className={`absolute top-1 z-20 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white ring-2 ring-white ${isNextDay ? 'right-5' : 'right-1'}`}
+                                                >
+                                                    !
+                                                </span>
+                                            )}
                                             {/* Indicators for spanning flights */}
                                             {isPreviousDay && (
                                                 <div className="absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-black/30 to-transparent flex items-center justify-start opacity-90 z-0">
@@ -422,32 +391,35 @@ export function CustomFlightTimeline({
                                                 </div>
                                             )}
 
-                                            <div className={`h-full flex flex-col justify-start py-2 gap-0.5 ${width < 80 ? 'px-1.5' : 'px-3'} ${isPreviousDay ? 'pl-4' : ''} ${isNextDay ? 'pr-4' : ''} relative z-10`}>
-                                                {/* Airline name */}
-                                                <div className={`${minuteScale === 30 || minuteScale === 60 ? 'text-[10px] sm:text-[12px]' : 'text-[12px] sm:text-[14px]'} font-bold truncate leading-tight tracking-tight`}>
-                                                    {airlineName || 'No Airline'}
-                                                </div>
+                                            <div className={`h-full flex items-center gap-2.5 ${width < 80 ? 'px-1.5' : 'px-3'} ${isPreviousDay ? 'pl-5' : ''} ${isNextDay ? 'pr-5' : ''} relative z-10`}>
+                                                {/* Airline code badge */}
+                                                {width >= 110 && (
+                                                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-white bg-black/30 text-[9px] font-bold text-white">
+                                                        {flight.airlineObj?.code || '—'}
+                                                    </span>
+                                                )}
 
-                                                {/* Aircraft type & Flight numbers */}
-                                                <div className={`flex ${minuteScale === 30 || minuteScale === 60 ? 'flex-col items-start gap-0' : 'items-center gap-3 mt-0.5'} leading-tight`}>
-                                                    <div className={`${minuteScale === 30 || minuteScale === 60 ? 'text-[8px]' : 'text-[10px]'} font-bold truncate flex gap-1`}>
-                                                        {flight.arrivalFlightNo && <span>{flight.arrivalFlightNo}</span>}
-                                                        {flight.arrivalFlightNo && flight.departureFlightNo && <span className="opacity-60">/</span>}
-                                                        {flight.departureFlightNo && <span>{flight.departureFlightNo}</span>}
+                                                <div className="min-w-0 flex flex-col gap-0.5 leading-tight">
+                                                    <div className={`text-[12px] font-bold truncate ${cancelled ? 'line-through decoration-2' : ''}`}>
+                                                        {title}
                                                     </div>
-                                                    <span className={`text-[8px] font-bold truncate`}>{acType || 'No AC Type'}</span>
+                                                    <div className="text-[10px] font-medium truncate opacity-90">
+                                                        {timeRange}
+                                                        {!cancelled && (
+                                                            <>
+                                                                {' · '}
+                                                                {staffNames || 'No staff assigned'}
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                    {cancelled && (
+                                                        /* Cancelled flights need no staff — show the status instead */
+                                                        <span className="mt-0.5 inline-flex w-fit max-w-full items-center gap-1 rounded bg-red-600 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white truncate">
+                                                            <XCircle className="w-3 h-3 shrink-0" />
+                                                            Cancelled
+                                                        </span>
+                                                    )}
                                                 </div>
-
-                                                {/* CS staff */}
-                                                <div className={`${minuteScale === 30 || minuteScale === 60 ? 'text-[8px]' : 'text-[10px] mt-0.5'} font-medium truncate leading-tight`}>
-                                                    {csNames || 'No CS staff'}
-                                                </div>
-
-                                                {/* MECH staff */}
-                                                <div className={`${minuteScale === 30 || minuteScale === 60 ? 'text-[8px]' : 'text-[10px]'} font-medium truncate leading-tight`}>
-                                                    {mechNames || 'No MECH staff'}
-                                                </div>
-
                                             </div>
                                         </div>
                                     );
@@ -512,42 +484,53 @@ export function CustomFlightTimeline({
                                 className="absolute z-50 pointer-events-none"
                                 style={{ left: styleLeft, top: styleTop }}
                             >
-                            <div className="bg-slate-800 dark:bg-slate-700 text-white rounded-lg shadow-2xl px-3 py-2 text-[11px] max-w-[260px] border border-slate-600/50">
-                                <div className="font-bold mb-1">
-                                    {tooltipInfo.flight.arrivalFlightNo}
-                                    {tooltipInfo.flight.departureFlightNo &&
-                                        ` / ${tooltipInfo.flight.departureFlightNo}`}
+                            <div className="w-max max-w-[280px] bg-slate-800 dark:bg-slate-700 text-white rounded-lg shadow-2xl px-3 py-2 text-[11px] border border-slate-600/50">
+                                <div className="font-bold mb-1 flex items-center gap-2">
+                                    {formatFlightLabel(tooltipInfo.flight, ' / ')}
+                                    <span className="rounded bg-white/15 px-1.5 text-[9px] font-semibold uppercase">
+                                        {isFlightPlanning(tooltipInfo.flight) ? 'Planning' : 'Current'}
+                                    </span>
                                 </div>
                                 <div className="space-y-0.5 text-slate-300">
                                     <div className="flex flex-col gap-0.5">
-                                        <div>STA: {renderTooltipTime(tooltipInfo.detail?.arrivalStaDate, tooltipInfo.flight.arrivalStatime)}</div>
-                                        <div>STD: {renderTooltipTime(tooltipInfo.detail?.departureStdDate, tooltipInfo.flight.departureStdTime)}</div>
+                                        <div>STA: {renderTooltipTime(tooltipInfo.flight.arrivalStaDate)}</div>
+                                        <div>STD: {renderTooltipTime(tooltipInfo.flight.departureStdDate)}</div>
                                     </div>
-                                    {(tooltipInfo.detail?.airlineObj?.name || tooltipInfo.flight.airlineObj?.name) && (
-                                        <div>Airline: {tooltipInfo.detail?.airlineObj?.name || tooltipInfo.flight.airlineObj?.name}</div>
+                                    {tooltipInfo.flight.airlineObj?.name && (
+                                        <div>Airline: {tooltipInfo.flight.airlineObj.name}</div>
                                     )}
-                                    {tooltipInfo.detail?.acTypeObj?.code && (
-                                        <div>Aircraft: {tooltipInfo.detail.acTypeObj.code}</div>
+                                    {tooltipInfo.flight.acTypeObj?.code && (
+                                        <div>Aircraft: {tooltipInfo.flight.acTypeObj.code}</div>
                                     )}
-                                    {tooltipInfo.detail?.csList &&
-                                        tooltipInfo.detail.csList.length > 0 && (
+                                    {tooltipInfo.flight.csList &&
+                                        tooltipInfo.flight.csList.length > 0 && (
                                             <div>
                                                 CS:{' '}
-                                                {tooltipInfo.detail.csList
+                                                {tooltipInfo.flight.csList
                                                     .map((s) => s.displayName || s.name)
                                                     .join(', ')}
                                             </div>
                                         )}
-                                    {tooltipInfo.detail?.mechList &&
-                                        tooltipInfo.detail.mechList.length > 0 && (
+                                    {tooltipInfo.flight.mechList &&
+                                        tooltipInfo.flight.mechList.length > 0 && (
                                             <div>
                                                 MECH:{' '}
-                                                {tooltipInfo.detail.mechList
+                                                {tooltipInfo.flight.mechList
                                                     .map((s) => s.displayName || s.name)
                                                     .join(', ')}
                                             </div>
                                         )}
-                                    <div>Status: {tooltipInfo.flight.status || '-'}</div>
+                                    {getMissingStaff(tooltipInfo.flight).length > 0 && (
+                                        <div className="font-semibold text-red-400">
+                                            Missing staff: {getMissingStaff(tooltipInfo.flight).join(', ')}
+                                        </div>
+                                    )}
+                                    <div>
+                                        Status:{' '}
+                                        <span className={isFlightCancelled(tooltipInfo.flight) ? 'font-bold text-red-400' : ''}>
+                                            {tooltipInfo.flight.statusObj?.code || '-'}
+                                        </span>
+                                    </div>
 
                                 </div>
                             </div>

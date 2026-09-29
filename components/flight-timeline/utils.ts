@@ -1,4 +1,5 @@
 // Utility functions for transforming flight data to Planby format
+import type { CSSProperties } from 'react';
 import dayjs from 'dayjs';
 import '@/lib/dayjs'; // ensure utc plugin is registered
 import { splitUtcDateTimeToLocal } from '@/lib/utils/flightDatetime';
@@ -234,5 +235,102 @@ export function getTodayDateRange(): { startDate: string; endDate: string } {
  */
 export function formatDateForApi(date: Date): string {
     return dayjs(date).format('YYYY-MM-DD');
+}
+
+/**
+ * Local Monday 00:00 of the week containing `date` (weeks run Mon–Sun)
+ */
+export function getWeekStart(date: Date): Date {
+    const d = dayjs(date).startOf('day');
+    return d.subtract((d.day() + 6) % 7, 'day').toDate();
+}
+
+/**
+ * Local STA → STD of a flight for timeline bars.
+ * Missing or invalid STD (e.g. before STA) falls back to STA + 1h.
+ */
+export function getFlightLocalRange(flight: FlightItem): { start: dayjs.Dayjs; end: dayjs.Dayjs } | null {
+    if (!flight.arrivalStaDate) return null;
+    const start = dayjs.utc(flight.arrivalStaDate).local();
+    if (!start.isValid()) return null;
+    let end = flight.departureStdDate ? dayjs.utc(flight.departureStdDate).local() : start;
+    if (!end.isValid() || !end.isAfter(start)) end = start.add(1, 'hour');
+    return { start, end };
+}
+
+/**
+ * Flight status code "Cancel" — same check as the flight list page (useStatus options).
+ */
+export function isFlightCancelled(flight: FlightItem): boolean {
+    return flight.statusObj?.code === 'Cancel';
+}
+
+/**
+ * Flight status code "Planning" — the Status filter's "Current" option is every other status.
+ */
+export function isFlightPlanning(flight: FlightItem): boolean {
+    return flight.statusObj?.code === 'Planning';
+}
+
+/**
+ * Timeline bar style for a cancelled flight: neutral hatched fill (semi-transparent so it works in
+ * light and dark mode) with the airline colour kept as a left stripe for identification.
+ */
+export function getCancelledBarStyle(flight: FlightItem): CSSProperties {
+    return {
+        background: 'repeating-linear-gradient(135deg, rgba(100,116,139,0.18) 0 6px, rgba(100,116,139,0.38) 6px 12px)',
+        border: '1px dashed rgba(100,116,139,0.8)',
+        borderLeft: `4px solid ${flight.airlineObj?.colorBackground || '#64748b'}`,
+    };
+}
+
+/**
+ * Bar style shared by Day and Week timelines:
+ *   Current  → solid airline colour
+ *   Planning → same colour with a dashed outline
+ *   Cancel   → grey hatching (see getCancelledBarStyle)
+ * `clipLeft` / `clipRight` drop the border on an edge that continues into the previous / next day.
+ */
+export function getFlightBarStyle(
+    flight: FlightItem,
+    { clipLeft = false, clipRight = false }: { clipLeft?: boolean; clipRight?: boolean } = {}
+): CSSProperties {
+    if (isFlightCancelled(flight)) return getCancelledBarStyle(flight);
+
+    const background = flight.airlineObj?.colorBackground || '#3b82f6';
+    const color = flight.airlineObj?.colorForeground || '#fff';
+    const border = isFlightPlanning(flight)
+        ? `2px dashed color-mix(in srgb, ${color} 70%, transparent)`
+        : '1px solid rgba(0,0,0,0.12)';
+
+    return {
+        background,
+        color,
+        borderTop: border,
+        borderBottom: border,
+        borderLeft: clipLeft ? 'none' : border,
+        borderRight: clipRight ? 'none' : border,
+    };
+}
+
+/**
+ * Staff roles with nobody assigned yet — drives the red "!" marker. Empty for cancelled flights.
+ */
+export function getMissingStaff(flight: FlightItem): string[] {
+    if (isFlightCancelled(flight)) return [];
+    const missing: string[] = [];
+    if (!flight.csList?.length) missing.push('CS');
+    if (!flight.mechList?.length) missing.push('MECH');
+    return missing;
+}
+
+/**
+ * "T233XX1/ T233XX2" — arrivalFlightNo sometimes already contains the departure number.
+ */
+export function formatFlightLabel(flight: FlightItem, separator = '/ '): string {
+    const arr = flight.arrivalFlightNo?.trim();
+    const dep = flight.departureFlightNo?.trim();
+    if (arr && dep && !arr.includes(dep)) return `${arr}${separator}${dep}`;
+    return arr || dep || '-';
 }
 

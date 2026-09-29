@@ -3,16 +3,17 @@
 import { useTheme } from "next-themes";
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { CustomFlightTimeline } from './CustomFlightTimeline';
+import { WeekFlightTimeline } from './WeekFlightTimeline';
+import { TimelineLegend } from './TimelineLegend';
 import { FlightTable } from './FlightTable';
 import { FlightSkeleton } from './FlightSkeleton';
-import { formatDateForApi, sanitizeFlightsPlanby } from './utils';
+import { formatDateForApi, getWeekStart, isFlightPlanning } from './utils';
 
 import { useFlightListQuery } from '@/lib/api/hooks/useFlightListQuery';
 import { GetFlightListParams } from "@/lib/api/flight/getFlightList";
 import { FlightItem } from "@/lib/api/flight/filghtlist.interface";
-import { AlignStartVertical, ArrowLeftFromLine, ArrowRightFromLine, Table, Maximize2, Minimize2, X, Plus, AlarmClockOff, AlarmClock, FileUp, Download, Loader2 } from "lucide-react";
+import { AlignStartVertical, CalendarRange, ArrowLeftFromLine, ArrowRightFromLine, Table, Maximize2, Minimize2, X, Plus, AlarmClockOff, AlarmClock, Clock, FileUp, Download, Loader2 } from "lucide-react";
 import { useAircraftSchedMappingTemplate } from "@/hooks/use-aircraft-sched-mapping-template";
-import { FlightPlanbyItem, useFlightListPlanbyQuery } from "@/lib/api/hooks/useFlightListPlanbyQuery";
 import dayjs from "dayjs";
 import CreateProject from "@/app/[locale]/(protected)/flight/create-project";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,8 @@ import { PermissionActionGuard } from "@/components/partials/auth/PermissionActi
 
 
 
+const CLOCK_PILL_STORAGE_KEY = 'flight-timeline:clock-pill';
+
 interface FlightTimelineWrapperProps {
     initialDate?: Date;
 }
@@ -38,13 +41,30 @@ interface FlightTimelineWrapperProps {
 export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProps) {
     const { theme } = useTheme();
     const [selectedDate, setSelectedDate] = useState<Date>(initialDate || new Date());
-    const [viewMode, setViewMode] = useState<'timeline' | 'table'>('timeline');
+    const [viewMode, setViewMode] = useState<'timeline' | 'week' | 'table'>('week');
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isAlarm, setIsAlarm] = useState(false);
+    const [showClockPill, setShowClockPill] = useState(true);
+
+    // Remember whether the Local/UTC clock pill was closed (per browser; storage may be unavailable)
+    useEffect(() => {
+        try {
+            if (localStorage.getItem(CLOCK_PILL_STORAGE_KEY) === 'hidden') setShowClockPill(false);
+        } catch { /* ignore */ }
+    }, []);
+
+    const updateClockPill = (show: boolean) => {
+        setShowClockPill(show);
+        try {
+            if (show) localStorage.removeItem(CLOCK_PILL_STORAGE_KEY);
+            else localStorage.setItem(CLOCK_PILL_STORAGE_KEY, 'hidden');
+        } catch { /* ignore */ }
+    };
     const [currentTime, setCurrentTime] = useState(new Date());
     const contentRef = useRef<HTMLDivElement>(null);
     const [openAddFlight, setOpenAddFlight] = useState<boolean>(false);
     const [selectedStations, setSelectedStations] = useState<string[]>([]);
+    const [statusFilter, setStatusFilter] = useState<'all' | 'planning' | 'current'>('all');
     const [minuteScale, setMinuteScale] = useState<number>(60);
 
     // Station options from API
@@ -138,25 +158,33 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
         };
     }, []);
 
-    // Format dates for API
-    const dateStart = formatDateForApi(selectedDate);
-    const dateEnd = formatDateForApi(new Date(selectedDate.getTime() + 24 * 60 * 60 * 1000));
+    // Format dates for API — week view fetches Mon–Sun of the selected date's week
+    const isWeekView = viewMode === 'week';
+    const weekStart = useMemo(() => getWeekStart(selectedDate), [selectedDate]);
+    const dateStart = formatDateForApi(isWeekView ? weekStart : selectedDate);
+    const dateEnd = isWeekView ? formatDateForApi(dayjs(weekStart).add(6, 'day').toDate()) : dateStart;
+    const weekRangeLabel = `${dayjs(weekStart).format('DD MMM')} – ${dayjs(weekStart).add(6, 'day').format('DD MMM YYYY')}`;
     const params: GetFlightListParams = {
         stationCodeList: selectedStations.length > 0 ? selectedStations : [],
         dateStart: dateStart,
-        dateEnd: dateStart,
+        dateEnd: dateEnd,
         page: 1,
         perPage: 1000,
     };
     // Fetch flight data
+    // All views use /flight/listdata (one item per flight). /flight/listdata-planby splits flights into
+    // inconsistent per-day chunks — see documents/api-spec/flight-timeline-week.md
     const { data, isLoading, error, isFetched } = useFlightListQuery(params);
-    const { data: dataPlanby, isLoading: isLoadingPlanby, error: errorPlanby, isFetched: isFetchedPlanby } = useFlightListPlanbyQuery(params);
 
-    const flights: FlightItem[] = data?.responseData || [];
-    const flightsPlanbyRaw: FlightPlanbyItem[] = dataPlanby?.responseData || [];
+    const allFlights: FlightItem[] = data?.responseData || [];
 
-    // Sanitize: fix items where till <= since (invalid time ranges from API)
-    const flightsPlanby = useMemo(() => sanitizeFlightsPlanby(flightsPlanbyRaw), [flightsPlanbyRaw]);
+    // Status filter: Planning = statusObj.code "Planning", Current = any other status
+    const flights = useMemo(() => {
+        if (statusFilter === 'all') return allFlights;
+        const wantPlanning = statusFilter === 'planning';
+        return allFlights.filter((f) => isFlightPlanning(f) === wantPlanning);
+    }, [allFlights, statusFilter]);
+    const planningCount = useMemo(() => allFlights.filter(isFlightPlanning).length, [allFlights]);
 
     // Handle date change
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -164,11 +192,11 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
     };
 
     const handlePrevDay = () => {
-        setSelectedDate(prev => new Date(prev.getTime() - 24 * 60 * 60 * 1000));
+        setSelectedDate(prev => dayjs(prev).subtract(isWeekView ? 7 : 1, 'day').toDate());
     };
 
     const handleNextDay = () => {
-        setSelectedDate(prev => new Date(prev.getTime() + 24 * 60 * 60 * 1000));
+        setSelectedDate(prev => dayjs(prev).add(isWeekView ? 7 : 1, 'day').toDate());
     };
 
     const handleToday = () => {
@@ -252,6 +280,36 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
         </Popover>
     );
 
+    const statusFilterOptions = [
+        { value: 'all', label: 'All', count: allFlights.length },
+        { value: 'planning', label: 'Planning', count: planningCount },
+        { value: 'current', label: 'Current', count: allFlights.length - planningCount },
+    ] as const;
+
+    const statusFilterNode = (
+        <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-700 dark:text-white">Status :</span>
+            <div className="flex items-center gap-1 rounded-lg dark:bg-slate-700 bg-slate-200 p-1">
+                {statusFilterOptions.map((opt) => (
+                    <button
+                        key={opt.value}
+                        onClick={() => setStatusFilter(opt.value)}
+                        title={opt.value === 'current' ? 'Every status except Planning' : undefined}
+                        className={`cursor-pointer flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${statusFilter === opt.value
+                            ? 'bg-sky-400 text-white'
+                            : 'text-slate-700 dark:text-white hover:text-slate-500'
+                            }`}
+                    >
+                        {opt.label}
+                        <span className={`rounded px-1 text-[10px] font-semibold ${statusFilter === opt.value ? 'bg-white/25' : 'bg-slate-300/70 dark:bg-slate-600'}`}>
+                            {opt.count}
+                        </span>
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+
     return (
         <div className="relative space-y-4">
 
@@ -323,8 +381,9 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg dark:bg-slate-800/50 bg-slate-100 p-4 shadow">
 
                 {/* Station Filter (Multi-Select) */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-4">
                     {stationFilterNode}
+                    {statusFilterNode}
                 </div>
                 {/* Date Navigation */}
                 <div className="flex items-center gap-2">
@@ -348,6 +407,10 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                     >
                         <ArrowRightFromLine className="w-4 h-4" />
                     </button>
+
+                    {isWeekView && (
+                        <span className="text-sm font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">{weekRangeLabel}</span>
+                    )}
 
                     <button
                         onClick={handleToday}
@@ -393,7 +456,18 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                         <div className="text-sm text-slate-700 dark:text-white">View : </div>
                         <div className="flex items-center gap-1 rounded-lg dark:bg-slate-700 bg-slate-200 p-1">
                             <button
+                                onClick={() => setViewMode('week')}
+                                title="Week timeline"
+                                className={`cursor-pointer flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${viewMode === 'week'
+                                    ? 'bg-sky-400 text-white'
+                                    : 'text-slate-700 dark:text-white hover:text-slate-500'
+                                    }`}
+                            >
+                                <span><CalendarRange className="w-4 h-4" /></span>
+                            </button>
+                            <button
                                 onClick={() => setViewMode('timeline')}
+                                title="Day timeline"
                                 className={`cursor-pointer flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${viewMode === 'timeline'
                                     ? 'bg-sky-400 text-white'
                                     : 'text-slate-700 dark:text-white hover:text-slate-500'
@@ -403,6 +477,7 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                             </button>
                             <button
                                 onClick={() => setViewMode('table')}
+                                title="Table"
                                 className={`cursor-pointer flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${viewMode === 'table'
                                     ? 'bg-sky-400 text-white'
                                     : 'text-slate-700 dark:text-white hover:text-slate-500'
@@ -438,28 +513,48 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
             >
                 {/* Sticky Timezone Pill - Centered at the top. Needs to be inside contentRef to be visible in fullscreen mode. */}
                 <div className={`fixed left-1/2 -translate-x-1/2 z-[100] transition-all duration-300 pointer-events-none ${isFullscreen ? 'top-2' : 'top-4'}`}>
-                    <div className="flex items-center gap-3 px-6 py-2 rounded-full border border-slate-200/80 dark:border-slate-700/80 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md shadow-lg pointer-events-auto transition-transform hover:scale-105">
-                        <div className="flex items-center gap-2 ">
-                            <span className="text-slate-500 font-bold tracking-wider text-[11px] bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-md">LOCAL (BANGKOK)</span>
-                            <span className="text-slate-800 dark:text-slate-200 text-[11px] font-mono font-medium tracking-tight">{formattedLocalTime}</span>
+                    {showClockPill ? (
+                        <div className="flex items-center gap-3 pl-6 pr-2 py-2 rounded-full border border-slate-200/80 dark:border-slate-700/80 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md shadow-lg pointer-events-auto">
+                            <div className="flex items-center gap-2 ">
+                                <span className="text-slate-500 font-bold tracking-wider text-[11px] bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-md">LOCAL (BANGKOK)</span>
+                                <span className="text-slate-800 dark:text-slate-200 text-[11px] font-mono font-medium tracking-tight">{formattedLocalTime}</span>
+                            </div>
+                            <div className="h-5 w-px bg-slate-300 dark:bg-slate-600 mx-1"></div>
+                            <div className="flex items-center gap-2">
+                                <span className="text-sky-600 dark:text-sky-400 font-bold tracking-wider text-[11px] bg-sky-50 dark:bg-sky-900/30 px-2 py-0.5 rounded-md">UTC</span>
+                                <span className="text-slate-800 dark:text-slate-200 text-[11px] font-mono font-medium tracking-tight">{formattedUtcTime}</span>
+                            </div>
+                            <button
+                                onClick={() => updateClockPill(false)}
+                                title="Hide clock"
+                                aria-label="Hide clock"
+                                className="cursor-pointer ml-1 flex h-6 w-6 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200 transition-colors"
+                            >
+                                <X className="w-3.5 h-3.5" />
+                            </button>
                         </div>
-                        <div className="h-5 w-px bg-slate-300 dark:bg-slate-600 mx-1"></div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-sky-600 dark:text-sky-400 font-bold tracking-wider text-[11px] bg-sky-50 dark:bg-sky-900/30 px-2 py-0.5 rounded-md">UTC</span>
-                            <span className="text-slate-800 dark:text-slate-200 text-[11px] font-mono font-medium tracking-tight">{formattedUtcTime}</span>
-                        </div>
-                    </div>
+                    ) : (
+                        <button
+                            onClick={() => updateClockPill(true)}
+                            title="Show local / UTC clock"
+                            aria-label="Show local / UTC clock"
+                            className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-full border border-slate-200/80 dark:border-slate-700/80 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md shadow-lg pointer-events-auto text-slate-500 hover:text-sky-600 dark:text-slate-300 dark:hover:text-sky-400 transition-colors"
+                        >
+                            <Clock className="w-4 h-4" />
+                        </button>
+                    )}
                 </div>
 
                 {/* Fullscreen Header */}
                 {isFullscreen && (
                     <div className="mb-4 flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                            <h2 className="text-xl font-bold text-slate-800 dark:text-white">Flight {viewMode === 'timeline' ? 'Timeline' : 'Table'}</h2>
+                            <h2 className="text-xl font-bold text-slate-800 dark:text-white">Flight {viewMode === 'timeline' ? 'Timeline' : viewMode === 'week' ? 'Week' : 'Table'}</h2>
                             {stationFilterNode}
+                            {statusFilterNode}
                         </div>
                         <div className="flex items-center gap-4">
-                            <div className="text-slate-800 dark:text-white"> {dayjs(selectedDate).format('ddd DD MMM YYYY')} </div>
+                            <div className="text-slate-800 dark:text-white"> {isWeekView ? weekRangeLabel : dayjs(selectedDate).format('ddd DD MMM YYYY')} </div>
 
                             {viewMode === 'timeline' && (
                                 <div className="flex items-center gap-2">
@@ -491,16 +586,24 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                 {viewMode === 'timeline' ? (
                     isFetched && (
                         <CustomFlightTimeline
-                            flights={flightsPlanby}
-                            flightDetails={flights}
+                            flights={flights}
                             selectedDate={selectedDate}
                             isFullscreen={isFullscreen}
                             minuteScale={minuteScale}
                         />
                     )
+                ) : viewMode === 'week' ? (
+                    isFetched && (
+                        <WeekFlightTimeline
+                            flights={flights}
+                            weekStart={weekStart}
+                            isFullscreen={isFullscreen}
+                        />
+                    )
                 ) : (
                     isFetched && <FlightTable flights={flights} isLoading={isLoading} isFullscreen={isFullscreen} isAlarm={isAlarm} />
                 )}
+                {viewMode !== 'table' && isFetched && <TimelineLegend />}
             </div>
 
 

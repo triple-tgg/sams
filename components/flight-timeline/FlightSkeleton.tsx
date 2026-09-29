@@ -1,14 +1,14 @@
 'use client';
 
 interface FlightSkeletonProps {
-    viewMode: 'timeline' | 'table';
+    viewMode: 'timeline' | 'week' | 'table';
 }
 
 export function FlightSkeleton({ viewMode }: FlightSkeletonProps) {
     return (
         <>
             {/* Skeleton for Content */}
-            {viewMode === 'timeline' ? (
+            {viewMode !== 'table' ? (
                 <TimelineSkeleton />
             ) : (
                 <TableSkeleton />
