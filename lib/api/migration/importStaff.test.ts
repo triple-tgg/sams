@@ -120,6 +120,45 @@ describe("buildImportStaffPayload", () => {
         expect(warnings[0]).toContain("Chief Wizard");
     });
 
+    describe("station", () => {
+        const withStations: ImportStaffLookups = {
+            ...LOOKUPS,
+            stations: [
+                { id: 1, code: "BKK", name: "Suvarnabhumi" },
+                { id: 2, code: "HKT", name: "Phuket" },
+            ],
+        };
+
+        it("resolves the Station column to an id", () => {
+            const sheets = [sheet("Staff Info", ["Employee ID", "Station"], [["0068", "HKT"]])];
+            const { payload, warnings } = buildImportStaffPayload(sheets, withStations);
+            expect(payload.staffInfo[0].stationId).toBe(2);
+            expect(warnings).toEqual([]);
+        });
+
+        it("defaults to BKK when the Station cell is blank or the column is missing", () => {
+            const sheets = [
+                sheet("Staff Info", ["Employee ID", "Station"], [["0068", ""]]),
+                sheet("Staff", ["Employee ID"], [["0069"]]),
+            ];
+            const { payload } = buildImportStaffPayload(sheets, withStations);
+            expect(payload.staffInfo.map((s) => s.stationId)).toEqual([1, 1]);
+        });
+
+        it("warns and sends null when the station is not in the master", () => {
+            const sheets = [sheet("Staff Info", ["Employee ID", "Station"], [["0068", "XXX"]])];
+            const { payload, warnings } = buildImportStaffPayload(sheets, withStations);
+            expect(payload.staffInfo[0].stationId).toBeNull();
+            expect(warnings[0]).toContain("XXX");
+        });
+
+        it("still drops a staff info row that only has the default station", () => {
+            const sheets = [sheet("Staff Info", ["Employee ID", "Station"], [["", "BKK"]])];
+            const { payload } = buildImportStaffPayload(sheets, withStations);
+            expect(payload.staffInfo).toHaveLength(0);
+        });
+    });
+
     it("resolves the AMEL category name or code to an id", () => {
         const sheets = [
             sheet("AMEL License",

@@ -16,24 +16,29 @@ interface AircraftEngineParts {
  * - Single series:        "A330 - 300 (RR-TRENT-7000)"
  * - Multiple series:      "A330 - 300/900 (RR-TRENT-7000)"
  * - Families on one engine: "A319/A320/A321 (V2500)"
+ * - One family on several engines: "A319 (V2500/CFM56)"
  *
  * Engines keep the order they first appear in, so the list stays stable as
  * rows are added. Families are sorted within their engine so the label reads
  * the same no matter what order the rows arrived in, and series keep their
  * original order.
  */
-function buildDisplayLabels(parts: AircraftEngineParts[]): string[] {
+function buildDisplayGroups(parts: AircraftEngineParts[]): { label: string; indexes: number[] }[] {
     // engineCode -> familyCode -> series, all insertion-ordered
     const byEngine = new Map<string, Map<string, string[]>>()
+    // engineCode -> indexes of the parts that went into it
+    const indexesByEngine = new Map<string, number[]>()
 
-    for (const part of parts) {
+    parts.forEach((part, index) => {
         const engineCode = part.engineCode ?? ''
 
         let families = byEngine.get(engineCode)
         if (!families) {
             families = new Map<string, string[]>()
             byEngine.set(engineCode, families)
+            indexesByEngine.set(engineCode, [])
         }
+        indexesByEngine.get(engineCode)!.push(index)
 
         let seriesList = families.get(part.familyCode)
         if (!seriesList) {
@@ -44,9 +49,13 @@ function buildDisplayLabels(parts: AircraftEngineParts[]): string[] {
         if (part.series && !seriesList.includes(part.series)) {
             seriesList.push(part.series)
         }
-    }
+    })
 
-    return Array.from(byEngine.entries()).map(([engineCode, families]) => {
+    // familyPart -> engineCodes + indexes, so identical family parts on different
+    // engines share one label. Insertion-ordered, like the engines above.
+    const byFamilyPart = new Map<string, { engineCodes: string[]; indexes: number[] }>()
+
+    for (const [engineCode, families] of byEngine) {
         const familyPart = Array.from(families.entries())
             .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
             .map(([familyCode, seriesList]) =>
@@ -54,23 +63,43 @@ function buildDisplayLabels(parts: AircraftEngineParts[]): string[] {
             )
             .join('/')
 
+        const group = byFamilyPart.get(familyPart)
+        const indexes = indexesByEngine.get(engineCode)!
+        if (group) {
+            group.engineCodes.push(engineCode)
+            group.indexes.push(...indexes)
+        } else {
+            byFamilyPart.set(familyPart, { engineCodes: [engineCode], indexes: [...indexes] })
+        }
+    }
+
+    return Array.from(byFamilyPart.entries()).map(([familyPart, { engineCodes, indexes }]) => {
         // A blank engine code would otherwise render as an empty "()".
-        return engineCode ? `${familyPart} (${engineCode})` : familyPart
+        const enginePart = engineCodes.filter(Boolean).join('/')
+        return { label: enginePart ? `${familyPart} (${enginePart})` : familyPart, indexes }
     })
+}
+
+function buildDisplayLabels(parts: AircraftEngineParts[]): string[] {
+    return buildDisplayGroups(parts).map((group) => group.label)
 }
 
 /**
  * Group staffAircraftLicenseList into display labels.
  *
  * @param licenses - Active (non-deleted) staffAircraftLicenseList items
+ * @param combinations - Master combinations, used when a license has no aircraftEngineObj
  * @returns Array of grouped display label strings
  */
 export function groupAircraftEngineDisplayLabels(
-    licenses: StaffAircraftLicenseItem[]
+    licenses: StaffAircraftLicenseItem[],
+    combinations: { id: number; familyCode: string; series: string | null; engineCode: string }[] = []
 ): string[] {
+    const comboById = new Map(combinations.map((c) => [c.id, c]))
     const parts: AircraftEngineParts[] = []
     for (const lic of licenses) {
-        const obj = lic.aircraftEngineObj
+        // Some endpoints (e.g. staff byid) send only aircraftEngineId with a null object.
+        const obj = lic.aircraftEngineObj ?? comboById.get(lic.aircraftEngineId)
         if (!obj) continue
         parts.push({
             familyCode: obj.familyCode,
@@ -102,4 +131,24 @@ export function groupCombinationDisplayLabels(
         })
     }
     return buildDisplayLabels(parts)
+}
+
+/**
+ * Group selected combination ids by display label, keeping which ids each
+ * label covers. Same labels as groupCombinationDisplayLabels.
+ */
+export function groupCombinationsByDisplayLabel(
+    selectedIds: number[],
+    combinations: { id: number; familyCode: string; series: string; engineCode: string }[]
+): { label: string; ids: number[] }[] {
+    const byId = new Map(combinations.map((c) => [c.id, c]))
+    const selected = selectedIds.flatMap((id) => {
+        const combo = byId.get(id)
+        return combo ? [combo] : []
+    })
+
+    return buildDisplayGroups(selected).map(({ label, indexes }) => ({
+        label,
+        ids: indexes.map((index) => selected[index].id),
+    }))
 }

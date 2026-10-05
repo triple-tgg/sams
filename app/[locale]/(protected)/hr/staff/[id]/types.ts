@@ -87,6 +87,9 @@ export interface StaffData {
     status: string
     startDate: string | null
     endDate: string | null
+    stationId?: number | null
+    /** Station code from stationObj; may be empty when byid sends only stationId. */
+    station?: string
     initials: string
     avatarBg: string
     profileImage?: string

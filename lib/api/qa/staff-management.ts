@@ -152,6 +152,12 @@ export interface UpsertAircraftLicense {
     isDelete: boolean;
 }
 
+export interface UpsertStationTransfer {
+    id: number;
+    stationId: number;
+    isDelete: boolean;
+}
+
 export interface UpsertAmelLicense {
     id: number;
     licenseNumber: string;
@@ -180,6 +186,7 @@ export interface UpsertStaffRequest {
     startDate: string;
     endWorkingDate: string | null;
     staffDepartmentPositionId: number;
+    stationId: number | null;
     staffstypeid: number;
     jobTitle: string;
     profileImagePath: string;
@@ -188,6 +195,7 @@ export interface UpsertStaffRequest {
     staffDocumentList: UpsertStaffDocument[];
     staffAircraftLicenseList: UpsertAircraftLicense[];
     staffAmelLicenseList: UpsertAmelLicense[];
+    staffStationTransferList: UpsertStationTransfer[];
 }
 
 export interface UpsertStaffResponse {
@@ -369,6 +377,27 @@ export interface StaffAmelLicenseItem {
     updatedby: string;
 }
 
+export interface StaffStationObj {
+    id: number;
+    code: string;
+    name: string;
+    description: string | null;
+    isdelete: boolean;
+    createddate: string;
+    createdby: string | null;
+    updateddate: string | null;
+    updatedby: string | null;
+}
+
+/** Only id/stationId/isdelete are confirmed (from the upsert body); the byid sample list was empty. */
+export interface StaffStationTransferItem {
+    id: number;
+    staffId: number;
+    stationId: number;
+    isdelete: boolean;
+    [key: string]: unknown;
+}
+
 export interface StaffByIdData {
     id: number;
     code: string;
@@ -384,11 +413,15 @@ export interface StaffByIdData {
     address: string | null;
     employeeId: string | null;
     startDate: string | null;
-    endDate: string | null;
+    /** Not returned by byid any more; use endWorkingDate. */
+    endDate?: string | null;
+    /** ISO date-time, e.g. "2026-08-06T00:00:00". */
     endWorkingDate: string | null;
     positionObj: PositionObj | null;
     departmentObj: DepartmentObj | null;
     staffstypeObj: StaffTypeObj | null;
+    stationId: number | null;
+    stationObj: StaffStationObj | null;
     jobTitle: string | null;
     profileImagePath: string | null;
     isActive: boolean;
@@ -397,6 +430,7 @@ export interface StaffByIdData {
     staffDocumentList: StaffDocumentItem[];
     staffAircraftLicenseList: StaffAircraftLicenseItem[];
     staffAmelLicenseList: StaffAmelLicenseItem[];
+    staffStationTransferList: StaffStationTransferItem[];
     createddate: string;
     createdby: string;
     updateddate: string;
@@ -433,6 +467,7 @@ export const buildStaffUpsertRequest = (
     startDate: data.startDate || "",
     endWorkingDate: data.endWorkingDate || null,
     staffDepartmentPositionId: data.positionObj?.id || 0,
+    stationId: data.stationId ?? null,
     staffstypeid: data.staffstypeObj?.id || 0,
     jobTitle: data.jobTitle || "",
     profileImagePath: data.profileImagePath || "",
@@ -465,6 +500,12 @@ export const buildStaffUpsertRequest = (
             aircraftRatings: license.aircraftRatings || "",
             attachmentFilePath: license.attachmentFilePath || "",
             attachmentFileName: license.attachmentFileName || "",
+        })),
+    staffStationTransferList: (data.staffStationTransferList || [])
+        .map((transfer) => ({
+            id: transfer.id,
+            stationId: transfer.stationId,
+            isDelete: transfer.isdelete,
         })),
     ...overrides,
 });

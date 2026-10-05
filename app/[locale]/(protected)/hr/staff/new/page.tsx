@@ -13,6 +13,7 @@ import { useStaffDocumentTypes } from '@/lib/api/master/staff/staffDocumentTypes
 import type { StaffDocumentType } from '@/lib/api/master/staff/staffDocumentTypes'
 import { groupCombinationDisplayLabels } from '@/lib/utils/aircraftEngineDisplay'
 import { useStaffsTypesAll } from '@/lib/api/hooks/useStaffsTypes'
+import { useStations } from '@/lib/api/hooks/useStations'
 import { useAmelCategories } from '@/lib/api/master/amel-categories.hooks'
 
 // ── Form State ──
@@ -34,6 +35,7 @@ interface StaffForm {
     position: string
     department: string
     staffType: string
+    station: string
     jobTitle: string
     startDate: string
 }
@@ -90,6 +92,7 @@ const INITIAL_FORM: StaffForm = {
     position: '',
     department: '',
     staffType: '',
+    station: '',
     jobTitle: '',
     startDate: dateTimeUtils.todayLocal(),
 }
@@ -243,6 +246,8 @@ export default function NewStaffPage() {
     const { data: deptData } = useStaffDepartments()
     const { data: posData } = useStaffDepartmentPositions()
     const { staffTypes: staffTypesList } = useStaffsTypesAll()
+    const { data: stationsData } = useStations()
+    const stations = useMemo(() => (stationsData?.responseData || []).filter(s => !s.isdelete), [stationsData])
     const { data: amelCategoriesData } = useAmelCategories()
     const amelCategories = useMemo(() => (amelCategoriesData || []).filter(c => !c.isdelete), [amelCategoriesData])
 
@@ -475,6 +480,7 @@ export default function NewStaffPage() {
             startDate: form.startDate || '',
             endWorkingDate: null,
             staffDepartmentPositionId: positionId,
+            stationId: form.station ? Number(form.station) : null,
             staffstypeid,
             jobTitle: form.jobTitle || positionName || '',
             profileImagePath: profileImagePath,
@@ -518,6 +524,7 @@ export default function NewStaffPage() {
                     attachmentFileName: amelLicense.attachmentFileName || '',
                 }]
                 : [],
+            staffStationTransferList: [],
         }
     }
 
@@ -696,6 +703,14 @@ export default function NewStaffPage() {
                                             <option value="">Select Staff Type</option>
                                             {staffTypesList.map(s => (
                                                 <option key={s.id} value={s.id.toString()}>{s.code || s.name}</option>
+                                            ))}
+                                        </select>
+                                    </Field>
+                                    <Field label="Station">
+                                        <select value={form.station} onChange={e => update('station', e.target.value)} className={selectNormal}>
+                                            <option value="">Select Station</option>
+                                            {stations.map(s => (
+                                                <option key={s.id} value={s.id.toString()}>{s.name ? `${s.code} - ${s.name}` : s.code}</option>
                                             ))}
                                         </select>
                                     </Field>

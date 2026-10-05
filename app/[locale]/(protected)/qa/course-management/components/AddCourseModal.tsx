@@ -9,6 +9,7 @@ import 'react-quill-new/dist/quill.snow.css'
 import { Users } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { TransferBox } from '@/components/ui/transfer-box'
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false })
 import Select from 'react-select'
@@ -17,6 +18,7 @@ import { upsertCourse, getCourseCategories, getCourseDepartmentSubList, getCours
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useReduxAuth } from '@/lib/api/hooks/useReduxAuth'
 import { useCombinations } from '@/lib/api/master/aircraft-engine/aircraftEngine.hooks'
+import { groupCombinationDisplayLabels } from '@/lib/utils/aircraftEngineDisplay'
 
 interface AddCourseModalProps {
     course?: import('../types').Course
@@ -38,7 +40,7 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
         recurrentYears: course?.recurrentYears || 2,
         note: course?.note || '',
         requiredRoles: initialRoles as number[],
-        aircraftEngineCombinationId: null as number | null,
+        aircraftEngineCombinationIds: [] as number[],
         courseObjective: '',
         duration: '',
         syllabus: '',
@@ -78,8 +80,8 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                 note: data.course.additionalNote || '',
                 requiredRoles: data.requirements.filter(r => r.isRequired).map(r => r.courseDepartmentSubId),
                 // The detail endpoint returns the combinations as join rows.
-                aircraftEngineCombinationId:
-                    data.aircraftEngineCombinations?.[0]?.aircraftEngineCombinationId ?? null,
+                aircraftEngineCombinationIds:
+                    data.aircraftEngineCombinations?.map(c => c.aircraftEngineCombinationId) ?? [],
                 courseObjective: data.course.courseObjective || '',
                 duration: data.course.duration || '',
                 syllabus: data.course.syllabus || ''
@@ -101,7 +103,7 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
     const onSaveClick = () => {
         setSubmitted(true)
         if (form.requiredRoles.length === 0) return
-        if (form.category === 'Type Course' && !form.aircraftEngineCombinationId) return
+        if (form.category === 'Type Course' && form.aircraftEngineCombinationIds.length === 0) return
 
         const selectedCat = apiCategories.find(c => c.name === form.category)
         const catId = selectedCat?.id || 1
@@ -120,9 +122,8 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
             courseType: form.recurrent ? 'Recurrent' : 'Initial',
             recurrenceIntervalYears: form.recurrent ? form.recurrentYears : null,
             additionalNote: form.note || '',
-            aircraftEngineCombinationIds: form.aircraftEngineCombinationId
-                ? [form.aircraftEngineCombinationId]
-                : [],
+            // Only Type Course carries aircraft types; drop any left over from switching category.
+            aircraftEngineCombinationIds: form.category === 'Type Course' ? form.aircraftEngineCombinationIds : [],
             courseObjective: form.courseObjective || '',
             duration: form.duration || null,
             syllabus: form.syllabus || null,
@@ -133,7 +134,7 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
 
     return (
         <Dialog open onOpenChange={(open) => !open && onClose()}>
-            <DialogContent size="md" className="max-w-lg w-[calc(100vw-2rem)] rounded-xl p-0 max-h-[90vh] flex flex-col gap-0 overflow-hidden">
+            <DialogContent size="md" className="max-w-3xl w-[calc(100vw-2rem)] rounded-xl p-0 max-h-[90vh] flex flex-col gap-0 overflow-hidden">
                 <DialogHeader className="px-4 py-3 sm:p-6 sm:pb-4 border-b shrink-0">
                     <DialogTitle className="text-base sm:text-lg">{isEditing ? 'Edit Course' : 'Add New Course'}</DialogTitle>
                 </DialogHeader>
@@ -276,35 +277,21 @@ export function AddCourseModal({ course, onClose }: AddCourseModalProps) {
                             {form.category === 'Type Course' && (
                                 <div>
                                     <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Aircraft Type License <span className="text-red-400">*</span></label>
-                                    <Select
-                                        options={activeCombinations.map(combo => ({ value: combo.id, label: combo.displayLabel }))}
-                                        value={activeCombinations.filter(combo => combo.id === form.aircraftEngineCombinationId).map(combo => ({ value: combo.id, label: combo.displayLabel }))[0] || null}
-                                        onChange={(selectedOption: any) => {
-                                            setForm({ ...form, aircraftEngineCombinationId: selectedOption ? selectedOption.value : null })
+                                    <TransferBox
+                                        items={activeCombinations.map(combo => ({ id: combo.id, name: combo.displayLabel, groupKey: combo.familyCode }))}
+                                        selected={new Set(activeCombinations.filter(combo => form.aircraftEngineCombinationIds.includes(combo.id)).map(combo => combo.displayLabel))}
+                                        onSelectedChange={(selectedNames) => {
+                                            setForm({ ...form, aircraftEngineCombinationIds: activeCombinations.filter(combo => selectedNames.has(combo.displayLabel)).map(combo => combo.id) })
                                         }}
-                                        placeholder="Search Aircraft Type..."
-                                        className="text-sm"
-                                        isClearable
-                                        isSearchable
-                                        filterOption={(option, inputValue) => {
-                                            if (!inputValue) return true;
-                                            return option.label.toLowerCase().includes(inputValue.toLowerCase());
-                                        }}
-                                        noOptionsMessage={({ inputValue }) => inputValue ? `No results for "${inputValue}"` : 'No aircraft types available'}
-                                        menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
-                                        styles={{
-                                            control: (base, state) => ({
-                                                ...base,
-                                                borderColor: (submitted && !form.aircraftEngineCombinationId) ? '#f87171' : '#e2e8f0',
-                                                boxShadow: state.isFocused ? '0 0 0 1px #3b82f6' : 'none',
-                                                '&:hover': {
-                                                    borderColor: state.isFocused ? '#3b82f6' : '#cbd5e1'
-                                                }
-                                            }),
-                                            menuPortal: (base) => ({ ...base, zIndex: 9999 }),
-                                        }}
+                                        emptyIcon={<Plane className="h-8 w-8 mb-2 opacity-30" />}
+                                        emptyLabel="No items selected"
+                                        hasError={submitted && form.aircraftEngineCombinationIds.length === 0}
+                                        height={290}
+                                        renderSelectedGroupLabel={(_groupKey, groupItems) =>
+                                            groupCombinationDisplayLabels(groupItems.map(item => Number(item.id)), activeCombinations).join(', ')
+                                        }
                                     />
-                                    {submitted && !form.aircraftEngineCombinationId && <p className="text-[11px] text-red-500 mt-1">Aircraft Type License is required</p>}
+                                    {submitted && form.aircraftEngineCombinationIds.length === 0 && <p className="text-[11px] text-red-500 mt-1">Aircraft Type License is required</p>}
                                 </div>
                             )}
 

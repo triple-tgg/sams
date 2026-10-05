@@ -31,6 +31,10 @@ export interface TransferBoxProps {
    *  Receives the groupKey and the items in that group.
    *  Defaults to the groupKey string. */
   renderSelectedGroupLabel?: (groupKey: string, groupItems: TransferBoxItem[]) => string
+  /** Custom grouping for the selected (right) panel. Receives the visible
+   *  selected items and returns the groups in display order.
+   *  Defaults to grouping by groupKey. Overrides renderSelectedGroupLabel. */
+  groupSelectedItems?: (items: TransferBoxItem[]) => { key: string; label: string; items: TransferBoxItem[] }[]
 }
 
 export function TransferBox({
@@ -43,6 +47,7 @@ export function TransferBox({
   className,
   height = 280,
   renderSelectedGroupLabel,
+  groupSelectedItems,
 }: TransferBoxProps) {
   const [leftChecked, setLeftChecked] = useState<Set<string>>(new Set())
   const [rightChecked, setRightChecked] = useState<Set<string>>(new Set())
@@ -73,13 +78,20 @@ export function TransferBox({
   }, [filteredAvailable])
 
   const groupedSelected = useMemo(() => {
+    if (groupSelectedItems) return groupSelectedItems(filteredSelected)
     const map = new Map<string, TransferBoxItem[]>()
     filteredSelected.forEach(item => {
       if (!map.has(item.groupKey)) map.set(item.groupKey, [])
       map.get(item.groupKey)!.push(item)
     })
-    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]))
-  }, [filteredSelected])
+    return Array.from(map.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([key, items]) => ({
+        key,
+        label: renderSelectedGroupLabel ? renderSelectedGroupLabel(key, items) : key,
+        items,
+      }))
+  }, [filteredSelected, groupSelectedItems, renderSelectedGroupLabel])
 
   const moveRight = () => {
     if (leftChecked.size === 0) return
@@ -213,7 +225,7 @@ export function TransferBox({
         </div>
         {/* List */}
         <div className="flex-1 min-h-0 overflow-y-auto px-1 py-1">
-          {groupedSelected.length > 0 ? groupedSelected.map(([groupKey, groupItems]) => {
+          {groupedSelected.length > 0 ? groupedSelected.map(({ key: groupKey, label: groupLabel, items: groupItems }) => {
             const isCollapsed = collapsedGroups.has(groupKey)
             return (
               <div key={groupKey} className="mb-2">
@@ -228,7 +240,7 @@ export function TransferBox({
                 >
                   <ChevronDown className={cn("h-3 w-3 text-blue-400 transition-transform", isCollapsed && "-rotate-90")} />
                   <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wide flex-1 text-left">
-                    {renderSelectedGroupLabel ? renderSelectedGroupLabel(groupKey, groupItems) : groupKey}
+                    {groupLabel}
                   </span>
                   <span className="text-[9px] text-blue-300 font-medium">{groupItems.length}</span>
                 </button>

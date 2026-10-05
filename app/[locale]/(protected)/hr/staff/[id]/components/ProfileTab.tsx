@@ -13,6 +13,8 @@ import { useUpsertStaff, useUploadStaffFile } from '@/lib/api/hooks/useQAStaffMa
 
 import { buildStaffUpsertRequest, StaffByIdData, UpsertStaffRequest } from '@/lib/api/qa/staff-management'
 import { groupAircraftEngineDisplayLabels } from '@/lib/utils/aircraftEngineDisplay'
+import { useCombinations } from '@/lib/api/master/aircraft-engine/aircraftEngine.hooks'
+import { useStations } from '@/lib/api/hooks/useStations'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
@@ -177,6 +179,13 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
 
     // Derived data from API
     const aircraftLicenses = apiData?.staffAircraftLicenseList?.filter(l => !l.isdelete) || []
+    const { data: combinationsData } = useCombinations()
+    const { data: stationsData } = useStations()
+    // byid may send stationId with a null stationObj, so fall back to the master list.
+    const stationLabel = staff.station
+        || stationsData?.responseData?.find(s => s.id === staff.stationId)?.code
+        || '-'
+    const combinations = useMemo(() => combinationsData || [], [combinationsData])
     const amelLicenses = apiData?.staffAmelLicenseList?.filter(l => !l.isdelete) || []
     const amelLicense = amelLicenses[0]
 
@@ -392,6 +401,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
             staffDepartmentPositionId: data.position ? Number(data.position) : (apiData?.positionObj?.id || 0),
             jobTitle: data.jobNote || '',
             staffstypeid: staffstypeid,
+            stationId: data.station ? Number(data.station) : null,
         })
         if (!payload) return
 
@@ -547,8 +557,8 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
     }
 
     const groupedAircraftLabels = useMemo(
-        () => groupAircraftEngineDisplayLabels(aircraftLicenses),
-        [aircraftLicenses]
+        () => groupAircraftEngineDisplayLabels(aircraftLicenses, combinations),
+        [aircraftLicenses, combinations]
     )
 
     const uploadedCount = docSlots.filter(s => s.filePath).length
@@ -593,6 +603,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                             <InfoRow label="Position" value={staff.position} />
                             <InfoRow label="Start Date" value={staff.startDate ? formatDate(staff.startDate) : '-'} mono />
                             <InfoRow label="End Working Date" value={staff.endDate ? formatDate(staff.endDate) : '-'} mono />
+                            <InfoRow label="Station" value={stationLabel} />
                             {staff.startDate && (
                                 <InfoRow label="Tenure" value={calcAge(staff.startDate)} />
                             )}

@@ -52,7 +52,10 @@ function mapApiToStaffData(api: StaffByIdData, trainingApi?: TrainingDashboardRe
         department: api.departmentObj?.name || '-',
         status: api.isActive ? 'active' : 'inactive',
         startDate: api.startDate || null,
-        endDate: api.endWorkingDate || null,
+        // byid sends a date-time; the date input and formatDate need the date part.
+        endDate: api.endWorkingDate ? api.endWorkingDate.slice(0, 10) : null,
+        stationId: api.stationId ?? null,
+        station: api.stationObj?.code || '',
         initials,
         avatarBg: 'linear-gradient(135deg,#475569,#94a3b8)',
         profileImage: api.profileImagePath && api.profileImagePath !== 'string' ? api.profileImagePath : undefined,

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
     groupAircraftEngineDisplayLabels,
     groupCombinationDisplayLabels,
+    groupCombinationsByDisplayLabel,
 } from './aircraftEngineDisplay'
 
 /** Minimal staffAircraftLicenseList item carrying only what the label needs. */
@@ -74,6 +75,36 @@ describe('groupAircraftEngineDisplayLabels', () => {
                 lic('A320', null, 'CFM56'),
             ])
         ).toEqual(['A319 (V2500)', 'A320 (CFM56)'])
+    })
+
+    it('collapses engines of the same family into one label', () => {
+        expect(
+            groupAircraftEngineDisplayLabels([
+                lic('A319', null, 'IAE-PW1100G'),
+                lic('A319', null, 'V2500'),
+                lic('A319', null, 'CFM56'),
+                lic('A319', null, 'CFM-LEAP-1A'),
+            ])
+        ).toEqual(['A319 (IAE-PW1100G/V2500/CFM56/CFM-LEAP-1A)'])
+    })
+
+    it('only collapses engines when the family part matches exactly', () => {
+        expect(
+            groupAircraftEngineDisplayLabels([
+                lic('A319', null, 'V2500'),
+                lic('A320', null, 'V2500'),
+                lic('A319', null, 'CFM56'),
+            ])
+        ).toEqual(['A319/A320 (V2500)', 'A319 (CFM56)'])
+    })
+
+    it('keeps the same family with different series on separate engines apart', () => {
+        expect(
+            groupAircraftEngineDisplayLabels([
+                lic('A330', '300', 'TRENT'),
+                lic('A330', '900', 'CF6'),
+            ])
+        ).toEqual(['A330 - 300 (TRENT)', 'A330 - 900 (CF6)'])
     })
 
     it('carries each family series through when families share an engine', () => {
@@ -161,11 +192,46 @@ describe('groupCombinationDisplayLabels', () => {
         ])
     })
 
+    it('collapses engines of one family selected together', () => {
+        const a319 = [combo(10, 'A319', '', 'IAE-PW1100G'), combo(11, 'A319', '', 'V2500'), combo(12, 'A319', '', 'CFM56')]
+        expect(groupCombinationDisplayLabels([10, 11, 12], a319)).toEqual(['A319 (IAE-PW1100G/V2500/CFM56)'])
+    })
+
     it('ignores ids that are not in the combination list', () => {
         expect(groupCombinationDisplayLabels([1, 999], combinations)).toEqual(['A319 (V2500)'])
     })
 
     it('returns nothing when nothing is selected', () => {
         expect(groupCombinationDisplayLabels([], combinations)).toEqual([])
+    })
+})
+
+describe('groupCombinationsByDisplayLabel', () => {
+    const a330 = [
+        combo(1, 'A330', '300', 'GE-CF6'),
+        combo(2, 'A330', '200', 'PW4000'),
+        combo(3, 'A330', '200', 'RR-TRENT-700'),
+        combo(4, 'A330', '300', 'RR-TRENT-700'),
+    ]
+
+    it('splits one family into a group per label, with the ids each covers', () => {
+        expect(groupCombinationsByDisplayLabel([1, 2, 3, 4], a330)).toEqual([
+            { label: 'A330 - 300 (GE-CF6)', ids: [1] },
+            { label: 'A330 - 200 (PW4000)', ids: [2] },
+            { label: 'A330 - 200/300 (RR-TRENT-700)', ids: [3, 4] },
+        ])
+    })
+
+    it('keeps merged engines of one family in a single group', () => {
+        const a319 = [combo(10, 'A319', '', 'V2500'), combo(11, 'A319', '', 'CFM56')]
+        expect(groupCombinationsByDisplayLabel([10, 11], a319)).toEqual([
+            { label: 'A319 (V2500/CFM56)', ids: [10, 11] },
+        ])
+    })
+
+    it('ignores ids that are not in the combination list', () => {
+        expect(groupCombinationsByDisplayLabel([1, 999], a330)).toEqual([
+            { label: 'A330 - 300 (GE-CF6)', ids: [1] },
+        ])
     })
 })

@@ -278,6 +278,52 @@ export function getMenuList(pathname: string, t: any): Group[] {
     },
 
     {
+      groupLabel: t("Roster"),
+      id: "roster",
+      menus: [
+        {
+          // No permCode yet: codes missing from the permission API hide the menu.
+          // Add ROSTER* codes here and in route-permissions.ts once they exist in the DB.
+          id: "roster",
+          href: "/roster/flight-roster",
+          label: t("Roster"),
+          active: pathname.includes("/roster"),
+          icon: "heroicons-outline:calendar-days",
+          submenus: [
+            {
+              href: "/roster/flight-roster",
+              label: t("rosterFlightRoster"),
+              active: pathname.includes("/roster/flight-roster"),
+              icon: "heroicons-outline:calendar",
+              children: [],
+            },
+            {
+              href: "/roster/certifying-staff",
+              label: t("rosterCertifyingStaff"),
+              active: pathname.includes("/roster/certifying-staff"),
+              icon: "heroicons-outline:identification",
+              children: [],
+            },
+            {
+              href: "/roster/aircraft-type-summary",
+              label: t("rosterAircraftTypeSummary"),
+              active: pathname.includes("/roster/aircraft-type-summary"),
+              icon: "mdi:engine-outline",
+              children: [],
+            },
+            {
+              href: "/roster/manpower-analysis",
+              label: t("rosterManpowerAnalysis"),
+              active: pathname.includes("/roster/manpower-analysis"),
+              icon: "heroicons-outline:presentation-chart-line",
+              children: [],
+            },
+          ],
+        },
+      ],
+    },
+
+    {
       groupLabel: t("masterData"),
       id: "master-data",
       menus: [

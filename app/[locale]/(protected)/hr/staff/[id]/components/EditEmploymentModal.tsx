@@ -5,6 +5,7 @@ import { X, Briefcase } from 'lucide-react'
 import { StaffData } from '../types'
 import { useStaffDepartments, useStaffDepartmentPositions } from '@/lib/api/master/organization.hooks'
 import { useStaffsTypesAll } from '@/lib/api/hooks/useStaffsTypes'
+import { useStations } from '@/lib/api/hooks/useStations'
 
 interface EmploymentFormData {
     empId: string
@@ -14,6 +15,7 @@ interface EmploymentFormData {
     endWorkingDate: string
     jobNote: string
     staffType: string
+    station: string
 }
 
 interface EditEmploymentModalProps {
@@ -83,6 +85,11 @@ export function EditEmploymentModal({ isOpen, onClose, staff, onSave }: EditEmpl
     const { data: deptData } = useStaffDepartments()
     const { data: posData } = useStaffDepartmentPositions()
     const { staffTypes: staffTypesList } = useStaffsTypesAll()
+    const { data: stationsData } = useStations()
+
+    const stations = useMemo(() => {
+        return (stationsData?.responseData || []).filter(s => !s.isdelete)
+    }, [stationsData])
 
     const departments = useMemo(() => {
         return (deptData?.responseData || []).filter(d => !d.isdelete)
@@ -100,6 +107,7 @@ export function EditEmploymentModal({ isOpen, onClose, staff, onSave }: EditEmpl
         endWorkingDate: '',
         jobNote: '',
         staffType: '',
+        station: '',
     })
 
     // Initialize form when modal opens
@@ -124,6 +132,7 @@ export function EditEmploymentModal({ isOpen, onClose, staff, onSave }: EditEmpl
                 endWorkingDate: staff.endDate ?? '',
                 jobNote: staff.jobNote ?? '',
                 staffType: initialStaffType,
+                station: staff.stationId ? staff.stationId.toString() : '',
             })
         } else if (isOpen) {
             setForm({
@@ -134,6 +143,7 @@ export function EditEmploymentModal({ isOpen, onClose, staff, onSave }: EditEmpl
                 endWorkingDate: staff.endDate ?? '',
                 jobNote: staff.jobNote ?? '',
                 staffType: initialStaffType,
+                station: staff.stationId ? staff.stationId.toString() : '',
             })
         }
     }, [isOpen, staff, departments, allPositions, staffTypesList])
@@ -162,6 +172,14 @@ export function EditEmploymentModal({ isOpen, onClose, staff, onSave }: EditEmpl
             label: st.code || st.name || `Type ${st.id}`,
         })),
     ], [staffTypesList])
+
+    const stationOptions = useMemo(() => [
+        { value: '', label: '-- Select Station --' },
+        ...stations.map(s => ({
+            value: s.id.toString(),
+            label: s.name ? `${s.code} - ${s.name}` : s.code,
+        })),
+    ], [stations])
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target
@@ -273,16 +291,21 @@ export function EditEmploymentModal({ isOpen, onClose, staff, onSave }: EditEmpl
                             onChange={handleChange}
                             type="date"
                         />
-                        {/* Row 4: Job Note */}
-                        <div className="col-span-2 max-sm:col-span-1">
-                            <FormField
-                                label="Job Note"
-                                name="jobNote"
-                                value={form.jobNote}
-                                onChange={handleChange}
-                                placeholder="e.g. Senior Aircraft Mechanic"
-                            />
-                        </div>
+                        {/* Row 4: Station → Job Note */}
+                        <FormSelect
+                            label="Station"
+                            name="station"
+                            value={form.station}
+                            onChange={handleChange}
+                            options={stationOptions}
+                        />
+                        <FormField
+                            label="Job Note"
+                            name="jobNote"
+                            value={form.jobNote}
+                            onChange={handleChange}
+                            placeholder="e.g. Senior Aircraft Mechanic"
+                        />
                     </div>
 
                     {/* Footer */}

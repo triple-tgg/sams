@@ -15,6 +15,8 @@ export interface ImportStaffInfo {
     joined: string;
     /** Resolved from the Position column against the position master. */
     positionId: number;
+    /** Resolved from the Station column against the station master; BKK when blank. */
+    stationId: number | null;
     idCardNo: string;
     nationality: string;
     dateOfBirth: string;
@@ -123,12 +125,16 @@ export interface ParsedSheetInput {
 /** Name → id, for the columns the sheet holds as text but the API wants as an id. */
 export interface ImportStaffLookups {
     positions: Array<{ id: number; code?: string | null; name: string }>;
+    stations?: Array<{ id: number; code?: string | null; name: string }>;
     aircraftLicenses?: Array<{ id: number; code?: string | null; name: string }>;
     aircraftCombinations?: Array<any>;
     aircraftRowMappings?: Record<number, SplitAircraftCombinationItem[]>;
     amelCategories?: Array<{ id: number; code?: string | null; name: string }>;
     courses?: Array<{ id?: number; courseCode: string; courseName: string }>;
 }
+
+/** Station used when a Staff Info row has no Station value (or the sheet has no Station column). */
+export const DEFAULT_IMPORT_STATION = "BKK";
 
 // ── Header and sheet matching ───────────────────────────────────────────────
 
@@ -239,6 +245,7 @@ export function buildImportStaffPayload(
     const warnings: string[] = [];
 
     const positionIndex = buildLookupIndex(lookups.positions);
+    const stationIndex = buildLookupIndex(lookups.stations ?? []);
     const licenceIndex = buildLookupIndex(lookups.aircraftLicenses ?? []);
     const categoryIndex = buildLookupIndex(lookups.amelCategories ?? []);
     const courseIndex = new Map<string, string>();
@@ -289,11 +296,18 @@ export function buildImportStaffPayload(
                     else warnings.push(`${sheet.name} row ${rowIndex}: position "${positionName}" is not in the position master`);
                 }
 
+                const stationName = get(data, ["station"]) || DEFAULT_IMPORT_STATION;
+                const stationId = stationIndex.get(normalizeKey(stationName)) ?? null;
+                if (stationId === null && lookups.stations) {
+                    warnings.push(`${sheet.name} row ${rowIndex}: station "${stationName}" is not in the station master`);
+                }
+
                 const entry: ImportStaffInfo = {
                     ...ref,
                     title: get(data, ["title"]),
                     joined: get(data, ["joined", "joineddate"]),
                     positionId,
+                    stationId,
                     idCardNo: get(data, ["thaiidcardno", "idcardno"]),
                     nationality: get(data, ["nationality"]),
                     dateOfBirth: get(data, ["dateofbirth", "dob"]),
@@ -302,7 +316,8 @@ export function buildImportStaffPayload(
                     email: get(data, ["email"]),
                     address: get(data, ["address"]),
                 };
-                if (!isEmptyRecord(entry)) payload.staffInfo.push(entry);
+                // stationId always has the BKK default, so it says nothing about whether the row is blank.
+                if (!isEmptyRecord(entry, ["stationId"])) payload.staffInfo.push(entry);
                 continue;
             }
 

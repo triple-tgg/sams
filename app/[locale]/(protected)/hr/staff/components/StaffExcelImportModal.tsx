@@ -63,9 +63,11 @@ import {
     countImportStaffPayloadRows,
     normalizeKey,
     sectionForSheet,
+    DEFAULT_IMPORT_STATION,
     type ImportStaffSummary,
 } from '@/lib/api/migration/importStaff';
 import { useStaffDepartmentPositions } from '@/lib/api/master/organization.hooks';
+import { useStations } from '@/lib/api/hooks/useStations';
 import { useAircraftTypeLicenses } from '@/lib/api/master/aircraft-type-licenses.hooks';
 import { useAmelCategories } from '@/lib/api/master/amel-categories.hooks';
 import { useCourseList } from '@/lib/api/qa/course.hooks';
@@ -442,6 +444,7 @@ export function StaffExcelImportModal({
 
     // Master data lookups
     const { data: positionsResp } = useStaffDepartmentPositions();
+    const { data: stationsResp } = useStations();
     const { data: aircraftLicenses } = useAircraftTypeLicenses();
     const { data: combinationsData = [] } = useCombinations();
     const combinationsList = useMemo(() => {
@@ -492,6 +495,11 @@ export function StaffExcelImportModal({
         const list = positionsResp?.responseData ?? [];
         return list.filter((p) => !p.isdelete);
     }, [positionsResp]);
+
+    const stationsList = useMemo(() => {
+        const list = stationsResp?.responseData ?? [];
+        return list.filter((s) => !s.isdelete);
+    }, [stationsResp]);
 
     const amelCategoriesList = useMemo(() => {
         const list = amelCategories ?? [];
@@ -1183,7 +1191,9 @@ export function StaffExcelImportModal({
         const newRowIndex = activeSheet.rows.length + 1;
         const emptyData: Record<string, string> = {};
         activeSheet.headers.forEach((h) => {
-            emptyData[h] = '';
+            emptyData[h] = activeSheetSection === 'staffInfo' && normalizeKey(h) === 'station'
+                ? DEFAULT_IMPORT_STATION
+                : '';
         });
         const newRow: ParsedStaffRow = {
             rowIndex: newRowIndex,
@@ -1200,7 +1210,7 @@ export function StaffExcelImportModal({
         });
         setEditingRowIndex(newRowIndex);
         setEditingRowData(emptyData);
-    }, [activeSheet, activeSheetIndex]);
+    }, [activeSheet, activeSheetIndex, activeSheetSection]);
 
     const parseSheet = (worksheet: XLSX.WorkSheet, sheetName: string): ParsedSheet | null => {
         const jsonData = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: '' });
@@ -1224,6 +1234,19 @@ export function StaffExcelImportModal({
                 } else {
                     headers = ['Course Code', ...headers];
                 }
+            }
+        }
+
+        // Staff Info always gets a Station column; blanks default to BKK below.
+        let stationHeader: string | null = null;
+        if (section === 'staffInfo') {
+            stationHeader = headers.find((h) => normalizeKey(h) === 'station') ?? null;
+            if (!stationHeader) {
+                stationHeader = 'Station';
+                const posIdx = headers.findIndex((h) => normalizeKey(h) === 'position');
+                headers = posIdx >= 0
+                    ? [...headers.slice(0, posIdx + 1), stationHeader, ...headers.slice(posIdx + 1)]
+                    : [...headers, stationHeader];
             }
         }
 
@@ -1252,6 +1275,10 @@ export function StaffExcelImportModal({
         const rows: ParsedStaffRow[] = jsonData.map((row, index) => ({
             rowIndex: index + 1,
             data: headers.reduce((acc, header, hIdx) => {
+                if (header === stationHeader) {
+                    acc[header] = String(row[header] ?? '').trim() || DEFAULT_IMPORT_STATION;
+                    return acc;
+                }
                 const isDate = isDateColumn(header);
                 // For Employee ID columns, use the formatted text from worksheet to preserve leading zeros
                 if (employeeIdColIndices.includes(hIdx)) {
@@ -1516,6 +1543,7 @@ export function StaffExcelImportModal({
         try {
             const { payload, warnings } = buildImportStaffPayload(sheets, {
                 positions: positionsList,
+                stations: stationsList,
                 aircraftLicenses: aircraftLicenses ?? [],
                 aircraftCombinations: combinationsList,
                 aircraftRowMappings: aircraftRowMappings,
@@ -1876,6 +1904,8 @@ export function StaffExcelImportModal({
                                                                     const normH = normalizeKey(header);
                                                                     const isPositionCol =
                                                                         section === 'staffInfo' && normH === 'position';
+                                                                    const isStationCol =
+                                                                        section === 'staffInfo' && normH === 'station';
                                                                     const isCategoryCol =
                                                                         section === 'amelLicense' && normH === 'category';
                                                                     const isCourseCodeCol =
@@ -1937,6 +1967,49 @@ export function StaffExcelImportModal({
                                                                                         <option key={pos.id} value={pos.name}>
                                                                                             {pos.name}
                                                                                             {pos.code ? ` (${pos.code})` : ''}
+                                                                                        </option>
+                                                                                    ))}
+                                                                                </select>
+                                                                            </td>
+                                                                        );
+                                                                    }
+
+                                                                    if (isStationCol) {
+                                                                        const currentVal = editingRowData[header] ?? '';
+                                                                        const matchedStation = findMatchingOption(
+                                                                            currentVal,
+                                                                            stationsList
+                                                                        );
+
+                                                                        return (
+                                                                            <td
+                                                                                key={idx}
+                                                                                className="text-xs px-2 py-1 border-b min-w-[140px]"
+                                                                            >
+                                                                                <select
+                                                                                    value={matchedStation?.code || currentVal}
+                                                                                    onChange={(e) =>
+                                                                                        setEditingRowData((prev) => ({
+                                                                                            ...prev,
+                                                                                            [header]: e.target.value,
+                                                                                        }))
+                                                                                    }
+                                                                                    className={cn(
+                                                                                        'w-full h-8 px-2 py-1 text-xs bg-background border rounded-md focus:outline-none focus:ring-2 font-normal transition-all',
+                                                                                        currentVal && !matchedStation
+                                                                                            ? 'border-red-400 dark:border-red-500 focus:ring-red-400/40 text-red-600 dark:text-red-400'
+                                                                                            : 'border-blue-400 dark:border-blue-600 focus:ring-blue-400/40'
+                                                                                    )}
+                                                                                >
+                                                                                    {currentVal && !matchedStation && (
+                                                                                        <option value={currentVal} disabled>
+                                                                                            {currentVal} (Invalid - please
+                                                                                            select)
+                                                                                        </option>
+                                                                                    )}
+                                                                                    {stationsList.map((st) => (
+                                                                                        <option key={st.id} value={st.code}>
+                                                                                            {st.name ? `${st.code} - ${st.name}` : st.code}
                                                                                         </option>
                                                                                     ))}
                                                                                 </select>
