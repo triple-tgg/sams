@@ -64,13 +64,23 @@ export function CollapsibleCard({
                         {icon}
                     </span>
                     <span className="min-w-0 truncate">{title}</span>
-                    <ChevronDown className={cn(
-                        'ml-auto h-4 w-4 shrink-0 text-slate-400 transition-transform',
-                        !always && 'xl:hidden',
-                        open && 'rotate-180'
-                    )} />
                 </button>
-                {action}
+                {/* Actions sit before the chevron, so the chevron is always the outermost control */}
+                <div className="flex shrink-0 items-center gap-2">
+                    {action}
+                    <button
+                        type="button"
+                        onClick={toggle}
+                        aria-expanded={open}
+                        aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
+                        className={cn(
+                            'inline-flex items-center justify-center w-7 h-7 rounded-md p-0 bg-transparent border-none cursor-pointer text-slate-400 hover:bg-slate-100 hover:text-slate-600',
+                            !always && 'xl:hidden'
+                        )}
+                    >
+                        <ChevronDown className={cn('h-4 w-4 transition-transform', open && 'rotate-180')} />
+                    </button>
+                </div>
             </div>
             <div className={cn(!open && (always ? 'hidden' : 'max-xl:hidden'), bodyClassName)}>
                 {children}

@@ -55,6 +55,8 @@ const transformApiToFormData = (data: ContractDetail): ContractFormData => {
         validFrom: data.validFrom,
         expiresOn: data.expiresOn,
         isNoExpiryDate: data.isNoExpiryDate ?? false,
+        // The date input wants just the day; the API may add a time part.
+        escalationDate: data.escalationDate ? data.escalationDate.slice(0, 10) : "",
         domicileCountry: data.domicileCountry || "",
         currency: data.currencyType?.trim().toLowerCase() || "",
         status: data.contractStatusObj?.code || "",
@@ -187,6 +189,7 @@ const transformFormDataToRequest = (
         validFrom: formData.validFrom,
         expiresOn: formData.expiresOn,
         isNoExpiryDate: formData.isNoExpiryDate,
+        escalationDate: formData.escalationDate || null,
         creditTerms: formData.creditTerms,
         contractStatusId: formData.contractStatusId || parseInt(formData.status) || 0,
         attachContractList: formData.contractDocumentPath ? {

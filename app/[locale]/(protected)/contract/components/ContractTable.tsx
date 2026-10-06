@@ -53,6 +53,9 @@ const getStatusBadge = (status: string) => {
     return <Badge className={`${statusConfig.className} min-w-[120px] text-center justify-center`}>{statusConfig.label}</Badge>;
 };
 
+/** Pins the Action column to the right edge while the table scrolls sideways; solid background so rows do not show through. */
+const STICKY_ACTION = "sticky right-0 z-10 bg-card shadow-[inset_1px_0_0_hsl(var(--border)),-6px_0_8px_-6px_rgba(0,0,0,0.12)]";
+
 export const ContractTable = ({
     contracts,
     onView,
@@ -71,7 +74,7 @@ export const ContractTable = ({
                     <TableHead className="whitespace-nowrap text-center">No Expiry</TableHead>
                     <TableHead className="whitespace-nowrap">Location</TableHead>
                     <TableHead className="whitespace-nowrap">Status</TableHead>
-                    <TableHead className="whitespace-nowrap text-center">Action</TableHead>
+                    <TableHead className={`whitespace-nowrap text-center w-[88px] ${STICKY_ACTION}`}>Action</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -118,7 +121,7 @@ export const ContractTable = ({
                                 </TableCell>
                                 <TableCell className="whitespace-nowrap">{contract.location}</TableCell>
                                 <TableCell>{getStatusBadge(contract.status)}</TableCell>
-                                <TableCell>
+                                <TableCell className={`w-[88px] ${STICKY_ACTION}`}>
                                     <div className="flex items-center justify-center">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>

@@ -176,6 +176,7 @@ export const defaultFormData: ContractFormData = {
     validFrom: "",
     expiresOn: "",
     isNoExpiryDate: false,
+    escalationDate: "",
     domicileCountry: "",
     currency: "",
     status: "",

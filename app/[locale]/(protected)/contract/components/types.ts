@@ -106,6 +106,8 @@ export interface ContractFormData {
     validFrom: string;
     expiresOn: string;
     isNoExpiryDate: boolean;
+    /** YYYY-MM-DD; empty when not set. */
+    escalationDate: string;
     domicileCountry: string;
     currency: string;
     status: string;

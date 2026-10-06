@@ -293,12 +293,13 @@ export function LogbookTab({ staff }: { staff: StaffData }) {
                         onChange={(e) => { setFilterAircraftTypeId(e.target.value ? Number(e.target.value) : null); setPage(1); }}
                     >
                         <option value="">All Aircraft Types</option>
+                        {/* The API filters by id; option.value is the type code, which Number() turns into NaN. */}
                         {aircraftTypeOptions?.map((opt: any) => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            <option key={opt.id} value={opt.id}>{opt.label}</option>
                         ))}
                     </select>
                     
-                    {(filterThfNo || filterDate || filterAircraftTypeId) && (
+                    {Boolean(filterThfNo || filterDate || filterAircraftTypeId) && (
                         <button 
                             onClick={() => {
                                 setFilterThfNo("");
@@ -355,7 +356,7 @@ export function LogbookTab({ staff }: { staff: StaffData }) {
                                             {rec.description}
                                         </td>
                                         <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-center font-semibold">
-                                            {rec.hours.toFixed(1)}
+                                            {Number(rec.hours ?? 0).toFixed(1)}
                                         </td>
                                         <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-center">
                                             <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-md ${isSigned ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'}`}>

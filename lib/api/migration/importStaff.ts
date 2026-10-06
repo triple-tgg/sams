@@ -89,26 +89,6 @@ export interface ImportStaffRequest {
 
 // ── Response ────────────────────────────────────────────────────────────────
 
-/** The endpoint imports one staff member per call. */
-export interface ImportStaffSummary {
-    staffId: number;
-    employeeId: string;
-    isNewStaff: boolean;
-    amelLicenseCount: number;
-    aircraftLicenseCount: number;
-    previousTrainingCount: number;
-    trainingRecordCount: number;
-    workExperienceCount: number;
-    educationCount: number;
-    warnings: string[];
-}
-
-export interface ImportStaffResponse {
-    message: string;
-    responseData: ImportStaffSummary;
-    error: string;
-}
-
 // ── Parsed spreadsheet input ────────────────────────────────────────────────
 
 export interface ParsedSheetRow {
@@ -223,10 +203,24 @@ const EMPTY_PAYLOAD = (): ImportStaffRequest => ({
     education: [],
 });
 
+/** Where one payload entry came from in the workbook. */
+export interface ImportSourceRow {
+    sheetName: string;
+    rowIndex: number;
+}
+
+export type ImportPayloadSources = { [K in keyof ImportStaffRequest]: ImportSourceRow[] };
+
 export interface ImportStaffPayloadResult {
     payload: ImportStaffRequest;
     /** Values the sheet carried that could not be matched to master data. */
     warnings: string[];
+    /**
+     * The sheet row behind each payload entry, index for index. Blank rows are
+     * dropped and an aircraft row can split into several entries, so a payload
+     * position is not a sheet row number; this is how to translate back.
+     */
+    sources: ImportPayloadSources;
 }
 
 /**
@@ -243,6 +237,15 @@ export function buildImportStaffPayload(
 ): ImportStaffPayloadResult {
     const payload = EMPTY_PAYLOAD();
     const warnings: string[] = [];
+    const sources: ImportPayloadSources = {
+        staffInfo: [],
+        amelLicense: [],
+        aircraftLicense: [],
+        previousTrainingRecords: [],
+        trainingRecords: [],
+        workExperience: [],
+        education: [],
+    };
 
     const positionIndex = buildLookupIndex(lookups.positions);
     const stationIndex = buildLookupIndex(lookups.stations ?? []);
@@ -281,6 +284,10 @@ export function buildImportStaffPayload(
             pickColumn(row, headers, candidates);
 
         for (const { rowIndex, data } of sheet.rows) {
+            const add = <K extends keyof ImportStaffRequest>(key: K, entry: ImportStaffRequest[K][number]) => {
+                (payload[key] as Array<ImportStaffRequest[K][number]>).push(entry);
+                sources[key].push({ sheetName: sheet.name, rowIndex });
+            };
             const ref: StaffRef = {
                 employeeId: get(data, ["employeeid"]),
                 fullNameTh: get(data, ["fullnamethai", "fullnameth"]),
@@ -317,7 +324,7 @@ export function buildImportStaffPayload(
                     address: get(data, ["address"]),
                 };
                 // stationId always has the BKK default, so it says nothing about whether the row is blank.
-                if (!isEmptyRecord(entry, ["stationId"])) payload.staffInfo.push(entry);
+                if (!isEmptyRecord(entry, ["stationId"])) add("staffInfo", entry);
                 continue;
             }
 
@@ -344,7 +351,7 @@ export function buildImportStaffPayload(
                     expiryDate: get(data, ["expirydate"]),
                 };
                 if (!isEmptyRecord(entry, ["employeeId", "fullNameTh", "fullNameEn"])) {
-                    payload.amelLicense.push(entry);
+                    add("amelLicense", entry);
                 }
                 continue;
             }
@@ -358,7 +365,7 @@ export function buildImportStaffPayload(
                 if (customMappings && customMappings.length > 0) {
                     for (const item of customMappings) {
                         if (item.combinationId) {
-                            payload.aircraftLicense.push({
+                            add("aircraftLicense", {
                                 ...ref,
                                 aircraftLicenseId: item.combinationId,
                             });
@@ -375,7 +382,7 @@ export function buildImportStaffPayload(
                         for (const item of splitItems) {
                             if (item.combinationId) {
                                 anyAdded = true;
-                                payload.aircraftLicense.push({
+                                add("aircraftLicense", {
                                     ...ref,
                                     aircraftLicenseId: item.combinationId,
                                 });
@@ -393,7 +400,7 @@ export function buildImportStaffPayload(
                 if (!matched) {
                     warnings.push(`${sheet.name} row ${rowIndex}: aircraft licence "${licenceName}" is not in the licence master`);
                 }
-                payload.aircraftLicense.push({ ...ref, aircraftLicenseId: matched ?? 0 });
+                add("aircraftLicense", { ...ref, aircraftLicenseId: matched ?? 0 });
                 continue;
             }
 
@@ -406,7 +413,7 @@ export function buildImportStaffPayload(
                     dateTo: get(data, ["dateto"]),
                 };
                 if (!isEmptyRecord(entry, ["employeeId", "fullNameTh", "fullNameEn"])) {
-                    payload.previousTrainingRecords.push(entry);
+                    add("previousTrainingRecords", entry);
                 }
                 continue;
             }
@@ -423,7 +430,7 @@ export function buildImportStaffPayload(
                     validUntil: get(data, ["validuntil", "validto"]),
                 };
                 if (!isEmptyRecord(entry, ["employeeId", "fullNameTh", "fullNameEn"])) {
-                    payload.trainingRecords.push(entry);
+                    add("trainingRecords", entry);
                 }
                 continue;
             }
@@ -438,7 +445,7 @@ export function buildImportStaffPayload(
                     notes: get(data, ["notes", "note"]),
                 };
                 if (!isEmptyRecord(entry, ["employeeId", "fullNameTh", "fullNameEn"])) {
-                    payload.workExperience.push(entry);
+                    add("workExperience", entry);
                 }
                 continue;
             }
@@ -453,13 +460,13 @@ export function buildImportStaffPayload(
                     endYear: get(data, ["endyear"]),
                 };
                 if (!isEmptyRecord(entry, ["employeeId", "fullNameTh", "fullNameEn"])) {
-                    payload.education.push(entry);
+                    add("education", entry);
                 }
             }
         }
     }
 
-    return { payload, warnings };
+    return { payload, warnings, sources };
 }
 
 /** Row counts per section, for the confirmation line before sending. */
@@ -685,20 +692,422 @@ export function findNameMismatches(
 
 // ── API ─────────────────────────────────────────────────────────────────────
 
-/** POST /migration/import-staff */
+/** Counts per section, summed over every staff member in the import. */
+export interface ImportStaffCounts {
+    amelLicense: number;
+    aircraftLicense: number;
+    previousTraining: number;
+    trainingRecords: number;
+    workExperience: number;
+    education: number;
+}
+
+export interface ImportStaffResultStaff {
+    employeeId: string;
+    staffId: number | null;
+    name: string;
+    isNewStaff: boolean | null;
+    /** This staff member's own counts, when the API sent any. */
+    counts: ImportStaffCounts | null;
+    isError: boolean;
+    error: string;
+}
+
+/** The import endpoint's answer, read into one shape whatever form `responseData` takes. */
+export interface ImportStaffResult {
+    success: boolean;
+    message: string;
+    staff: ImportStaffResultStaff[];
+    newCount: number;
+    updatedCount: number;
+    failedCount: number;
+    /** Null when the API sent no counts at all, so the UI can leave them out rather than show zeros. */
+    counts: ImportStaffCounts | null;
+    warnings: string[];
+    errors: string[];
+    rowErrors: ImportValidationRowError[];
+}
+
+const COUNT_KEYS: Record<keyof ImportStaffCounts, string[]> = {
+    amelLicense: ["amelLicenseCount", "amelLicense", "amelCount"],
+    aircraftLicense: ["aircraftLicenseCount", "aircraftLicense", "aircraftCount"],
+    previousTraining: ["previousTrainingCount", "previousTrainingRecordCount", "previousTrainingRecords"],
+    trainingRecords: ["trainingRecordCount", "trainingRecordsCount", "trainingRecords"],
+    workExperience: ["workExperienceCount", "workExperience"],
+    education: ["educationCount", "education"],
+};
+
+/** A count field may be a number, or the list of rows itself. */
+function readCount(o: Record<string, any>, keys: string[]): number | null {
+    for (const key of keys) {
+        const v = o[key];
+        if (typeof v === "number" && Number.isFinite(v)) return v;
+        if (Array.isArray(v)) return v.length;
+        if (typeof v === "string" && /^\d+$/.test(v.trim())) return Number(v);
+    }
+    return null;
+}
+
+function looksLikeStaff(o: unknown): o is Record<string, any> {
+    if (!o || typeof o !== "object" || Array.isArray(o)) return false;
+    const r = o as Record<string, any>;
+    return r.employeeId !== undefined || r.staffId !== undefined || r.isNewStaff !== undefined;
+}
+
+/**
+ * Read the import endpoint's body.
+ *
+ * `responseData` has been a single staff summary and may also be a list of
+ * them, or an object wrapping such a list; all three are accepted. A failure
+ * is an `error` string, `flagPass: false`, or row errors in `validateList`.
+ */
+export function parseImportStaffResult(body: unknown): ImportStaffResult {
+    const data = (body ?? {}) as Record<string, any>;
+    const rd = data.responseData;
+    const inner: Record<string, any> = rd && typeof rd === "object" && !Array.isArray(rd) ? rd : {};
+
+    // The staff list may sit under any key of the wrapper; take the first array that holds staff summaries.
+    const listKey = Object.keys(inner).find(
+        (k) => Array.isArray(inner[k]) && inner[k].some(looksLikeStaff)
+    );
+    const rawStaff: unknown[] = Array.isArray(rd)
+        ? rd
+        : listKey
+            ? inner[listKey]
+            : looksLikeStaff(rd)
+                ? [rd]
+                : [];
+    const staffObjs = rawStaff.filter(looksLikeStaff);
+    const isWrapper = !looksLikeStaff(rd) && !Array.isArray(rd);
+
+    const readCounts = (o: Record<string, any>): ImportStaffCounts | null => {
+        let out: ImportStaffCounts | null = null;
+        for (const key of Object.keys(COUNT_KEYS) as Array<keyof ImportStaffCounts>) {
+            const value = readCount(o, COUNT_KEYS[key]);
+            if (value === null) continue;
+            out = out ?? { amelLicense: 0, aircraftLicense: 0, previousTraining: 0, trainingRecords: 0, workExperience: 0, education: 0 };
+            out[key] = value;
+        }
+        return out;
+    };
+
+    const staff: ImportStaffResultStaff[] = staffObjs.map((o) => {
+        const error = collectIssues(o.error ?? o.errorMessage).join("; ");
+        return {
+            employeeId: String(o.employeeId ?? ""),
+            staffId: typeof o.staffId === "number" ? o.staffId : o.staffId ? Number(o.staffId) || null : null,
+            name: String(o.fullNameEn ?? o.fullNameTh ?? o.name ?? ""),
+            isNewStaff: typeof o.isNewStaff === "boolean" ? o.isNewStaff : null,
+            counts: readCounts(o),
+            isError: o.isError === true || Boolean(error),
+            error,
+        };
+    });
+
+    // Totals: the wrapper's own counts when it has them, else the sum over staff that imported.
+    let counts: ImportStaffCounts | null = isWrapper ? readCounts(inner) : null;
+    if (!counts) {
+        for (const st of staff) {
+            if (st.isError || !st.counts) continue;
+            counts = counts ?? { amelLicense: 0, aircraftLicense: 0, previousTraining: 0, trainingRecords: 0, workExperience: 0, education: 0 };
+            for (const key of Object.keys(st.counts) as Array<keyof ImportStaffCounts>) {
+                counts[key] += st.counts[key];
+            }
+        }
+    }
+
+    const failedCount = staff.filter((s) => s.isError).length;
+    const newFromFlags = staff.filter((s) => !s.isError && s.isNewStaff === true).length;
+    const updatedFromFlags = staff.filter((s) => !s.isError && s.isNewStaff === false).length;
+    const newCount = readCount(inner, ["newStaffCount", "newCount", "createdCount", "inserted", "insertCount"]) ?? newFromFlags;
+    const updatedCount = readCount(inner, ["updatedStaffCount", "updatedCount", "updateCount", "updated"]) ?? updatedFromFlags;
+
+    const warnings = Array.from(
+        new Set([
+            // When responseData is itself the staff summary, its warnings are read per staff below.
+            ...(looksLikeStaff(rd) ? [] : collectIssues(inner.warnings)),
+            ...collectIssues(data.warnings),
+            ...staffObjs.flatMap((o) => {
+                const lines = collectIssues(o.warnings);
+                return o.employeeId ? lines.map((w) => `Employee ID ${o.employeeId}: ${w}`) : lines;
+            }),
+        ])
+    );
+    const errors = Array.from(new Set([...collectIssues(inner.errors), ...collectIssues(data.errors), ...collectIssues(data.error)]));
+    const rowErrors = collectRowErrors(inner.validateList ?? data.validateList);
+    const flag = inner.flagPass ?? data.flagPass;
+    // Staff that failed on their own are reported in the summary; the import only fails outright when none went in.
+    const allStaffFailed = staff.length > 0 && failedCount === staff.length;
+
+    return {
+        success: flag !== false && errors.length === 0 && rowErrors.length === 0 && !allStaffFailed,
+        message: String(data.message ?? ""),
+        staff,
+        newCount,
+        updatedCount,
+        failedCount,
+        counts,
+        warnings,
+        errors,
+        rowErrors,
+    };
+}
+
+/** What the request carried for one staff member, to set the API's counts against. */
+export interface SentStaffSummary {
+    name: string;
+    counts: ImportStaffCounts;
+}
+
+/** Rows sent per staff member, keyed by normalized employee id. */
+export function summarizePayloadByEmployee(payload: ImportStaffRequest): Map<string, SentStaffSummary> {
+    const out = new Map<string, SentStaffSummary>();
+    const entry = (employeeId: string) => {
+        const id = normalizeEmployeeId(employeeId);
+        let e = out.get(id);
+        if (!e) {
+            e = {
+                name: "",
+                counts: { amelLicense: 0, aircraftLicense: 0, previousTraining: 0, trainingRecords: 0, workExperience: 0, education: 0 },
+            };
+            out.set(id, e);
+        }
+        return e;
+    };
+    for (const row of payload.staffInfo) {
+        const e = entry(row.employeeId);
+        e.name = e.name || row.fullNameEn || row.fullNameTh;
+    }
+    const sections: Array<[keyof ImportStaffRequest, keyof ImportStaffCounts]> = [
+        ["amelLicense", "amelLicense"],
+        ["aircraftLicense", "aircraftLicense"],
+        ["previousTrainingRecords", "previousTraining"],
+        ["trainingRecords", "trainingRecords"],
+        ["workExperience", "workExperience"],
+        ["education", "education"],
+    ];
+    for (const [section, key] of sections) {
+        for (const row of payload[section]) entry(row.employeeId).counts[key]++;
+    }
+    return out;
+}
+
+/**
+ * POST /migration/import-staff
+ *
+ * Resolves with the parsed result, success or not, when the API answered with
+ * a body (a 4xx included), so row errors can be placed on the sheet. Throws
+ * only when there is nothing to read.
+ */
 export const importStaff = async (
     body: ImportStaffRequest
-): Promise<ImportStaffResponse> => {
+): Promise<ImportStaffResult> => {
     try {
         const res = await axiosConfig.post("/migration/import-staff", body);
-        return res.data as ImportStaffResponse;
+        return parseImportStaffResult(res.data);
     } catch (error: any) {
+        const status = error?.response?.status;
+        const data = error?.response?.data;
+        if (status >= 400 && status < 500 && data && typeof data === "object") {
+            const result = parseImportStaffResult(data);
+            if (result.errors.length === 0 && result.rowErrors.length === 0) {
+                result.errors.push(result.message || `Import failed (HTTP ${status})`);
+            }
+            result.success = false;
+            return result;
+        }
         console.error("Error importing staff:", error);
         throw new Error(
             error?.response?.data?.error ||
                 error?.response?.data?.message ||
                 "Failed to import staff"
         );
+    }
+};
+
+// ── Validate ────────────────────────────────────────────────────────────────
+
+/** One row the validate endpoint rejected; `rowId` is the 1-based position in that section of the payload. */
+export interface ImportValidationRowError {
+    section: keyof ImportStaffRequest;
+    rowId: number;
+    employeeId: string;
+    statusText: string;
+}
+
+export interface ImportStaffValidationResult {
+    isValid: boolean;
+    message: string;
+    /** Errors not tied to a row. */
+    errors: string[];
+    rowErrors: ImportValidationRowError[];
+    warnings: string[];
+}
+
+const PAYLOAD_SECTIONS: ReadonlyArray<keyof ImportStaffRequest> = [
+    "staffInfo",
+    "amelLicense",
+    "aircraftLicense",
+    "previousTrainingRecords",
+    "trainingRecords",
+    "workExperience",
+    "education",
+];
+
+/**
+ * Read `validateList`: a list of `{ section: [{ rowId, employeeId, statusText }] }`
+ * objects (a single object is accepted too).
+ */
+function collectRowErrors(validateList: unknown): ImportValidationRowError[] {
+    const groups = Array.isArray(validateList) ? validateList : validateList ? [validateList] : [];
+    const out: ImportValidationRowError[] = [];
+    for (const group of groups) {
+        if (!group || typeof group !== "object") continue;
+        for (const section of PAYLOAD_SECTIONS) {
+            const items = (group as Record<string, unknown>)[section];
+            if (!Array.isArray(items)) continue;
+            for (const item of items) {
+                if (!item || typeof item !== "object") continue;
+                const o = item as Record<string, unknown>;
+                out.push({
+                    section,
+                    rowId: Number(o.rowId ?? o.rowIndex ?? o.row ?? 0),
+                    employeeId: String(o.employeeId ?? ""),
+                    statusText: String(o.statusText ?? o.message ?? o.error ?? "Invalid data").trim(),
+                });
+            }
+        }
+    }
+    return out;
+}
+
+/** A server row error placed back on the sheet row it came from. */
+export interface ResolvedValidationRowError {
+    sheetName: string;
+    rowIndex: number;
+    employeeId: string;
+    statusText: string;
+}
+
+/**
+ * Translate the endpoint's payload positions into sheet rows.
+ *
+ * Errors whose position is outside the payload that was sent cannot be placed
+ * on a row, so they come back as plain text instead of being dropped.
+ */
+export function resolveValidationRowErrors(
+    rowErrors: ImportValidationRowError[],
+    sources: ImportPayloadSources
+): { resolved: ResolvedValidationRowError[]; unresolved: string[] } {
+    const resolved: ResolvedValidationRowError[] = [];
+    const unresolved: string[] = [];
+    for (const err of rowErrors) {
+        const source = sources[err.section]?.[err.rowId - 1];
+        if (source) {
+            resolved.push({ ...source, employeeId: err.employeeId, statusText: err.statusText });
+        } else {
+            const who = err.employeeId ? ` · Employee ID ${err.employeeId}` : "";
+            unresolved.push(`${err.section} row ${err.rowId}${who}: ${err.statusText}`);
+        }
+    }
+    return { resolved, unresolved };
+}
+
+/** Turn one error/warning entry into a line of text, whether the API sends a string or an object. */
+function describeIssue(item: unknown): string {
+    if (item === null || item === undefined) return "";
+    if (typeof item !== "object") return String(item).trim();
+
+    const o = item as Record<string, unknown>;
+    const text = String(o.message ?? o.error ?? o.description ?? o.reason ?? "").trim();
+    const where = [
+        o.sheet ?? o.sheetName ?? o.section,
+        o.row !== undefined ? `row ${o.row}` : o.rowIndex !== undefined ? `row ${o.rowIndex}` : undefined,
+        o.employeeId !== undefined ? `Employee ID ${o.employeeId}` : undefined,
+        o.field ?? o.column,
+    ]
+        .filter((part) => part !== undefined && part !== null && String(part).trim() !== "")
+        .join(" · ");
+
+    if (text && where) return `${where}: ${text}`;
+    return text || where || JSON.stringify(item);
+}
+
+/** Flatten a list, or an ASP.NET-style `{ field: [messages] }` map, into lines of text. */
+function collectIssues(source: unknown): string[] {
+    if (!source) return [];
+    if (typeof source === "string") return source.trim() ? [source.trim()] : [];
+    if (Array.isArray(source)) return source.map(describeIssue).filter(Boolean);
+    if (typeof source === "object") {
+        return Object.entries(source as Record<string, unknown>).flatMap(([key, value]) =>
+            (Array.isArray(value) ? value : [value])
+                .map(describeIssue)
+                .filter(Boolean)
+                .map((text) => `${key}: ${text}`)
+        );
+    }
+    return [];
+}
+
+/**
+ * Read the validate endpoint's body into one shape.
+ *
+ * Errors may sit at the top level or under `responseData`, as strings, as
+ * objects, or as a field → messages map; a top-level `error` string counts as
+ * an error too. The data passes only when the API says `flagPass: true` and
+ * reports no errors: a missing flag is a fail, since Import is gated on it.
+ */
+export function parseImportStaffValidation(body: unknown): ImportStaffValidationResult {
+    const data = (body ?? {}) as Record<string, any>;
+    const inner = (data.responseData ?? {}) as Record<string, any>;
+
+    const errors = [
+        ...collectIssues(inner.errors),
+        ...collectIssues(data.errors),
+        ...collectIssues(data.error),
+    ];
+    const warnings = [...collectIssues(inner.warnings), ...collectIssues(data.warnings)];
+
+    const rowErrors = collectRowErrors(inner.validateList ?? data.validateList);
+
+    const flagPass = (inner.flagPass ?? data.flagPass) === true;
+    const isValid = flagPass && errors.length === 0 && rowErrors.length === 0;
+
+    return {
+        isValid,
+        message: String(data.message ?? data.title ?? ""),
+        errors: Array.from(new Set(errors)),
+        rowErrors,
+        warnings: Array.from(new Set(warnings)),
+    };
+}
+
+/**
+ * POST /migration/import-staff-validate
+ *
+ * A 4xx carrying a body is a validation answer, not a failure: it is parsed
+ * like a 200 so the rows it rejects can be shown. Only a network error or a
+ * response with no body throws.
+ */
+export const validateImportStaff = async (
+    body: ImportStaffRequest
+): Promise<ImportStaffValidationResult> => {
+    try {
+        const res = await axiosConfig.post("/migration/import-staff-validate", body);
+        return parseImportStaffValidation(res.data);
+    } catch (error: any) {
+        const status = error?.response?.status;
+        const data = error?.response?.data;
+        if (status >= 400 && status < 500 && data && typeof data === "object") {
+            const result = parseImportStaffValidation(data);
+            if (result.errors.length === 0) {
+                result.errors.push(result.message || `Validation failed (HTTP ${status})`);
+            }
+            result.isValid = false;
+            return result;
+        }
+        console.error("Error validating staff import:", error);
+        throw new Error(data?.error || data?.message || "Failed to validate staff import");
     }
 };
 

@@ -549,10 +549,15 @@ export interface TrainingDashboardPreviousTraining {
 }
 
 export interface TrainingDashboardNeedsMatrixCourse {
-    courseId: number;
-    name: string;
+    courseId?: number;
+    /** Older responses sent `name`; current ones send `courseName`. */
+    name?: string;
+    courseName?: string;
+    isRequired?: boolean;
+    /** "Valid" when the staff member holds a current record; otherwise e.g. "Required". */
     status: string;
-    completed: boolean;
+    /** Older responses only; current ones derive this from `status`. */
+    completed?: boolean;
 }
 
 export interface TrainingDashboardNeedsMatrix {

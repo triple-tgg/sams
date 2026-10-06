@@ -46,6 +46,7 @@ import {
     Loader2,
     Pencil,
     Plus,
+    ShieldCheck,
     Trash2,
     Upload,
     X,
@@ -55,6 +56,10 @@ import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import {
     importStaff,
+    validateImportStaff,
+    resolveValidationRowErrors,
+    summarizePayloadByEmployee,
+    normalizeEmployeeId,
     buildImportStaffPayload,
     fetchKnownStaffIndex,
     buildStaffNameReference,
@@ -64,7 +69,13 @@ import {
     normalizeKey,
     sectionForSheet,
     DEFAULT_IMPORT_STATION,
-    type ImportStaffSummary,
+    type ImportStaffRequest,
+    type ImportStaffResult,
+    type ImportStaffCounts,
+    type SentStaffSummary,
+    type ImportStaffValidationResult,
+    type ImportPayloadSources,
+    type ResolvedValidationRowError,
 } from '@/lib/api/migration/importStaff';
 import { useStaffDepartmentPositions } from '@/lib/api/master/organization.hooks';
 import { useStations } from '@/lib/api/hooks/useStations';
@@ -439,8 +450,20 @@ export function StaffExcelImportModal({
     const [isLoading, setIsLoading] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
     const [hasFile, setHasFile] = useState(false);
-    const [importResult, setImportResult] = useState<ImportStaffSummary | null>(null);
+    const [importResult, setImportResult] = useState<ImportStaffResult | null>(null);
+    /** Rows the import request carried per staff member, to compare with what the API says it saved. */
+    const [importSent, setImportSent] = useState<Map<string, SentStaffSummary>>(new Map());
     const [mappingWarnings, setMappingWarnings] = useState<string[]>([]);
+    const [isValidating, setIsValidating] = useState(false);
+    const [validationResult, setValidationResult] = useState<ImportStaffValidationResult | null>(null);
+    /**
+     * Rows the validate endpoint rejected, placed on their sheet rows. Kept
+     * across edits (unlike validationResult) so the user can work through them;
+     * a row's entries are dropped once it is edited or deleted.
+     */
+    const [serverRowErrors, setServerRowErrors] = useState<ResolvedValidationRowError[]>([]);
+    /** "sheet:count" keys of row-error banners the user closed; a new count shows the banner again. */
+    const [dismissedErrorBanners, setDismissedErrorBanners] = useState<Set<string>>(new Set());
 
     // Master data lookups
     const { data: positionsResp } = useStaffDepartmentPositions();
@@ -566,6 +589,19 @@ export function StaffExcelImportModal({
         }
         return bySheet;
     }, [unknownEmployeeIssues]);
+
+    /** sheet name -> row -> the messages the validate endpoint gave for it. */
+    const serverRowErrorsBySheet = useMemo(() => {
+        const bySheet = new Map<string, Map<number, string[]>>();
+        for (const e of serverRowErrors) {
+            const rows = bySheet.get(e.sheetName) ?? new Map<number, string[]>();
+            const messages = rows.get(e.rowIndex) ?? [];
+            if (!messages.includes(e.statusText)) messages.push(e.statusText);
+            rows.set(e.rowIndex, messages);
+            bySheet.set(e.sheetName, rows);
+        }
+        return bySheet;
+    }, [serverRowErrors]);
 
     // Auto-match Training Records: if no Course Code, check Training Course if it matches courseName
     useEffect(() => {
@@ -1016,7 +1052,12 @@ export function StaffExcelImportModal({
         setAircraftOriginalRawMap({});
         setExpandedAircraftRows(new Set());
         setImportResult(null);
+        setImportSent(new Map());
         setMappingWarnings([]);
+        setIsValidating(false);
+        setValidationResult(null);
+        setDismissedErrorBanners(new Set());
+        setServerRowErrors([]);
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -1065,6 +1106,10 @@ export function StaffExcelImportModal({
         setSheets((prevSheets) => {
             return prevSheets.map((sheet, sIdx) => {
                 if (sIdx !== activeSheetIndex) return sheet;
+                // The user has acted on this row, so the server's verdict on it no longer holds.
+                setServerRowErrors((prev) =>
+                    prev.filter((e) => !(e.sheetName === sheet.name && e.rowIndex === editingRowIndex))
+                );
                 const normalizedData = { ...editingRowData };
                 Object.keys(normalizedData).forEach((k) => {
                     const val = normalizedData[k];
@@ -1124,6 +1169,16 @@ export function StaffExcelImportModal({
         setSheets((prevSheets) => {
             return prevSheets.map((sheet, sIdx) => {
                 if (sIdx !== activeSheetIndex) return sheet;
+                // Rows below the deleted one are renumbered, so move their server errors with them.
+                setServerRowErrors((prev) =>
+                    prev
+                        .filter((e) => !(e.sheetName === sheet.name && e.rowIndex === rowIndex))
+                        .map((e) =>
+                            e.sheetName === sheet.name && e.rowIndex > rowIndex
+                                ? { ...e, rowIndex: e.rowIndex - 1 }
+                                : e
+                        )
+                );
                 const updatedRows = sheet.rows
                     .filter((r) => r.rowIndex !== rowIndex)
                     .map((r, idx) => ({
@@ -1355,6 +1410,9 @@ export function StaffExcelImportModal({
             for (const rowIndex of nameMismatchCells.get(sheet.name)?.keys() ?? []) {
                 badRows.add(rowIndex);
             }
+            for (const rowIndex of serverRowErrorsBySheet.get(sheet.name)?.keys() ?? []) {
+                badRows.add(rowIndex);
+            }
 
             if (section === 'staffInfo') {
                 const posHeader = sheet.headers.find((h) => normalizeKey(h) === 'position');
@@ -1403,8 +1461,18 @@ export function StaffExcelImportModal({
 
             return badRows.size;
         },
-        [positionsList, amelCategoriesList, coursesList, aircraftRowMappings, unknownEmployeeRowsBySheet, nameMismatchCells]
+        [positionsList, amelCategoriesList, coursesList, aircraftRowMappings, unknownEmployeeRowsBySheet, nameMismatchCells, serverRowErrorsBySheet]
     );
+
+    /** Server row errors on the active sheet, in row order. */
+    const activeSheetServerErrors = useMemo(() => {
+        if (!activeSheet) return [];
+        const rows = serverRowErrorsBySheet.get(activeSheet.name);
+        if (!rows) return [];
+        return Array.from(rows.entries())
+            .sort(([a], [b]) => a - b)
+            .map(([rowIndex, messages]) => ({ rowIndex, messages }));
+    }, [activeSheet, serverRowErrorsBySheet]);
 
     const activeSheetUnknownEmployeeIds = useMemo(() => {
         if (!activeSheet) return [];
@@ -1424,7 +1492,13 @@ export function StaffExcelImportModal({
         return getSheetErrors(activeSheet);
     }, [activeSheet, getSheetErrors]);
 
-    const handleImport = useCallback(async () => {
+    /**
+     * Run the local checks and build the request body.
+     *
+     * Shared by Validate and Import so both send exactly the same payload.
+     * Returns null, after telling the user why, when the sheets are not ready.
+     */
+    const prepareImportPayload = useCallback((): { payload: ImportStaffRequest; sources: ImportPayloadSources } | null => {
         // Validate Position, Category, Course Code, and Aircraft License before submitting
         const invalidPositionRows: string[] = [];
         const invalidCategoryRows: string[] = [];
@@ -1487,7 +1561,7 @@ export function StaffExcelImportModal({
         // The system list has to be in hand before we can judge an Employee ID.
         if (!employeeIdsLoaded) {
             toast.error('Still checking existing staff. Please try again in a moment.');
-            return;
+            return null;
         }
 
         if (unknownEmployeeIssues.length > 0) {
@@ -1497,7 +1571,7 @@ export function StaffExcelImportModal({
             toast.error(
                 `Cannot import: Employee ID ${shown}${rest} ${ids.length > 1 ? 'are' : 'is'} not in the Staff Info tab and ${ids.length > 1 ? 'were' : 'was'} not found in the system. Add the staff to Staff Info, or correct the Employee ID.`
             );
-            return;
+            return null;
         }
 
         if (nameMismatchIssues.length > 0) {
@@ -1508,65 +1582,165 @@ export function StaffExcelImportModal({
             toast.error(
                 `Cannot import: ${first.sheetName} row ${first.rowIndex} has ${label} "${first.value}" but Employee ID "${first.employeeId}" is on file as "${first.expected}"${rest}. Correct the name, or check that the row belongs to the right person.`
             );
-            return;
+            return null;
         }
 
         if (invalidPositionRows.length > 0) {
             toast.error(
                 `Cannot import: ${invalidPositionRows.length} row(s) in Staff Info have invalid or unselected Position options. Please fix them before importing.`
             );
-            return;
+            return null;
         }
 
         if (invalidCategoryRows.length > 0) {
             toast.error(
                 `Cannot import: ${invalidCategoryRows.length} row(s) in AMEL License have invalid or unselected Category options. Please fix them before importing.`
             );
-            return;
+            return null;
         }
 
         if (invalidCourseRows.length > 0) {
             toast.error(
                 `Cannot import: ${invalidCourseRows.length} row(s) in Training Records have invalid or unselected Course Code options. Please fix them before importing.`
             );
-            return;
+            return null;
         }
 
         if (invalidAircraftRows.length > 0) {
             toast.error(
                 `Cannot import: ${invalidAircraftRows.length} row(s) in Aircraft License have unmapped or incomplete aircraft combinations. Please expand the row(s) to select a valid combination.`
             );
+            return null;
+        }
+
+        const { payload, warnings, sources } = buildImportStaffPayload(sheets, {
+            positions: positionsList,
+            stations: stationsList,
+            aircraftLicenses: aircraftLicenses ?? [],
+            aircraftCombinations: combinationsList,
+            aircraftRowMappings: aircraftRowMappings,
+            amelCategories: amelCategoriesList,
+            courses: coursesList,
+        });
+        setMappingWarnings(warnings);
+
+        if (countImportStaffPayloadRows(payload) === 0) {
+            toast.error('No importable data found. Please check sheet names and column headers.');
+            return null;
+        }
+        if (payload.staffInfo.length === 0) {
+            toast.error('No data found in "Staff Info" sheet');
+            return null;
+        }
+        return { payload, sources };
+    }, [sheets, positionsList, stationsList, aircraftLicenses, combinationsList, aircraftRowMappings, amelCategoriesList, coursesList, unknownEmployeeIssues, nameMismatchIssues, employeeIdsLoaded]);
+
+    // Any edit to the sheets makes the last validation stale.
+    useEffect(() => {
+        setValidationResult(null);
+    }, [sheets, aircraftRowMappings]);
+
+    const handleValidate = useCallback(async () => {
+        const prepared = prepareImportPayload();
+        if (!prepared) return;
+
+        setIsValidating(true);
+        try {
+            const raw = await validateImportStaff(prepared.payload);
+            const { resolved, unresolved } = resolveValidationRowErrors(raw.rowErrors, prepared.sources);
+            const result = { ...raw, errors: [...raw.errors, ...unresolved] };
+            setServerRowErrors(resolved);
+            setDismissedErrorBanners(new Set());
+            setValidationResult(result);
+
+            // Take the user to the first sheet with a rejected row.
+            if (resolved.length > 0) {
+                const firstSheet = sheets.findIndex((sh) => resolved.some((e) => e.sheetName === sh.name));
+                if (firstSheet >= 0) {
+                    cancelEditRow();
+                    setActiveSheetIndex(firstSheet);
+                }
+            }
+
+            if (result.isValid) {
+                toast.success(
+                    result.warnings.length > 0
+                        ? `Validation passed with ${result.warnings.length} warning(s)`
+                        : 'Validation passed. Data is ready to import.'
+                );
+            } else {
+                const total = resolved.length + result.errors.length;
+                // Row errors are shown on their tabs; errors not tied to a row only have the toast.
+                toast.error(
+                    total > 0
+                        ? `Validation failed: ${total} error(s) found`
+                        : result.message || 'Validation did not pass. Import is not allowed.',
+                    result.errors.length > 0
+                        ? { description: result.errors.slice(0, 5).join('\n') + (result.errors.length > 5 ? `\n…and ${result.errors.length - 5} more` : '') }
+                        : undefined
+                );
+            }
+        } catch (error: any) {
+            console.error('Validation failed:', error);
+            setValidationResult(null);
+            toast.error(error?.message || 'Failed to validate staff import');
+        } finally {
+            setIsValidating(false);
+        }
+    }, [prepareImportPayload, sheets, cancelEditRow]);
+
+    const canImport = validationResult?.isValid === true;
+
+    const handleImport = useCallback(async () => {
+        if (!canImport) {
+            toast.error('Please validate the data and fix all errors before importing.');
             return;
         }
+        const prepared = prepareImportPayload();
+        if (!prepared) return;
 
         setIsImporting(true);
         try {
-            const { payload, warnings } = buildImportStaffPayload(sheets, {
-                positions: positionsList,
-                stations: stationsList,
-                aircraftLicenses: aircraftLicenses ?? [],
-                aircraftCombinations: combinationsList,
-                aircraftRowMappings: aircraftRowMappings,
-                amelCategories: amelCategoriesList,
-                courses: coursesList,
-            });
-            setMappingWarnings(warnings);
+            const res = await importStaff(prepared.payload);
 
-            if (countImportStaffPayloadRows(payload) === 0) {
-                toast.error('No importable data found. Please check sheet names and column headers.');
+            if (!res.success) {
+                // Same treatment as a failed validate: put row errors on their rows and lock Import again.
+                const { resolved, unresolved } = resolveValidationRowErrors(res.rowErrors, prepared.sources);
+                const errors = [...res.errors, ...unresolved];
+                setServerRowErrors(resolved);
+                setDismissedErrorBanners(new Set());
+                setValidationResult(null);
+                if (resolved.length > 0) {
+                    const firstSheet = sheets.findIndex((sh) => resolved.some((e) => e.sheetName === sh.name));
+                    if (firstSheet >= 0) {
+                        cancelEditRow();
+                        setActiveSheetIndex(firstSheet);
+                    }
+                }
+                const total = resolved.length + errors.length;
+                toast.error(
+                    total > 0 ? `Import failed: ${total} error(s) found` : res.message || 'Failed to import staff',
+                    errors.length > 0
+                        ? { description: errors.slice(0, 5).join('\n') + (errors.length > 5 ? `\n…and ${errors.length - 5} more` : '') }
+                        : undefined
+                );
                 return;
             }
-            if (payload.staffInfo.length === 0) {
-                toast.error('No data found in "Staff Info" sheet');
+
+            setImportSent(summarizePayloadByEmployee(prepared.payload));
+            setImportResult(res);
+            const staffCount = res.staff.length;
+            if (res.failedCount > 0) {
+                toast.warning(`Import completed: ${staffCount - res.failedCount} of ${staffCount} staff imported, ${res.failedCount} failed`);
+                onImportSuccess?.();
                 return;
             }
-
-            const res = await importStaff(payload);
-            setImportResult(res.responseData);
             toast.success(
-                res.responseData?.isNewStaff
-                    ? `New staff created successfully (${res.responseData.employeeId})`
-                    : `Staff updated successfully (${res.responseData?.employeeId ?? ''})`
+                staffCount > 1
+                    ? `Imported ${staffCount} staff successfully`
+                    : staffCount === 1
+                        ? `${res.staff[0].isNewStaff ? 'New staff created' : 'Staff updated'} successfully${res.staff[0].employeeId ? ` (${res.staff[0].employeeId})` : ''}`
+                        : 'Staff imported successfully'
             );
             onImportSuccess?.();
         } catch (error: any) {
@@ -1575,7 +1749,7 @@ export function StaffExcelImportModal({
         } finally {
             setIsImporting(false);
         }
-    }, [sheets, positionsList, aircraftLicenses, combinationsList, aircraftRowMappings, amelCategoriesList, coursesList, onImportSuccess, unknownEmployeeIssues, nameMismatchIssues, employeeIdsLoaded]);
+    }, [canImport, prepareImportPayload, onImportSuccess, sheets, cancelEditRow]);
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
@@ -1808,8 +1982,44 @@ export function StaffExcelImportModal({
                                 </div>
                             )}
 
+                            {/* Rows the validate endpoint rejected on this sheet */}
+                            {activeSheetServerErrors.length > 0 &&
+                                !dismissedErrorBanners.has(`server:${activeSheet.name}:${activeSheetServerErrors.length}`) && (
+                                <div className="flex items-start gap-2 px-3 py-2 rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 text-xs">
+                                    <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-medium">
+                                            Validation error: {activeSheetServerErrors.length} row
+                                            {activeSheetServerErrors.length > 1 ? 's' : ''} in {activeSheet.name} need
+                                            {activeSheetServerErrors.length > 1 ? '' : 's'} fixing
+                                        </p>
+                                        <ul className="mt-1 space-y-0.5 max-h-32 overflow-auto">
+                                            {activeSheetServerErrors.map(({ rowIndex, messages }) => (
+                                                <li key={`server-error-${rowIndex}`}>
+                                                    <span className="font-semibold">Row {rowIndex}:</span>{' '}
+                                                    {messages.join(' · ')}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setDismissedErrorBanners((prev) =>
+                                                new Set(prev).add(`server:${activeSheet.name}:${activeSheetServerErrors.length}`)
+                                            )
+                                        }
+                                        className="inline-flex items-center justify-center w-6 h-6 rounded text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50 cursor-pointer shrink-0"
+                                        title="Dismiss"
+                                        aria-label="Dismiss"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            )}
+
                             {/* Error notification banner for invalid Position / Category / Course Code / Aircraft License */}
-                            {activeSheetErrors > 0 && (
+                            {activeSheetErrors > 0 && !dismissedErrorBanners.has(`${activeSheet.name}:${activeSheetErrors}`) && (
                                 <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 text-xs font-medium">
                                     <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
                                     <span>
@@ -1824,6 +2034,19 @@ export function StaffExcelImportModal({
                                                     : 'Course Code'}{' '}
                                         values. Please edit or expand the row to map valid options from the master list.
                                     </span>
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setDismissedErrorBanners((prev) =>
+                                                new Set(prev).add(`${activeSheet.name}:${activeSheetErrors}`)
+                                            )
+                                        }
+                                        className="ml-auto inline-flex items-center justify-center w-6 h-6 rounded text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50 cursor-pointer shrink-0"
+                                        title="Dismiss"
+                                        aria-label="Dismiss"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
                                 </div>
                             )}
                         </div>
@@ -2279,13 +2502,21 @@ export function StaffExcelImportModal({
                                                     );
                                                 }
 
+                                                const serverMessages = serverRowErrorsBySheet
+                                                    .get(activeSheet.name)
+                                                    ?.get(row.rowIndex);
                                                 return (
                                                     <Fragment key={row.rowIndex}>
                                                         <tr
                                                             className={cn(
                                                                 "group/row transition-colors",
-                                                                isExpanded ? "bg-blue-50/40 dark:bg-blue-950/20" : "hover:bg-muted/40"
+                                                                isExpanded
+                                                                    ? "bg-blue-50/40 dark:bg-blue-950/20"
+                                                                    : serverMessages
+                                                                        ? "bg-red-50/60 dark:bg-red-950/20 hover:bg-red-50"
+                                                                        : "hover:bg-muted/40"
                                                             )}
+                                                            title={serverMessages ? serverMessages.join('\n') : undefined}
                                                             onDoubleClick={() => {
                                                                 if (section === 'aircraftLicense') {
                                                                     toggleRowExpand(row.rowIndex);
@@ -2298,7 +2529,9 @@ export function StaffExcelImportModal({
                                                                 "text-center sticky left-0 z-10 font-mono text-xs px-2 py-1.5 border-r border-b transition-colors shadow-[2px_0_4px_-1px_rgba(0,0,0,0.08)]",
                                                                 isExpanded
                                                                     ? "bg-blue-100/60 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-semibold"
-                                                                    : "text-muted-foreground bg-white dark:bg-slate-900 group-hover/row:bg-slate-100 dark:group-hover/row:bg-slate-800"
+                                                                    : serverMessages
+                                                                        ? "bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 font-semibold border-l-2 border-l-red-500"
+                                                                        : "text-muted-foreground bg-white dark:bg-slate-900 group-hover/row:bg-slate-100 dark:group-hover/row:bg-slate-800"
                                                             )}>
                                                                 {section === 'aircraftLicense' ? (
                                                                     <div className="flex items-center justify-center gap-1">
@@ -2791,71 +3024,264 @@ export function StaffExcelImportModal({
                 )}
 
                 {/* Import Result */}
-                {importResult && (
-                    <div className="flex-1 overflow-auto space-y-4 py-2">
-                        <div className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 p-4">
-                            <CheckCircle2 className="w-8 h-8 text-emerald-600 shrink-0" />
-                            <div>
-                                <p className="font-medium text-emerald-800 dark:text-emerald-200">
-                                    {importResult.isNewStaff
-                                        ? 'New staff created successfully'
-                                        : 'Staff updated successfully'}
-                                </p>
-                                <p className="text-sm text-emerald-700 dark:text-emerald-300">
-                                    Employee ID {importResult.employeeId} · Staff ID {importResult.staffId}
-                                </p>
-                            </div>
-                        </div>
+                {importResult && (() => {
+                    const COUNT_COLUMNS: ReadonlyArray<[keyof ImportStaffCounts, string]> = [
+                        ['amelLicense', 'AMEL License'],
+                        ['aircraftLicense', 'Aircraft License'],
+                        ['previousTraining', 'Previous Training'],
+                        ['trainingRecords', 'Training Records'],
+                        ['workExperience', 'Work Experience'],
+                        ['education', 'Education'],
+                    ];
+                    const staff = importResult.staff;
+                    const ok = staff.filter((st) => !st.isError);
+                    const hasFailures = importResult.failedCount > 0;
 
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            {(
-                                [
-                                    ['AMEL License', importResult.amelLicenseCount],
-                                    ['Aircraft License', importResult.aircraftLicenseCount],
-                                    ['Previous Training', importResult.previousTrainingCount],
-                                    ['Training Records', importResult.trainingRecordCount],
-                                    ['Work Experience', importResult.workExperienceCount],
-                                    ['Education', importResult.educationCount],
-                                ] as const
-                            ).map(([label, count]) => (
-                                <div key={label} className="rounded-lg border bg-muted/40 p-3 text-center">
-                                    <p className="text-2xl font-bold">{count}</p>
-                                    <p className="text-xs text-muted-foreground">{label}</p>
-                                </div>
-                            ))}
-                        </div>
+                    // Sent totals cover only staff that went in, so a failed staff member does not read as a shortfall.
+                    const sentFor = (employeeId: string) => importSent.get(normalizeEmployeeId(employeeId));
+                    const sentTotals = Object.fromEntries(
+                        COUNT_COLUMNS.map(([key]) => [
+                            key,
+                            ok.reduce((sum, st) => sum + (sentFor(st.employeeId)?.counts[key] ?? 0), 0),
+                        ])
+                    ) as Record<keyof ImportStaffCounts, number>;
+                    const canCompare = ok.length > 0 && ok.every((st) => sentFor(st.employeeId));
 
-                        {/* Warnings */}
-                        {[...mappingWarnings, ...(importResult.warnings ?? [])].length > 0 && (
-                            <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 p-3">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <AlertTriangle className="w-4 h-4 text-amber-600" />
-                                    <span className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                                        Warnings ({[...mappingWarnings, ...(importResult.warnings ?? [])].length})
-                                    </span>
+                    const title = hasFailures
+                        ? `Import completed with ${importResult.failedCount} failed staff`
+                        : staff.length === 1
+                            ? staff[0].isNewStaff
+                                ? 'New staff created successfully'
+                                : 'Staff updated successfully'
+                            : staff.length > 1
+                                ? `${staff.length} staff imported successfully`
+                                : 'Import completed successfully';
+
+                    const stats: Array<[string, number, string]> = [
+                        ['Staff', staff.length, 'text-foreground'],
+                        ['New', importResult.newCount, 'text-emerald-600 dark:text-emerald-400'],
+                        ['Updated', importResult.updatedCount, 'text-blue-600 dark:text-blue-400'],
+                        ['Failed', importResult.failedCount, importResult.failedCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'],
+                    ];
+
+                    const renderCount = (imported: number | undefined, sent: number | undefined, compare: boolean) => {
+                        if (imported === undefined) return <span className="text-muted-foreground">-</span>;
+                        const short = compare && sent !== undefined && imported < sent;
+                        return (
+                            <span
+                                className={cn(short && 'text-amber-600 dark:text-amber-400 font-semibold')}
+                                title={short ? `${sent - imported} of ${sent} row(s) sent were not saved` : undefined}
+                            >
+                                {imported}
+                                {compare && sent !== undefined && (
+                                    <span className={cn('font-normal', short ? '' : 'text-muted-foreground')}> / {sent}</span>
+                                )}
+                            </span>
+                        );
+                    };
+
+                    const warnings = [...mappingWarnings, ...importResult.warnings];
+                    const shortfall =
+                        canCompare &&
+                        importResult.counts !== null &&
+                        COUNT_COLUMNS.some(([key]) => (importResult.counts?.[key] ?? 0) < sentTotals[key]);
+
+                    return (
+                        <div className="flex-1 overflow-auto space-y-4 py-2">
+                            {/* Headline */}
+                            <div
+                                className={cn(
+                                    'flex flex-wrap items-center gap-4 rounded-lg border p-4',
+                                    hasFailures
+                                        ? 'border-amber-200 bg-amber-50 dark:bg-amber-950/30'
+                                        : 'border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30'
+                                )}
+                            >
+                                {hasFailures ? (
+                                    <AlertTriangle className="w-8 h-8 text-amber-600 shrink-0" />
+                                ) : (
+                                    <CheckCircle2 className="w-8 h-8 text-emerald-600 shrink-0" />
+                                )}
+                                <div className="flex-1 min-w-[200px]">
+                                    <p
+                                        className={cn(
+                                            'font-medium',
+                                            hasFailures ? 'text-amber-800 dark:text-amber-200' : 'text-emerald-800 dark:text-emerald-200'
+                                        )}
+                                    >
+                                        {title}
+                                    </p>
+                                    {staff.length === 1 && (
+                                        <p className="text-sm text-muted-foreground">
+                                            {[
+                                                staff[0].employeeId && `Employee ID ${staff[0].employeeId}`,
+                                                staff[0].name || sentFor(staff[0].employeeId)?.name,
+                                                staff[0].staffId !== null && `Staff ID ${staff[0].staffId}`,
+                                            ].filter(Boolean).join(' · ')}
+                                        </p>
+                                    )}
                                 </div>
-                                <ul className="space-y-1 max-h-48 overflow-auto">
-                                    {[...mappingWarnings, ...(importResult.warnings ?? [])].map((w, i) => (
-                                        <li key={`warning-${i}`} className="text-xs text-amber-700 dark:text-amber-300">
-                                            • {w}
-                                        </li>
-                                    ))}
-                                </ul>
+                                {staff.length > 1 && (
+                                    <div className="flex gap-5">
+                                        {stats.map(([label, value, color]) => (
+                                            <div key={label} className="text-center">
+                                                <p className={cn('text-xl font-bold leading-none', color)}>{value}</p>
+                                                <p className="text-[11px] text-muted-foreground mt-1">{label}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
-                        )}
-                    </div>
-                )}
+
+                            {/* Records saved, all staff together */}
+                            {importResult.counts && (
+                                <div>
+                                    <p className="text-xs font-medium text-muted-foreground mb-2">
+                                        Records saved{canCompare ? ' (saved / sent)' : ''}
+                                    </p>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                                        {COUNT_COLUMNS.map(([key, label]) => {
+                                            const saved = importResult.counts?.[key] ?? 0;
+                                            const sent = sentTotals[key];
+                                            const short = canCompare && saved < sent;
+                                            return (
+                                                <div
+                                                    key={key}
+                                                    className={cn(
+                                                        'rounded-lg border p-3 text-center',
+                                                        short
+                                                            ? 'border-amber-300 bg-amber-50 dark:bg-amber-950/20'
+                                                            : 'bg-muted/40'
+                                                    )}
+                                                >
+                                                    <p className={cn('text-2xl font-bold', short && 'text-amber-600 dark:text-amber-400')}>
+                                                        {saved}
+                                                        {canCompare && (
+                                                            <span className="text-sm font-normal text-muted-foreground"> / {sent}</span>
+                                                        )}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">{label}</p>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    {shortfall && (
+                                        <p className="mt-2 text-xs text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
+                                            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                                            Some rows that were sent were not saved. Check the highlighted sections.
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Per staff breakdown */}
+                            {(staff.length > 1 || hasFailures) && (
+                                <div className="rounded-lg border overflow-auto max-h-72">
+                                    <table className="w-full text-xs">
+                                        <thead className="sticky top-0 bg-slate-100 dark:bg-slate-800 text-muted-foreground uppercase text-[11px]">
+                                            <tr>
+                                                <th className="px-3 py-2 text-left font-semibold whitespace-nowrap">Employee ID</th>
+                                                <th className="px-3 py-2 text-left font-semibold">Name</th>
+                                                <th className="px-3 py-2 text-left font-semibold">Status</th>
+                                                {COUNT_COLUMNS.map(([key, label]) => (
+                                                    <th key={key} className="px-3 py-2 text-right font-semibold whitespace-nowrap">{label}</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {staff.map((st, i) => {
+                                                const sent = sentFor(st.employeeId);
+                                                return (
+                                                    <tr
+                                                        key={`${st.employeeId}-${i}`}
+                                                        className={cn('border-t', st.isError && 'bg-red-50/60 dark:bg-red-950/20')}
+                                                    >
+                                                        <td className="px-3 py-1.5 font-mono">{st.employeeId || '-'}</td>
+                                                        <td className="px-3 py-1.5 whitespace-nowrap">{st.name || sent?.name || '-'}</td>
+                                                        <td className="px-3 py-1.5">
+                                                            <span
+                                                                className={cn(
+                                                                    'px-1.5 py-0.5 rounded text-[11px] font-medium whitespace-nowrap',
+                                                                    st.isError
+                                                                        ? 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300'
+                                                                        : st.isNewStaff
+                                                                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
+                                                                            : 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300'
+                                                                )}
+                                                            >
+                                                                {st.isError ? 'Failed' : st.isNewStaff ? 'New' : 'Updated'}
+                                                            </span>
+                                                        </td>
+                                                        {st.isError ? (
+                                                            <td colSpan={COUNT_COLUMNS.length} className="px-3 py-1.5 text-red-700 dark:text-red-300">
+                                                                {st.error || 'Import failed for this staff member'}
+                                                            </td>
+                                                        ) : (
+                                                            COUNT_COLUMNS.map(([key]) => (
+                                                                <td key={key} className="px-3 py-1.5 text-right tabular-nums whitespace-nowrap">
+                                                                    {renderCount(st.counts?.[key], sent?.counts[key], Boolean(sent))}
+                                                                </td>
+                                                            ))
+                                                        )}
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+
+                            {warnings.length > 0 && (
+                                <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 p-3">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <AlertTriangle className="w-4 h-4 text-amber-600" />
+                                        <span className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                                            Warnings ({warnings.length})
+                                        </span>
+                                    </div>
+                                    <ul className="space-y-1 max-h-48 overflow-auto">
+                                        {warnings.map((w, i) => (
+                                            <li key={`warning-${i}`} className="text-xs text-amber-700 dark:text-amber-300">
+                                                • {w}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
 
                 {/* Footer Actions */}
                 <DialogFooter className="flex items-center justify-end gap-2 pt-4 border-t">
-                    <Button variant="outline" onClick={handleClose} disabled={isImporting}>
+                    <Button variant="outline" onClick={handleClose} disabled={isImporting || isValidating}>
                         {importResult ? 'Close' : 'Cancel'}
                     </Button>
                     {hasFile && !importResult && (
                         <Button
+                            variant="outline"
+                            onClick={handleValidate}
+                            disabled={isValidating || isImporting || totalRows === 0}
+                        >
+                            {isValidating ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Validating...
+                                </>
+                            ) : (
+                                <>
+                                    <ShieldCheck className="w-4 h-4 mr-2" />
+                                    Validate
+                                </>
+                            )}
+                        </Button>
+                    )}
+                    {hasFile && !importResult && (
+                        <Button
                             color="success"
                             onClick={handleImport}
-                            disabled={isImporting || totalRows === 0}
+                            disabled={!canImport || isImporting || isValidating || totalRows === 0}
+                            title={canImport ? undefined : 'Validate the data first. Import is enabled once validation passes.'}
                         >
                             {isImporting ? (
                                 <>

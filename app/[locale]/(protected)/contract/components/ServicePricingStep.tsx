@@ -955,7 +955,18 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
 
                                                 {/* Aircraft Types */}
                                                 <div className="space-y-2">
-                                                    <Label>Aircraft Types <span className="text-destructive">*</span></Label>
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <Label>Aircraft Types <span className="text-destructive">*</span></Label>
+                                                        {rate.aircraftTypes.length > 0 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleRateChange(rate.id, "aircraftTypes", [])}
+                                                                className="text-xs font-medium text-muted-foreground hover:text-destructive transition-colors cursor-pointer bg-transparent border-none p-0"
+                                                            >
+                                                                Clear
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                     <Popover>
                                                         <PopoverTrigger asChild>
                                                             <Button
@@ -986,6 +997,18 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                                             </Button>
                                                         </PopoverTrigger>
                                                         <PopoverContent className="w-[min(300px,calc(100vw-2rem))] p-2" align="start">
+                                                            {rate.aircraftTypes.length > 0 && (
+                                                                <div className="flex items-center justify-between px-2 pb-2 mb-1 border-b text-xs">
+                                                                    <span className="text-muted-foreground">{rate.aircraftTypes.length} selected</span>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleRateChange(rate.id, "aircraftTypes", [])}
+                                                                        className="font-medium text-primary hover:underline cursor-pointer bg-transparent border-none p-0"
+                                                                    >
+                                                                        Clear all
+                                                                    </button>
+                                                                </div>
+                                                            )}
                                                             <div className="space-y-1 max-h-[200px] overflow-y-auto">
                                                                 {aircraftTypeOptions.map((aircraft) => (
                                                                     <div

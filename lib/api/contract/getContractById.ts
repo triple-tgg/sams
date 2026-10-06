@@ -138,6 +138,7 @@ export interface ContractDetail {
     validFrom: string;
     expiresOn: string;
     isNoExpiryDate: boolean | null;
+    escalationDate?: string | null;
     creditTerms: string;
     contractStatusObj: ContractDetailStatusObj;
     serviceStation: string[];

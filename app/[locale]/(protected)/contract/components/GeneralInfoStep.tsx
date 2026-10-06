@@ -245,6 +245,15 @@ export const GeneralInfoStep = ({
                     </div>
                 </div>
                 <div className="space-y-2">
+                    <Label htmlFor="escalationDate">Escalation Date</Label>
+                    <Input
+                        id="escalationDate"
+                        type="date"
+                        value={formData.escalationDate}
+                        onChange={(e) => onFormChange("escalationDate", e.target.value)}
+                    />
+                </div>
+                <div className="space-y-2">
                     <Label htmlFor="contractType">Contract Type</Label>
                     <Select
                         value={formData.contractType}

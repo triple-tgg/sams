@@ -72,6 +72,8 @@ export interface ContractUpsertRequest {
     validFrom: string;
     expiresOn: string;
     isNoExpiryDate: boolean;
+    /** YYYY-MM-DD, or null when not set. */
+    escalationDate: string | null;
     creditTerms: string;
     contractStatusId: number;
     attachContractList: ContractAttachmentRequest | null;

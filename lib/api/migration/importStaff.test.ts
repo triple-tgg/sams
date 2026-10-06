@@ -12,6 +12,10 @@ import {
     buildLookupIndex,
     buildImportStaffPayload,
     countImportStaffPayloadRows,
+    parseImportStaffValidation,
+    resolveValidationRowErrors,
+    parseImportStaffResult,
+    summarizePayloadByEmployee,
     type ParsedSheetInput,
     type ImportStaffLookups,
 } from "./importStaff";
@@ -555,5 +559,225 @@ describe("findNameMismatches", () => {
             sheet("Staff Info", ["Employee ID", "Full Name (English)"], [["68", "Totally Different"]]),
         ];
         expect(findNameMismatches(sheets, reference)).toEqual([]);
+    });
+});
+
+describe("parseImportStaffValidation", () => {
+    it("passes when flagPass is true and there are no errors", () => {
+        const r = parseImportStaffValidation({ message: "ok", responseData: { flagPass: true, warnings: ["w1"] }, error: "" });
+        expect(r.isValid).toBe(true);
+        expect(r.errors).toEqual([]);
+        expect(r.warnings).toEqual(["w1"]);
+    });
+
+    it("reads string and object errors under responseData", () => {
+        const r = parseImportStaffValidation({
+            responseData: {
+                flagPass: false,
+                errors: ["plain", { sheet: "AMEL License", row: 3, employeeId: "0022", message: "category not found" }],
+            },
+        });
+        expect(r.isValid).toBe(false);
+        expect(r.errors).toEqual(["plain", "AMEL License · row 3 · Employee ID 0022: category not found"]);
+    });
+
+    it("counts a top-level error string as an error even with HTTP 200", () => {
+        const r = parseImportStaffValidation({ message: "error", responseData: null, error: "Employee 0099 not found" });
+        expect(r.isValid).toBe(false);
+        expect(r.errors).toEqual(["Employee 0099 not found"]);
+    });
+
+    it("flattens an ASP.NET field map", () => {
+        const r = parseImportStaffValidation({ title: "One or more validation errors occurred.", errors: { "staffInfo[0].email": ["Invalid email"] } });
+        expect(r.isValid).toBe(false);
+        expect(r.errors).toEqual(["staffInfo[0].email: Invalid email"]);
+    });
+
+    it("reads flagPass at the top level", () => {
+        expect(parseImportStaffValidation({ flagPass: true, responseData: null, error: "" }).isValid).toBe(true);
+    });
+
+    it("fails when flagPass is missing, even with no errors", () => {
+        expect(parseImportStaffValidation({ message: "ok", responseData: {} }).isValid).toBe(false);
+    });
+
+    it("fails when flagPass is true but errors are present", () => {
+        const r = parseImportStaffValidation({ responseData: { flagPass: true, errors: ["x"] } });
+        expect(r.isValid).toBe(false);
+    });
+});
+
+describe("validateList row errors", () => {
+    const body = {
+        message: "success",
+        responseData: {
+            flagPass: false,
+            validateList: [
+                {
+                    staffInfo: [],
+                    amelLicense: [],
+                    trainingRecords: [
+                        { rowId: 1, employeeId: "0012", statusText: "รูปแบบวันที่ DateFrom ไม่ถูกต้อง" },
+                        { rowId: 3, employeeId: "0012", statusText: "bad course" },
+                    ],
+                },
+            ],
+        },
+        error: "",
+    };
+
+    it("reads row errors per section and fails the result", () => {
+        const r = parseImportStaffValidation(body);
+        expect(r.isValid).toBe(false);
+        expect(r.errors).toEqual([]);
+        expect(r.rowErrors).toEqual([
+            { section: "trainingRecords", rowId: 1, employeeId: "0012", statusText: "รูปแบบวันที่ DateFrom ไม่ถูกต้อง" },
+            { section: "trainingRecords", rowId: 3, employeeId: "0012", statusText: "bad course" },
+        ]);
+    });
+
+    it("maps payload positions back to sheet rows, skipping dropped blank rows", () => {
+        const sheets: ParsedSheetInput[] = [
+            {
+                name: "Training Records",
+                headers: ["Employee ID", "Course Code", "Date From"],
+                rows: [
+                    { rowIndex: 1, data: { "Employee ID": "0012", "Course Code": "C1", "Date From": "x" } },
+                    { rowIndex: 2, data: { "Employee ID": "", "Course Code": "", "Date From": "" } },
+                    { rowIndex: 3, data: { "Employee ID": "0012", "Course Code": "C2", "Date From": "y" } },
+                    { rowIndex: 4, data: { "Employee ID": "0012", "Course Code": "C3", "Date From": "z" } },
+                ],
+            },
+        ];
+        const { sources } = buildImportStaffPayload(sheets, LOOKUPS);
+        expect(sources.trainingRecords.map((s) => s.rowIndex)).toEqual([1, 3, 4]);
+
+        const { resolved, unresolved } = resolveValidationRowErrors(
+            [
+                ...parseImportStaffValidation(body).rowErrors,
+                { section: "trainingRecords", rowId: 9, employeeId: "0012", statusText: "gone" },
+            ],
+            sources
+        );
+        expect(resolved).toEqual([
+            { sheetName: "Training Records", rowIndex: 1, employeeId: "0012", statusText: "รูปแบบวันที่ DateFrom ไม่ถูกต้อง" },
+            { sheetName: "Training Records", rowIndex: 4, employeeId: "0012", statusText: "bad course" },
+        ]);
+        expect(unresolved).toEqual(["trainingRecords row 9 · Employee ID 0012: gone"]);
+    });
+});
+
+describe("parseImportStaffResult", () => {
+    it("reads the original single-staff summary", () => {
+        const r = parseImportStaffResult({
+            message: "success",
+            error: "",
+            responseData: {
+                staffId: 5, employeeId: "0022", isNewStaff: false,
+                amelLicenseCount: 3, aircraftLicenseCount: 1, previousTrainingCount: 120,
+                trainingRecordCount: 30, workExperienceCount: 2, educationCount: 1, warnings: ["w"],
+            },
+        });
+        expect(r.success).toBe(true);
+        expect(r.staff).toEqual([
+            {
+                employeeId: "0022", staffId: 5, name: "", isNewStaff: false,
+                counts: { amelLicense: 3, aircraftLicense: 1, previousTraining: 120, trainingRecords: 30, workExperience: 2, education: 1 },
+                isError: false, error: "",
+            },
+        ]);
+        expect(r.counts).toEqual({ amelLicense: 3, aircraftLicense: 1, previousTraining: 120, trainingRecords: 30, workExperience: 2, education: 1 });
+        expect(r.updatedCount).toBe(1);
+        expect(r.warnings).toEqual(["Employee ID 0022: w"]);
+    });
+
+    it("sums counts over a list of staff", () => {
+        const r = parseImportStaffResult({
+            responseData: [
+                { employeeId: "0012", isNewStaff: true, amelLicenseCount: 2, educationCount: 1 },
+                { employeeId: "0022", isNewStaff: false, amelLicenseCount: 3, educationCount: 0 },
+            ],
+        });
+        expect(r.staff.map((s) => s.employeeId)).toEqual(["0012", "0022"]);
+        expect(r.newCount).toBe(1);
+        expect(r.updatedCount).toBe(1);
+        expect(r.counts?.amelLicense).toBe(5);
+        expect(r.counts?.education).toBe(1);
+    });
+
+    it("leaves counts null when the API sends none", () => {
+        const r = parseImportStaffResult({ message: "success", responseData: {} });
+        expect(r.success).toBe(true);
+        expect(r.staff).toEqual([]);
+        expect(r.counts).toBeNull();
+    });
+
+    it("fails on flagPass false with row errors", () => {
+        const r = parseImportStaffResult({
+            responseData: { flagPass: false, validateList: [{ trainingRecords: [{ rowId: 2, employeeId: "0012", statusText: "bad" }] }] },
+        });
+        expect(r.success).toBe(false);
+        expect(r.rowErrors).toHaveLength(1);
+    });
+
+    it("fails on HTTP 200 with an error string", () => {
+        expect(parseImportStaffResult({ message: "error", error: "boom", responseData: null }).success).toBe(false);
+    });
+});
+
+describe("parseImportStaffResult with the live item shape", () => {
+    const item = (over: Record<string, unknown>) => ({
+        staffId: 162, employeeId: "0022", isNewStaff: false,
+        amelLicenseCount: 3, aircraftLicenseCount: 1, previousTrainingCount: 132, trainingRecordCount: 0,
+        workExperienceCount: 3, educationCount: 1, error: null, isError: false, ...over,
+    });
+
+    it("finds the list under an unknown wrapper key and sums successful staff", () => {
+        const r = parseImportStaffResult({
+            message: "success",
+            responseData: { importStaffList: [item({}), item({ staffId: 170, employeeId: "0012", isNewStaff: true, amelLicenseCount: 2 })] },
+        });
+        expect(r.success).toBe(true);
+        expect(r.staff.map((s) => s.employeeId)).toEqual(["0022", "0012"]);
+        expect(r.newCount).toBe(1);
+        expect(r.updatedCount).toBe(1);
+        expect(r.failedCount).toBe(0);
+        expect(r.counts?.amelLicense).toBe(5);
+        expect(r.counts?.previousTraining).toBe(264);
+    });
+
+    it("reports a failed staff member without failing the whole import", () => {
+        const r = parseImportStaffResult({
+            responseData: { list: [item({}), item({ employeeId: "0099", isError: true, error: "Position not found" })] },
+        });
+        expect(r.success).toBe(true);
+        expect(r.failedCount).toBe(1);
+        expect(r.staff[1]).toMatchObject({ employeeId: "0099", isError: true, error: "Position not found" });
+        expect(r.counts?.amelLicense).toBe(3);
+    });
+
+    it("fails when every staff member failed", () => {
+        const r = parseImportStaffResult({ responseData: [item({ isError: true, error: "boom" })] });
+        expect(r.success).toBe(false);
+    });
+});
+
+describe("summarizePayloadByEmployee", () => {
+    it("counts rows per staff, matching ids across zero-padding", () => {
+        const ref = (employeeId: string) => ({ employeeId, fullNameTh: "", fullNameEn: "" });
+        const m = summarizePayloadByEmployee({
+            staffInfo: [{ ...ref("0022"), fullNameEn: "Chalong Siri" } as any],
+            amelLicense: [ref("0022"), ref("22")] as any,
+            aircraftLicense: [],
+            previousTrainingRecords: [ref("0012")] as any,
+            trainingRecords: [],
+            workExperience: [],
+            education: [],
+        });
+        expect(m.get("22")).toEqual({
+            name: "Chalong Siri",
+            counts: { amelLicense: 2, aircraftLicense: 0, previousTraining: 0, trainingRecords: 0, workExperience: 0, education: 0 },
+        });
+        expect(m.get("12")?.counts.previousTraining).toBe(1);
     });
 });

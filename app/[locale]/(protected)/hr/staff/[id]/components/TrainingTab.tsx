@@ -3,7 +3,8 @@
 import { useState, useMemo, useCallback } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { CollapsibleCard } from './CollapsibleCard'
-import { BookOpen, History, Pencil, Check, X as XIcon, ClipboardList, Calendar, Building2, Clock, AlertTriangle, ShieldCheck, Trash2, Plus, Loader2 } from 'lucide-react'
+import { BookOpen, History, Pencil, Check, X as XIcon, ClipboardList, Calendar, Building2, Clock, AlertTriangle, ShieldCheck, Trash2, Plus, Loader2, Search, Filter } from 'lucide-react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { StaffData, CurrentTrainingRecord } from '../types'
 import { formatDate } from '../utils'
 import { useStaffTrainingDashboard, useCreateTrainingHistory, useUpdateTrainingHistory, useDeleteTrainingHistory } from '@/lib/api/hooks/useQAStaffManagement'
@@ -68,12 +69,71 @@ function formatValidUntil(val: string, fallback = '—'): string {
     return parsed.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+type NeedsMatrixCourse = TrainingDashboardResponseData['needsMatrix']['courses'][number]
+
+// The API reports `status` ("Valid" / "Required" / ...); `completed` is the older field.
+function isCourseValid(c: NeedsMatrixCourse): boolean {
+    return c.completed ?? c.status?.trim().toLowerCase() === 'valid'
+}
+
+function courseStatusLabel(c: NeedsMatrixCourse): string {
+    if (isCourseValid(c)) return 'Valid'
+    const raw = c.status?.trim() || 'Required'
+    // Normalize case so "expired" and "Expired" land in the same group.
+    return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase()
+}
+
+/** Display order of statuses; anything else follows, alphabetically. */
+const STATUS_ORDER = ['Valid', 'Expired', 'Required']
+
+function statusRank(label: string): number {
+    const i = STATUS_ORDER.indexOf(label)
+    return i === -1 ? STATUS_ORDER.length : i
+}
+
+function compareStatus(a: string, b: string): number {
+    return statusRank(a) - statusRank(b) || a.localeCompare(b)
+}
+
 // ── Training Needs Matrix Card (API-driven) ──
 function TrainingNeedsMatrixFromApi({ matrix }: { matrix: TrainingDashboardResponseData['needsMatrix'] | null }) {
     const total = matrix?.totalRequired ?? 0
     const completed = matrix?.validCount ?? 0
     const percentage = matrix?.completionPercentage ?? 0
-    const courses = matrix?.courses ?? []
+    const [statusFilter, setStatusFilter] = useState<string>('All')
+    const [search, setSearch] = useState('')
+
+    // Valid, Expired, Required, then any other status; the API's order is kept within each group.
+    const courses = useMemo(() => {
+        const list = matrix?.courses ?? []
+        return list
+            .map((c, i) => ({ c, i, label: courseStatusLabel(c) }))
+            .sort((a, b) => compareStatus(a.label, b.label) || a.i - b.i)
+            .map(({ c }) => c)
+    }, [matrix])
+
+    // "All" then each status in display order, with counts. Valid, Expired and Required always show.
+    const statusOptions = useMemo(() => {
+        const counts = new Map<string, number>()
+        for (const c of courses) {
+            const label = courseStatusLabel(c)
+            counts.set(label, (counts.get(label) ?? 0) + 1)
+        }
+        const labels = Array.from(new Set([...STATUS_ORDER, ...counts.keys()])).sort(compareStatus)
+        return [
+            { label: 'All', count: courses.length },
+            ...labels.map((label) => ({ label, count: counts.get(label) ?? 0 })),
+        ]
+    }, [courses])
+
+    const visibleCourses = useMemo(() => {
+        const q = search.trim().toLowerCase()
+        return courses.filter((c) => {
+            if (statusFilter !== 'All' && courseStatusLabel(c) !== statusFilter) return false
+            if (!q) return true
+            return (c.name || c.courseName || '').toLowerCase().includes(q)
+        })
+    }, [courses, statusFilter, search])
 
     if (!matrix || total === 0) {
         return (
@@ -105,15 +165,60 @@ function TrainingNeedsMatrixFromApi({ matrix }: { matrix: TrainingDashboardRespo
                 </span>
             </div>
 
+            {/* Filters */}
+            <div className="mb-3 space-y-2">
+                <div className="flex flex-wrap gap-1.5">
+                    {statusOptions.map(({ label, count }) => {
+                        const active = statusFilter === label
+                        const tone =
+                            label === 'Valid'
+                                ? active ? 'bg-emerald-600 text-white border-emerald-600' : 'text-emerald-700 border-emerald-200 hover:bg-emerald-50'
+                                : label === 'All'
+                                    ? active ? 'bg-slate-800 text-white border-slate-800' : 'text-slate-600 border-slate-200 hover:bg-slate-50'
+                                    : label === 'Expired'
+                                        ? active ? 'bg-amber-500 text-white border-amber-500' : 'text-amber-700 border-amber-200 hover:bg-amber-50'
+                                        : active ? 'bg-red-500 text-white border-red-500' : 'text-red-600 border-red-200 hover:bg-red-50'
+                        return (
+                            <button
+                                key={label}
+                                type="button"
+                                onClick={() => setStatusFilter(label)}
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold transition-colors cursor-pointer ${tone}`}
+                            >
+                                {label}
+                                <span className={active ? 'opacity-80' : 'opacity-60'}>{count}</span>
+                            </button>
+                        )
+                    })}
+                </div>
+                <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search course"
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-slate-700 placeholder:text-slate-400"
+                />
+            </div>
+
             {/* Course checklist */}
             <ScrollArea viewportClassName="max-h-[500px]">
             <div className="space-y-2 pr-3">
-                {courses.map((c, i) => (
+                {visibleCourses.length === 0 && (
+                    <p className="text-xs text-slate-400 text-center py-4">No courses match the filter.</p>
+                )}
+                {visibleCourses.map((c, i) => {
+                    const isValid = isCourseValid(c)
+                    const statusLabel = courseStatusLabel(c)
+                    return (
                     <div key={c.courseId ?? i} className="flex items-start gap-2.5 py-1.5">
                         {/* Icon */}
-                        {c.completed ? (
+                        {isValid ? (
                             <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center shrink-0 mt-0.5">
                                 <Check className="h-3 w-3 text-emerald-600" strokeWidth={3} />
+                            </div>
+                        ) : statusLabel === 'Expired' ? (
+                            <div className="w-5 h-5 rounded-full bg-amber-100 flex items-center justify-center shrink-0 mt-0.5">
+                                <Clock className="h-3 w-3 text-amber-600" strokeWidth={3} />
                             </div>
                         ) : (
                             <div className="w-5 h-5 rounded-full bg-red-100 flex items-center justify-center shrink-0 mt-0.5">
@@ -123,12 +228,12 @@ function TrainingNeedsMatrixFromApi({ matrix }: { matrix: TrainingDashboardRespo
                         {/* Course info */}
                         <div className="flex-1 min-w-0">
                             {(() => {
-                                const courseName = c.name || (c as { courseName?: string }).courseName || '-'
+                                const courseName = (c.name || c.courseName || '-').replace(/\s*\n\s*/g, ' ')
                                 return (
                                     <TooltipProvider delayDuration={0}>
                                         <Tooltip>
                                             <TooltipTrigger asChild>
-                                                <span className={`line-clamp-2 break-words cursor-default text-[13px] font-medium leading-snug ${c.completed ? 'text-slate-700' : 'text-slate-500'}`}>
+                                                <span className={`line-clamp-2 break-words cursor-default text-[13px] font-medium leading-snug ${isValid ? 'text-slate-700' : 'text-slate-500'}`}>
                                                     {courseName}
                                                 </span>
                                             </TooltipTrigger>
@@ -141,13 +246,14 @@ function TrainingNeedsMatrixFromApi({ matrix }: { matrix: TrainingDashboardRespo
                             })()}
                         </div>
                         {/* Status badge */}
-                        {!c.completed && (
-                            <span className="text-[10px] font-bold text-red-500 uppercase tracking-wider shrink-0 mt-0.5">
-                                Required
+                        {!isValid && (
+                            <span className={`text-[10px] font-bold uppercase tracking-wider shrink-0 mt-0.5 ${statusLabel === 'Expired' ? 'text-amber-600' : 'text-red-500'}`}>
+                                {statusLabel}
                             </span>
                         )}
                     </div>
-                ))}
+                    )
+                })}
             </div>
             </ScrollArea>
         </CollapsibleCard>
@@ -415,6 +521,138 @@ const emptyHistoryRow = (): EditingHistoryRow => ({
     courseName: '', academyName: '', dateFrom: '', dateTo: '',
 })
 
+/** Case-insensitive match on a course name; an empty query matches everything. */
+function matchesCourse(name: string | null | undefined, query: string): boolean {
+    const q = query.trim().toLowerCase()
+    return !q || (name ?? '').toLowerCase().includes(q)
+}
+
+type TrainingStatus = ReturnType<typeof getTrainingStatus>
+
+/** Filter order: the statuses that need action first. */
+const TRAINING_STATUS_ORDER: TrainingStatus[] = ['Expired', 'Expiring Soon', 'Valid', 'Permanent']
+
+// ── Status column header with a filter list ──
+function StatusFilterHeader({
+    label,
+    value,
+    onChange,
+    counts,
+}: {
+    label: string
+    value: TrainingStatus | 'All'
+    onChange: (v: TrainingStatus | 'All') => void
+    counts: Record<TrainingStatus, number>
+}) {
+    const [open, setOpen] = useState(false)
+    const total = TRAINING_STATUS_ORDER.reduce((sum, st) => sum + counts[st], 0)
+    const active = value !== 'All'
+    const options: Array<[TrainingStatus | 'All', number]> = [['All', total], ...TRAINING_STATUS_ORDER.map((st) => [st, counts[st]] as [TrainingStatus, number])]
+
+    return (
+        <span className="inline-flex items-center gap-1.5">
+            {label}
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <button
+                        type="button"
+                        className={`inline-flex items-center justify-center w-5 h-5 rounded cursor-pointer border-none ${active ? 'text-blue-600 bg-blue-50' : 'text-slate-400 bg-transparent hover:text-blue-600 hover:bg-blue-50'}`}
+                        title="Filter by status"
+                        aria-label="Filter by status"
+                    >
+                        <Filter className="h-3.5 w-3.5" />
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-48 p-1 normal-case tracking-normal">
+                    {options.map(([st, count]) => {
+                        const selected = value === st
+                        return (
+                            <button
+                                key={st}
+                                type="button"
+                                onClick={() => { onChange(st); setOpen(false) }}
+                                disabled={st !== 'All' && count === 0}
+                                className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md text-xs text-left cursor-pointer bg-transparent border-none disabled:opacity-40 disabled:cursor-not-allowed ${selected ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-700 hover:bg-slate-50'}`}
+                            >
+                                <span className="inline-flex items-center gap-2">
+                                    <Check className={`h-3.5 w-3.5 ${selected ? 'opacity-100' : 'opacity-0'}`} />
+                                    {st === 'All' ? 'All statuses' : <StatusBadge status={st} />}
+                                </span>
+                                <span className="text-slate-400 tabular-nums">{count}</span>
+                            </button>
+                        )
+                    })}
+                </PopoverContent>
+            </Popover>
+            {active && (
+                <button
+                    type="button"
+                    onClick={() => onChange('All')}
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 text-[10px] font-semibold normal-case tracking-normal cursor-pointer border-none hover:bg-blue-100"
+                    title="Clear status filter"
+                >
+                    {value}
+                    <XIcon className="h-3 w-3" />
+                </button>
+            )}
+        </span>
+    )
+}
+
+// ── Column header that turns into a search box when its icon is clicked ──
+function ColumnSearchHeader({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+    const [open, setOpen] = useState(false)
+    const active = value.trim() !== ''
+
+    if (!open && !active) {
+        return (
+            <span className="inline-flex items-center gap-1.5">
+                {label}
+                <button
+                    type="button"
+                    onClick={() => setOpen(true)}
+                    className="inline-flex items-center justify-center w-5 h-5 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 cursor-pointer bg-transparent border-none"
+                    title={`Search ${label.toLowerCase()}`}
+                    aria-label={`Search ${label.toLowerCase()}`}
+                >
+                    <Search className="h-3.5 w-3.5" />
+                </button>
+            </span>
+        )
+    }
+
+    const close = () => {
+        onChange('')
+        setOpen(false)
+    }
+
+    return (
+        <div className="relative normal-case tracking-normal font-normal">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-blue-500" />
+            <input
+                type="text"
+                value={value}
+                autoFocus
+                onChange={(e) => onChange(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Escape') close() }}
+                onBlur={() => { if (!value.trim()) setOpen(false) }}
+                placeholder={`Search ${label.toLowerCase()}`}
+                className="w-full min-w-[160px] pl-7 pr-7 py-1 border border-blue-300 rounded-md text-xs text-slate-700 bg-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 placeholder:text-slate-400"
+            />
+            <button
+                type="button"
+                // mousedown so the input's blur does not close the box before the click lands
+                onMouseDown={(e) => { e.preventDefault(); close() }}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer bg-transparent border-none"
+                title="Clear search"
+                aria-label="Clear search"
+            >
+                <XIcon className="h-3.5 w-3.5" />
+            </button>
+        </div>
+    )
+}
+
 export function TrainingTab({ staff }: { staff: StaffData }) {
     const [selectedTraining, setSelectedTraining] = useState<CurrentTrainingRecord | null>(null)
 
@@ -425,6 +663,9 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
     const [previousOpen, setPreviousOpen] = useState(false)
     const [addingData, setAddingData] = useState<EditingHistoryRow>(emptyHistoryRow())
     const [deletingId, setDeletingId] = useState<number | null>(null)
+    const [trainingSearch, setTrainingSearch] = useState('')
+    const [trainingStatusFilter, setTrainingStatusFilter] = useState<TrainingStatus | 'All'>('All')
+    const [previousSearch, setPreviousSearch] = useState('')
 
     // ── Fetch training dashboard from API ──
     const { data: trainingData, isLoading, isError } = useStaffTrainingDashboard(staff.id)
@@ -494,6 +735,31 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
 
     // ── Inline editing handlers ──
     const apiHistories = apiData?.histories ?? []
+
+    // Status counts follow the course search, so each option says how many rows it would show.
+    const trainingStatusCounts = useMemo(() => {
+        const counts: Record<TrainingStatus, number> = { Valid: 0, Expired: 0, Permanent: 0, 'Expiring Soon': 0 }
+        for (const t of currentTraining) {
+            if (matchesCourse(t.course, trainingSearch)) counts[getTrainingStatus(t.validUntil)]++
+        }
+        return counts
+    }, [currentTraining, trainingSearch])
+
+    const visibleTraining = useMemo(
+        () =>
+            currentTraining.filter(
+                (t) =>
+                    matchesCourse(t.course, trainingSearch) &&
+                    (trainingStatusFilter === 'All' || getTrainingStatus(t.validUntil) === trainingStatusFilter)
+            ),
+        [currentTraining, trainingSearch, trainingStatusFilter]
+    )
+    // The row being edited stays visible even if the edit makes it stop matching.
+    const visibleHistories = useMemo(
+        () => apiHistories.filter((h) => h.id === editingId || matchesCourse(h.courseName, previousSearch)),
+        [apiHistories, previousSearch, editingId]
+    )
+
     const isAnyMutating = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
 
     const startEdit = useCallback((history: TrainingDashboardPreviousTraining) => {
@@ -651,6 +917,7 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
                     {/* Training Records */}
                     <CollapsibleCard icon={<BookOpen className="h-4 w-4" />} iconClassName="bg-orange-50 text-orange-600" title="Training Records" defaultOpen>
                         {currentTraining.length > 0 ? (
+                            <>
                             <TooltipProvider delayDuration={0}>
                                 <ScrollArea scrollbars="both" className="-mx-1" viewportClassName="max-h-[500px] px-1">
                                 <table className="w-full min-w-[560px] border-collapse">
@@ -658,13 +925,24 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
                                     <tr>
                                         {['Training Course', 'Valid Until', 'By', 'Status'].map((h, i) => (
                                             <th key={h} className={`text-[11px] font-semibold text-slate-400 uppercase tracking-wider py-2.5 px-3.5 bg-white sticky top-0 text-left whitespace-nowrap ${i === 0 ? 'left-0 z-[3] shadow-[inset_0_-1px_0_#e8ecf1,1px_0_0_0_#f1f5f9]' : 'z-[2] shadow-[inset_0_-1px_0_#e8ecf1]'}`}>
-                                                {h}
+                                                {i === 0 ? (
+                                                    <ColumnSearchHeader label={h} value={trainingSearch} onChange={setTrainingSearch} />
+                                                ) : h === 'Status' ? (
+                                                    <StatusFilterHeader label={h} value={trainingStatusFilter} onChange={setTrainingStatusFilter} counts={trainingStatusCounts} />
+                                                ) : (
+                                                    h
+                                                )}
                                             </th>
                                         ))}
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {currentTraining.map((t, i) => {
+                                    {visibleTraining.length === 0 && (
+                                        <tr>
+                                            <td colSpan={4} className="py-6 text-center text-xs text-slate-400">No training records match the current search or status filter.</td>
+                                        </tr>
+                                    )}
+                                    {visibleTraining.map((t, i) => {
                                         const status = getTrainingStatus(t.validUntil)
                                         return (
                                             <tr key={i} className="group hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => setSelectedTraining(t)}>
@@ -696,6 +974,7 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
                             </table>
                                 </ScrollArea>
                         </TooltipProvider>
+                            </>
                         ) : (
                             <div className="flex flex-col items-center justify-center py-10 text-center">
                                 <div className="w-14 h-14 rounded-2xl bg-orange-50 flex items-center justify-center mb-4">
@@ -731,12 +1010,15 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
 
 
                         {apiHistories.length > 0 || isAdding ? (
+                            <>
                             <TooltipProvider delayDuration={0}>
                                 <ScrollArea scrollbars="both" className="-mx-1 xl:h-0 xl:min-h-[240px] xl:flex-1" viewportClassName="max-h-[500px] px-1 xl:max-h-none">
                                 <table className="w-full min-w-[560px] border-collapse">
                                 <thead>
                                     <tr>
-                                        <th className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider py-2.5 px-3.5 bg-white sticky top-0 left-0 z-[3] shadow-[inset_0_-1px_0_#e8ecf1,1px_0_0_0_#f1f5f9] text-left whitespace-nowrap">Course Name</th>
+                                        <th className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider py-2.5 px-3.5 bg-white sticky top-0 left-0 z-[3] shadow-[inset_0_-1px_0_#e8ecf1,1px_0_0_0_#f1f5f9] text-left whitespace-nowrap">
+                                            <ColumnSearchHeader label="Course Name" value={previousSearch} onChange={setPreviousSearch} />
+                                        </th>
                                         <th className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider py-2.5 px-3.5 bg-white sticky top-0 z-[2] shadow-[inset_0_-1px_0_#e8ecf1] text-left whitespace-nowrap">Academy / Venue</th>
                                         <th className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider py-2.5 px-3.5 bg-white sticky top-0 z-[2] shadow-[inset_0_-1px_0_#e8ecf1] text-left whitespace-nowrap">Date From</th>
                                         <th className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider py-2.5 px-3.5 bg-white sticky top-0 z-[2] shadow-[inset_0_-1px_0_#e8ecf1] text-left whitespace-nowrap">Date To</th>
@@ -744,7 +1026,12 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {apiHistories.map((h) => {
+                                    {apiHistories.length > 0 && visibleHistories.length === 0 && (
+                                        <tr>
+                                            <td colSpan={5} className="py-6 text-center text-xs text-slate-400">No courses match &quot;{previousSearch.trim()}&quot;.</td>
+                                        </tr>
+                                    )}
+                                    {visibleHistories.map((h) => {
                                         const isEditing = editingId === h.id
                                         const isLocked = (editingId !== null && !isEditing) || isAdding || isAnyMutating
 
@@ -843,6 +1130,7 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
                             </table>
                                 </ScrollArea>
                         </TooltipProvider>
+                            </>
                         ) : (
                             <div className="flex flex-col items-center justify-center py-10 text-center">
                                 <div className="w-14 h-14 rounded-2xl bg-violet-50 flex items-center justify-center mb-4">
