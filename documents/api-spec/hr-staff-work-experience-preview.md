@@ -73,6 +73,7 @@
 - `Training Date (To)`: `records[].dateTo`
 - `Valid Until`: `records[].validUntil` (ถ้าไม่มีวันหมดอายุ หรือเป็น null ให้แสดงว่า `Never`)
 - `Training Course`: `records[].courseName`
+- `Course Code`: `records[].courseCode`
 - `By`: `records[].providedBy`
 
 ---

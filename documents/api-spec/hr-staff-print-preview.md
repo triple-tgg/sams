@@ -80,19 +80,47 @@ Used to retrieve the previous and current training records for the Training Reco
       "totalCourses": 10,
       "expired": 0,
       "permanent": 1,
-      "expiringSoon": 0
+      "expiringSoon": 0,
+      "totalCoursesList": [
+        {
+          "id": 1,
+          "courseName": "Human Factors",
+          "courseCode": "HF-001",
+          "validUntil": "2026-01-01",
+          "providedBy": "SAMS Academy",
+          "status": "Valid",
+          "dateFrom": "2024-01-01",
+          "dateTo": "2024-01-02"
+        }
+      ],
+      "expiredList": [],
+      "permanentList": [],
+      "expiringSoonList": []
     },
     "records": [
       {
         "id": 1,
         "courseName": "Human Factors",
-        "dateFrom": "2024-01-01",
-        "dateTo": "2024-01-02",
+        "courseCode": "HF-001",
         "validUntil": "2026-01-01",
         "providedBy": "SAMS Academy",
-        "status": "Completed"
+        "status": "Valid",
+        "dateFrom": "2024-01-01",
+        "dateTo": "2024-01-02"
       }
     ],
+    "needsMatrix": {
+      "completionPercentage": 100,
+      "validCount": 1,
+      "totalRequired": 1,
+      "courses": [
+        {
+          "courseName": "Human Factors",
+          "isRequired": true,
+          "status": "Valid"
+        }
+      ]
+    },
     "histories": [
       {
         "id": 2,

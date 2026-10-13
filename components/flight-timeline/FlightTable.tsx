@@ -94,6 +94,7 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
     const [staffModalType, setStaffModalType] = useState<'cs' | 'mech'>('cs');
     const [selectedStaffIds, setSelectedStaffIds] = useState<number[]>([]);
     const [staffSearch, setStaffSearch] = useState('');
+    const [staffFilterTab, setStaffFilterTab] = useState<'all' | 'role'>('all');
     const [isFetchingStaffEdit, setIsFetchingStaffEdit] = useState(false);
 
     // Remarks edit modal state
@@ -290,6 +291,7 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
         setStaffModalFlight(flight);
         setStaffModalType(type);
         setStaffSearch('');
+        setStaffFilterTab('all');
 
         // Pre-select currently assigned staff
         const currentList = type === 'cs' ? flight.csList : flight.mechList;
@@ -354,12 +356,24 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
         setStaffModalOpen(false);
         setStaffModalFlight(null);
         setStaffSearch('');
+        setStaffFilterTab('all');
     };
 
-    const staffOptionsForModal = allStaff;
+    const roleStaffOptions = staffModalType === 'cs' ? csStaffOptions : mechStaffOptions;
+    const staffOptionsForModal = useMemo(() => {
+        if (staffFilterTab === 'role') {
+            // Keep any already selected staff visible in the list so assigned staff are not hidden
+            const roleIds = new Set(roleStaffOptions.map((s) => s.id));
+            const selectedOutsideRole = allStaff.filter((s) => selectedStaffIds.includes(s.id) && !roleIds.has(s.id));
+            return [...selectedOutsideRole, ...roleStaffOptions];
+        }
+        return allStaff;
+    }, [staffFilterTab, roleStaffOptions, allStaff, selectedStaffIds]);
+
     const filteredStaffOptions = staffOptionsForModal.filter((staff) =>
         staff.name.toLowerCase().includes(staffSearch.toLowerCase()) ||
-        staff.code.toLowerCase().includes(staffSearch.toLowerCase())
+        staff.code.toLowerCase().includes(staffSearch.toLowerCase()) ||
+        (staff.departmentName && staff.departmentName.toLowerCase().includes(staffSearch.toLowerCase()))
     );
 
     // Remarks Edit Modal handlers
@@ -627,9 +641,10 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                                                                 </span>
                                                             );
                                                         }
+                                                        const foundStaff = allStaff.find((s) => s.id === cs);
                                                         return (
                                                             <span key={`cs-${csIndex}-${cs}`} className="bg-cyan-500 text-white dark:text-slate-900 px-2 py-1 rounded text-xs">
-                                                                ID: {cs}
+                                                                {foundStaff?.name || `ID: ${cs}`}
                                                             </span>
                                                         );
                                                     })}
@@ -661,9 +676,10 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                                                                 </span>
                                                             );
                                                         }
+                                                        const foundStaff = allStaff.find((s) => s.id === mech);
                                                         return (
                                                             <span key={`mech-${mechIndex}-${mech}`} className="bg-amber-600 text-white dark:text-slate-900 px-2 py-1 rounded text-xs">
-                                                                ID: {mech}
+                                                                {foundStaff?.name || `ID: ${mech}`}
                                                             </span>
                                                         );
                                                     })}
@@ -814,16 +830,20 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                             </Select>
                         </div>
                     </div>
-                    <DialogFooter>
+                    <DialogFooter className="pt-2">
                         <Button
+                            size="sm"
                             variant="outline"
+                            className="h-8 px-3 text-xs"
                             onClick={handleCheckModalClose}
                             disabled={isUpdatingStatus || isFetchingFlightInfo}
                         >
                             Cancel
                         </Button>
                         <Button
+                            size="sm"
                             color="primary"
+                            className="h-8 px-3.5 text-xs"
                             onClick={handleCheckModalSave}
                             disabled={isUpdatingStatus || isFetchingFlightInfo || !selectedStatusId}
                         >
@@ -870,16 +890,20 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                             </div>
                         )}
                     </div>
-                    <DialogFooter>
+                    <DialogFooter className="pt-2">
                         <Button
+                            size="sm"
                             variant="outline"
+                            className="h-8 px-3 text-xs"
                             onClick={handleTimeEditModalClose}
                             disabled={isUpdatingStatus || isFetchingTimeEdit}
                         >
                             Cancel
                         </Button>
                         <Button
+                            size="sm"
                             color="primary"
+                            className="h-8 px-3.5 text-xs"
                             onClick={handleTimeEditModalSave}
                             disabled={isUpdatingStatus || isFetchingTimeEdit || !timeEditDate || !timeEditTime}
                         >
@@ -904,21 +928,24 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
 
                         {/* Selected Staff Chips */}
                         {selectedStaffIds.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5">
+                            <div className="flex flex-wrap gap-1.5 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
                                 {selectedStaffIds.map((id) => {
-                                    const staff = staffOptionsForModal.find((s) => s.id === id);
+                                    const staff = allStaff.find((s) => s.id === id);
                                     return (
                                         <span
                                             key={id}
-                                            className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${staffModalType === 'cs'
-                                                ? 'bg-cyan-500 text-white'
+                                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium shadow-sm ${staffModalType === 'cs'
+                                                ? 'bg-cyan-600 text-white'
                                                 : 'bg-amber-600 text-white'
                                                 }`}
                                         >
-                                            {staff?.name || `ID: ${id}`}
+                                            <span>{staff?.name || `ID: ${id}`}</span>
+                                            {staff?.code && <span className="opacity-75 font-mono text-[10px]">({staff.code})</span>}
                                             <button
+                                                type="button"
                                                 onClick={() => handleStaffToggle(id)}
-                                                className="hover:bg-white/20 rounded-full p-0.5"
+                                                className="hover:bg-white/20 rounded-full p-0.5 ml-0.5"
+                                                title="Remove"
                                             >
                                                 <X className="w-3 h-3" />
                                             </button>
@@ -928,22 +955,67 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                             </div>
                         )}
 
-                        {/* Search */}
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                            <input
-                                type="text"
-                                placeholder="Search staff..."
-                                value={staffSearch}
-                                onChange={(e) => setStaffSearch(e.target.value)}
-                                className="w-full h-10 rounded-lg border border-slate-300 dark:border-slate-600 bg-background pl-9 pr-3 text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none"
-                            />
+                        {/* Search & Role Filter Tabs */}
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-1.5">
+                                <button
+                                    type="button"
+                                    onClick={() => setStaffFilterTab('all')}
+                                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                                        staffFilterTab === 'all'
+                                            ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
+                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
+                                    }`}
+                                >
+                                    All Staff ({allStaff.length})
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setStaffFilterTab('role')}
+                                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                                        staffFilterTab === 'role'
+                                            ? staffModalType === 'cs'
+                                                ? 'bg-cyan-600 text-white'
+                                                : 'bg-amber-600 text-white'
+                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
+                                    }`}
+                                >
+                                    {staffModalType === 'cs' ? `CS Staff (${csStaffOptions.length})` : `MECH Staff (${mechStaffOptions.length})`}
+                                </button>
+                            </div>
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Search staff by name or code..."
+                                    value={staffSearch}
+                                    onChange={(e) => setStaffSearch(e.target.value)}
+                                    className="w-full h-10 rounded-lg border border-slate-300 dark:border-slate-600 bg-background pl-9 pr-3 text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                                />
+                            </div>
                         </div>
 
                         {/* Staff List */}
                         <div className="max-h-[300px] overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-lg divide-y divide-slate-100 dark:divide-slate-800">
                             {filteredStaffOptions.length === 0 ? (
-                                <div className="p-4 text-center text-sm text-muted-foreground">No staff found</div>
+                                <div className="p-8 text-center text-sm text-muted-foreground space-y-1.5">
+                                    <div>
+                                        {staffSearch
+                                            ? 'No staff matching your search'
+                                            : staffFilterTab === 'role'
+                                            ? `No ${staffModalType === 'cs' ? 'CS' : 'MECH'} staff found`
+                                            : 'No staff found'}
+                                    </div>
+                                    {staffFilterTab === 'role' && allStaff.length > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setStaffFilterTab('all')}
+                                            className="text-xs text-primary hover:underline font-medium"
+                                        >
+                                            View all staff ({allStaff.length})
+                                        </button>
+                                    )}
+                                </div>
                             ) : (
                                 filteredStaffOptions.map((staff) => {
                                     const isSelected = selectedStaffIds.includes(staff.id);
@@ -959,34 +1031,58 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                                                 className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
                                             />
                                             <div className="flex-1 min-w-0">
-                                                <div className="text-sm font-medium truncate">{staff.name}</div>
-                                                <div className="text-xs text-muted-foreground">{staff.code} · {staff.positionCode}</div>
+                                                <div className="text-sm font-medium truncate text-foreground">{staff.name}</div>
+                                                <div className="text-xs text-muted-foreground flex items-center gap-1.5 flex-wrap mt-0.5">
+                                                    <span className="font-mono text-[11px]">{staff.code}</span>
+                                                    {staff.staffType && (
+                                                        <span
+                                                            className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                                                staff.staffType.toUpperCase().includes('CS') && staff.staffType.toUpperCase().includes('MECH')
+                                                                    ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
+                                                                    : staff.staffType.toUpperCase().includes('CS')
+                                                                    ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300'
+                                                                    : staff.staffType.toUpperCase().includes('MECH')
+                                                                    ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+                                                                    : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                                                            }`}
+                                                        >
+                                                            {staff.staffType}
+                                                        </span>
+                                                    )}
+                                                    {staff.departmentName && <span>· {staff.departmentName}</span>}
+                                                    {staff.jobTitle && !staff.departmentName && <span>· {staff.jobTitle}</span>}
+                                                </div>
                                             </div>
                                         </label>
                                     );
                                 })
                             )}
                         </div>
-
+                    </div>
+                    <DialogFooter className="flex items-center justify-between sm:justify-between pt-1">
                         <div className="text-xs text-muted-foreground">
                             {selectedStaffIds.length} staff selected
                         </div>
-                    </div>
-                    <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={handleStaffModalClose}
-                            disabled={isUpdatingStatus || isFetchingStaffEdit}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            color="primary"
-                            onClick={handleStaffModalSave}
-                            disabled={isUpdatingStatus || isFetchingStaffEdit}
-                        >
-                            {isFetchingStaffEdit ? 'Loading...' : isUpdatingStatus ? 'Saving...' : 'Save'}
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 px-3 text-xs"
+                                onClick={handleStaffModalClose}
+                                disabled={isUpdatingStatus || isFetchingStaffEdit}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                size="sm"
+                                color="primary"
+                                className="h-8 px-3.5 text-xs"
+                                onClick={handleStaffModalSave}
+                                disabled={isUpdatingStatus || isFetchingStaffEdit}
+                            >
+                                {isFetchingStaffEdit ? 'Loading...' : isUpdatingStatus ? 'Saving...' : 'Save'}
+                            </Button>
+                        </div>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -1013,16 +1109,20 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                             />
                         </div>
                     </div>
-                    <DialogFooter>
+                    <DialogFooter className="pt-2">
                         <Button
+                            size="sm"
                             variant="outline"
+                            className="h-8 px-3 text-xs"
                             onClick={handleRemarksModalClose}
                             disabled={isUpdatingStatus || isFetchingRemarksEdit}
                         >
                             Cancel
                         </Button>
                         <Button
+                            size="sm"
                             color="primary"
+                            className="h-8 px-3.5 text-xs"
                             onClick={handleRemarksModalSave}
                             disabled={isUpdatingStatus || isFetchingRemarksEdit}
                         >

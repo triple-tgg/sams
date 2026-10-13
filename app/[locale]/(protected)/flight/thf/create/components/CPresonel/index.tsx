@@ -103,6 +103,23 @@ function CheckboxIndicator({
 // Initials Avatar Helper
 // ------------------------------------------------------
 
+/** Normalize a staff type code: uppercase and strip spaces (e.g. "CS & MECH" -> "CS&MECH") */
+function normalizeTypeCode(code?: string | null): string {
+    return (code || "").toUpperCase().replace(/\s+/g, "");
+}
+
+/** Classify a staff type code into CS / MECH / DUAL (CS&MECH) / OTHER */
+function getStaffRole(code?: string | null): "CS" | "MECH" | "DUAL" | "OTHER" {
+    const c = normalizeTypeCode(code);
+    if (!c) return "OTHER";
+    const hasCS = /(^|[^A-Z])CS([^A-Z]|$)/.test(c) || c === "CS";
+    const hasMech = c.includes("MECH");
+    if (hasCS && hasMech) return "DUAL";
+    if (hasCS) return "CS";
+    if (hasMech) return "MECH";
+    return "OTHER";
+}
+
 function getInitials(name: string): string {
     if (!name) return "";
     const clean = name
@@ -622,25 +639,43 @@ export const PersonnelSection = ({
     const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
     // 9. Available Staff Filtering (Left Panel)
+    // Role rules:
+    //   CS       -> CS + CS&MECH
+    //   MECH     -> MECH + CS&MECH
+    //   CS&MECH  -> CS&MECH only
+    //   other    -> exact match
+    const matchesStaffType = useCallback(
+        (item: SelectedStaff) => {
+            if (selectedStaffTypeId <= 0) return true;
+            if (item.staffTypeId === selectedStaffTypeId) return true;
+
+            const targetType = staffTypes.find((st) => st.id === selectedStaffTypeId);
+            const targetRole = getStaffRole(targetType?.code);
+            const itemRole = getStaffRole(item.staffTypeCode);
+
+            if (targetRole === "DUAL") return itemRole === "DUAL";
+            if (targetRole === "CS") return itemRole === "CS" || itemRole === "DUAL";
+            if (targetRole === "MECH") return itemRole === "MECH" || itemRole === "DUAL";
+
+            const targetCode = normalizeTypeCode(targetType?.code);
+            return !targetCode || normalizeTypeCode(item.staffTypeCode) === targetCode;
+        },
+        [selectedStaffTypeId, staffTypes]
+    );
+
+    // Count of All Staff matching the selected Staff Type (for tab label)
+    const allStaffTypeCount = useMemo(
+        () => allStaffList.filter(matchesStaffType).length,
+        [allStaffList, matchesStaffType]
+    );
+
     const availableItems = useMemo(() => {
         if (!isAssignmentEnabled) return [];
         const source = activeTab === "suggested" ? suggestedStaffList : allStaffList;
 
-        return source.filter((item) => {
-            // Must not be already selected
-            if (selectedIdSet.has(item.id)) return false;
-
-            // Staff Type Filter
-            if (selectedStaffTypeId > 0) {
-                const targetType = staffTypes.find((st) => st.id === selectedStaffTypeId);
-                const targetCode = targetType?.code?.toUpperCase();
-                if (targetCode && item.staffTypeCode !== targetCode && item.staffTypeId !== selectedStaffTypeId) {
-                    return false;
-                }
-            }
-            return true;
-        });
-    }, [isAssignmentEnabled, activeTab, suggestedStaffList, allStaffList, selectedIdSet, selectedStaffTypeId, staffTypes]);
+        // Must not be already selected + must match selected Staff Type
+        return source.filter((item) => !selectedIdSet.has(item.id) && matchesStaffType(item));
+    }, [isAssignmentEnabled, activeTab, suggestedStaffList, allStaffList, selectedIdSet, matchesStaffType]);
 
     // Search filter on available
     const filteredAvailable = useMemo(() => {
@@ -704,8 +739,9 @@ export const PersonnelSection = ({
         const newMechIds = new Set(mechIdList);
 
         itemsToAdd.forEach((item) => {
-            // Determine role: if current filter is CS or MECH, use that; else check item's staffTypeCode
-            let assignAsRole = item.staffTypeCode?.toUpperCase();
+            // Determine role: if current filter is CS or MECH, use that; else use item's own role
+            // (CS&MECH staff selected under the CS&MECH filter default to CS)
+            let assignAsRole: string = getStaffRole(item.staffTypeCode) === "MECH" ? "MECH" : "CS";
             if (selectedStaffTypeId === csTypeId) assignAsRole = "CS";
             else if (selectedStaffTypeId === mechTypeId) assignAsRole = "MECH";
 
@@ -755,7 +791,7 @@ export const PersonnelSection = ({
         (item: SelectedStaff) => {
             if (!isAssignmentEnabled) return;
 
-            let assignAsRole = item.staffTypeCode?.toUpperCase();
+            let assignAsRole: string = getStaffRole(item.staffTypeCode) === "MECH" ? "MECH" : "CS";
             if (selectedStaffTypeId === csTypeId) assignAsRole = "CS";
             else if (selectedStaffTypeId === mechTypeId) assignAsRole = "MECH";
 
@@ -777,6 +813,27 @@ export const PersonnelSection = ({
             });
         },
         [isAssignmentEnabled, selectedStaffList, selectedStaffTypeId, csTypeId, mechTypeId, csIdList, mechIdList, onCsChange, onMechChange]
+    );
+
+    // Switch a CS&MECH staff between CS and MECH groups
+    const handleChangeGroup = useCallback(
+        (itemId: number, role: "CS" | "MECH") => {
+            setSelectedStaffList((prev) =>
+                prev.map((s) =>
+                    s.id === itemId
+                        ? { ...s, staffTypeCode: role, staffTypeId: role === "CS" ? csTypeId : mechTypeId }
+                        : s
+                )
+            );
+            if (role === "CS") {
+                onMechChange(mechIdList.filter((id) => id !== itemId));
+                if (!csIdList.includes(itemId)) onCsChange([...csIdList, itemId]);
+            } else {
+                onCsChange(csIdList.filter((id) => id !== itemId));
+                if (!mechIdList.includes(itemId)) onMechChange([...mechIdList, itemId]);
+            }
+        },
+        [csIdList, mechIdList, csTypeId, mechTypeId, onCsChange, onMechChange]
     );
 
     // Direct single item remove
@@ -1007,7 +1064,7 @@ export const PersonnelSection = ({
                                 )}
                             >
                                 <Users className="w-3 h-3 text-slate-400" />
-                                <span>All Staff ({allStaffList.length})</span>
+                                <span>All Staff ({allStaffTypeCount})</span>
                             </button>
                         </div>
 
@@ -1298,8 +1355,44 @@ export const PersonnelSection = ({
                                                                         </span>
                                                                         <span className="text-[10px] text-slate-400">
                                                                             {item.code}
+                                                                            {getStaffRole(allStaffMap.get(item.id)?.staffTypeCode) === "DUAL" && (
+                                                                                <span className="ml-1.5 px-1 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 font-semibold">
+                                                                                    CS&MECH
+                                                                                </span>
+                                                                            )}
                                                                         </span>
                                                                     </div>
+
+                                                                    {/* Group switcher for CS&MECH staff */}
+                                                                    {getStaffRole(allStaffMap.get(item.id)?.staffTypeCode) === "DUAL" && (
+                                                                        <div
+                                                                            className="flex shrink-0 rounded-md border border-slate-200 dark:border-slate-700 overflow-hidden text-[10px] font-semibold"
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                            onDoubleClick={(e) => e.stopPropagation()}
+                                                                            title="Choose group"
+                                                                        >
+                                                                            {(["CS", "MECH"] as const).map((role) => {
+                                                                                const active = (item.staffTypeCode?.toUpperCase() === "MECH" ? "MECH" : "CS") === role;
+                                                                                return (
+                                                                                    <button
+                                                                                        key={role}
+                                                                                        type="button"
+                                                                                        onClick={() => !active && handleChangeGroup(item.id, role)}
+                                                                                        className={cn(
+                                                                                            "px-1.5 py-0.5 transition-colors cursor-pointer",
+                                                                                            active
+                                                                                                ? role === "CS"
+                                                                                                    ? "bg-cyan-600 text-white"
+                                                                                                    : "bg-amber-600 text-white"
+                                                                                                : "bg-white dark:bg-slate-800 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
+                                                                                        )}
+                                                                                    >
+                                                                                        {role}
+                                                                                    </button>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    )}
 
                                                                     {/* Quick Remove Button */}
                                                                     <button

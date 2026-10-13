@@ -77,14 +77,19 @@ export interface QAStaffItem {
 // ── Request / Response ──
 
 export interface QAStaffListRequest {
-    sortBy: string;
-    sortDirection: string;
+    /** Free-text search (name / employee id etc.) */
+    keyword?: string;
     name: string;
     employeeId: string;
-    positionId: number;
+    staffDepartmentPositionId?: number;
+    /** @deprecated use `staffDepartmentPositionId` — mapped automatically */
+    positionId?: number;
     departmentId: number;
+    stationId?: number;
     staffstypeId: number;
     isActive: boolean;
+    sortBy: string;
+    sortDirection: string;
     page: number;
     perPage: number;
 }
@@ -109,7 +114,21 @@ export const getQAStaffList = async (
     params: QAStaffListRequest
 ): Promise<QAStaffListResponse> => {
     try {
-        const res = await axiosConfig.post("/master/staff-management/listdata", params);
+        const body = {
+            keyword: params.keyword ?? "",
+            name: params.name ?? "",
+            employeeId: params.employeeId ?? "",
+            staffDepartmentPositionId: params.staffDepartmentPositionId ?? params.positionId ?? 0,
+            departmentId: params.departmentId ?? 0,
+            stationId: params.stationId ?? 0,
+            staffstypeId: params.staffstypeId ?? 0,
+            isActive: params.isActive,
+            sortBy: params.sortBy,
+            sortDirection: params.sortDirection,
+            page: params.page,
+            perPage: params.perPage,
+        };
+        const res = await axiosConfig.post("/master/staff-management/listdata", body);
         return res.data as QAStaffListResponse;
     } catch (error: any) {
         console.error("Error fetching QA staff list:", error);
@@ -530,15 +549,33 @@ export const getStaffById = async (
 
 // ── Training Dashboard ──
 
-export interface TrainingDashboardCurrentTraining {
+export interface TrainingDashboardRecordItem {
     id: number;
     courseName: string;
-    dateFrom: string;
-    dateTo: string;
+    courseCode: string;
     validUntil: string;
     providedBy: string;
     status: string;
+    dateFrom: string;
+    dateTo: string;
 }
+
+/** Backward-compatibility alias for record items */
+export type TrainingDashboardCurrentTraining = TrainingDashboardRecordItem;
+
+export interface TrainingDashboardSummary {
+    totalCourses: number;
+    expired: number;
+    permanent: number;
+    expiringSoon: number;
+    totalCoursesList: TrainingDashboardRecordItem[];
+    expiredList: TrainingDashboardRecordItem[];
+    permanentList: TrainingDashboardRecordItem[];
+    expiringSoonList: TrainingDashboardRecordItem[];
+}
+
+/** Backward-compatibility alias for summary */
+export type TrainingDashboardStats = TrainingDashboardSummary;
 
 export interface TrainingDashboardPreviousTraining {
     id: number;
@@ -548,37 +585,31 @@ export interface TrainingDashboardPreviousTraining {
     dateTo: string;
 }
 
+/** Backward-compatibility alias */
+export type TrainingDashboardHistoryItem = TrainingDashboardPreviousTraining;
+
 export interface TrainingDashboardNeedsMatrixCourse {
-    courseId?: number;
-    /** Older responses sent `name`; current ones send `courseName`. */
-    name?: string;
-    courseName?: string;
-    isRequired?: boolean;
-    /** "Valid" when the staff member holds a current record; otherwise e.g. "Required". */
+    courseName: string;
+    isRequired: boolean;
     status: string;
-    /** Older responses only; current ones derive this from `status`. */
+    /** Older responses sent `courseId`, `name`, or `completed`; kept for backward compatibility */
+    courseId?: number;
+    name?: string;
     completed?: boolean;
 }
 
 export interface TrainingDashboardNeedsMatrix {
-    totalRequired: number;
-    validCount: number;
     completionPercentage: number;
+    validCount: number;
+    totalRequired: number;
     courses: TrainingDashboardNeedsMatrixCourse[];
 }
 
-export interface TrainingDashboardStats {
-    totalCourses: number;
-    expired: number;
-    permanent: number;
-    expiringSoon: number;
-}
-
 export interface TrainingDashboardResponseData {
-    summary: TrainingDashboardStats;
-    records: TrainingDashboardCurrentTraining[];
-    histories: TrainingDashboardPreviousTraining[];
+    summary: TrainingDashboardSummary;
+    records: TrainingDashboardRecordItem[];
     needsMatrix: TrainingDashboardNeedsMatrix;
+    histories: TrainingDashboardPreviousTraining[];
 }
 
 export interface TrainingDashboardResponse {

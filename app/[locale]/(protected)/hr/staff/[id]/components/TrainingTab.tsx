@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { StaffData, CurrentTrainingRecord } from '../types'
 import { formatDate } from '../utils'
 import { useStaffTrainingDashboard, useCreateTrainingHistory, useUpdateTrainingHistory, useDeleteTrainingHistory } from '@/lib/api/hooks/useQAStaffManagement'
-import type { TrainingDashboardResponseData, TrainingDashboardCurrentTraining, TrainingDashboardPreviousTraining } from '@/lib/api/qa/staff-management'
+import type { TrainingDashboardResponseData, TrainingDashboardCurrentTraining, TrainingDashboardPreviousTraining, TrainingDashboardRecordItem } from '@/lib/api/qa/staff-management'
 import { toast } from 'sonner'
 import {
     Tooltip,
@@ -378,7 +378,7 @@ function TrainingDetailModal({ record, onClose }: { record: CurrentTrainingRecor
     const status = getTrainingStatus(record.validUntil)
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
             {/* Backdrop */}
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
@@ -405,7 +405,14 @@ function TrainingDetailModal({ record, onClose }: { record: CurrentTrainingRecor
                     {/* Course Name */}
                     <div>
                         <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Training Course</span>
-                        <span className="text-[15px] font-semibold text-slate-800 leading-snug">{record.course}</span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            {record.courseCode && (
+                                <span className="px-2 py-0.5 text-xs font-mono font-semibold bg-slate-100 text-slate-700 rounded border border-slate-200">
+                                    {record.courseCode}
+                                </span>
+                            )}
+                            <span className="text-[15px] font-semibold text-slate-800 leading-snug">{record.course}</span>
+                        </div>
                     </div>
 
                     {/* Status */}
@@ -469,6 +476,189 @@ function TrainingDetailModal({ record, onClose }: { record: CurrentTrainingRecor
     )
 }
 
+// ── Summary Courses Modal (Opened by clicking stat cards) ──
+interface SummaryCoursesModalProps {
+    title: string
+    count: number
+    icon: React.ReactNode
+    iconClass: string
+    badgeClass: string
+    courses: TrainingDashboardRecordItem[]
+    onClose: () => void
+    onSelectCourse: (course: CurrentTrainingRecord) => void
+}
+
+function SummaryCoursesModal({
+    title,
+    count,
+    icon,
+    iconClass,
+    badgeClass,
+    courses,
+    onClose,
+    onSelectCourse,
+}: SummaryCoursesModalProps) {
+    const [search, setSearch] = useState('')
+
+    const filteredCourses = useMemo(() => {
+        const q = search.trim().toLowerCase()
+        if (!q) return courses
+        return courses.filter((c) =>
+            (c.courseName || '').toLowerCase().includes(q) ||
+            (c.courseCode || '').toLowerCase().includes(q) ||
+            (c.providedBy || '').toLowerCase().includes(q)
+        )
+    }, [courses, search])
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+
+            {/* Modal Content */}
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[88vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 sm:px-7 py-4 sm:py-5 border-b border-slate-100 shrink-0">
+                    <div className="flex items-center gap-3">
+                        <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 ${iconClass}`}>
+                            {icon}
+                        </div>
+                        <div>
+                            <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
+                                <h3 className="text-base sm:text-lg font-bold text-slate-800">{title}</h3>
+                                <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${badgeClass}`}>
+                                    {count} {count === 1 ? 'Course' : 'Courses'}
+                                </span>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-0.5">Click any course to view full details</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer transition-all duration-200 border-none bg-transparent"
+                    >
+                        <XIcon className="h-4 w-4" />
+                    </button>
+                </div>
+
+                {/* Search Bar */}
+                <div className="px-5 sm:px-7 py-3 border-b border-slate-100 bg-slate-50/60 shrink-0 flex items-center justify-between gap-3">
+                    <div className="relative flex-1 max-w-md">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                        <input
+                            type="text"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Search by course name, code, or provider..."
+                            className="w-full pl-9 pr-8 py-2 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-slate-700 placeholder:text-slate-400"
+                        />
+                        {search && (
+                            <button
+                                onClick={() => setSearch('')}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 border-none bg-transparent p-0 cursor-pointer"
+                            >
+                                <XIcon className="h-3 w-3" />
+                            </button>
+                        )}
+                    </div>
+                    <div className="text-xs text-slate-400 shrink-0 hidden sm:block">
+                        Showing <span className="font-semibold text-slate-700">{filteredCourses.length}</span> of {courses.length}
+                    </div>
+                </div>
+
+                {/* Table Body */}
+                <div className="flex-1 overflow-auto p-4 sm:p-6 min-h-0">
+                    {filteredCourses.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-12 text-center">
+                            <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mb-3 text-slate-400">
+                                <BookOpen className="h-5 w-5" />
+                            </div>
+                            <p className="text-sm font-semibold text-slate-700 mb-1">No courses found</p>
+                            <p className="text-xs text-slate-400 max-w-xs">
+                                {search ? 'No courses matched your search query. Try another term.' : 'There are no courses in this category.'}
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                            <table className="w-full text-left border-collapse min-w-[600px]">
+                                <thead>
+                                    <tr className="bg-slate-50/90 border-b border-slate-200 text-slate-500">
+                                        <th className="py-2.5 px-4 text-[11px] font-semibold uppercase tracking-wider">Course</th>
+                                        <th className="py-2.5 px-4 text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap">Training Dates</th>
+                                        <th className="py-2.5 px-4 text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap">Valid Until</th>
+                                        <th className="py-2.5 px-4 text-[11px] font-semibold uppercase tracking-wider">Conducted By</th>
+                                        <th className="py-2.5 px-4 text-[11px] font-semibold uppercase tracking-wider">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 bg-white">
+                                    {filteredCourses.map((c, i) => {
+                                        const status = getTrainingStatus(c.validUntil)
+                                        return (
+                                            <tr
+                                                key={c.id ?? i}
+                                                onClick={() => onSelectCourse({
+                                                    id: c.id,
+                                                    course: c.courseName,
+                                                    courseCode: c.courseCode,
+                                                    validUntil: c.validUntil,
+                                                    provider: c.providedBy,
+                                                    dateFrom: c.dateFrom,
+                                                    dateTo: c.dateTo,
+                                                    status: c.status,
+                                                })}
+                                                className="group hover:bg-slate-50/80 transition-colors cursor-pointer"
+                                            >
+                                                <td className="py-3 px-4 max-w-[280px]">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[13px] font-semibold text-slate-800 leading-snug group-hover:text-blue-600 transition-colors line-clamp-2">
+                                                            {c.courseName}
+                                                        </span>
+                                                        {c.courseCode && (
+                                                            <span className="text-[11px] font-mono text-slate-400 mt-0.5">
+                                                                {c.courseCode}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="py-3 px-4 text-xs text-slate-600 whitespace-nowrap">
+                                                    {c.dateFrom ? formatDate(c.dateFrom) : '-'}
+                                                    {c.dateTo ? ` – ${formatDate(c.dateTo)}` : ''}
+                                                </td>
+                                                <td className="py-3 px-4 text-xs font-medium text-slate-700 whitespace-nowrap">
+                                                    {formatValidUntil(c.validUntil, 'Never')}
+                                                </td>
+                                                <td className="py-3 px-4 text-xs text-slate-500">
+                                                    {c.providedBy || '-'}
+                                                </td>
+                                                <td className="py-3 px-4 whitespace-nowrap">
+                                                    <StatusBadge status={status} />
+                                                </td>
+                                            </tr>
+                                        )
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer */}
+                <div className="flex items-center justify-between px-5 sm:px-7 py-3.5 border-t border-slate-100 bg-slate-50/50 shrink-0">
+                    <span className="text-xs text-slate-500 font-medium">
+                        Total {courses.length} {courses.length === 1 ? 'course' : 'courses'} in this category
+                    </span>
+                    <button
+                        onClick={onClose}
+                        className="px-4 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer shadow-sm"
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    )
+}
+
 // ── Loading Skeleton ──
 function TrainingLoadingSkeleton() {
     return (
@@ -521,10 +711,11 @@ const emptyHistoryRow = (): EditingHistoryRow => ({
     courseName: '', academyName: '', dateFrom: '', dateTo: '',
 })
 
-/** Case-insensitive match on a course name; an empty query matches everything. */
-function matchesCourse(name: string | null | undefined, query: string): boolean {
+/** Case-insensitive match on a course name or code; an empty query matches everything. */
+function matchesCourse(name: string | null | undefined, query: string, code?: string | null | undefined): boolean {
     const q = query.trim().toLowerCase()
-    return !q || (name ?? '').toLowerCase().includes(q)
+    if (!q) return true
+    return (name ?? '').toLowerCase().includes(q) || (code ? code.toLowerCase().includes(q) : false)
 }
 
 type TrainingStatus = ReturnType<typeof getTrainingStatus>
@@ -655,6 +846,7 @@ function ColumnSearchHeader({ label, value, onChange }: { label: string; value: 
 
 export function TrainingTab({ staff }: { staff: StaffData }) {
     const [selectedTraining, setSelectedTraining] = useState<CurrentTrainingRecord | null>(null)
+    const [summaryModalType, setSummaryModalType] = useState<'total' | 'expired' | 'permanent' | 'expiringSoon' | null>(null)
 
     // ── Inline editing state ──
     const [editingId, setEditingId] = useState<number | null>(null)
@@ -685,17 +877,20 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
             const records = apiData?.records ?? []
             return records.map((t: TrainingDashboardCurrentTraining) => {
                 return {
+                    id: t.id,
+                    courseCode: t.courseCode,
                     dateFrom: t.dateFrom ?? '',
                     dateTo: t.dateTo ?? '',
                     validUntil: t.validUntil,
                     course: t.courseName,
                     provider: t.providedBy,
+                    status: t.status,
                 }
             })
         }
         // Fallback to StaffData prop (only when API failed)
         return staff.currentTraining ?? []
-    }, [hasApiData, apiData?.records, apiData?.histories, staff.currentTraining])
+    }, [hasApiData, apiData?.records, staff.currentTraining])
 
     const previousTraining = useMemo(() => {
         if (hasApiData) {
@@ -740,7 +935,7 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
     const trainingStatusCounts = useMemo(() => {
         const counts: Record<TrainingStatus, number> = { Valid: 0, Expired: 0, Permanent: 0, 'Expiring Soon': 0 }
         for (const t of currentTraining) {
-            if (matchesCourse(t.course, trainingSearch)) counts[getTrainingStatus(t.validUntil)]++
+            if (matchesCourse(t.course, trainingSearch, t.courseCode)) counts[getTrainingStatus(t.validUntil)]++
         }
         return counts
     }, [currentTraining, trainingSearch])
@@ -749,11 +944,79 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
         () =>
             currentTraining.filter(
                 (t) =>
-                    matchesCourse(t.course, trainingSearch) &&
+                    matchesCourse(t.course, trainingSearch, t.courseCode) &&
                     (trainingStatusFilter === 'All' || getTrainingStatus(t.validUntil) === trainingStatusFilter)
             ),
         [currentTraining, trainingSearch, trainingStatusFilter]
     )
+
+    // Configuration for the modal opened when clicking one of the 4 summary stat cards
+    const summaryModalConfig = useMemo(() => {
+        if (!summaryModalType) return null
+
+        const summary = apiData?.summary
+
+        // Fallback: list of all records as TrainingDashboardRecordItem
+        const fallbackAll: TrainingDashboardRecordItem[] = (apiData?.records?.length
+            ? apiData.records
+            : currentTraining.map((t, idx) => ({
+                id: t.id ?? idx,
+                courseName: t.course,
+                courseCode: t.courseCode ?? '',
+                validUntil: t.validUntil,
+                providedBy: t.provider,
+                status: t.status ?? getTrainingStatus(t.validUntil),
+                dateFrom: t.dateFrom,
+                dateTo: t.dateTo,
+            })))
+
+        switch (summaryModalType) {
+            case 'total':
+                return {
+                    title: 'Training Courses',
+                    count: stats.total,
+                    icon: <BookOpen className="h-5 w-5" />,
+                    iconClass: 'bg-blue-50 text-blue-600',
+                    badgeClass: 'bg-blue-50 text-blue-700 border border-blue-200',
+                    courses: summary?.totalCoursesList?.length ? summary.totalCoursesList : fallbackAll,
+                }
+            case 'expired':
+                return {
+                    title: 'Expired Courses',
+                    count: stats.expired,
+                    icon: <Clock className="h-5 w-5" />,
+                    iconClass: 'bg-red-50 text-red-500',
+                    badgeClass: 'bg-red-50 text-red-700 border border-red-200',
+                    courses: summary?.expiredList?.length
+                        ? summary.expiredList
+                        : fallbackAll.filter(t => getTrainingStatus(t.validUntil) === 'Expired'),
+                }
+            case 'permanent':
+                return {
+                    title: 'Permanent Courses',
+                    count: stats.permanent,
+                    icon: <ShieldCheck className="h-5 w-5" />,
+                    iconClass: 'bg-sky-50 text-sky-500',
+                    badgeClass: 'bg-sky-50 text-sky-700 border border-sky-200',
+                    courses: summary?.permanentList?.length
+                        ? summary.permanentList
+                        : fallbackAll.filter(t => getTrainingStatus(t.validUntil) === 'Permanent'),
+                }
+            case 'expiringSoon':
+                return {
+                    title: 'Expiring Soon Courses',
+                    count: stats.expiringSoon,
+                    icon: <AlertTriangle className="h-5 w-5" />,
+                    iconClass: 'bg-amber-50 text-amber-500',
+                    badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200',
+                    courses: summary?.expiringSoonList?.length
+                        ? summary.expiringSoonList
+                        : fallbackAll.filter(t => getTrainingStatus(t.validUntil) === 'Expiring Soon'),
+                }
+            default:
+                return null
+        }
+    }, [summaryModalType, apiData?.summary, apiData?.records, currentTraining, stats])
     // The row being edited stays visible even if the edit makes it stop matching.
     const visibleHistories = useMemo(
         () => apiHistories.filter((h) => h.id === editingId || matchesCourse(h.courseName, previousSearch)),
@@ -859,47 +1122,63 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
                     {/* Summary Stat Cards */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-2 gap-2 sm:gap-3 mb-4">
                         {/* Training Course Count */}
-                        <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-3.5 px-3.5 sm:py-5 sm:px-5 min-w-0">
-                            <div className="flex items-center gap-2.5 mb-3">
-                                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-blue-50 text-blue-600">
+                        <div
+                            onClick={() => setSummaryModalType('total')}
+                            className="bg-white border border-[#e8ecf1] hover:border-blue-400 hover:shadow-md hover:-translate-y-0.5 rounded-[14px] py-3.5 px-3.5 sm:py-5 sm:px-5 min-w-0 cursor-pointer transition-all duration-200 group"
+                            title="Click to view all training courses"
+                        >
+                            <div className="flex items-center justify-between gap-2.5 mb-3">
+                                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-blue-50 text-blue-600 group-hover:bg-blue-100 transition-colors">
                                     <BookOpen className="h-4 w-4" />
                                 </div>
                             </div>
                             <div className="text-2xl sm:text-3xl font-bold text-slate-800 mb-1">{stats.total}</div>
-                            <div className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wide sm:tracking-wider break-words">Training Courses</div>
+                            <div className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wide sm:tracking-wider break-words group-hover:text-slate-600 transition-colors">Training Courses</div>
                         </div>
 
                         {/* Training Expired Count */}
-                        <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-3.5 px-3.5 sm:py-5 sm:px-5 min-w-0">
-                            <div className="flex items-center gap-2.5 mb-3">
-                                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-red-50 text-red-500">
+                        <div
+                            onClick={() => setSummaryModalType('expired')}
+                            className="bg-white border border-[#e8ecf1] hover:border-red-400 hover:shadow-md hover:-translate-y-0.5 rounded-[14px] py-3.5 px-3.5 sm:py-5 sm:px-5 min-w-0 cursor-pointer transition-all duration-200 group"
+                            title="Click to view expired courses"
+                        >
+                            <div className="flex items-center justify-between gap-2.5 mb-3">
+                                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-red-50 text-red-500 group-hover:bg-red-100 transition-colors">
                                     <Clock className="h-4 w-4" />
                                 </div>
                             </div>
                             <div className={`text-2xl sm:text-3xl font-bold mb-1 ${stats.expired > 0 ? 'text-red-500' : 'text-slate-800'}`}>{stats.expired}</div>
-                            <div className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wide sm:tracking-wider break-words">Expired</div>
+                            <div className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wide sm:tracking-wider break-words group-hover:text-slate-600 transition-colors">Expired</div>
                         </div>
 
                         {/* Training Permanent Count */}
-                        <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-3.5 px-3.5 sm:py-5 sm:px-5 min-w-0">
-                            <div className="flex items-center gap-2.5 mb-3">
-                                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-sky-50 text-sky-500">
+                        <div
+                            onClick={() => setSummaryModalType('permanent')}
+                            className="bg-white border border-[#e8ecf1] hover:border-sky-400 hover:shadow-md hover:-translate-y-0.5 rounded-[14px] py-3.5 px-3.5 sm:py-5 sm:px-5 min-w-0 cursor-pointer transition-all duration-200 group"
+                            title="Click to view permanent courses"
+                        >
+                            <div className="flex items-center justify-between gap-2.5 mb-3">
+                                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-sky-50 text-sky-500 group-hover:bg-sky-100 transition-colors">
                                     <ShieldCheck className="h-4 w-4" />
                                 </div>
                             </div>
                             <div className="text-2xl sm:text-3xl font-bold text-slate-800 mb-1">{stats.permanent}</div>
-                            <div className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wide sm:tracking-wider break-words">Permanent</div>
+                            <div className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wide sm:tracking-wider break-words group-hover:text-slate-600 transition-colors">Permanent</div>
                         </div>
 
                         {/* Training Expiring Soon Count */}
-                        <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-3.5 px-3.5 sm:py-5 sm:px-5 min-w-0">
-                            <div className="flex items-center gap-2.5 mb-3">
-                                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-amber-50 text-amber-500">
+                        <div
+                            onClick={() => setSummaryModalType('expiringSoon')}
+                            className="bg-white border border-[#e8ecf1] hover:border-amber-400 hover:shadow-md hover:-translate-y-0.5 rounded-[14px] py-3.5 px-3.5 sm:py-5 sm:px-5 min-w-0 cursor-pointer transition-all duration-200 group"
+                            title="Click to view expiring soon courses"
+                        >
+                            <div className="flex items-center justify-between gap-2.5 mb-3">
+                                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-amber-50 text-amber-500 group-hover:bg-amber-100 transition-colors">
                                     <AlertTriangle className="h-4 w-4" />
                                 </div>
                             </div>
                             <div className={`text-2xl sm:text-3xl font-bold mb-1 ${stats.expiringSoon > 0 ? 'text-amber-500' : 'text-slate-800'}`}>{stats.expiringSoon}</div>
-                            <div className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wide sm:tracking-wider break-words">Expiring Soon</div>
+                            <div className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wide sm:tracking-wider break-words group-hover:text-slate-600 transition-colors">Expiring Soon</div>
                         </div>
                     </div>
 
@@ -950,12 +1229,19 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
                                                     {t.course ? (
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
-                                                                <span className="line-clamp-2 break-words leading-snug cursor-default">
-                                                                    {t.course}
-                                                                </span>
+                                                                <div className="cursor-default">
+                                                                    <span className="line-clamp-2 break-words leading-snug">
+                                                                        {t.course}
+                                                                    </span>
+                                                                    {t.courseCode && (
+                                                                        <span className="text-[11px] text-slate-400 font-mono block mt-0.5">
+                                                                            {t.courseCode}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                             </TooltipTrigger>
                                                             <TooltipContent side="top" className="z-[9999] max-w-sm text-xs font-normal bg-slate-900 text-slate-50 shadow-md px-2.5 py-1.5 rounded">
-                                                                {t.course}
+                                                                {t.courseCode ? `[${t.courseCode}] ${t.course}` : t.course}
                                                             </TooltipContent>
                                                         </Tooltip>
                                                     ) : (
@@ -1151,6 +1437,20 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
                 </div>
                 </div>
             </div>
+
+            {/* Summary Courses Modal (opened when clicking a summary card) */}
+            {summaryModalConfig && (
+                <SummaryCoursesModal
+                    title={summaryModalConfig.title}
+                    count={summaryModalConfig.count}
+                    icon={summaryModalConfig.icon}
+                    iconClass={summaryModalConfig.iconClass}
+                    badgeClass={summaryModalConfig.badgeClass}
+                    courses={summaryModalConfig.courses}
+                    onClose={() => setSummaryModalType(null)}
+                    onSelectCourse={(course) => setSelectedTraining(course)}
+                />
+            )}
 
             {/* Training Detail Modal */}
             <TrainingDetailModal

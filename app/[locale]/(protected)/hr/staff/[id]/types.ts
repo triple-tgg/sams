@@ -12,6 +12,7 @@ export interface StaffLicense {
 
 export interface TrainingRecord {
     course: string
+    courseCode?: string
     type: string
     dateFrom: string
     dateTo: string
@@ -63,11 +64,14 @@ export interface PreviousTrainingRecord {
 }
 
 export interface CurrentTrainingRecord {
+    id?: number
+    courseCode?: string
     dateFrom: string
     dateTo: string
     validUntil: string
     course: string
     provider: string
+    status?: string
 }
 
 export interface PreviousEmployment {

@@ -73,6 +73,7 @@ function mapApiToStaffData(api: StaffByIdData, trainingApi?: TrainingDashboardRe
         ratings: [],
         training: (trainingApi?.records || []).map(t => ({
             course: t.courseName || '-',
+            courseCode: t.courseCode || undefined,
             type: 'Training', // API doesn't provide type directly in records
             dateFrom: t.dateFrom ? formatDate(t.dateFrom) : '-',
             dateTo: t.dateTo ? formatDate(t.dateTo) : '-',

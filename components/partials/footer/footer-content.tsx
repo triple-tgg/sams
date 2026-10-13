@@ -18,7 +18,7 @@ const FooterContent = ({ children }: { children: React.ReactNode }) => {
 
     if (config.sidebar === 'two-column') {
         return (
-            <footer className={cn('flex-none bg-card relative py-4 px-6   xl:ms-[300px] bottom-0 z-50', config.footer, {
+            <footer className={cn('flex-none bg-card relative py-2.5 px-6   xl:ms-[300px] bottom-0 z-50', config.footer, {
                 'xl:ms-[72px]': !showSubmenuPanel,
                 'xl:ms-0': config.layout === "horizontal",
                 'border-b': config.skin === 'bordered',
@@ -31,7 +31,7 @@ const FooterContent = ({ children }: { children: React.ReactNode }) => {
     }
 
     return (
-        <footer className={cn('flex-none bg-card relative py-4 px-6   xl:ms-[248px] bottom-0 z-50', config.footer, {
+        <footer className={cn('flex-none bg-card relative py-2.5 px-6   xl:ms-[248px] bottom-0 z-50', config.footer, {
             'xl:ms-[72px]': config.collapsed && config.sidebar !== 'compact',
             'xl:ms-0': config.menuHidden || config.layout === "horizontal",
             'border-b': config.skin === 'bordered' && config.layout !== 'semi-box',
