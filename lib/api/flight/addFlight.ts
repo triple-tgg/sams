@@ -31,6 +31,8 @@ export interface FlightData {
   mechId?: number | null;        // Single MECH staff ID
   csIdList?: number[] | null;    // Array of CS staff IDs
   mechIdList?: number[] | null;  // Array of MECH staff IDs
+  /** Service group — aircraft checks. Same shape as THF `aircraft.aircraftCheckType`. Pending backend support. */
+  aircraftCheckType?: { checkType: string; checkSubType: string[] }[];
 }
 
 // ถ้า API ห่อ response เป็น envelope อื่น ปรับให้ตรงได้

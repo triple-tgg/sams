@@ -3,10 +3,10 @@ import axiosConfig from "@/lib/axios.config";
 // ─── Request ────────────────────────────────────────────────────────────────
 
 export interface LogbookRecordsListRequest {
-  staffId?: number;
-  startDate?: string;       // "2026-08-29"
-  endDate?: string;         // "2026-08-29"
-  similarTechnology?: string;
+  staffId?: number | null;
+  startDate?: string | null;       // "2023-11-01"
+  endDate?: string | null;         // "2026-11-30"
+  similarTechnology?: string | null;
   page?: number;
   perPage?: number;
 }
@@ -61,9 +61,17 @@ export interface LogbookRecordsListResponse {
 export const getLogbookRecordsList = async (
   data: LogbookRecordsListRequest
 ): Promise<LogbookRecordsListResponse> => {
+  const payload = {
+    staffId: data.staffId ? Number(data.staffId) : null,
+    startDate: data.startDate ?? null,
+    endDate: data.endDate ?? null,
+    similarTechnology: data.similarTechnology ?? null,
+    page: data.page ?? 1,
+    perPage: data.perPage ?? 20,
+  };
   const res = await axiosConfig.post(
     "/staffs/maintenance-experiences/logbook-records/list",
-    data
+    payload
   );
   return res.data;
 };

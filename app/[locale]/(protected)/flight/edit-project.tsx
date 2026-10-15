@@ -47,6 +47,13 @@ import { useMemo, useEffect, useState } from "react";
 import useUpdateFlight from "@/lib/api/hooks/useUpdateFlight";
 import { useLineMaintenancesQueryThfByFlightId } from "@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId";
 import { PersonnelSection } from "./thf/create/components/CPresonel";
+import { FlightServiceGroup, toAircraftCheckPayload, fromAircraftCheckPayload } from "./thf/create/components/FlightServiceGroup";
+import {
+  FlightFormSection,
+  INITIAL_FLIGHT_FORM_SECTIONS,
+  type FlightFormSectionKey,
+} from "./thf/create/components/FlightFormSection";
+import { Plane as PlaneIcon, Wrench as WrenchIcon, Users as UsersIcon } from "lucide-react";
 import { useMaintenanceStatus } from "@/lib/api/hooks/useMaintenanceStatus";
 import { utcDatetimeToFormDate, utcDatetimeToFormTime, combineFormToUtcDatetime } from "@/lib/utils/flightDatetime";
 
@@ -90,6 +97,9 @@ export const FormSchema = z
     userName: z.string().trim().optional().default(""),
     csIdList: z.array(z.number()).nullable().default(null),
     mechIdList: z.array(z.number()).nullable().default(null),
+    aircraftChecks: z
+      .array(z.object({ maintenanceTypes: z.string(), maintenanceSubTypes: z.array(z.string()) }))
+      .default([]),
   })
   // ถ้าใส่ departure อย่างใดอย่างหนึ่ง ต้องใส่ให้ครบ (date + std อย่างน้อย)
   .refine(
@@ -156,7 +166,8 @@ const createDefaultValues = (flightData: any): Inputs => {
       note: "",
       userName: "",
       csIdList: null,
-      mechIdList: null
+      mechIdList: null,
+      aircraftChecks: [],
     };
   }
 
@@ -208,6 +219,7 @@ const createDefaultValues = (flightData: any): Inputs => {
     userName: responseData.userName || "",
     csIdList: responseData.csList?.map((item: any) => item.id) || null,
     mechIdList: responseData.mechList?.map((item: any) => item.id) || null,
+    aircraftChecks: fromAircraftCheckPayload(flightData?.responseData?.aircraft?.aircraftCheckType),
   };
 };
 
@@ -232,10 +244,16 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
   // const { data: flightData } = useFlightQueryById(flightId);
   const { data: flightInfoData, refetch } = useLineMaintenancesQueryThfByFlightId({ flightInfosId });
 
+  // Collapsible form groups (Flight Information / Service / Personnel Assignment)
+  const [openSections, setOpenSections] = useState<Record<FlightFormSectionKey, boolean>>(INITIAL_FLIGHT_FORM_SECTIONS);
+  const toggleSection = (key: FlightFormSectionKey) => (isOpen: boolean) =>
+    setOpenSections((s) => ({ ...s, [key]: isOpen }));
+
   // Refetch data every time dialog opens
   useEffect(() => {
     if (open && flightInfosId) {
       refetch();
+      setOpenSections(INITIAL_FLIGHT_FORM_SECTIONS);
     }
   }, [open, flightInfosId, refetch]);
   // Use airline options hook
@@ -344,6 +362,7 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
       familyCode: mappedFamilyCode,
       series: values.series || '',
       engineCode: values.engineCode || '',
+      aircraftCheckType: toAircraftCheckPayload(values.aircraftChecks),
     };
 
     updateFlight(
@@ -450,12 +469,9 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
       <DialogContent
         size="md"
         className="h-full max-h-10/12"
-        onInteractOutside={(e) => {
-          if (isPending) e.preventDefault();
-        }}
-        onEscapeKeyDown={(e) => {
-          if (isPending) e.preventDefault();
-        }}
+        // Close only via X / Cancel buttons — ignore backdrop click & Escape
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <React.Fragment>
             <DialogHeader>
@@ -465,7 +481,18 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
             <Separator className="mb-4" />
 
             <ScrollArea className="[&>div>div[style]]:block!" dir={direction}>
-              <form id="create-flight-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              <form
+                id="create-flight-form"
+                onSubmit={handleSubmit(onSubmit, () => setOpenSections((s) => ({ ...s, flightInfo: true })))}
+                className="space-y-6"
+              >
+                <FlightFormSection
+                  title="Flight Information"
+                  icon={PlaneIcon}
+                  open={openSections.flightInfo}
+                  onOpenChange={toggleSection("flightInfo")}
+                >
+                <div className="space-y-6">
                 {/* Customer / Station */}
                 <div className="grid lg:grid-cols-2 gap-6">
                   <div className="space-y-1">
@@ -883,15 +910,42 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
                     )}
                   />
                 </div>
+                </div>
+                </FlightFormSection>
 
-                <Separator className="mb-8 mt-10" />
-                <PersonnelSection
-                  control={control}
-                  onCsChange={(ids) => setValue("csIdList", ids)}
-                  onMechChange={(ids) => setValue("mechIdList", ids)}
-                  initialCsList={initialCsList}
-                  initialMechList={initialMechList}
-                />
+                <FlightFormSection
+                  title="Service"
+                  icon={WrenchIcon}
+                  iconClassName="bg-emerald-50 text-emerald-600 border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40"
+                  summary={`${(watch("aircraftChecks") ?? []).length} check(s)`}
+                  open={openSections.service}
+                  onOpenChange={toggleSection("service")}
+                >
+                  <Controller
+                    name="aircraftChecks"
+                    control={control}
+                    render={({ field }) => (
+                      <FlightServiceGroup hideHeader value={field.value ?? []} onChange={field.onChange} />
+                    )}
+                  />
+                </FlightFormSection>
+
+                <FlightFormSection
+                  title="Personnel Assignment"
+                  icon={UsersIcon}
+                  summary={`${(watch("csIdList") ?? []).length} CS · ${(watch("mechIdList") ?? []).length} MECH`}
+                  open={openSections.personnel}
+                  onOpenChange={toggleSection("personnel")}
+                >
+                  <PersonnelSection
+                    hideTitle
+                    control={control}
+                    onCsChange={(ids) => setValue("csIdList", ids)}
+                    onMechChange={(ids) => setValue("mechIdList", ids)}
+                    initialCsList={initialCsList}
+                    initialMechList={initialMechList}
+                  />
+                </FlightFormSection>
 
 
                 {mError && (

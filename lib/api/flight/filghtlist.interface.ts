@@ -15,11 +15,15 @@ export interface ResFlightItem extends Pagination {
 export interface FlightItem {
   flightsId: number | null
   flightInfosId: number | null
+  /** Service lines attached to the flight (null when none) */
+  flightServiceLists?: unknown[] | null
   airlineObj: AirlineObj | null
   stationObj: StationObj | null
   acReg: string
   acType?: string
   acTypeObj: AcTypeObj | null
+  acTypeId?: number | null
+  series?: string | null
   engineCode?: string   // e.g. "CFM56" — returned by /flight/listdata
   arrivalFlightNo: string
   arrivalStaDate: string | null    // UTC datetime "YYYY-MM-DD HH:mm"
@@ -43,7 +47,8 @@ export interface FlightItem {
   lineMaintenancesId?: number | null
   isMapping?: boolean
   state: string
-  routeForm: string | null
+  /** Legacy misspelling — current API returns `routeFrom` */
+  routeForm?: string | null
   routeFrom?: string | null
   routeTo: string | null
   // csList and mechList can be array of IDs (number[]) or array of staff objects
@@ -57,7 +62,7 @@ export interface FlightItem {
   // Email success count
   emailSuccessCount?: number
   // THF Revision & Mapping lifecycle
-  mappingStatus?: ThfMappingStatus
+  mappingStatus?: ThfMappingStatus | null
   revisionReason?: string | null
   revisionCategory?: string | null
   revisionRequestedAt?: string | null
@@ -120,6 +125,9 @@ export interface AcTypeObj {
   flagHydrolicBlue?: boolean
   flagHydrolicYellow?: boolean
   flagApu?: boolean
+  /** Display colors (hex) — null when not configured */
+  colorForeground?: string | null
+  colorBackground?: string | null
   isDelete?: boolean
   createdDate?: string
   createdBy?: string

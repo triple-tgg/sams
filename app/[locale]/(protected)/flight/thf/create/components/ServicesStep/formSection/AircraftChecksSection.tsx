@@ -12,15 +12,15 @@ import { ServicesFormInputs, transformAircraftCheckTypesToOptions, transformAirc
 import { getServiceDescription } from './serviceDescriptionConfig'
 
 /** Check if maintenance type is TR-related (starts with TR/tr or equals TR-Transit) */
-const isTRType = (value: string) =>
+export const isTRType = (value: string) =>
   /^tr/i.test(value) || value === 'TR-Transit'
 
 /** Check if sub-type is "Full Handling" (case-insensitive) */
-const isFullHandling = (value: string) =>
+export const isFullHandling = (value: string) =>
   value.toLowerCase() === 'full handling'
 
 /** Animated banner that shows the service scope description */
-const ServiceDescriptionBanner: React.FC<{
+export const ServiceDescriptionBanner: React.FC<{
   maintenanceType: string
   subTypes: string[]
 }> = ({ maintenanceType, subTypes }) => {

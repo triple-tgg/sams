@@ -186,6 +186,8 @@ export function useRosterStaff() {
                             isEligible: e.isEligible,
                             statusName: e.customerStatusName,
                             expiryDate: e.expiryDate,
+                            eligibilityStatus: e.eligibilityStatus,
+                            aircraftTypes: (e.eligibleAircraftTypes ?? []).map((t) => t.code || t.name).filter(Boolean),
                         })),
                 };
             })

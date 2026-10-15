@@ -52,6 +52,18 @@ import { toast } from "sonner";
 import { useMemo, useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { PersonnelSection } from "./thf/create/components/CPresonel";
+import {
+  FlightServiceGroup,
+  toAircraftCheckPayload,
+  type FlightAircraftCheck,
+} from "./thf/create/components/FlightServiceGroup";
+import { AircraftChecksPreviewCell } from "./thf/create/components/FlightServiceGroup/AircraftChecksPreviewCell";
+import {
+  FlightFormSection,
+  INITIAL_FLIGHT_FORM_SECTIONS,
+  type FlightFormSectionKey,
+} from "./thf/create/components/FlightFormSection";
+import { Plane as PlaneIcon, Wrench as WrenchIcon, Users as UsersIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useStaff } from "@/lib/api/hooks/useStaff";
 import {
@@ -106,6 +118,7 @@ export interface GeneratedRecurringFlight {
   csNames: string;
   mechIdList: number[] | null;
   mechNames: string;
+  aircraftChecks: FlightAircraftCheck[];
   mappedFamilyCode?: string;
   series?: string;
   engineCode?: string;
@@ -197,6 +210,9 @@ const FormSchema = z.object({
   userName: z.string().trim().optional().default(""),
   csIdList: z.array(z.number()).nullable().default(null),
   mechIdList: z.array(z.number()).nullable().default(null),
+  aircraftChecks: z
+    .array(z.object({ maintenanceTypes: z.string(), maintenanceSubTypes: z.array(z.string()) }))
+    .default([]),
 });
 
 export type Inputs = z.infer<typeof FormSchema>;
@@ -226,6 +242,7 @@ const DEFAULT_FORM_VALUES: Inputs = {
   userName: "",
   csIdList: null,
   mechIdList: null,
+  aircraftChecks: [],
 };
 
 // ------------------------------------------------------
@@ -312,9 +329,15 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
     defaultValues: DEFAULT_FORM_VALUES,
   });
 
+  // Collapsible form groups (Flight Information / Service / Personnel Assignment)
+  const [openSections, setOpenSections] = useState<Record<FlightFormSectionKey, boolean>>(INITIAL_FLIGHT_FORM_SECTIONS);
+  const toggleSection = (key: FlightFormSectionKey) => (open: boolean) =>
+    setOpenSections((s) => ({ ...s, [key]: open }));
+
   // Comprehensive reset for all form inputs and modal states
   const resetAllForm = React.useCallback(() => {
     reset(DEFAULT_FORM_VALUES);
+    setOpenSections(INITIAL_FLIGHT_FORM_SECTIONS);
     setStep("select-mode");
     setFlightMode("one-time");
     setRecurringFrequency("daily");
@@ -400,6 +423,8 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
 
   // Runs when form has invalid fields upon submit
   const onInvalid = (_formErrors: FieldErrors<Inputs>) => {
+    // Required fields live in Flight Information — make sure errors are visible
+    setOpenSections((s) => ({ ...s, flightInfo: true }));
     if (flightMode === "recurring") {
       validateRecurrence();
     } else {
@@ -451,6 +476,7 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
         familyCode: mappedFamilyCode,
         series: values.series || "",
         engineCode: values.engineCode || "",
+        aircraftCheckType: toAircraftCheckPayload(values.aircraftChecks),
       };
 
       mutate(
@@ -554,6 +580,10 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
         csNames: csStaffNames,
         mechIdList: values.mechIdList || null,
         mechNames: mechStaffNames,
+        aircraftChecks: (values.aircraftChecks ?? []).map((c) => ({
+          maintenanceTypes: c.maintenanceTypes,
+          maintenanceSubTypes: [...(c.maintenanceSubTypes ?? [])],
+        })),
         mappedFamilyCode: mappedFamilyCode,
         series: values.series || "",
         engineCode: values.engineCode || "",
@@ -623,6 +653,7 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
         bayNo: item.bay || "",
         csIdList: item.csIdList || [],
         mechIdList: item.mechIdList || [],
+        aircraftCheckType: toAircraftCheckPayload(item.aircraftChecks),
         maintenanceStatusId: item.maintenanceStatusId ?? 2,
         note: item.note || "",
       };
@@ -809,12 +840,9 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
               ? "sm:max-w-[95vw] lg:max-w-7xl h-[90vh] max-h-[90vh] flex flex-col overflow-hidden"
               : "h-full max-h-10/12"
         )}
-        onInteractOutside={(e) => {
-          if (isFormBusy) e.preventDefault();
-        }}
-        onEscapeKeyDown={(e) => {
-          if (isFormBusy) e.preventDefault();
-        }}
+        // Close only via X / Cancel buttons — ignore backdrop click & Escape
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <DialogHeader>
           <DialogTitle>
@@ -1286,6 +1314,13 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                   </div>
                 )}
 
+                <FlightFormSection
+                  title="Flight Information"
+                  icon={PlaneIcon}
+                  open={openSections.flightInfo}
+                  onOpenChange={toggleSection("flightInfo")}
+                >
+                <div className="space-y-3.5">
                 {/* Customer / Station */}
                 <div className="grid lg:grid-cols-2 gap-4">
                   <div className="space-y-1">
@@ -1726,13 +1761,40 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                     <FieldError msg={errors.note?.message} />
                   </div>
                 </div>
+                </div>
+                </FlightFormSection>
 
-                <Separator className="my-3" />
-                <PersonnelSection
-                  control={control as any}
-                  onCsChange={(ids) => setValue("csIdList", ids)}
-                  onMechChange={(ids) => setValue("mechIdList", ids)}
-                />
+                <FlightFormSection
+                  title="Service"
+                  icon={WrenchIcon}
+                  iconClassName="bg-emerald-50 text-emerald-600 border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40"
+                  summary={`${(watch("aircraftChecks") ?? []).length} check(s)`}
+                  open={openSections.service}
+                  onOpenChange={toggleSection("service")}
+                >
+                  <Controller
+                    name="aircraftChecks"
+                    control={control}
+                    render={({ field }) => (
+                      <FlightServiceGroup hideHeader value={field.value ?? []} onChange={field.onChange} />
+                    )}
+                  />
+                </FlightFormSection>
+
+                <FlightFormSection
+                  title="Personnel Assignment"
+                  icon={UsersIcon}
+                  summary={`${(watch("csIdList") ?? []).length} CS · ${(watch("mechIdList") ?? []).length} MECH`}
+                  open={openSections.personnel}
+                  onOpenChange={toggleSection("personnel")}
+                >
+                  <PersonnelSection
+                    hideTitle
+                    control={control as any}
+                    onCsChange={(ids) => setValue("csIdList", ids)}
+                    onMechChange={(ids) => setValue("mechIdList", ids)}
+                  />
+                </FlightFormSection>
               </form>
             </ScrollArea>
 
@@ -1821,6 +1883,11 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                       </span>
                     </>
                   )}
+                  <span className="text-slate-400">•</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    Checks:
+                    <AircraftChecksPreviewCell checks={watch("aircraftChecks")} maxInline={3} />
+                  </span>
                 </div>
               </div>
 
@@ -1907,6 +1974,7 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                       <th className="py-2 px-2 min-w-[110px]">Route</th>
                       <th className="py-2 px-2 min-w-[60px]">Bay</th>
                       <th className="py-2 px-2 min-w-[85px]">Status</th>
+                      <th className="py-2 px-2 min-w-[150px]">Aircraft Checks</th>
                       <th className="py-2 px-2 min-w-[120px]">CS</th>
                       <th className="py-2 px-2 min-w-[120px]">MECH</th>
                       <th className="py-2 px-2 text-center min-w-[80px] sticky right-0 bg-slate-100 dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700">
@@ -2071,6 +2139,10 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                                 ))}
                               </select>
                             </td>
+                            {/* Aircraft Checks (read-only; edit in Service step) */}
+                            <td className="py-1.5 px-2">
+                              <AircraftChecksPreviewCell checks={row.aircraftChecks} />
+                            </td>
                             {/* CS */}
                             <td className="py-1.5 px-2 text-slate-500 text-[11px] truncate max-w-[120px]">
                               {row.csNames || "-"}
@@ -2203,6 +2275,10 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300">
                               {row.statusValue || "Normal"}
                             </span>
+                          </td>
+                          {/* Aircraft Checks */}
+                          <td className="py-2 px-2">
+                            <AircraftChecksPreviewCell checks={row.aircraftChecks} />
                           </td>
                           {/* CS */}
                           <td

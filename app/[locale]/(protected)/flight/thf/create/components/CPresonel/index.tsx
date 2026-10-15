@@ -58,6 +58,8 @@ export interface PersonnelSectionProps {
     aircraftTypesId?: number;
     series?: string;
     engineCode?: string;
+    /** Hide the icon + "Personnel Assignment" title (e.g. when wrapped by a collapsible group header). */
+    hideTitle?: boolean;
 }
 
 // ------------------------------------------------------
@@ -148,6 +150,7 @@ export const PersonnelSection = ({
     aircraftTypesId,
     series,
     engineCode,
+    hideTitle = false,
 }: PersonnelSectionProps) => {
     // 1. Form context watching
     const customerWatch = control ? useWatch({ control, name: "customer" }) : null;
@@ -876,21 +879,25 @@ export const PersonnelSection = ({
             {/* Header with Title & Staff Type Filter Option */}
             <div className="flex flex-wrap items-center justify-between gap-2.5 pb-1">
                 <div className="flex items-center gap-2">
-                    <div
-                        className={cn(
-                            "flex items-center justify-center w-7 h-7 rounded-lg border transition-colors",
-                            isAssignmentEnabled
-                                ? "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 border-blue-200/60 dark:border-blue-800/40"
-                                : "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 border-slate-200 dark:border-slate-700"
-                        )}
-                    >
-                        {isAssignmentEnabled ? <Users className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-                    </div>
-                    <div>
-                        <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                            Personnel Assignment
-                        </h4>
-                    </div>
+                    {!hideTitle && (
+                        <>
+                            <div
+                                className={cn(
+                                    "flex items-center justify-center w-7 h-7 rounded-lg border transition-colors",
+                                    isAssignmentEnabled
+                                        ? "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 border-blue-200/60 dark:border-blue-800/40"
+                                        : "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 border-slate-200 dark:border-slate-700"
+                                )}
+                            >
+                                {isAssignmentEnabled ? <Users className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                            </div>
+                            <div>
+                                <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                                    Personnel Assignment
+                                </h4>
+                            </div>
+                        </>
+                    )}
                     {isAssignmentEnabled ? (
                         <Badge
                             color="default"

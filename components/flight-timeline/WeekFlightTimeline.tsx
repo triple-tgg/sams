@@ -7,6 +7,7 @@ import '@/lib/dayjs'; // ensures utc + timezone plugins are registered
 import { formatUtcToLocalDisplay } from '@/lib/utils/flightDatetime';
 import { CornerDownLeft, CornerDownRight } from 'lucide-react';
 import {
+    type FlightColorBy,
     formatFlightLabel as flightLabel,
     getFlightBarStyle,
     getFlightLocalRange as getFlightRange,
@@ -19,6 +20,8 @@ interface WeekFlightTimelineProps {
     flights: FlightItem[]; // from /flight/listdata — one item per flight
     weekStart: Date; // local Monday 00:00
     isFullscreen: boolean;
+    /** Bar colour source — airline (default) or aircraft type. */
+    colorBy?: FlightColorBy;
 }
 
 const DAY_COL_WIDTH = 96;
@@ -54,6 +57,7 @@ export function WeekFlightTimeline({
     flights,
     weekStart,
     isFullscreen,
+    colorBy = 'airline',
 }: WeekFlightTimelineProps) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const [containerWidth, setContainerWidth] = useState<number>(0);
@@ -260,6 +264,7 @@ export function WeekFlightTimeline({
                                                     ...getFlightBarStyle(flight, {
                                                         clipLeft: seg.continuesFromPrev,
                                                         clipRight: seg.continuesToNext,
+                                                        colorBy,
                                                     }),
                                                 }}
                                                 onMouseEnter={(e) => handleBarMouseEnter(e, seg)}

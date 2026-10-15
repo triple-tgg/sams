@@ -272,33 +272,67 @@ export function isFlightPlanning(flight: FlightItem): boolean {
     return flight.statusObj?.code === 'Planning';
 }
 
+/** Which master record drives timeline bar colours. */
+export type FlightColorBy = 'airline' | 'acType';
+
+/** Default aircraft type colours when the master record has none (= Tailwind `bg-slate-700/30` / `text-slate-700`). */
+export const DEFAULT_AC_TYPE_BACKGROUND = 'color-mix(in oklab, var(--color-slate-700) 30%, transparent)';
+export const DEFAULT_AC_TYPE_FOREGROUND = 'var(--color-slate-700)';
+
+/**
+ * Resolve bar colours. `acType` uses the aircraft type colours and falls back to the slate
+ * defaults above when the aircraft type has none configured (null / empty).
+ */
+export function getFlightColors(
+    flight: FlightItem,
+    colorBy: FlightColorBy = 'airline'
+): { background?: string; color?: string } {
+    if (colorBy === 'acType') {
+        const acType = flight.acTypeObj;
+        return {
+            background: acType?.colorBackground || DEFAULT_AC_TYPE_BACKGROUND,
+            color: acType?.colorForeground || DEFAULT_AC_TYPE_FOREGROUND,
+        };
+    }
+    const airline = flight.airlineObj;
+    return {
+        background: airline?.colorBackground || undefined,
+        color: airline?.colorForeground || undefined,
+    };
+}
+
 /**
  * Timeline bar style for a cancelled flight: neutral hatched fill (semi-transparent so it works in
- * light and dark mode) with the airline colour kept as a left stripe for identification.
+ * light and dark mode) with the airline (or aircraft type) colour kept as a left stripe for identification.
  */
-export function getCancelledBarStyle(flight: FlightItem): CSSProperties {
+export function getCancelledBarStyle(flight: FlightItem, colorBy: FlightColorBy = 'airline'): CSSProperties {
     return {
         background: 'repeating-linear-gradient(135deg, rgba(100,116,139,0.18) 0 6px, rgba(100,116,139,0.38) 6px 12px)',
         border: '1px dashed rgba(100,116,139,0.8)',
-        borderLeft: `4px solid ${flight.airlineObj?.colorBackground || '#64748b'}`,
+        borderLeft: `4px solid ${getFlightColors(flight, colorBy).background || '#64748b'}`,
     };
 }
 
 /**
  * Bar style shared by Day and Week timelines:
- *   Current  → solid airline colour
+ *   Current  → solid airline colour (or aircraft type colour when `colorBy: 'acType'`)
  *   Planning → same colour with a dashed outline
  *   Cancel   → grey hatching (see getCancelledBarStyle)
  * `clipLeft` / `clipRight` drop the border on an edge that continues into the previous / next day.
  */
 export function getFlightBarStyle(
     flight: FlightItem,
-    { clipLeft = false, clipRight = false }: { clipLeft?: boolean; clipRight?: boolean } = {}
+    {
+        clipLeft = false,
+        clipRight = false,
+        colorBy = 'airline',
+    }: { clipLeft?: boolean; clipRight?: boolean; colorBy?: FlightColorBy } = {}
 ): CSSProperties {
-    if (isFlightCancelled(flight)) return getCancelledBarStyle(flight);
+    if (isFlightCancelled(flight)) return getCancelledBarStyle(flight, colorBy);
 
-    const background = flight.airlineObj?.colorBackground || '#3b82f6';
-    const color = flight.airlineObj?.colorForeground || '#fff';
+    const colors = getFlightColors(flight, colorBy);
+    const background = colors.background || '#3b82f6';
+    const color = colors.color || '#fff';
     const border = isFlightPlanning(flight)
         ? `2px dashed color-mix(in srgb, ${color} 70%, transparent)`
         : '1px solid rgba(0,0,0,0.12)';

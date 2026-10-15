@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { FormActions } from '../shared'
 import { useStep } from '../step-context'
 import { useLineMaintenancesQueryThfByFlightId } from '@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId'
+import { useStaffListForImport } from '@/lib/api/hooks/useStaffListForImport'
 import {
   Plane, Wrench, Droplets, Users, Package, FileText,
   Info, PlaneTakeoff, PlaneLanding, Truck, AlertTriangle,
@@ -68,6 +69,15 @@ const PreviewStep: React.FC<PreviewStepProps> = ({ flightInfosId }) => {
     rampFuel,
     actualUplift,
   } = useLineMaintenancesQueryThfByFlightId({ flightInfosId })
+
+  // personnels[].staff.name from the THF API is the Thai name; resolve the
+  // English name (fullNameEn) from the staff master by staff id.
+  const hasPersonnels = !!aircraftData?.personnels?.length
+  const { allStaff } = useStaffListForImport(hasPersonnels)
+  const staffEnNameById = React.useMemo(
+    () => new Map(allStaff.map((s) => [s.id, s.name])),
+    [allStaff]
+  )
 
   if (isLoading) {
     return (
@@ -429,7 +439,7 @@ const PreviewStep: React.FC<PreviewStepProps> = ({ flightInfosId }) => {
                     return (
                       <tr key={idx} className="hover:bg-muted/30">
                         <Td className="font-mono text-muted-foreground">{p.staff?.code || idx + 1}</Td>
-                        <Td className="font-medium">{p.staff?.name}</Td>
+                        <Td className="font-medium">{(p.staff?.id != null && staffEnNameById.get(p.staff.id)) || p.staff?.name}</Td>
                         <Td>
                           <Badge className="text-[10px] px-1.5 py-0.5 bg-violet-100 text-violet-700 hover:bg-violet-100">
                             {p.staff?.staffTypeCode || '—'}

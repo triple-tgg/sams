@@ -7,6 +7,7 @@ import '@/lib/dayjs'; // ensures utc + timezone plugins are registered
 import { splitUtcDateTimeToLocal, formatUtcToLocalDisplay } from '@/lib/utils/flightDatetime';
 import { ChevronLeft, ChevronRight, XCircle } from 'lucide-react';
 import {
+    type FlightColorBy,
     formatFlightLabel,
     getFlightBarStyle,
     getFlightLocalRange,
@@ -21,6 +22,8 @@ interface CustomFlightTimelineProps {
     selectedDate: Date;
     isFullscreen: boolean;
     minuteScale?: number; // 1, 5, 10, 15, 20, 30, 60
+    /** Bar colour source — airline (default) or aircraft type. */
+    colorBy?: FlightColorBy;
 }
 
 const ROW_HEIGHT = 100;
@@ -33,6 +36,7 @@ export function CustomFlightTimeline({
     selectedDate,
     isFullscreen,
     minuteScale = 60,
+    colorBy = 'airline',
 }: CustomFlightTimelineProps) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const [containerWidth, setContainerWidth] = useState<number>(0);
@@ -366,7 +370,7 @@ export function CustomFlightTimeline({
                                                 top: barTop,
                                                 width,
                                                 height: barHeight,
-                                                ...getFlightBarStyle(flight, { clipLeft: isPreviousDay, clipRight: isNextDay }),
+                                                ...getFlightBarStyle(flight, { clipLeft: isPreviousDay, clipRight: isNextDay, colorBy }),
                                             }}
                                             onMouseEnter={(e) => handleBarMouseEnter(e, flight, key)}
                                             onMouseLeave={handleBarMouseLeave}

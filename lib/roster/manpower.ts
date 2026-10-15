@@ -27,6 +27,10 @@ export interface RosterAirlineAuth {
     isEligible: boolean;
     statusName: string;
     expiryDate: string | null;
+    /** ELIGIBLE | AT_RISK | INELIGIBLE | NOT_IN_SCOPE (monitoring-crs) */
+    eligibilityStatus?: string;
+    /** Aircraft type codes this staff is authorized for at this airline (eligibleAircraftTypes). */
+    aircraftTypes?: string[];
 }
 
 export interface RosterSamsAuth {

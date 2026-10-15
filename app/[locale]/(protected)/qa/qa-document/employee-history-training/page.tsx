@@ -27,7 +27,7 @@ export default function EmployeeHistoryTrainingPage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
   const [similarTechnology, setSimilarTechnology] = useState('all')
   const [page, setPage] = useState(1)
-  const perPage = 10
+  const perPage = 20
 
   // Fetch staff list for dropdown
   const { data: staffRes, isLoading: staffLoading } = useQAStaffList({
@@ -53,10 +53,10 @@ export default function EmployeeHistoryTrainingPage() {
   const selectedStaffLabel = staffOptions.find(s => s.id === selectedStaffId)?.label || ''
 
   const { data: logbookData, isLoading } = useLogbookRecordsList({
-    staffId: selectedStaffId,
-    startDate: dateRange?.from ? dayjs(dateRange.from).format('YYYY-MM-DD') : undefined,
-    endDate: dateRange?.to ? dayjs(dateRange.to).format('YYYY-MM-DD') : undefined,
-    similarTechnology: similarTechnology !== 'all' ? similarTechnology : undefined,
+    staffId: selectedStaffId || null,
+    startDate: dateRange?.from ? dayjs(dateRange.from).format('YYYY-MM-DD') : null,
+    endDate: dateRange?.to ? dayjs(dateRange.to).format('YYYY-MM-DD') : null,
+    similarTechnology: similarTechnology !== 'all' ? similarTechnology : null,
     page,
     perPage
   })

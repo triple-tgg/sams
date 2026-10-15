@@ -28,6 +28,13 @@ export interface UpdateFlightData {
   mechIdList?: number[] | null;
   maintenanceStatusId?: number;
   etaDate?: string | null;
+  /** Service group — aircraft checks. Same shape as THF `aircraft.aircraftCheckType`. Pending backend support. */
+  aircraftCheckType?: FlightAircraftCheckPayload[];
+}
+
+export interface FlightAircraftCheckPayload {
+  checkType: string;
+  checkSubType: string[];
 }
 
 // API Response Interface

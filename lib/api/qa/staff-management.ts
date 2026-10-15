@@ -81,12 +81,18 @@ export interface QAStaffListRequest {
     keyword?: string;
     name: string;
     employeeId: string;
-    staffDepartmentPositionId?: number;
-    /** @deprecated use `staffDepartmentPositionId` — mapped automatically */
+    /** Position filter (0 = all). Sent as `positionId`. */
     positionId?: number;
+    /** @deprecated use `positionId` — mapped automatically */
+    staffDepartmentPositionId?: number;
     departmentId: number;
+    /** Only sent when > 0 (not part of the listdata contract). */
     stationId?: number;
-    staffstypeId: number;
+    /**
+     * Staff type filter. The API takes an array (e.g. [1, 2, 7]); a single id is wrapped,
+     * and 0 / empty means all types (sent as []).
+     */
+    staffstypeId: number | number[];
     isActive: boolean;
     sortBy: string;
     sortDirection: string;
@@ -106,28 +112,34 @@ export interface QAStaffListResponse {
 
 // ── API Function ──
 
+/** Normalize the staff type filter to the array the API expects (0 / empty = all → []). */
+const toStaffTypeIds = (value: number | number[] | undefined): number[] =>
+    (Array.isArray(value) ? value : [value ?? 0]).map(Number).filter((id) => Number.isFinite(id) && id > 0);
+
 /**
  * Get QA staff management list data
  * POST /master/staff-management/listdata
+ * Body: { keyword, sortBy, sortDirection, name, employeeId, positionId, departmentId,
+ *         staffstypeId: number[], isActive, page, perPage }
  */
 export const getQAStaffList = async (
     params: QAStaffListRequest
 ): Promise<QAStaffListResponse> => {
     try {
-        const body = {
+        const body: Record<string, unknown> = {
             keyword: params.keyword ?? "",
+            sortBy: params.sortBy ?? "",
+            sortDirection: params.sortDirection ?? "",
             name: params.name ?? "",
             employeeId: params.employeeId ?? "",
-            staffDepartmentPositionId: params.staffDepartmentPositionId ?? params.positionId ?? 0,
+            positionId: params.positionId || params.staffDepartmentPositionId || 0,
             departmentId: params.departmentId ?? 0,
-            stationId: params.stationId ?? 0,
-            staffstypeId: params.staffstypeId ?? 0,
+            staffstypeId: toStaffTypeIds(params.staffstypeId),
             isActive: params.isActive,
-            sortBy: params.sortBy,
-            sortDirection: params.sortDirection,
             page: params.page,
             perPage: params.perPage,
         };
+        if (params.stationId && params.stationId > 0) body.stationId = params.stationId;
         const res = await axiosConfig.post("/master/staff-management/listdata", body);
         return res.data as QAStaffListResponse;
     } catch (error: any) {
