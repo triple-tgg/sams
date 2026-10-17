@@ -765,7 +765,9 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
                         <FieldError msg={errors.flightDeparture?.message} />
                       </div>
                       <div className="space-y-1">
-                        <Label htmlFor="departureDate">Date</Label>
+                        <Label htmlFor="departureDate">
+                          Date <span className="text-red-500 font-bold">*</span>
+                        </Label>
                         <Controller
                           name="departureDate"
                           control={control}
@@ -780,7 +782,9 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
                         <FieldError msg={errors.departureDate?.message} />
                       </div>
                       <div className="space-y-1">
-                        <Label htmlFor="std">STD (Local)</Label>
+                        <Label htmlFor="std">
+                          STD (Local) <span className="text-red-500 font-bold">*</span>
+                        </Label>
                         <Controller
                           name="std"
                           control={control}

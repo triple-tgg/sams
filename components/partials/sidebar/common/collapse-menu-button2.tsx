@@ -33,6 +33,12 @@ export function CollapseMenuButton2({
     const isSubmenuActive = submenus.some((submenu) => submenu.active || pathname.startsWith(submenu.href));
     const [isCollapsed, setIsCollapsed] = useState<boolean>(isSubmenuActive);
 
+    React.useEffect(() => {
+        if (isSubmenuActive) {
+            setIsCollapsed(true);
+        }
+    }, [isSubmenuActive, pathname]);
+
     return (
 
         <Collapsible

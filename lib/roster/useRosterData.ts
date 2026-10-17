@@ -240,5 +240,11 @@ export function useRosterFlights(stationCode: string, weekStart: Date) {
         () => raw.map(toRosterFlight).filter((f): f is AnalysisFlight => f !== null),
         [raw]
     );
-    return { raw, flights, isLoading: query.isLoading, error: query.error };
+    return {
+        raw,
+        flights,
+        isLoading: query.isLoading || query.isFetching,
+        isFetching: query.isFetching,
+        error: query.error,
+    };
 }

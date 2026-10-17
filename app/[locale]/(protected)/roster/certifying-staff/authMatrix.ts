@@ -2,11 +2,39 @@ import type { CustomerAuthStaffItem } from '@/lib/api/qa/authorization/customer-
 import { getCustomerAuthCellData, type CustomerAuthUiStatus } from '@/lib/api/qa/authorization/customer-auth.utils';
 import type { MonitoringCrsAirline } from '@/lib/api/qa/authorization/monitoring-crs';
 import type { RosterStaff } from '@/lib/roster/manpower';
+import { AIRLINE_TYPES } from './mockData';
 
 /**
  * Customer Authorization matrix: airline column groups, each split into the aircraft types
  * authorized at that airline. Airlines without any aircraft type get a single status column.
  */
+
+export interface AircraftTypeGroup {
+    model: string;
+    subtypes: string[];
+}
+
+export function groupAircraftTypes(types: string[]): AircraftTypeGroup[] {
+    if (!types || types.length === 0) {
+        return [{ model: '-', subtypes: ['-'] }];
+    }
+    const groups: AircraftTypeGroup[] = [];
+    types.forEach((type) => {
+        let model = type;
+        if (type.includes(' - ')) {
+            model = type.split(' - ')[0].trim();
+        } else if (type.includes(' ')) {
+            model = type.split(' ')[0].trim();
+        }
+        const lastGroup = groups[groups.length - 1];
+        if (lastGroup && lastGroup.model === model) {
+            lastGroup.subtypes.push(type);
+        } else {
+            groups.push({ model, subtypes: [type] });
+        }
+    });
+    return groups;
+}
 
 export interface MatrixAirline {
     airlineId: number;
@@ -49,7 +77,15 @@ export function toCrsStatus(status: CustomerAuthUiStatus): CrsCellStatus {
 }
 
 export function getCellCrs(cell: MatrixCell, type: string | null): CrsCellStatus {
-    return (type && cell.crsByType?.[type]) || cell.crs;
+    if (!type) return cell.crs;
+    if (cell.crsByType?.[type]) return cell.crsByType[type];
+    if (cell.crsByType) {
+        const found = Object.entries(cell.crsByType).find(
+            ([k]) => type.startsWith(k) || k.startsWith(type) || type.includes(k)
+        );
+        if (found) return found[1];
+    }
+    return cell.crs;
 }
 
 /** Deterministic pseudo-random for the mock matrix. */
@@ -64,7 +100,20 @@ export interface AuthMatrix {
     cells: Map<number, Map<number, MatrixCell>>;
 }
 
-const sortTypes = (types: Iterable<string>) => Array.from(types).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+const sortTypes = (types: Iterable<string>, preferredOrder?: string[]) => {
+    const arr = Array.from(types);
+    if (preferredOrder && preferredOrder.length > 0) {
+        return arr.sort((a, b) => {
+            const ia = preferredOrder.indexOf(a);
+            const ib = preferredOrder.indexOf(b);
+            if (ia !== -1 && ib !== -1) return ia - ib;
+            if (ia !== -1) return -1;
+            if (ib !== -1) return 1;
+            return a.localeCompare(b, undefined, { numeric: true });
+        });
+    }
+    return arr.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+};
 
 /** Build from POST /authorization/customer-auth/listdata (airlineStatuses[].aircrafts per staff). */
 export function buildMatrixFromCustomerAuth(items: CustomerAuthStaffItem[]): AuthMatrix {
@@ -110,6 +159,13 @@ export function buildMatrixFromCustomerAuth(items: CustomerAuthStaffItem[]): Aut
 /** Build from the sample data (mockData.ts). */
 export function buildMatrixFromMock(airlines: MonitoringCrsAirline[], staff: RosterStaff[]): AuthMatrix {
     const types = new Map<number, Set<string>>();
+    // Pre-seed types from AIRLINE_TYPES so all columns exist
+    airlines.forEach((a) => {
+        if (AIRLINE_TYPES[a.code]) {
+            types.set(a.airlineId, new Set(AIRLINE_TYPES[a.code]));
+        }
+    });
+
     const cells = new Map<number, Map<number, MatrixCell>>();
     staff.forEach((s, si) => {
         const byAirline = new Map<number, MatrixCell>();
@@ -141,14 +197,17 @@ export function buildMatrixFromMock(airlines: MonitoringCrsAirline[], staff: Ros
     return {
         airlines: [...airlines]
             .sort((a, b) => a.displayOrder - b.displayOrder)
-            .map((a) => ({
-                airlineId: a.airlineId,
-                code: a.code,
-                name: a.name,
-                colorForeground: a.colorForeground,
-                colorBackground: a.colorBackground,
-                types: sortTypes(types.get(a.airlineId) ?? []),
-            })),
+            .map((a) => {
+                const preferred = AIRLINE_TYPES[a.code] || [];
+                return {
+                    airlineId: a.airlineId,
+                    code: a.code,
+                    name: a.name,
+                    colorForeground: a.colorForeground,
+                    colorBackground: a.colorBackground,
+                    types: sortTypes(types.get(a.airlineId) ?? [], preferred),
+                };
+            }),
         cells,
     };
 }

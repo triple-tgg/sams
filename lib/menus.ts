@@ -312,11 +312,22 @@ export function getMenuList(pathname: string, t: any): Group[] {
               children: [],
             },
             {
-              href: "/roster/manpower-analysis",
-              label: t("rosterManpowerAnalysis"),
-              active: pathname.includes("/roster/manpower-analysis"),
-              icon: "heroicons-outline:presentation-chart-line",
-              children: [],
+              href: "/roster/manpower/planning",
+              label: t("rosterManpower"),
+              active: pathname.includes("/roster/manpower") || pathname.includes("/roster/manpower-analysis"),
+              icon: "heroicons-outline:user-group",
+              children: [
+                {
+                  href: "/roster/manpower/planning",
+                  label: t("rosterManpowerPlanning"),
+                  active: pathname.includes("/roster/manpower/planning") || pathname.includes("/roster/manpower-analysis"),
+                },
+                {
+                  href: "/roster/manpower/scheduling",
+                  label: t("rosterManpowerScheduling"),
+                  active: pathname.includes("/roster/manpower/scheduling"),
+                },
+              ],
             },
           ],
         },

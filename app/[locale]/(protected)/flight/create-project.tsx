@@ -445,7 +445,12 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
       }
       const anyDep = !!(values.flightDeparture || values.departureDate || values.std || values.atd);
       if (anyDep && (!values.departureDate || !values.std)) {
-        setError("departureDate", { message: "If departure provided, Date & STD are required" });
+        if (!values.departureDate) {
+          setError("departureDate", { message: "Departure Date is required if departure flight is provided" });
+        }
+        if (!values.std) {
+          setError("std", { message: "STD is required if departure flight is provided" });
+        }
         return;
       }
 
@@ -1641,7 +1646,13 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                       </div>
                       <div className="space-y-1">
                         <Label htmlFor="departureDate">
-                          {flightMode === "recurring" ? "Date (Schedule Driven)" : "Date"}
+                          {flightMode === "recurring" ? (
+                            "Date (Schedule Driven)"
+                          ) : (
+                            <>
+                              Date <span className="text-red-500 font-bold">*</span>
+                            </>
+                          )}
                         </Label>
                         {flightMode === "one-time" ? (
                           <Controller
@@ -1663,7 +1674,9 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                         <FieldError msg={errors.departureDate?.message} />
                       </div>
                       <div className="space-y-1">
-                        <Label htmlFor="std">STD (Local)</Label>
+                        <Label htmlFor="std">
+                          STD (Local) <span className="text-red-500 font-bold">*</span>
+                        </Label>
                         <Controller
                           name="std"
                           control={control}

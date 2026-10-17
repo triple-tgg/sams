@@ -3,31 +3,52 @@
 import { useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { useQuery } from '@tanstack/react-query';
-import { Check, Filter, FlaskConical, Search, User, UserCheck, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Search, User, UserCheck, X } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipArrow, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { groupCombinationDisplayLabels } from '@/lib/utils/aircraftEngineDisplay';
 import { useRosterStaff } from '@/lib/roster/useRosterData';
-import { getCustomerAuthList, type CustomerAuthStaffItem } from '@/lib/api/qa/authorization/customer-auth';
+import {
+    getAmelCertifyingStaff,
+    getAircraftLicenceStaff,
+    type AmelStaffRow,
+    type AmelGroupColumn,
+    type AmelCertifyingStaffData,
+    type AircraftLicenceStaffRow,
+    type AircraftLicenceAirline,
+    type AircraftLicenceStaffData,
+} from '@/lib/api/roster/certifyingStaff';
+import { useDebounce } from '@/hooks/useDebounce';
 import { isValidCertifyingStaff, movementStatus, type MovementStatus, type RosterStaff } from '@/lib/roster/manpower';
 import { EmptyBlock, LoadingBlock, Pill, RosterHeader, StatTile, StationSelect } from '../components/RosterUi';
-import { MOCK_AIRLINES, MOCK_STAFF } from './mockData';
 import {
-    buildMatrixFromCustomerAuth,
-    buildMatrixFromMock,
     CRS_STATUS_META,
-    getCellCrs,
     type CrsCellStatus,
-    type MatrixAirline,
-    type MatrixCell,
 } from './authMatrix';
+import {
+    AMEL_GROUPS,
+    TOTAL_AMEL_COLUMNS,
+    hasAmelQualification,
+    getStaffAcTypeSummary,
+    AC_COLOR_MAP,
+} from './amelMatrix';
 
 const UNASSIGNED = '__none__';
 const NAME_COL_WIDTH = 220;
 const LICENCE_COL_WIDTH = 200;
-const SHOW_MOCK_TOGGLE = process.env.NODE_ENV !== 'production';
+
+// AMEL Table Sticky Column Dimensions (100% opaque, strictly locked)
+const AMEL_COL_NO = 64;
+const AMEL_COL_NAME = 180;
+const AMEL_COL_POS = 110;
+const AMEL_COL_ACTYPE = 120;
+
+const AMEL_LEFT_NAME = AMEL_COL_NO; // 64
+const AMEL_LEFT_POS = AMEL_LEFT_NAME + AMEL_COL_NAME; // 244
+const AMEL_LEFT_ACTYPE = AMEL_LEFT_POS + AMEL_COL_POS; // 354
 
 function LicenceCell({ labels }: { labels: string[] }) {
     const [expanded, setExpanded] = useState(false);
@@ -82,43 +103,7 @@ const MOVEMENT_TONE: Record<MovementStatus, 'default' | 'info' | 'warning'> = {
     Transfer: 'warning',
 };
 
-// ── Customer Authorization matrix ───────────────────────────────────────────
 
-/** One airline column group; `types` empty = a single status column. */
-interface AirlineGroup {
-    airline: MatrixAirline;
-    types: string[];
-}
-
-/** perPage capped at 100 to be safe — walk every page. */
-async function fetchAllCustomerAuth(): Promise<CustomerAuthStaffItem[]> {
-    const all: CustomerAuthStaffItem[] = [];
-    for (let page = 1; page <= 50; page++) {
-        const res = await getCustomerAuthList({ searchKeyword: '', status: null, airlineId: null, page, perPage: 100 });
-        const batch = res.responseData ?? [];
-        all.push(...batch);
-        if (batch.length < 100 || all.length >= (res.totalAll || res.total || 0)) break;
-    }
-    return all;
-}
-
-function airlineLabel(a: { code: string; name: string }) {
-    return a.name ? `${a.code} — ${a.name}` : a.code;
-}
-
-const HEADER_NAVY = '#2c5282';
-
-/** Airline colour usable as text on a light header (falls back to slate when the colour is too light). */
-function readableColor(...candidates: (string | null | undefined)[]) {
-    for (const c of candidates) {
-        const m = c?.trim().match(/^#?([0-9a-f]{6})$/i);
-        if (!m) continue;
-        const n = parseInt(m[1], 16);
-        const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-        if ((0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.62) return `#${m[1]}`;
-    }
-    return '#334155';
-}
 
 function StatusDot({ status, size = 10 }: { status: CrsCellStatus; size?: number }) {
     const color = CRS_STATUS_META[status].dot;
@@ -135,283 +120,202 @@ function StatusDot({ status, size = 10 }: { status: CrsCellStatus; size?: number
     );
 }
 
-/** Matrix cell for one airline × aircraft type (or the airline's single status column when `type` is null). */
-function AuthCell({ cell, airline, type, groupStart }: { cell?: MatrixCell; airline: MatrixAirline; type: string | null; groupStart: boolean }) {
-    const covered = !!cell && (type === null || cell.aircraft.includes(type));
-    const crs = covered && cell ? getCellCrs(cell, type) : null;
-    const meta = crs ? CRS_STATUS_META[crs] : null;
-    const title =
-        cell && meta
-            ? `${airline.code}${type ? ` · ${type}` : ''} · ${meta.label}${cell.expiryDate ? ` · Exp. ${formatDate(cell.expiryDate)}` : ''}`
-            : undefined;
 
+
+// ── AMEL Format Helper ──
+
+function AmelAcTypeDisplay({ acType }: { acType: string }) {
+    if (!acType || acType === '—') return <span className="text-muted-foreground">—</span>;
+    const parts = acType.split('/');
     return (
-        <td
-            title={title}
-            className={cn('h-12 border-b border-l border-border/50 px-1 text-center align-middle', groupStart && 'border-l-border')}
-            style={meta ? { background: meta.bg } : undefined}
-        >
-            {crs && meta ? (
-                <div className="flex flex-col items-center justify-center gap-1 leading-none">
-                    <StatusDot status={crs} />
-                    <span className="text-[9px] font-bold uppercase" style={{ color: meta.text }}>
-                        {meta.label}
+        <span className="font-semibold text-xs tracking-tight">
+            {parts.map((p, i) => {
+                const colorClass = AC_COLOR_MAP[p] || 'text-slate-700 dark:text-slate-200';
+                return (
+                    <span key={p + i}>
+                        {i > 0 && <span className="text-muted-foreground/60 font-normal">/</span>}
+                        <span className={colorClass}>{p}</span>
                     </span>
-                </div>
-            ) : (
-                <span className="text-xs text-muted-foreground">-</span>
-            )}
-        </td>
+                );
+            })}
+        </span>
     );
 }
 
-// ── Column filters (Airlines / Aircraft) ──
+// ── Page Component ──
 
-interface ColumnFilterItem<K> {
-    key: K;
-    label: string;
-    color?: string | null;
-    meta?: string;
-}
-
-/** Searchable column-visibility popover (Airlines / Aircraft). */
-function ColumnFilter<K extends string | number>({
-    label,
-    title,
-    items,
-    hidden,
-    onChange,
-    emptyText,
-}: {
-    label: string;
-    title: string;
-    items: ColumnFilterItem<K>[];
-    hidden: Set<K>;
-    onChange: (next: Set<K>) => void;
-    emptyText: string;
-}) {
-    const [query, setQuery] = useState('');
-    const q = query.trim().toLowerCase();
-    const shown = q ? items.filter((i) => i.label.toLowerCase().includes(q)) : items;
-    const visibleCount = items.filter((i) => !hidden.has(i.key)).length;
-    const filtering = visibleCount !== items.length;
-    const toggle = (key: K) => {
-        const next = new Set(hidden);
-        next.has(key) ? next.delete(key) : next.add(key);
-        onChange(next);
-    };
-    /** All / None apply to the items matching the search. */
-    const setShown = (visible: boolean) => {
-        const next = new Set(hidden);
-        shown.forEach((i) => (visible ? next.delete(i.key) : next.add(i.key)));
-        onChange(next);
-    };
-
-    return (
-        <Popover onOpenChange={(open) => !open && setQuery('')}>
-            <PopoverTrigger asChild>
-                <button
-                    type="button"
-                    className={cn(
-                        'inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-[11px] font-semibold transition-all',
-                        filtering
-                            ? 'border-[#075CA2]/30 bg-[#075CA2]/10 text-[#075CA2]'
-                            : 'border-border bg-card text-muted-foreground hover:border-[#075CA2]/40 hover:text-foreground'
-                    )}
-                >
-                    <Filter className="h-3 w-3" />
-                    {label}
-                    {filtering && (
-                        <span className="rounded-full bg-[#075CA2] px-1.5 py-0.5 text-[9px] font-bold leading-none text-white">
-                            {visibleCount}/{items.length}
-                        </span>
-                    )}
-                </button>
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-[340px] p-2">
-                <div className="mb-2 flex items-center justify-between px-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{title}</span>
-                    <div className="flex gap-1.5 text-[10px] font-medium">
-                        <button type="button" onClick={() => setShown(true)} className="text-[#075CA2] hover:underline">
-                            All
-                        </button>
-                        <span className="text-muted-foreground/40">|</span>
-                        <button type="button" onClick={() => setShown(false)} className="text-[#075CA2] hover:underline">
-                            None
-                        </button>
-                    </div>
-                </div>
-                <div className="mb-2 border-b border-border pb-2">
-                    <div className="relative">
-                        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                        <input
-                            type="search"
-                            autoFocus
-                            value={query}
-                            onChange={(e) => setQuery(e.target.value)}
-                            placeholder={`Search ${label.toLowerCase()}...`}
-                            className="h-8 w-full rounded-lg border border-border bg-card pl-8 pr-3 text-xs placeholder:text-muted-foreground/60 focus:border-[#075CA2]/40 focus:outline-none focus:ring-2 focus:ring-[#075CA2]/20"
-                        />
-                    </div>
-                </div>
-                {items.length === 0 ? (
-                    <p className="px-2 py-3 text-center text-xs text-muted-foreground">{emptyText}</p>
-                ) : shown.length === 0 ? (
-                    <p className="px-2 py-3 text-center text-xs text-muted-foreground">No match for “{query}”.</p>
-                ) : (
-                    <div className="grid max-h-[280px] grid-cols-1 gap-0.5 overflow-y-auto">
-                        {shown.map((item) => {
-                            const checked = !hidden.has(item.key);
-                            return (
-                                <button
-                                    key={item.key}
-                                    type="button"
-                                    onClick={() => toggle(item.key)}
-                                    className={cn(
-                                        'flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[11px] transition-all',
-                                        checked ? 'bg-[#075CA2]/10 font-semibold text-foreground' : 'text-muted-foreground hover:bg-muted/50'
-                                    )}
-                                >
-                                    <span
-                                        className={cn(
-                                            'flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border-2 transition-all',
-                                            checked ? 'border-[#075CA2] bg-[#075CA2]' : 'border-slate-300 bg-white'
-                                        )}
-                                    >
-                                        {checked && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />}
-                                    </span>
-                                    {item.color !== undefined && (
-                                        <span className="h-2 w-2 shrink-0 rounded-full ring-1 ring-black/10" style={{ background: item.color || '#94a3b8' }} />
-                                    )}
-                                    <span className="truncate">{item.label}</span>
-                                    {item.meta && <span className="ml-auto shrink-0 text-[10px] font-normal text-muted-foreground">{item.meta}</span>}
-                                </button>
-                            );
-                        })}
-                    </div>
-                )}
-            </PopoverContent>
-        </Popover>
-    );
-}
-
-// ── Page ──
+type CertifyingStaffTab = 'amel' | 'licence';
 
 export default function CertifyingStaffPage() {
     const live = useRosterStaff();
-    // True/False/Pending API isn't ready yet → show mock data by default in development.
-    const [useMock, setUseMock] = useState(SHOW_MOCK_TOGGLE);
-    const customerAuthQuery = useQuery({
-        queryKey: ['roster', 'customer-auth-all'],
-        queryFn: fetchAllCustomerAuth,
-        staleTime: 5 * 60 * 1000,
-        enabled: !useMock,
-    });
-    const staff = useMock ? MOCK_STAFF : live.staff;
+    const [activeTab, setActiveTab] = useState<CertifyingStaffTab>('amel');
+
+    const staff = live.staff as (RosterStaff & { acType?: string; amelColKeys?: string[] })[];
     const { stations } = live;
-    const isLoading = !useMock && (live.isLoading || customerAuthQuery.isLoading);
-    const error = useMock ? null : live.error || customerAuthQuery.error;
+    const isLoading = live.isLoading;
+    const error = live.error;
 
-    const [search, setSearch] = useState('');
-    const [stationCode, setStationCode] = useState('');
-    const [movement, setMovement] = useState<'' | MovementStatus>('');
-    const [hiddenAirlines, setHiddenAirlines] = useState<Set<number>>(new Set());
-    const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
+    // Available positions for staff
+    const positions = useMemo(() => {
+        const set = new Set<string>();
+        staff.forEach((s) => {
+            const pos = s.jobTitle?.trim();
+            if (pos) set.add(pos);
+        });
+        return Array.from(set).sort();
+    }, [staff]);
 
-    const matrix = useMemo(
-        () => (useMock ? buildMatrixFromMock(MOCK_AIRLINES, MOCK_STAFF) : buildMatrixFromCustomerAuth(customerAuthQuery.data ?? [])),
-        [useMock, customerAuthQuery.data]
-    );
-    const groups = useMemo<AirlineGroup[]>(() => matrix.airlines.map((a) => ({ airline: a, types: a.types })), [matrix]);
-    const airlineItems = useMemo<ColumnFilterItem<number>[]>(
-        () =>
-            groups.map(({ airline, types }) => ({
-                key: airline.airlineId,
-                label: airlineLabel(airline),
-                color: airline.colorBackground,
-                meta: `${types.length || 1} col`,
-            })),
-        [groups]
-    );
-    const aircraftItems = useMemo<ColumnFilterItem<string>[]>(() => {
-        const count = new Map<string, number>();
-        groups.forEach((g) => g.types.forEach((t) => count.set(t, (count.get(t) ?? 0) + 1)));
-        return Array.from(count.entries())
-            .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
-            .map(([t, n]) => ({ key: t, label: t, meta: `${n} airline${n > 1 ? 's' : ''}` }));
-    }, [groups]);
-    /** Aircraft filter hides type sub-columns; airlines left without a visible type are hidden too. */
-    const visibleGroups = groups
-        .filter((g) => !hiddenAirlines.has(g.airline.airlineId))
-        .map((g) => ({ ...g, types: g.types.filter((t) => !hiddenTypes.has(t)) }))
-        .filter((g) => hiddenTypes.size === 0 || g.types.length > 0);
-    const authColumnCount = visibleGroups.reduce((n, g) => n + Math.max(g.types.length, 1), 0);
-    /** Airline row + aircraft type / status row whenever there are airline columns. */
-    const headerRows = authColumnCount > 0 ? 2 : 1;
+    // ── AMEL API States & Query ──
+    const [amelSearch, setAmelSearch] = useState('');
+    const [amelStation, setAmelStation] = useState('');
+    const [amelAircraftType, setAmelAircraftType] = useState('');
+    const [amelPage, setAmelPage] = useState(1);
+    const [amelPageSize, setAmelPageSize] = useState(20);
 
-    const rows = useMemo(() => {
-        const q = search.trim().toLowerCase();
-        return staff
-            .filter((s) =>
-                !stationCode
-                    ? true
-                    : stationCode === UNASSIGNED
-                      ? !s.stationCode
-                      : s.stationCode === stationCode || s.transfers.some((t) => t.stationCode === stationCode)
-            )
-            .filter((s) => !movement || movementStatus(s) === movement)
-            .filter(
-                (s) =>
-                    !q ||
-                    s.name.toLowerCase().includes(q) ||
-                    s.employeeId.toLowerCase().includes(q) ||
-                    (s.sams?.authNo ?? '').toLowerCase().includes(q)
-            )
-            .sort((a, b) => a.employeeId.localeCompare(b.employeeId, undefined, { numeric: true }));
-    }, [staff, search, stationCode, movement]);
+    const debouncedAmelSearch = useDebounce(amelSearch, 400);
 
+    const amelQuery = useQuery({
+        queryKey: [
+            'roster',
+            'certifying-staff',
+            'amel',
+            {
+                search: debouncedAmelSearch,
+                station: amelStation === UNASSIGNED ? '' : amelStation,
+                aircraftType: amelAircraftType,
+                page: amelPage,
+                pageSize: amelPageSize,
+            },
+        ],
+        queryFn: async () => {
+            const res = await getAmelCertifyingStaff({
+                search: debouncedAmelSearch,
+                station: amelStation === UNASSIGNED ? '' : amelStation,
+                aircraftType: amelAircraftType,
+                page: amelPage,
+                pageSize: amelPageSize,
+            });
+            return res.responseData;
+        },
+        staleTime: 60 * 1000,
+        placeholderData: (previousData) => previousData,
+    });
+
+    const amelData = amelQuery.data;
+    const amelColumns = amelData?.columns;
+    const amelRows = amelData?.rows ?? [];
+    const amelPagination = amelData?.pagination ?? {
+        page: amelPage,
+        pageSize: amelPageSize,
+        totalRecords: amelRows.length,
+        totalPages: Math.ceil(amelRows.length / amelPageSize) || 1,
+    };
+    const amelGroups: AmelGroupColumn[] = amelColumns?.groups ?? [];
+    const totalAmelColumns = amelGroups.reduce((acc, g) => acc + g.columns.length, 0);
+
+    const amelAircraftTypeOptions = useMemo(() => {
+        const types = new Set<string>();
+        amelGroups.forEach((g) => g.aircraft && types.add(g.aircraft));
+        ['A319', 'A320', 'A321', 'B767', 'B777', 'B787'].forEach((t) => types.add(t));
+        return Array.from(types).sort();
+    }, [amelGroups]);
+
+    const isAmelFiltering = amelSearch !== '' || amelStation !== '' || amelAircraftType !== '';
+    const clearAmelFilters = () => {
+        setAmelSearch('');
+        setAmelStation('');
+        setAmelAircraftType('');
+        setAmelPage(1);
+    };
+
+    // ── Aircraft Licence API States & Query ──
+    const [licenceSearch, setLicenceSearch] = useState('');
+    const [licenceStation, setLicenceStation] = useState('');
+    const [licenceAircraftType, setLicenceAircraftType] = useState('');
+    const [licencePage, setLicencePage] = useState(1);
+    const [licencePageSize, setLicencePageSize] = useState(20);
+
+    const debouncedLicenceSearch = useDebounce(licenceSearch, 400);
+
+    const licenceQuery = useQuery({
+        queryKey: [
+            'roster',
+            'certifying-staff',
+            'aircraft-licence',
+            {
+                search: debouncedLicenceSearch,
+                station: licenceStation === UNASSIGNED ? '' : licenceStation,
+                aircraftType: licenceAircraftType,
+                page: licencePage,
+                pageSize: licencePageSize,
+            },
+        ],
+        queryFn: async () => {
+            const res = await getAircraftLicenceStaff({
+                search: debouncedLicenceSearch,
+                station: licenceStation === UNASSIGNED ? '' : licenceStation,
+                aircraftType: licenceAircraftType,
+                page: licencePage,
+                pageSize: licencePageSize,
+            });
+            return res.responseData;
+        },
+        staleTime: 60 * 1000,
+        placeholderData: (previousData) => previousData,
+    });
+
+    const licenceData = licenceQuery.data;
+    const licenceColumns = licenceData?.columns;
+    const licenceAirlines: AircraftLicenceAirline[] = licenceColumns?.airlines ?? [];
+    const licenceRows: AircraftLicenceStaffRow[] = licenceData?.rows ?? [];
+    const licencePagination = licenceData?.pagination ?? {
+        page: licencePage,
+        pageSize: licencePageSize,
+        totalRecords: licenceRows.length,
+        totalPages: Math.ceil(licenceRows.length / licencePageSize) || 1,
+    };
+
+    const totalLicenceSubtypes = useMemo(() => {
+        return licenceAirlines.reduce(
+            (sum, al) => sum + al.aircraftTypes.reduce((s2, at) => s2 + at.subtypes.length, 0),
+            0
+        );
+    }, [licenceAirlines]);
+
+    const licenceAircraftTypeOptions = useMemo(() => {
+        const types = new Set<string>();
+        licenceAirlines.forEach((al) => {
+            al.aircraftTypes.forEach((at) => {
+                if (at.typeName) types.add(at.typeName);
+                if (at.typeId) types.add(at.typeId);
+            });
+        });
+        ['A319', 'A320', 'A321', 'B767', 'B777', 'B787'].forEach((t) => types.add(t));
+        return Array.from(types).sort();
+    }, [licenceAirlines]);
+
+    const isLicenceFiltering = licenceSearch !== '' || licenceStation !== '' || licenceAircraftType !== '';
+    const clearLicenceFilters = () => {
+        setLicenceSearch('');
+        setLicenceStation('');
+        setLicenceAircraftType('');
+        setLicencePage(1);
+    };
+
+    // Overall KPI counts
     const certifying = staff.filter(isValidCertifyingStaff);
     const moving = certifying.filter((s) => movementStatus(s) !== 'Permanent').length;
     const unassigned = certifying.filter((s) => !s.stationCode).length;
 
-    const isFiltering = search !== '' || stationCode !== '' || movement !== '' || hiddenAirlines.size > 0 || hiddenTypes.size > 0;
-    const clearFilters = () => {
-        setSearch('');
-        setStationCode('');
-        setMovement('');
-        setHiddenAirlines(new Set());
-        setHiddenTypes(new Set());
-    };
-
-    const stickyName = 'sticky left-0 z-20';
-    const stickyLicence = 'sticky z-20';
-
     return (
         <div className="space-y-4">
+            {/* ── Top Header & KPI Card ── */}
             <Card className="overflow-hidden">
                 <RosterHeader
                     icon={<UserCheck className="h-5 w-5" />}
                     title="Certifying Staff"
                     subtitle="Aircraft licences and customer authorizations per person"
-                >
-                    {SHOW_MOCK_TOGGLE && (
-                        <button
-                            type="button"
-                            onClick={() => setUseMock((v) => !v)}
-                            aria-pressed={useMock}
-                            className={cn(
-                                'inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-[11px] font-semibold transition-all',
-                                useMock
-                                    ? 'border-amber-300 bg-amber-50 text-amber-700'
-                                    : 'border-border bg-card text-muted-foreground hover:text-foreground'
-                            )}
-                            title="Development only: show sample data"
-                        >
-                            <FlaskConical className="h-3.5 w-3.5" />
-                            Mock data {useMock ? 'ON' : 'OFF'}
-                        </button>
-                    )}
-                </RosterHeader>
+                />
                 <div className="grid grid-cols-2 gap-3 px-5 py-4 md:grid-cols-4">
                     <StatTile label="Valid CS" value={certifying.length} unit="people" />
                     <StatTile label="Licence holders" value={staff.length} unit="people" />
@@ -420,233 +324,859 @@ export default function CertifyingStaffPage() {
                 </div>
             </Card>
 
+            {/* ── Main Tab Navigation & Content ── */}
             <Card className="overflow-hidden">
-                {/* ── Filter bar ── */}
-                <div className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3">
-                    <div className="relative min-w-[200px] max-w-[300px] flex-1">
-                        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                        <input
-                            type="search"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Search staff name, ID or auth no..."
-                            className="h-8 w-full rounded-lg border border-border bg-card pl-8 pr-3 text-xs placeholder:text-muted-foreground/60 focus:border-[#075CA2]/40 focus:outline-none focus:ring-2 focus:ring-[#075CA2]/20"
-                        />
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as CertifyingStaffTab)} className="w-full">
+                    {/* Tab Bar Header */}
+                    <div className="border-b border-border bg-card px-5 pt-3">
+                        <TabsList className="h-auto bg-transparent p-0 gap-6 border-b-0">
+                            <TabsTrigger
+                                value="amel"
+                                className="relative pb-3 pt-2 text-sm font-semibold rounded-none border-b-2 border-transparent px-3 text-muted-foreground transition-all data-[state=active]:border-[#075CA2] data-[state=active]:text-[#075CA2] data-[state=active]:bg-transparent data-[state=active]:shadow-none flex items-center gap-2"
+                            >
+                                AMEL
+                                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary">
+                                    {amelPagination.totalRecords}
+                                </span>
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="licence"
+                                className="relative pb-3 pt-2 text-sm font-semibold rounded-none border-b-2 border-transparent px-3 text-muted-foreground transition-all data-[state=active]:border-[#075CA2] data-[state=active]:text-[#075CA2] data-[state=active]:bg-transparent data-[state=active]:shadow-none flex items-center gap-2"
+                            >
+                                Aircraft Licence
+                                <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[11px] font-bold text-muted-foreground">
+                                    {licencePagination.totalRecords}
+                                </span>
+                            </TabsTrigger>
+                        </TabsList>
                     </div>
-                    <StationSelect
-                        stations={stations}
-                        value={stationCode}
-                        onChange={setStationCode}
-                        allowAll
-                        extraOptions={[{ value: UNASSIGNED, label: 'No station' }]}
-                    />
-                    <label className="flex items-center gap-2 text-sm">
-                        <span className="text-muted-foreground">Status</span>
-                        <select
-                            value={movement}
-                            onChange={(e) => setMovement(e.target.value as '' | MovementStatus)}
-                            className="h-9 rounded-md border border-border bg-card px-2 text-sm"
-                        >
-                            <option value="">All</option>
-                            <option value="Permanent">Permanent</option>
-                            <option value="Rotate">Rotate</option>
-                            <option value="Transfer">Transfer</option>
-                        </select>
-                    </label>
-                    <ColumnFilter
-                        label="Airlines"
-                        title="Show airline columns"
-                        items={airlineItems}
-                        hidden={hiddenAirlines}
-                        onChange={setHiddenAirlines}
-                        emptyText="No airlines from the API."
-                    />
-                    <ColumnFilter
-                        label="Aircraft"
-                        title="Show aircraft columns"
-                        items={aircraftItems}
-                        hidden={hiddenTypes}
-                        onChange={setHiddenTypes}
-                        emptyText="No aircraft types."
-                    />
-                    {isFiltering && (
-                        <button
-                            type="button"
-                            onClick={clearFilters}
-                            className="inline-flex h-8 items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 text-[11px] font-semibold text-red-500 transition-all hover:bg-red-100"
-                        >
-                            <X className="h-3 w-3" />
-                            Clear
-                        </button>
-                    )}
-                    <span className="ml-auto text-xs text-muted-foreground">
-                        {rows.length} of {staff.length} staff · {visibleGroups.length} of {groups.length} airlines
-                    </span>
-                </div>
 
-                {isLoading ? (
-                    <LoadingBlock label="Loading staff and authorizations..." />
-                ) : error ? (
-                    <EmptyBlock>Failed to load staff: {(error as Error).message}</EmptyBlock>
-                ) : rows.length === 0 ? (
-                    <EmptyBlock>No staff match these filters.</EmptyBlock>
-                ) : (
-                    <div className="max-h-[calc(100vh-260px)] overflow-auto">
-                        <table className="w-full border-separate border-spacing-0 text-xs">
-                            <thead className="sticky top-0 z-30">
-                                {/* Row 1: fixed columns + airline groups (navy) */}
-                                <tr>
-                                    <th
-                                        rowSpan={headerRows}
-                                        className={cn(stickyName, 'z-40 border-b-2 border-r border-border bg-slate-50 px-3 py-2 text-left text-[13px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300')}
-                                        style={{ minWidth: NAME_COL_WIDTH, width: NAME_COL_WIDTH }}
+                    {/* ══════════════════════════════════════════════════════════════
+                        TAB 1: AMEL (Connected to /roster/certifying-staff/amel API)
+                       ══════════════════════════════════════════════════════════════ */}
+                    <TabsContent value="amel" className="m-0 focus-visible:outline-none">
+                        {/* Filter bar for AMEL */}
+                        <div className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3">
+                            <div className="relative min-w-[200px] max-w-[300px] flex-1">
+                                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                                <input
+                                    type="search"
+                                    value={amelSearch}
+                                    onChange={(e) => {
+                                        setAmelSearch(e.target.value);
+                                        setAmelPage(1);
+                                    }}
+                                    placeholder="Search staff name, ID or position..."
+                                    className="h-8 w-full rounded-lg border border-border bg-card pl-8 pr-3 text-xs placeholder:text-muted-foreground/60 focus:border-[#075CA2]/40 focus:outline-none focus:ring-2 focus:ring-[#075CA2]/20"
+                                />
+                            </div>
+                            <StationSelect
+                                stations={stations}
+                                value={amelStation}
+                                onChange={(val) => {
+                                    setAmelStation(val);
+                                    setAmelPage(1);
+                                }}
+                                allowAll
+                                extraOptions={[{ value: UNASSIGNED, label: 'No station' }]}
+                            />
+                            {amelAircraftTypeOptions.length > 0 && (
+                                <label className="flex items-center gap-1.5 text-xs">
+                                    <span className="text-muted-foreground font-medium">A/C Type</span>
+                                    <select
+                                        value={amelAircraftType}
+                                        onChange={(e) => {
+                                            setAmelAircraftType(e.target.value);
+                                            setAmelPage(1);
+                                        }}
+                                        className="h-8 rounded-lg border border-border bg-card px-2.5 text-xs text-foreground focus:border-[#075CA2]/40 focus:outline-none focus:ring-2 focus:ring-[#075CA2]/20"
                                     >
-                                        Employee Name
-                                    </th>
-                                    <th
-                                        rowSpan={headerRows}
-                                        className={cn(stickyLicence, 'z-40 border-b-2 border-r border-border bg-slate-50 px-3 py-2 text-left text-[13px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300')}
-                                        style={{ left: NAME_COL_WIDTH, minWidth: LICENCE_COL_WIDTH, width: LICENCE_COL_WIDTH }}
-                                    >
-                                        Aircraft Licence
-                                    </th>
-                                    {authColumnCount > 0 ? (
-                                        visibleGroups.map(({ airline, types }) => (
+                                        <option value="">All A/C Types</option>
+                                        {amelAircraftTypeOptions.map((t) => (
+                                            <option key={t} value={t}>
+                                                {t}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+                            )}
+                            {isAmelFiltering && (
+                                <button
+                                    type="button"
+                                    onClick={clearAmelFilters}
+                                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 text-[11px] font-semibold text-red-500 transition-all hover:bg-red-100 dark:bg-red-950/30 dark:border-red-800"
+                                >
+                                    <X className="h-3 w-3" />
+                                    Clear
+                                </button>
+                            )}
+                            <span className="ml-auto text-xs text-muted-foreground">
+                                {amelPagination.totalRecords} staff · {amelGroups.length} Aircraft Series · {totalAmelColumns} Engine Columns
+                            </span>
+                        </div>
+
+                        {/* Title Subheader matching Image 1 */}
+                        <div className="flex items-center justify-between border-b border-border bg-slate-50 dark:bg-slate-800/50 px-4 py-2">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-100">
+                                    SAMS AMEL CERTIFYING STAFFS
+                                </span>
+                                <span className="rounded bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300 text-[10px] font-bold px-1.5 py-0.5">
+                                    Aircraft & Engine Licences
+                                </span>
+                            </div>
+                            {amelQuery.isFetching && !amelQuery.isLoading && (
+                                <span className="text-[11px] text-muted-foreground animate-pulse">Refreshing...</span>
+                            )}
+                        </div>
+
+                        {amelQuery.isLoading ? (
+                            <LoadingBlock label="Loading AMEL certifying staff data..." />
+                        ) : amelQuery.error ? (
+                            <EmptyBlock>Failed to load staff: {(amelQuery.error as Error).message}</EmptyBlock>
+                        ) : amelRows.length === 0 ? (
+                            <EmptyBlock>No staff match these filters.</EmptyBlock>
+                        ) : (
+                            <div className="max-h-[calc(100vh-320px)] overflow-auto">
+                                <table className="w-full border-separate border-spacing-0 text-xs">
+                                    <thead className="sticky top-0 z-30">
+                                        {/* Row 1: Fixed ENGINE (sticky left colSpan 4) + Scrollable Aircraft Series */}
+                                        <tr>
                                             <th
-                                                key={airline.airlineId}
-                                                colSpan={Math.max(types.length, 1)}
-                                                className="whitespace-nowrap border-l border-white/20 p-0 text-center text-[11px] font-bold uppercase tracking-wider text-white"
-                                                style={{ background: HEADER_NAVY }}
+                                                colSpan={4}
+                                                className="sticky left-0 z-40 border-b border-r-2 border-r-slate-300 dark:border-r-slate-600 bg-slate-100 dark:bg-slate-800 px-3 py-2 text-center text-sm font-extrabold uppercase tracking-wider text-slate-900 dark:text-slate-100 shadow-[3px_0_8px_-1px_rgba(0,0,0,0.18)]"
+                                                style={{
+                                                    left: 0,
+                                                    minWidth: AMEL_LEFT_ACTYPE + AMEL_COL_ACTYPE,
+                                                    width: AMEL_LEFT_ACTYPE + AMEL_COL_ACTYPE,
+                                                    maxWidth: AMEL_LEFT_ACTYPE + AMEL_COL_ACTYPE,
+                                                }}
                                             >
-                                                <TooltipProvider delayDuration={100}>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <span className="block cursor-help px-2 py-2">{airline.code}</span>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent side="top" className="bg-slate-900 text-xs font-semibold text-white">
-                                                            {airlineLabel(airline)}
-                                                            <TooltipArrow className="fill-slate-900" />
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
+                                                ENGINE
                                             </th>
-                                        ))
-                                    ) : (
-                                        <th
-                                            rowSpan={headerRows}
-                                            className="border-b-2 border-border bg-slate-50 px-3 py-2 text-left text-[11px] font-medium text-muted-foreground dark:bg-slate-800"
-                                        >
-                                            No airline columns selected
-                                        </th>
-                                    )}
-                                </tr>
-                                {/* Row 2: aircraft types (or a single Status column) */}
-                                {authColumnCount > 0 && (
-                                    <tr>
-                                        {visibleGroups.flatMap(({ airline, types }) => {
-                                            const color = readableColor(airline.colorBackground, airline.colorForeground);
-                                            const cols = types.length ? types : [null];
-                                            return cols.map((t, i) => (
+                                            {amelGroups.map((group, gi) => (
                                                 <th
-                                                    key={`${airline.airlineId}-${t ?? 'status'}`}
+                                                    key={group.id}
+                                                    colSpan={group.columns.length}
                                                     className={cn(
-                                                        'whitespace-nowrap border-b-2 border-l bg-white px-2 py-1.5 text-center dark:bg-slate-900',
-                                                        i === 0 ? 'border-l-border' : 'border-l-border/50'
+                                                        'border-b border-l border-border bg-slate-50 dark:bg-slate-800/90 py-2 px-1 text-center text-[11px] font-bold text-slate-800 dark:text-slate-200',
+                                                        gi === 0 && 'border-l-border'
                                                     )}
-                                                    style={{ minWidth: 76 }}
                                                 >
-                                                    {t ? (
-                                                        <div className="text-[11px] font-bold leading-snug" style={{ color }}>
-                                                            {t}
-                                                        </div>
-                                                    ) : (
-                                                        <div className="text-[11px] font-bold leading-snug text-muted-foreground">-</div>
-                                                    )}
+                                                    {group.aircraft}
                                                 </th>
-                                            ));
-                                        })}
-                                    </tr>
-                                )}
-                            </thead>
-                            <tbody>
-                                {rows.map((s, ri) => {
-                                    const status = movementStatus(s);
-                                    const cellsByAirline = matrix.cells.get(s.staffId);
-                                    const labels = licenceLabels(s);
-                                    const rowBg = ri % 2 === 0 ? 'bg-white dark:bg-card' : 'bg-slate-50 dark:bg-slate-900';
-                                    return (
-                                        <tr key={s.staffId} className="group">
-                                            <td
-                                                className={cn(stickyName, rowBg, 'z-10 border-b border-r border-border px-3 py-1.5 align-middle group-hover:bg-slate-100 dark:group-hover:bg-slate-800')}
-                                                style={{ minWidth: NAME_COL_WIDTH, width: NAME_COL_WIDTH }}
+                                            ))}
+                                        </tr>
+                                        {/* Row 2: Fixed Column Headers (No, Name, Position, A/C Type) + Scrollable Engine Codes */}
+                                        <tr>
+                                            <th
+                                                className="sticky left-0 z-40 border-b-2 border-r border-border bg-slate-100 dark:bg-slate-800 px-2 py-1.5 text-center text-[11px] font-bold text-slate-700 dark:text-slate-200"
+                                                style={{ left: 0, minWidth: AMEL_COL_NO, width: AMEL_COL_NO, maxWidth: AMEL_COL_NO }}
                                             >
-                                                <div className="flex items-center gap-2">
-                                                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-100 text-slate-500">
-                                                        <User className="h-3.5 w-3.5" />
-                                                    </div>
-                                                    <div className="min-w-0">
-                                                        <p className="truncate text-xs font-semibold leading-tight text-foreground" title={s.name}>
-                                                            {s.name}
-                                                        </p>
-                                                        <div className="mt-0.5 flex flex-wrap items-center gap-1 text-[10px] text-slate-400">
-                                                            <span className="font-mono font-bold">{s.employeeId}</span>
-                                                            {s.stationCode ? (
-                                                                <span className="rounded bg-slate-200/70 px-1 font-mono font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-200">
-                                                                    {s.stationCode}
-                                                                </span>
-                                                            ) : (
-                                                                <Pill tone="danger">No station</Pill>
-                                                            )}
-                                                            {status !== 'Permanent' && <Pill tone={MOVEMENT_TONE[status]}>{status}</Pill>}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td
-                                                className={cn(stickyLicence, rowBg, 'z-10 border-b border-r border-border px-3 py-1.5 align-middle group-hover:bg-slate-100 dark:group-hover:bg-slate-800')}
-                                                style={{ left: NAME_COL_WIDTH, minWidth: LICENCE_COL_WIDTH, width: LICENCE_COL_WIDTH }}
+                                                No.
+                                            </th>
+                                            <th
+                                                className="sticky z-40 border-b-2 border-r border-border bg-slate-100 dark:bg-slate-800 px-3 py-1.5 text-left text-[11px] font-bold text-slate-700 dark:text-slate-200"
+                                                style={{ left: AMEL_LEFT_NAME, minWidth: AMEL_COL_NAME, width: AMEL_COL_NAME, maxWidth: AMEL_COL_NAME }}
                                             >
-                                                <LicenceCell labels={labels} />
-                                            </td>
-                                            {authColumnCount === 0 ? (
-                                                <td className={cn(rowBg, 'border-b border-border')} />
-                                            ) : (
-                                                visibleGroups.flatMap(({ airline, types }) => {
-                                                    const cell = cellsByAirline?.get(airline.airlineId);
-                                                    const cols = types.length ? types : [null];
-                                                    return cols.map((t, i) => (
-                                                        <AuthCell
-                                                            key={`${airline.airlineId}-${t ?? 'all'}`}
-                                                            cell={cell}
-                                                            airline={airline}
-                                                            type={t}
-                                                            groupStart={i === 0}
-                                                        />
-                                                    ));
-                                                })
+                                                SAMS Staffs Name
+                                            </th>
+                                            <th
+                                                className="sticky z-40 border-b-2 border-r border-border bg-slate-100 dark:bg-slate-800 px-2.5 py-1.5 text-left text-[11px] font-bold text-slate-700 dark:text-slate-200"
+                                                style={{ left: AMEL_LEFT_POS, minWidth: AMEL_COL_POS, width: AMEL_COL_POS, maxWidth: AMEL_COL_POS }}
+                                            >
+                                                Position
+                                            </th>
+                                            <th
+                                                className="sticky z-40 border-b-2 border-r-2 border-r-slate-300 dark:border-r-slate-600 bg-slate-100 dark:bg-slate-800 px-2.5 py-1.5 text-left text-[11px] font-bold text-slate-700 dark:text-slate-200 shadow-[3px_0_8px_-1px_rgba(0,0,0,0.18)]"
+                                                style={{ left: AMEL_LEFT_ACTYPE, minWidth: AMEL_COL_ACTYPE, width: AMEL_COL_ACTYPE, maxWidth: AMEL_COL_ACTYPE }}
+                                            >
+                                                A/C Type
+                                            </th>
+                                            {amelGroups.flatMap((group) =>
+                                                group.columns.map((col, ci) => (
+                                                    <th
+                                                        key={col.id}
+                                                        className={cn(
+                                                            'whitespace-nowrap border-b-2 border-l border-border/70 bg-white dark:bg-slate-900 px-2 py-1.5 text-center text-[10px] font-bold text-slate-600 dark:text-slate-300',
+                                                            ci === 0 && 'border-l-border'
+                                                        )}
+                                                        style={{ minWidth: col.width || 140 }}
+                                                    >
+                                                        {col.label || col.engine}
+                                                    </th>
+                                                ))
                                             )}
                                         </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+                                    </thead>
+                                    <tbody>
+                                        {amelRows.map((s, ri) => {
+                                            const rowBg = ri % 2 === 0 ? 'bg-white dark:bg-slate-950' : 'bg-slate-100 dark:bg-slate-900';
+                                            const hoverBg = 'group-hover:bg-slate-200 dark:group-hover:bg-slate-800';
+                                            const rowNumber = (amelPagination.page - 1) * amelPagination.pageSize + ri + 1;
 
-                {/* Legend */}
-                {!isLoading && !error && rows.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-4 border-t border-border px-4 py-2.5 text-[11px] text-muted-foreground">
-                        {(['true', 'false', 'pending'] as CrsCellStatus[]).map((st) => (
-                            <span key={st} className="flex items-center gap-1.5">
-                                <StatusDot status={st} /> {CRS_STATUS_META[st].label}
+                                            return (
+                                                <tr key={s.id || s.staffNo || ri} className="group">
+                                                    {/* No. */}
+                                                    <td
+                                                        className={cn(
+                                                            'sticky left-0 z-20 h-12 border-b border-r border-border px-2 py-1 text-center align-middle text-xs font-medium text-muted-foreground',
+                                                            rowBg,
+                                                            hoverBg
+                                                        )}
+                                                        style={{ minWidth: AMEL_COL_NO, width: AMEL_COL_NO, maxWidth: AMEL_COL_NO }}
+                                                    >
+                                                        {rowNumber}
+                                                    </td>
+                                                    {/* Name */}
+                                                    <td
+                                                        className={cn(
+                                                            'sticky z-20 h-12 border-b border-r border-border px-3 py-1 text-xs font-semibold text-foreground align-middle',
+                                                            rowBg,
+                                                            hoverBg
+                                                        )}
+                                                        style={{ left: AMEL_LEFT_NAME, minWidth: AMEL_COL_NAME, width: AMEL_COL_NAME, maxWidth: AMEL_COL_NAME }}
+                                                    >
+                                                        <div className="flex items-center gap-1.5 min-w-0 w-full overflow-hidden">
+                                                            <div className="flex flex-col min-w-0 flex-1">
+                                                                <span className="truncate font-semibold text-foreground" title={s.name}>
+                                                                    {s.name}
+                                                                </span>
+                                                                {s.staffNo && (
+                                                                    <span className="text-[10px] text-muted-foreground font-mono">
+                                                                        {s.staffNo}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            {s.station && (
+                                                                <span className="shrink-0 rounded bg-slate-200 dark:bg-slate-700 px-1 py-0.2 text-[9px] font-mono font-medium text-slate-700 dark:text-slate-200">
+                                                                    {s.station}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    {/* Position */}
+                                                    <td
+                                                        className={cn(
+                                                            'sticky z-20 h-12 border-b border-r border-border px-2.5 py-1 text-xs font-bold text-sky-600 dark:text-sky-400 align-middle',
+                                                            rowBg,
+                                                            hoverBg
+                                                        )}
+                                                        style={{ left: AMEL_LEFT_POS, minWidth: AMEL_COL_POS, width: AMEL_COL_POS, maxWidth: AMEL_COL_POS }}
+                                                    >
+                                                        {s.position || '-'}
+                                                    </td>
+                                                    {/* A/C Type */}
+                                                    <td
+                                                        className={cn(
+                                                            'sticky z-20 h-12 border-b border-r-2 border-r-slate-300 dark:border-r-slate-600 px-2.5 py-1 text-xs shadow-[3px_0_8px_-1px_rgba(0,0,0,0.18)] align-middle',
+                                                            rowBg,
+                                                            hoverBg
+                                                        )}
+                                                        style={{ left: AMEL_LEFT_ACTYPE, minWidth: AMEL_COL_ACTYPE, width: AMEL_COL_ACTYPE, maxWidth: AMEL_COL_ACTYPE }}
+                                                    >
+                                                        <AmelAcTypeDisplay acType={s.aircraftType} />
+                                                    </td>
+                                                    {/* Engine Cells (UI styled matching Image 1: StatusDot + TRUE + mint background) */}
+                                                    {amelGroups.flatMap((group) =>
+                                                        group.columns.map((col, ci) => {
+                                                            const qual = s.qualifications?.[col.id];
+                                                            const isQual = Boolean(qual?.qualified);
+                                                            return (
+                                                                <td
+                                                                    key={col.id}
+                                                                    className={cn(
+                                                                        'h-12 border-b border-l border-border/50 px-1 text-center align-middle',
+                                                                        ci === 0 && 'border-l-border',
+                                                                        isQual ? 'bg-[#f0fdf4] dark:bg-emerald-950/25' : rowBg
+                                                                    )}
+                                                                    style={{ minWidth: col.width || 140 }}
+                                                                >
+                                                                    {isQual ? (
+                                                                        <div
+                                                                            className="flex flex-col items-center justify-center gap-0.5 leading-none py-1"
+                                                                            title={
+                                                                                qual?.licenceNo
+                                                                                    ? `Licence: ${qual.licenceNo}\nIssue: ${qual.issueDate || '-'}\nExpiry: ${qual.expiryDate || '-'}`
+                                                                                    : undefined
+                                                                            }
+                                                                        >
+                                                                            <div className="flex items-center gap-1">
+                                                                                <StatusDot status="true" size={8} />
+                                                                                <span className="text-[9px] font-bold uppercase text-[#15803d] dark:text-emerald-400">
+                                                                                    TRUE
+                                                                                </span>
+                                                                            </div>
+                                                                            {qual?.licenceNo && (
+                                                                                <span className="text-[9px] text-muted-foreground font-mono truncate max-w-[120px]">
+                                                                                    {qual.licenceNo}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <span className="text-xs text-muted-foreground">-</span>
+                                                                    )}
+                                                                </td>
+                                                            );
+                                                        })
+                                                    )}
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+
+                        {/* AMEL Legend & Pagination Bar */}
+                        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border px-4 py-2.5 text-xs text-muted-foreground bg-card">
+                            {/* Legend */}
+                            <div className="flex items-center gap-4 text-[11px]">
+                                <span className="flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-200">
+                                    <StatusDot status="true" size={9} /> True (Qualified)
+                                </span>
+                                <span className="flex items-center gap-1.5">
+                                    <span className="font-bold text-muted-foreground/60">-</span> Not qualified
+                                </span>
+                            </div>
+
+                            {/* Pagination */}
+                            <div className="flex items-center gap-4">
+                                {/* Rows per page */}
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-muted-foreground">Rows per page</span>
+                                    <select
+                                        value={amelPageSize}
+                                        onChange={(e) => {
+                                            setAmelPageSize(Number(e.target.value));
+                                            setAmelPage(1);
+                                        }}
+                                        className="h-7 rounded border border-border bg-background px-2 text-xs text-foreground focus:border-[#075CA2] focus:outline-none"
+                                    >
+                                        {[10, 20, 50, 100].map((size) => (
+                                            <option key={size} value={size}>
+                                                {size}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Page Range Display */}
+                                <span>
+                                    Showing{' '}
+                                    <strong className="text-foreground">
+                                        {amelPagination.totalRecords === 0
+                                            ? 0
+                                            : (amelPagination.page - 1) * amelPagination.pageSize + 1}
+                                    </strong>{' '}
+                                    to{' '}
+                                    <strong className="text-foreground">
+                                        {Math.min(amelPagination.page * amelPagination.pageSize, amelPagination.totalRecords)}
+                                    </strong>{' '}
+                                    of <strong className="text-foreground">{amelPagination.totalRecords}</strong> records
+                                </span>
+
+                                {/* Page navigation buttons */}
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        type="button"
+                                        disabled={amelPagination.page <= 1 || amelQuery.isLoading}
+                                        onClick={() => setAmelPage(1)}
+                                        className="inline-flex h-7 w-7 items-center justify-center rounded border border-border bg-card text-foreground transition hover:bg-muted disabled:opacity-40 disabled:pointer-events-none"
+                                        title="First page"
+                                    >
+                                        <ChevronsLeft className="h-3.5 w-3.5" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={amelPagination.page <= 1 || amelQuery.isLoading}
+                                        onClick={() => setAmelPage((p) => Math.max(1, p - 1))}
+                                        className="inline-flex h-7 w-7 items-center justify-center rounded border border-border bg-card text-foreground transition hover:bg-muted disabled:opacity-40 disabled:pointer-events-none"
+                                        title="Previous page"
+                                    >
+                                        <ChevronLeft className="h-3.5 w-3.5" />
+                                    </button>
+                                    <span className="px-1 font-semibold text-foreground">
+                                        {amelPagination.page} / {amelPagination.totalPages || 1}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        disabled={amelPagination.page >= amelPagination.totalPages || amelQuery.isLoading}
+                                        onClick={() => setAmelPage((p) => Math.min(amelPagination.totalPages, p + 1))}
+                                        className="inline-flex h-7 w-7 items-center justify-center rounded border border-border bg-card text-foreground transition hover:bg-muted disabled:opacity-40 disabled:pointer-events-none"
+                                        title="Next page"
+                                    >
+                                        <ChevronRight className="h-3.5 w-3.5" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={amelPagination.page >= amelPagination.totalPages || amelQuery.isLoading}
+                                        onClick={() => setAmelPage(amelPagination.totalPages)}
+                                        className="inline-flex h-7 w-7 items-center justify-center rounded border border-border bg-card text-foreground transition hover:bg-muted disabled:opacity-40 disabled:pointer-events-none"
+                                        title="Last page"
+                                    >
+                                        <ChevronsRight className="h-3.5 w-3.5" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </TabsContent>
+
+                    {/* ══════════════════════════════════════════════════════════════
+                        TAB 2: Aircraft Licence (Reference Image 2 - Customer Auths)
+                       ══════════════════════════════════════════════════════════════ */}
+                    {/* ══════════════════════════════════════════════════════════════
+                        TAB 2: Aircraft Licence (Connected to /roster/certifying-staff/aircraft-licence API)
+                       ══════════════════════════════════════════════════════════════ */}
+                    <TabsContent value="licence" className="m-0 focus-visible:outline-none">
+                        {/* Filter bar for Aircraft Licence */}
+                        <div className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3">
+                            <div className="relative min-w-[200px] max-w-[300px] flex-1">
+                                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                                <input
+                                    type="search"
+                                    value={licenceSearch}
+                                    onChange={(e) => {
+                                        setLicenceSearch(e.target.value);
+                                        setLicencePage(1);
+                                    }}
+                                    placeholder="Search staff name, ID or position..."
+                                    className="h-8 w-full rounded-lg border border-border bg-card pl-8 pr-3 text-xs placeholder:text-muted-foreground/60 focus:border-[#075CA2]/40 focus:outline-none focus:ring-2 focus:ring-[#075CA2]/20"
+                                />
+                            </div>
+                            <StationSelect
+                                stations={stations}
+                                value={licenceStation}
+                                onChange={(val) => {
+                                    setLicenceStation(val);
+                                    setLicencePage(1);
+                                }}
+                                allowAll
+                                extraOptions={[{ value: UNASSIGNED, label: 'No station' }]}
+                            />
+                            {licenceAircraftTypeOptions.length > 0 && (
+                                <label className="flex items-center gap-1.5 text-xs">
+                                    <span className="text-muted-foreground font-medium">A/C Type</span>
+                                    <select
+                                        value={licenceAircraftType}
+                                        onChange={(e) => {
+                                            setLicenceAircraftType(e.target.value);
+                                            setLicencePage(1);
+                                        }}
+                                        className="h-8 rounded-lg border border-border bg-card px-2.5 text-xs text-foreground focus:border-[#075CA2]/40 focus:outline-none focus:ring-2 focus:ring-[#075CA2]/20"
+                                    >
+                                        <option value="">All A/C Types</option>
+                                        {licenceAircraftTypeOptions.map((t) => (
+                                            <option key={t} value={t}>
+                                                {t}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+                            )}
+                            {isLicenceFiltering && (
+                                <button
+                                    type="button"
+                                    onClick={clearLicenceFilters}
+                                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 text-[11px] font-semibold text-red-500 transition-all hover:bg-red-100 dark:bg-red-950/30 dark:border-red-800"
+                                >
+                                    <X className="h-3 w-3" />
+                                    Clear
+                                </button>
+                            )}
+                            <span className="ml-auto text-xs text-muted-foreground">
+                                {licencePagination.totalRecords} staff · {licenceAirlines.length} Airlines · {totalLicenceSubtypes} Subtype Columns
                             </span>
-                        ))}
-                        <span className="flex items-center gap-1.5">
-                            <span className="font-bold">-</span> No authorization
-                        </span>
-                        {useMock && <span className="ml-auto font-semibold text-amber-600">Showing mock data</span>}
-                    </div>
-                )}
+                        </div>
+
+                        {/* Title Subheader matching Image 2 */}
+                        <div className="flex items-center justify-between border-b border-border bg-slate-50 dark:bg-slate-800/50 px-4 py-2">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-100">
+                                    SAMS AIRCRAFT LICENCE CERTIFYING STAFFS
+                                </span>
+                                <span className="rounded bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300 text-[10px] font-bold px-1.5 py-0.5">
+                                    Customer & Airline Authorizations
+                                </span>
+                            </div>
+                            {licenceQuery.isFetching && !licenceQuery.isLoading && (
+                                <span className="text-[11px] text-muted-foreground animate-pulse">Refreshing...</span>
+                            )}
+                        </div>
+
+                        {licenceQuery.isLoading ? (
+                            <LoadingBlock label="Loading Aircraft Licence data..." />
+                        ) : licenceQuery.error ? (
+                            <EmptyBlock>Failed to load staff: {(licenceQuery.error as Error).message}</EmptyBlock>
+                        ) : licenceRows.length === 0 ? (
+                            <EmptyBlock>No staff match these filters.</EmptyBlock>
+                        ) : (
+                            <div className="max-h-[calc(100vh-320px)] overflow-auto">
+                                <table className="w-full border-separate border-spacing-0 text-xs">
+                                    <thead className="sticky top-0 z-30">
+                                        {/* Row 1: Fixed Airlines (sticky left colSpan 4) + Airline Headers */}
+                                        <tr>
+                                            <th
+                                                colSpan={4}
+                                                className="sticky left-0 z-40 border-b border-r-2 border-r-slate-300 dark:border-r-slate-600 bg-slate-100 dark:bg-slate-800 px-3 py-2 text-center text-sm font-extrabold uppercase tracking-wider text-slate-900 dark:text-slate-100 shadow-[3px_0_8px_-1px_rgba(0,0,0,0.18)]"
+                                                style={{
+                                                    left: 0,
+                                                    minWidth: AMEL_LEFT_ACTYPE + AMEL_COL_ACTYPE,
+                                                    width: AMEL_LEFT_ACTYPE + AMEL_COL_ACTYPE,
+                                                    maxWidth: AMEL_LEFT_ACTYPE + AMEL_COL_ACTYPE,
+                                                }}
+                                            >
+                                                AIRLINES
+                                            </th>
+                                            {licenceAirlines.map((al, ai) => {
+                                                const subCount = al.aircraftTypes.reduce(
+                                                    (sum, at) => sum + Math.max(at.subtypes.length, 1),
+                                                    0
+                                                );
+                                                return (
+                                                    <th
+                                                        key={al.airlineId}
+                                                        colSpan={Math.max(subCount, 1)}
+                                                        className={cn(
+                                                            'whitespace-nowrap border-b border-l border-border bg-slate-50 dark:bg-slate-800/90 px-3 py-2 text-center text-xs font-bold uppercase tracking-wide text-slate-800 dark:text-slate-200 align-middle',
+                                                            ai === 0 && 'border-l-border'
+                                                        )}
+                                                    >
+                                                        {al.airlineName} {al.airlineCode ? `(${al.airlineCode})` : ''}
+                                                    </th>
+                                                );
+                                            })}
+                                        </tr>
+                                        {/* Row 2: Fixed Column Headers (No, Name, Position, A/C Type with rowSpan=2) + Aircraft Types */}
+                                        <tr>
+                                            <th
+                                                rowSpan={2}
+                                                className="sticky left-0 z-40 border-b-2 border-r border-border bg-slate-100 dark:bg-slate-800 px-2 py-1.5 text-center text-[11px] font-bold text-slate-700 dark:text-slate-200 align-middle"
+                                                style={{ left: 0, minWidth: AMEL_COL_NO, width: AMEL_COL_NO, maxWidth: AMEL_COL_NO }}
+                                            >
+                                                No.
+                                            </th>
+                                            <th
+                                                rowSpan={2}
+                                                className="sticky z-40 border-b-2 border-r border-border bg-slate-100 dark:bg-slate-800 px-3 py-1.5 text-left text-[11px] font-bold text-slate-700 dark:text-slate-200 align-middle"
+                                                style={{ left: AMEL_LEFT_NAME, minWidth: AMEL_COL_NAME, width: AMEL_COL_NAME, maxWidth: AMEL_COL_NAME }}
+                                            >
+                                                SAMS Staffs Name
+                                            </th>
+                                            <th
+                                                rowSpan={2}
+                                                className="sticky z-40 border-b-2 border-r border-border bg-slate-100 dark:bg-slate-800 px-2.5 py-1.5 text-left text-[11px] font-bold text-slate-700 dark:text-slate-200 align-middle"
+                                                style={{ left: AMEL_LEFT_POS, minWidth: AMEL_COL_POS, width: AMEL_COL_POS, maxWidth: AMEL_COL_POS }}
+                                            >
+                                                Position
+                                            </th>
+                                            <th
+                                                rowSpan={2}
+                                                className="sticky z-40 border-b-2 border-r-2 border-r-slate-300 dark:border-r-slate-600 bg-slate-100 dark:bg-slate-800 px-2.5 py-1.5 text-left text-[11px] font-bold text-slate-700 dark:text-slate-200 shadow-[3px_0_8px_-1px_rgba(0,0,0,0.18)] align-middle"
+                                                style={{ left: AMEL_LEFT_ACTYPE, minWidth: AMEL_COL_ACTYPE, width: AMEL_COL_ACTYPE, maxWidth: AMEL_COL_ACTYPE }}
+                                            >
+                                                A/C Type
+                                            </th>
+                                            {licenceAirlines.flatMap((al) =>
+                                                al.aircraftTypes.map((at) => (
+                                                    <th
+                                                        key={`${al.airlineId}-${at.typeId}`}
+                                                        colSpan={Math.max(at.subtypes.length, 1)}
+                                                        className="border-b border-l border-border bg-slate-50 dark:bg-slate-800/90 px-2 py-1.5 text-center text-[11px] font-bold text-slate-800 dark:text-slate-200 align-middle"
+                                                    >
+                                                        {at.typeName}
+                                                    </th>
+                                                ))
+                                            )}
+                                        </tr>
+                                        {/* Row 3: Subtype / Engine Columns */}
+                                        <tr>
+                                            {licenceAirlines.flatMap((al) =>
+                                                al.aircraftTypes.flatMap((at) =>
+                                                    at.subtypes.length > 0 ? (
+                                                        at.subtypes.map((st, si) => (
+                                                            <th
+                                                                key={st.id}
+                                                                className={cn(
+                                                                    'whitespace-nowrap border-b-2 border-l border-border/70 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-center text-[10px] font-bold text-slate-600 dark:text-slate-300 align-middle',
+                                                                    si === 0 && 'border-l-border'
+                                                                )}
+                                                                style={{ minWidth: st.width || 140 }}
+                                                            >
+                                                                {st.label || st.engine}
+                                                            </th>
+                                                        ))
+                                                    ) : (
+                                                        <th
+                                                            key={`${al.airlineId}-${at.typeId}-empty`}
+                                                            className="whitespace-nowrap border-b-2 border-l border-border/70 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-center text-[10px] font-bold text-slate-600 dark:text-slate-300 align-middle"
+                                                            style={{ minWidth: 100 }}
+                                                        >
+                                                            -
+                                                        </th>
+                                                    )
+                                                )
+                                            )}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {licenceRows.map((s, ri) => {
+                                            const rowBg = ri % 2 === 0 ? 'bg-white dark:bg-slate-950' : 'bg-slate-100 dark:bg-slate-900';
+                                            const hoverBg = 'group-hover:bg-slate-200 dark:group-hover:bg-slate-800';
+                                            const rowNumber = (licencePagination.page - 1) * licencePagination.pageSize + ri + 1;
+
+                                            return (
+                                                <tr key={s.id || s.staffNo || ri} className="group">
+                                                    {/* No. */}
+                                                    <td
+                                                        className={cn(
+                                                            'sticky left-0 z-20 h-12 border-b border-r border-border px-2 py-1 text-center align-middle text-xs font-medium text-muted-foreground',
+                                                            rowBg,
+                                                            hoverBg
+                                                        )}
+                                                        style={{ minWidth: AMEL_COL_NO, width: AMEL_COL_NO, maxWidth: AMEL_COL_NO }}
+                                                    >
+                                                        {rowNumber}
+                                                    </td>
+                                                    {/* Name */}
+                                                    <td
+                                                        className={cn(
+                                                            'sticky z-20 h-12 border-b border-r border-border px-3 py-1 text-xs font-semibold text-foreground align-middle',
+                                                            rowBg,
+                                                            hoverBg
+                                                        )}
+                                                        style={{ left: AMEL_LEFT_NAME, minWidth: AMEL_COL_NAME, width: AMEL_COL_NAME, maxWidth: AMEL_COL_NAME }}
+                                                    >
+                                                        <div className="flex items-center gap-1.5 min-w-0 w-full overflow-hidden">
+                                                            <div className="flex flex-col min-w-0 flex-1">
+                                                                <span className="truncate font-semibold text-foreground" title={s.name}>
+                                                                    {s.name}
+                                                                </span>
+                                                                {s.staffNo && (
+                                                                    <span className="text-[10px] text-muted-foreground font-mono">
+                                                                        {s.staffNo}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            {s.station && (
+                                                                <span className="shrink-0 rounded bg-slate-200 dark:bg-slate-700 px-1 py-0.2 text-[9px] font-mono font-medium text-slate-700 dark:text-slate-200">
+                                                                    {s.station}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    {/* Position */}
+                                                    <td
+                                                        className={cn(
+                                                            'sticky z-20 h-12 border-b border-r border-border px-2.5 py-1 text-xs font-bold text-sky-600 dark:text-sky-400 align-middle',
+                                                            rowBg,
+                                                            hoverBg
+                                                        )}
+                                                        style={{ left: AMEL_LEFT_POS, minWidth: AMEL_COL_POS, width: AMEL_COL_POS, maxWidth: AMEL_COL_POS }}
+                                                    >
+                                                        {s.position || '-'}
+                                                    </td>
+                                                    {/* A/C Type */}
+                                                    <td
+                                                        className={cn(
+                                                            'sticky z-20 h-12 border-b border-r-2 border-r-slate-300 dark:border-r-slate-600 px-2.5 py-1 text-xs shadow-[3px_0_8px_-1px_rgba(0,0,0,0.18)] align-middle',
+                                                            rowBg,
+                                                            hoverBg
+                                                        )}
+                                                        style={{ left: AMEL_LEFT_ACTYPE, minWidth: AMEL_COL_ACTYPE, width: AMEL_COL_ACTYPE, maxWidth: AMEL_COL_ACTYPE }}
+                                                    >
+                                                        <AmelAcTypeDisplay acType={s.aircraftType} />
+                                                    </td>
+                                                    {/* Airline Subtype Authorizations */}
+                                                    {licenceAirlines.flatMap((al) =>
+                                                        al.aircraftTypes.flatMap((at) =>
+                                                            at.subtypes.length > 0 ? (
+                                                                at.subtypes.map((st, si) => {
+                                                                    const auth = s.authorizations?.[al.airlineId]?.[st.id];
+                                                                    const status = auth?.status;
+                                                                    const isTrue = status === 'true';
+                                                                    const isFalse = status === 'false';
+                                                                    const isPending = status === 'pending';
+
+                                                                    return (
+                                                                        <td
+                                                                            key={st.id}
+                                                                            className={cn(
+                                                                                'h-12 border-b border-l border-border/50 px-1 text-center align-middle',
+                                                                                si === 0 && 'border-l-border',
+                                                                                isTrue
+                                                                                    ? 'bg-[#f0fdf4] dark:bg-emerald-950/25'
+                                                                                    : isFalse
+                                                                                      ? 'bg-rose-50/40 dark:bg-rose-950/20'
+                                                                                      : isPending
+                                                                                        ? 'bg-amber-50/40 dark:bg-amber-950/20'
+                                                                                        : rowBg
+                                                                            )}
+                                                                            style={{ minWidth: st.width || 140 }}
+                                                                        >
+                                                                            {auth ? (
+                                                                                <div
+                                                                                    className="flex flex-col items-center justify-center gap-0.5 leading-none py-1"
+                                                                                    title={
+                                                                                        auth.authNo || auth.expiryDate
+                                                                                            ? `Auth No: ${auth.authNo || '-'}\nExpiry: ${auth.expiryDate || '-'}`
+                                                                                            : undefined
+                                                                                    }
+                                                                                >
+                                                                                    <div className="flex items-center gap-1">
+                                                                                        {(isTrue || isFalse || isPending) && (
+                                                                                            <StatusDot
+                                                                                                status={isTrue ? 'true' : isFalse ? 'false' : 'pending'}
+                                                                                                size={8}
+                                                                                            />
+                                                                                        )}
+                                                                                        <span
+                                                                                            className={cn(
+                                                                                                'text-[9px] font-bold uppercase',
+                                                                                                isTrue && 'text-[#15803d] dark:text-emerald-400',
+                                                                                                isFalse && 'text-red-600 dark:text-red-400',
+                                                                                                isPending && 'text-amber-600 dark:text-amber-400',
+                                                                                                !isTrue && !isFalse && !isPending && 'text-muted-foreground'
+                                                                                            )}
+                                                                                        >
+                                                                                            {isTrue ? 'TRUE' : isFalse ? 'FALSE' : isPending ? 'PENDING' : status}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                    {auth.authNo && (
+                                                                                        <span className="text-[9px] text-muted-foreground font-mono truncate max-w-[120px]">
+                                                                                            {auth.authNo}
+                                                                                        </span>
+                                                                                    )}
+                                                                                    {auth.expiryDate && (
+                                                                                        <span className="text-[8px] text-muted-foreground/75 font-mono truncate max-w-[120px]">
+                                                                                            Exp: {auth.expiryDate}
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
+                                                                            ) : (
+                                                                                <span className="text-xs text-muted-foreground">-</span>
+                                                                            )}
+                                                                        </td>
+                                                                    );
+                                                                })
+                                                            ) : (
+                                                                <td
+                                                                    key={`${al.airlineId}-${at.typeId}-empty-td`}
+                                                                    className={cn('h-12 border-b border-l border-border/50 text-center align-middle', rowBg)}
+                                                                >
+                                                                    <span className="text-xs text-muted-foreground">-</span>
+                                                                </td>
+                                                            )
+                                                        )
+                                                    )}
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+
+                        {/* Aircraft Licence Legend & Pagination Bar */}
+                        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border px-4 py-2.5 text-xs text-muted-foreground bg-card">
+                            {/* Legend */}
+                            <div className="flex items-center gap-4 text-[11px]">
+                                <span className="flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-200">
+                                    <StatusDot status="true" size={9} /> True (Authorized)
+                                </span>
+                                <span className="flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-200">
+                                    <StatusDot status="false" size={9} /> False (Inactive / Expired)
+                                </span>
+                                <span className="flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-200">
+                                    <StatusDot status="pending" size={9} /> Pending
+                                </span>
+                                <span className="flex items-center gap-1.5">
+                                    <span className="font-bold text-muted-foreground/60">-</span> No authorization
+                                </span>
+                            </div>
+
+                            {/* Pagination */}
+                            <div className="flex items-center gap-4">
+                                {/* Rows per page */}
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-muted-foreground">Rows per page</span>
+                                    <select
+                                        value={licencePageSize}
+                                        onChange={(e) => {
+                                            setLicencePageSize(Number(e.target.value));
+                                            setLicencePage(1);
+                                        }}
+                                        className="h-7 rounded border border-border bg-background px-2 text-xs text-foreground focus:border-[#075CA2] focus:outline-none"
+                                    >
+                                        {[10, 20, 50, 100].map((size) => (
+                                            <option key={size} value={size}>
+                                                {size}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Page Range Display */}
+                                <span>
+                                    Showing{' '}
+                                    <strong className="text-foreground">
+                                        {licencePagination.totalRecords === 0
+                                            ? 0
+                                            : (licencePagination.page - 1) * licencePagination.pageSize + 1}
+                                    </strong>{' '}
+                                    to{' '}
+                                    <strong className="text-foreground">
+                                        {Math.min(licencePagination.page * licencePagination.pageSize, licencePagination.totalRecords)}
+                                    </strong>{' '}
+                                    of <strong className="text-foreground">{licencePagination.totalRecords}</strong> records
+                                </span>
+
+                                {/* Page navigation buttons */}
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        type="button"
+                                        disabled={licencePagination.page <= 1 || licenceQuery.isLoading}
+                                        onClick={() => setLicencePage(1)}
+                                        className="inline-flex h-7 w-7 items-center justify-center rounded border border-border bg-card text-foreground transition hover:bg-muted disabled:opacity-40 disabled:pointer-events-none"
+                                        title="First page"
+                                    >
+                                        <ChevronsLeft className="h-3.5 w-3.5" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={licencePagination.page <= 1 || licenceQuery.isLoading}
+                                        onClick={() => setLicencePage((p) => Math.max(1, p - 1))}
+                                        className="inline-flex h-7 w-7 items-center justify-center rounded border border-border bg-card text-foreground transition hover:bg-muted disabled:opacity-40 disabled:pointer-events-none"
+                                        title="Previous page"
+                                    >
+                                        <ChevronLeft className="h-3.5 w-3.5" />
+                                    </button>
+                                    <span className="px-1 font-semibold text-foreground">
+                                        {licencePagination.page} / {licencePagination.totalPages || 1}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        disabled={licencePagination.page >= licencePagination.totalPages || licenceQuery.isLoading}
+                                        onClick={() => setLicencePage((p) => Math.min(licencePagination.totalPages, p + 1))}
+                                        className="inline-flex h-7 w-7 items-center justify-center rounded border border-border bg-card text-foreground transition hover:bg-muted disabled:opacity-40 disabled:pointer-events-none"
+                                        title="Next page"
+                                    >
+                                        <ChevronRight className="h-3.5 w-3.5" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={licencePagination.page >= licencePagination.totalPages || licenceQuery.isLoading}
+                                        onClick={() => setLicencePage(licencePagination.totalPages)}
+                                        className="inline-flex h-7 w-7 items-center justify-center rounded border border-border bg-card text-foreground transition hover:bg-muted disabled:opacity-40 disabled:pointer-events-none"
+                                        title="Last page"
+                                    >
+                                        <ChevronsRight className="h-3.5 w-3.5" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </TabsContent>
+                </Tabs>
             </Card>
         </div>
     );

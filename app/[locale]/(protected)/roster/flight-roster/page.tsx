@@ -3,9 +3,12 @@
 import { useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import '@/lib/dayjs';
-import { AlignStartVertical, CalendarRange, Check, RotateCcw, SlidersHorizontal, Table as TableIcon } from 'lucide-react';
+import { AlignStartVertical, CalendarRange, Check, Loader2, Plus, RotateCcw, SlidersHorizontal, SquarePen, Table as TableIcon } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
+import CreateProject from '@/app/[locale]/(protected)/flight/create-project';
+import EditFlight from '@/app/[locale]/(protected)/flight/edit-project';
 import { WeekFlightTimeline } from '@/components/flight-timeline/WeekFlightTimeline';
 import { CustomFlightTimeline } from '@/components/flight-timeline/CustomFlightTimeline';
 import { TimelineLegend } from '@/components/flight-timeline/TimelineLegend';
@@ -13,6 +16,7 @@ import {
     getWeekStart,
     getMissingStaff,
     isFlightCancelled,
+    isFlightPlanning,
     formatFlightLabel,
     getFlightLocalRange,
     getFlightColors,
@@ -85,13 +89,13 @@ function Chip({
             aria-pressed={active}
             style={fill ? { background: fill.background, color: fill.color } : undefined}
             className={cn(
-                'inline-flex h-7 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 text-xs font-semibold transition-all',
+                'inline-flex h-7 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-md border px-2.5 text-xs font-semibold transition-all',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075CA2]/60',
                 fill
                     ? cn('border-black/10 hover:brightness-95', active && 'ring-2 ring-[#075CA2] ring-offset-1 ring-offset-card')
                     : active
-                      ? 'border-[#075CA2] bg-[#075CA2]/10 text-[#075CA2] dark:text-sky-300'
-                      : 'border-border bg-card text-muted-foreground hover:border-[#075CA2]/40 hover:text-foreground',
+                        ? 'border-[#075CA2] bg-[#075CA2]/10 text-[#075CA2] dark:text-sky-300'
+                        : 'border-border bg-card text-muted-foreground hover:border-[#075CA2]/40 hover:text-foreground',
                 dimmed && !active && 'opacity-45 hover:opacity-80'
             )}
         >
@@ -104,7 +108,7 @@ function Chip({
             {count !== undefined && (
                 <span
                     className={cn(
-                        'rounded-full px-1.5 text-[10px] leading-4 tabular-nums',
+                        'rounded-md px-1.5 text-[10px] leading-4 tabular-nums',
                         fill ? 'bg-black/10' : active ? 'bg-[#075CA2]/15' : 'bg-muted'
                     )}
                 >
@@ -118,20 +122,30 @@ function Chip({
 /** Values to chips with counts; a chip filters when selected, none selected = all. */
 function useChipFilter(flights: FlightItem[], keyOf: (f: FlightItem) => string) {
     const [selected, setSelected] = useState<Set<string>>(new Set());
+
     const counts = useMemo(() => {
         const map = new Map<string, number>();
         flights.forEach((f) => map.set(keyOf(f), (map.get(keyOf(f)) ?? 0) + 1));
         return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [flights]);
+
+    // Prune any selected keys that no longer exist in the current flights dataset
+    const validSelected = useMemo(() => {
+        const available = new Set(counts.map(([k]) => k));
+        return new Set([...selected].filter((k) => available.has(k)));
+    }, [counts, selected]);
+
     const toggle = (key: string) =>
         setSelected((prev) => {
-            const next = new Set(prev);
+            const next = new Set(validSelected);
             next.has(key) ? next.delete(key) : next.add(key);
             return next;
         });
-    const matches = (f: FlightItem) => selected.size === 0 || selected.has(keyOf(f));
-    return { counts, selected, toggle, matches, reset: () => setSelected(new Set()) };
+
+    const matches = (f: FlightItem) => validSelected.size === 0 || validSelected.has(keyOf(f));
+
+    return { counts, selected: validSelected, toggle, matches, reset: () => setSelected(new Set()) };
 }
 
 type ChipFilter = ReturnType<typeof useChipFilter>;
@@ -181,20 +195,55 @@ export default function FlightRosterPage() {
     /** Selected day for the Day view, as offset from weekStart (0 = Mon). Kept when changing week. */
     const [dayOffset, setDayOffset] = useState(() => todayOffsetIn(getWeekStart(new Date())));
     const [minuteScale, setMinuteScale] = useState(60);
+    const [showPlanning, setShowPlanning] = useState(true);
+    const [showCurrent, setShowCurrent] = useState(true);
+    const [openAddFlight, setOpenAddFlight] = useState(false);
+    const [openEditFlight, setOpenEditFlight] = useState(false);
+    const [editFlightId, setEditFlightId] = useState<number | null>(null);
+
+    const togglePlanning = (val?: boolean) => {
+        setShowPlanning((prev) => {
+            const next = typeof val === 'boolean' ? val : !prev;
+            if (!next && !showCurrent) setShowCurrent(true);
+            return next;
+        });
+    };
+
+    const toggleCurrent = (val?: boolean) => {
+        setShowCurrent((prev) => {
+            const next = typeof val === 'boolean' ? val : !prev;
+            if (!next && !showPlanning) setShowPlanning(true);
+            return next;
+        });
+    };
+
+    const onEditFlightClose = () => {
+        setEditFlightId(null);
+        setOpenEditFlight(false);
+    };
+
     const selectedDate = useMemo(() => dayjs(weekStart).add(dayOffset, 'day').toDate(), [weekStart, dayOffset]);
 
     const { data: stationsResp } = useStations();
     const stations = useMemo(() => (stationsResp?.responseData ?? []).filter((s) => !s.isdelete), [stationsResp]);
     const { raw: flights, isLoading } = useRosterFlights(stationCode, weekStart);
 
+    const planningCount = useMemo(() => flights.filter(isFlightPlanning).length, [flights]);
+    const currentCount = useMemo(() => flights.length - planningCount, [flights.length, planningCount]);
+
     const carrier = useChipFilter(flights, (f) => f.airlineObj?.code || '—');
     const aircraft = useChipFilter(flights, aircraftOf);
-    const status = useChipFilter(flights, statusOf);
 
     const visible = useMemo(
-        () => flights.filter((f) => carrier.matches(f) && aircraft.matches(f) && status.matches(f)),
+        () =>
+            flights.filter((f) => {
+                const isPlanning = isFlightPlanning(f);
+                if (isPlanning && !showPlanning) return false;
+                if (!isPlanning && !showCurrent) return false;
+                return carrier.matches(f) && aircraft.matches(f);
+            }),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [flights, carrier.selected, aircraft.selected, status.selected]
+        [flights, showPlanning, showCurrent, carrier.selected, aircraft.selected]
     );
 
     const active = visible.filter((f) => !isFlightCancelled(f));
@@ -238,10 +287,20 @@ export default function FlightRosterPage() {
         });
     }, [visible, weekStart]);
 
-    const hasFilter = carrier.selected.size + aircraft.selected.size + status.selected.size > 0;
+    const hasFilter =
+        carrier.selected.size + aircraft.selected.size > 0 ||
+        !showPlanning ||
+        !showCurrent;
 
     return (
         <div className="space-y-4">
+            <CreateProject open={openAddFlight} setOpen={setOpenAddFlight} />
+            <EditFlight
+                open={openEditFlight}
+                setOpen={setOpenEditFlight}
+                flightInfosId={editFlightId}
+                onClose={onEditFlightClose}
+            />
             <Card className="overflow-hidden">
                 <RosterHeader
                     icon={<CalendarRange className="h-5 w-5" />}
@@ -273,13 +332,38 @@ export default function FlightRosterPage() {
                             ))}
                         </div>
                     </div>
+                    <button
+                        type="button"
+                        onClick={() => setOpenAddFlight(true)}
+                        className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg bg-[#075CA2] px-3.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-[#075CA2]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075CA2]/50"
+                    >
+                        <Plus className="h-4 w-4" />
+                        <span>Add Flight</span>
+                    </button>
                 </RosterHeader>
 
                 <div className="grid grid-cols-2 gap-3 px-5 py-4 md:grid-cols-4">
-                    <StatTile label="Flights" value={active.length} unit="this week" />
-                    <StatTile label="Carriers" value={carrier.counts.length} />
-                    <StatTile label="Missing CS" value={missingCs} unit="flights" tone={missingCs > 0 ? 'danger' : 'success'} />
-                    <StatTile label="Missing Mechanic" value={missingMech} unit="flights" tone={missingMech > 0 ? 'warning' : 'success'} />
+                    <StatTile
+                        label="Flights"
+                        value={isLoading ? <Loader2 className="h-6 w-6 animate-spin text-[#075CA2]/60" /> : active.length}
+                        unit="this week"
+                    />
+                    <StatTile
+                        label="Carriers"
+                        value={isLoading ? <Loader2 className="h-6 w-6 animate-spin text-[#075CA2]/60" /> : carrier.counts.length}
+                    />
+                    <StatTile
+                        label="Missing CS"
+                        value={isLoading ? <Loader2 className="h-6 w-6 animate-spin text-[#075CA2]/60" /> : missingCs}
+                        unit="flights"
+                        tone={missingCs > 0 ? 'danger' : 'success'}
+                    />
+                    <StatTile
+                        label="Missing MECH"
+                        value={isLoading ? <Loader2 className="h-6 w-6 animate-spin text-[#075CA2]/60" /> : missingMech}
+                        unit="flights"
+                        tone={missingMech > 0 ? 'warning' : 'success'}
+                    />
                 </div>
 
                 <div className="space-y-2.5 border-t border-border px-5 py-3">
@@ -287,25 +371,59 @@ export default function FlightRosterPage() {
                         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                             <SlidersHorizontal className="h-4 w-4 text-[#075CA2]" />
                             Filters
-                            <span className="text-xs font-normal text-muted-foreground">
-                                Showing <span className="font-semibold tabular-nums text-foreground">{visible.length}</span> of{' '}
-                                <span className="tabular-nums">{flights.length}</span> flights
-                            </span>
+                            {isLoading ? (
+                                <span className="inline-flex items-center gap-1.5 text-xs font-normal text-muted-foreground">
+                                    <Loader2 className="h-3 w-3 animate-spin text-[#075CA2]" />
+                                    Loading flights...
+                                </span>
+                            ) : (
+                                <span className="text-xs font-normal text-muted-foreground">
+                                    Showing <span className="font-semibold tabular-nums text-foreground">{visible.length}</span> of{' '}
+                                    <span className="tabular-nums">{flights.length}</span> flights
+                                </span>
+                            )}
                         </div>
-                        {hasFilter && (
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    carrier.reset();
-                                    aircraft.reset();
-                                    status.reset();
-                                }}
-                                className="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-border px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-[#075CA2]/40 hover:text-[#075CA2]"
+                        <div className="flex items-center gap-1.5">
+                            <label
+                                htmlFor="filter-status-planning"
+                                className={cn(
+                                    'inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-all select-none',
+                                    showPlanning
+                                        ? 'border-[#075CA2] bg-[#075CA2]/10 text-[#075CA2] dark:text-sky-300'
+                                        : 'border-border bg-card text-muted-foreground hover:border-[#075CA2]/40 hover:text-foreground'
+                                )}
                             >
-                                <RotateCcw className="h-3.5 w-3.5" />
-                                Reset filters
-                            </button>
-                        )}
+                                <Checkbox
+                                    id="filter-status-planning"
+                                    checked={showPlanning}
+                                    onCheckedChange={(checked) => togglePlanning(checked === true)}
+                                    color="primary"
+                                    className="h-3.5 w-3.5 data-[state=checked]:border-[#075CA2] data-[state=checked]:bg-[#075CA2]"
+                                />
+                                <span>Planning</span>
+                                <span className="tabular-nums text-[11px] opacity-75">({planningCount})</span>
+                            </label>
+
+                            <label
+                                htmlFor="filter-status-current"
+                                className={cn(
+                                    'inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-all select-none',
+                                    showCurrent
+                                        ? 'border-[#075CA2] bg-[#075CA2]/10 text-[#075CA2] dark:text-sky-300'
+                                        : 'border-border bg-card text-muted-foreground hover:border-[#075CA2]/40 hover:text-foreground'
+                                )}
+                            >
+                                <Checkbox
+                                    id="filter-status-current"
+                                    checked={showCurrent}
+                                    onCheckedChange={(checked) => toggleCurrent(checked === true)}
+                                    color="primary"
+                                    className="h-3.5 w-3.5 data-[state=checked]:border-[#075CA2] data-[state=checked]:bg-[#075CA2]"
+                                />
+                                <span>Current</span>
+                                <span className="tabular-nums text-[11px] opacity-75">({currentCount})</span>
+                            </label>
+                        </div>
                     </div>
                     <ChipRow
                         label="Carriers"
@@ -319,7 +437,23 @@ export default function FlightRosterPage() {
                         total={flights.length}
                         chipProps={(code) => ({ fill: aircraftColor.get(code) })}
                     />
-                    <ChipRow label="Status" filter={status} total={flights.length} />
+                    {hasFilter && (
+                        <div className="flex justify-end pt-0.5">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    carrier.reset();
+                                    aircraft.reset();
+                                    setShowPlanning(true);
+                                    setShowCurrent(true);
+                                }}
+                                className="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-border px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-[#075CA2]/40 hover:text-[#075CA2]"
+                            >
+                                <RotateCcw className="h-3.5 w-3.5" />
+                                Reset filters
+                            </button>
+                        </div>
+                    )}
                 </div>
             </Card>
 
@@ -370,8 +504,25 @@ export default function FlightRosterPage() {
                 )}
                 {isLoading ? (
                     <LoadingBlock label="Loading flights..." />
-                ) : visible.length === 0 ? (
+                ) : flights.length === 0 ? (
                     <EmptyBlock>No flights for this station and week.</EmptyBlock>
+                ) : visible.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+                        <p className="text-sm text-muted-foreground">No flights match the current filter selection.</p>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                carrier.reset();
+                                aircraft.reset();
+                                setShowPlanning(true);
+                                setShowCurrent(true);
+                            }}
+                            className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-border px-3 text-xs font-medium text-foreground transition-colors hover:border-[#075CA2] hover:text-[#075CA2]"
+                        >
+                            <RotateCcw className="h-3.5 w-3.5" />
+                            Reset filters
+                        </button>
+                    </div>
                 ) : view === 'week' ? (
                     <WeekFlightTimeline flights={visible} weekStart={weekStart} isFullscreen={false} colorBy="acType" />
                 ) : view === 'day' ? (
@@ -385,11 +536,17 @@ export default function FlightRosterPage() {
                     />
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full min-w-[1100px] border-collapse">
+                        <table className="w-full min-w-[1180px] border-collapse">
                             <thead className="bg-muted/50">
                                 <tr>
-                                    {['Day', 'Airline', 'Flight No.', 'Route', 'A/C Type', 'Engine', 'STA', 'STD', 'Ground', 'Certifying Staff', 'Mechanic', 'Status'].map((h) => (
-                                        <th key={h} className={th}>{h}</th>
+                                    {['Day', 'Airline', 'Flight No.', 'Route', 'A/C Type', 'Engine', 'STA', 'STD', 'Ground', 'CS', 'MECH', 'Status', 'Action'].map((h) => (
+                                        <th
+                                            key={h}
+                                            title={h === 'CS' ? 'Certifying Staff' : h === 'MECH' ? 'Mechanic' : undefined}
+                                            className={cn(th, h === 'Action' && 'text-center')}
+                                        >
+                                            {h}
+                                        </th>
                                     ))}
                                 </tr>
                             </thead>
@@ -399,6 +556,7 @@ export default function FlightRosterPage() {
                                     const ground = range ? range.end.diff(range.start, 'minute') : null;
                                     const cancelled = isFlightCancelled(f);
                                     const missing = getMissingStaff(f);
+                                    const flightId = f.flightInfosId ?? f.flightsId ?? (f as any).id ?? null;
                                     return (
                                         <tr key={`${f.flightsId}-${i}`} className={cn('border-t border-border', cancelled && 'opacity-50')}>
                                             <td className={cn(td, 'whitespace-nowrap')}>{range ? range.start.format('ddd DD') : '—'}</td>
@@ -434,6 +592,26 @@ export default function FlightRosterPage() {
                                             </td>
                                             <td className={td}>
                                                 <Pill tone={cancelled ? 'default' : f.statusObj?.code === 'Planning' ? 'info' : 'success'}>{statusOf(f)}</Pill>
+                                            </td>
+                                            <td className={cn(td, 'text-center whitespace-nowrap')}>
+                                                <button
+                                                    type="button"
+                                                    title="แก้ไขข้อมูล Flight"
+                                                    aria-label="Edit Flight"
+                                                    disabled={cancelled}
+                                                    onClick={() => {
+                                                        if (flightId) {
+                                                            setEditFlightId(flightId);
+                                                            setOpenEditFlight(true);
+                                                        }
+                                                    }}
+                                                    className={cn(
+                                                        'inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 shadow-xs transition-colors hover:border-[#075CA2] hover:bg-[#075CA2]/10 hover:text-[#075CA2] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-sky-500 dark:hover:bg-sky-500/10 dark:hover:text-sky-300',
+                                                        cancelled && 'cursor-not-allowed opacity-40 hover:border-slate-200 hover:bg-white hover:text-slate-600'
+                                                    )}
+                                                >
+                                                    <SquarePen className="h-3.5 w-3.5" />
+                                                </button>
                                             </td>
                                         </tr>
                                     );
