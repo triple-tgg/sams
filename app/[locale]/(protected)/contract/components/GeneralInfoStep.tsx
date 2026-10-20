@@ -22,6 +22,14 @@ import { useContractTypesOptions } from "@/lib/api/hooks/useContractTypes";
 import { Checkbox } from "@/components/ui/checkbox";
 import { uploadContractDocument } from "@/lib/api/contract/uploadContractFile";
 
+const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => ({
+    value: String(i + 1).padStart(2, "0"),
+    label: new Date(2000, i, 1).toLocaleDateString("en-GB", { month: "long" }),
+}));
+
+/** Days in the month for the current year, since that's the year the escalation date is submitted with. */
+const daysInMonthThisYear = (month: string) => new Date(new Date().getFullYear(), Number(month), 0).getDate();
+
 // Upload status type
 type UploadStatus = "idle" | "uploading" | "uploaded" | "error";
 
@@ -46,6 +54,13 @@ export const GeneralInfoStep = ({
     const [isDragOver, setIsDragOver] = useState(false);
 
     // Compute expiry warning for the Expires On field
+    // formData.escalationDate is "MM-DD"
+    const [escalationMonth = "", escalationDay = ""] = formData.escalationDate ? formData.escalationDate.split("-") : [];
+    const escalationDayOptions = Array.from(
+        { length: daysInMonthThisYear(escalationMonth || "01") },
+        (_, i) => String(i + 1).padStart(2, "0"),
+    );
+
     const expiryWarning = useMemo(() => {
         return getContractExpiryWarning(formData.expiresOn, formData.isNoExpiryDate);
     }, [formData.expiresOn, formData.isNoExpiryDate]);
@@ -246,12 +261,39 @@ export const GeneralInfoStep = ({
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="escalationDate">Escalation Date</Label>
-                    <Input
-                        id="escalationDate"
-                        type="date"
-                        value={formData.escalationDate}
-                        onChange={(e) => onFormChange("escalationDate", e.target.value)}
-                    />
+                    <div className="grid grid-cols-2 gap-2">
+                        <Select
+                            value={escalationDay}
+                            onValueChange={(day) => onFormChange("escalationDate", `${escalationMonth || "01"}-${day}`)}
+                        >
+                            <SelectTrigger id="escalationDate">
+                                <SelectValue placeholder="Day" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {escalationDayOptions.map((day) => (
+                                    <SelectItem key={day} value={day}>{Number(day)}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <Select
+                            value={escalationMonth}
+                            onValueChange={(month) => {
+                                // Clamp the day so e.g. 31 doesn't survive a switch to a shorter month
+                                const maxDay = daysInMonthThisYear(month);
+                                const day = Math.min(Number(escalationDay || "1"), maxDay);
+                                onFormChange("escalationDate", `${month}-${String(day).padStart(2, "0")}`);
+                            }}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Month" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {MONTH_OPTIONS.map((m) => (
+                                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="contractType">Contract Type</Label>

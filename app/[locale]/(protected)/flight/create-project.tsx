@@ -46,7 +46,11 @@ import { useAircraftTypes } from "@/lib/api/hooks/useAircraftTypes";
 import { useMaintenanceStatus } from "@/lib/api/hooks/useMaintenanceStatus";
 import { useCombinations, useSystemConfigs } from "@/lib/api/master/aircraft-engine/aircraftEngine.hooks";
 import type { AircraftEngineCombination } from "@/lib/api/master/aircraft-engine/aircraftEngine.types";
-import type { FlightValidateResponse } from "@/components/flight-timeline/types/flight-import.types";
+import {
+  toFlightImportRequestItem,
+  type FlightValidateResponse,
+  type FlightValidateRequestItem,
+} from "@/components/flight-timeline/types/flight-import.types";
 import axios from "@/lib/axios.config";
 import { toast } from "sonner";
 import { useMemo, useEffect, useState } from "react";
@@ -634,17 +638,23 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
     toast.info("Flight record removed");
   };
 
-  const buildRecurringApiPayload = (flights: GeneratedRecurringFlight[], isImport: boolean = false) => {
+  const buildRecurringApiPayload = (flights: GeneratedRecurringFlight[], isImport: boolean = false): FlightValidateRequestItem[] => {
     return flights.map((item, idx) => {
       const staUtc = combineFormToUtcDatetime(item.arrivalDate, item.sta);
       const stdUtc = item.departureDate && item.std ? combineFormToUtcDatetime(item.departureDate, item.std) : "";
-      const baseItem: Record<string, any> = {
+      const flightServiceLists = (item.aircraftChecks ?? [])
+        .filter((c) => !!c.maintenanceTypes)
+        .map((c) => ({
+          code: c.maintenanceTypes,
+          subTypes: c.maintenanceSubTypes ?? [],
+        }));
+
+      const baseItem: FlightValidateRequestItem = {
+        flightServiceLists,
         rowId: idx + 1,
         airlinesId: item.airlinesId ?? 0,
         stationId: item.stationId ?? 0,
         acTypeId: item.acTypeId ?? 0,
-        aircraftEngineId: item.aircraftEngineId ?? 0,
-        familyCode: item.mappedFamilyCode || item.acTypeValue || "",
         series: item.series || "",
         engineCode: item.engineCode || "",
         acReg: item.acReg || "",
@@ -658,14 +668,12 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
         bayNo: item.bay || "",
         csIdList: item.csIdList || [],
         mechIdList: item.mechIdList || [],
-        aircraftCheckType: toAircraftCheckPayload(item.aircraftChecks),
-        maintenanceStatusId: item.maintenanceStatusId ?? 2,
+        maintenanceStatusId: item.maintenanceStatusId ?? 0,
         note: item.note || "",
+        datasource: "recurring",
+        aircraftEngineId: item.aircraftEngineId ?? 0,
+        familyCode: item.mappedFamilyCode || item.acTypeValue || "",
       };
-
-      if (isImport) {
-        baseItem.datasource = "recurring";
-      }
 
       return baseItem;
     });
@@ -736,7 +744,7 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
 
     try {
       const payload = buildRecurringApiPayload(generatedFlights, true);
-      await axios.post("/flight/importlist-filghtinfo", payload);
+      await axios.post("/flight/importlist-filghtinfo", payload.map(toFlightImportRequestItem));
 
       toast.success(`Successfully created ${generatedFlights.length} recurring flights`);
       queryClient.invalidateQueries({ queryKey: ["flightList"] });
@@ -1325,456 +1333,456 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                   open={openSections.flightInfo}
                   onOpenChange={toggleSection("flightInfo")}
                 >
-                <div className="space-y-3.5">
-                {/* Customer / Station */}
-                <div className="grid lg:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <Label htmlFor="customer">
-                      Customer / Airlines <span className="text-red-500 font-bold">*</span>
-                    </Label>
-                    <Controller
-                      name="customer"
-                      control={control}
-                      render={({ field }) => (
-                        <Select
-                          value={field.value?.value}
-                          onValueChange={(value) => {
-                            const option = customerOptions.find((opt) => opt.value === value);
-                            field.onChange(option || null);
-                          }}
-                          disabled={loadingAirlines || customerOptions.length === 0}
-                        >
-                          <SelectTrigger className={cn(errors.customer && "border-red-500 focus:ring-red-500")}>
-                            <SelectValue
-                              placeholder={
-                                loadingAirlines
-                                  ? "Loading airlines..."
-                                  : airlinesError
-                                    ? "Failed to load airlines"
-                                    : customerOptions.length === 0
-                                      ? "No airlines found"
-                                      : "Select customer"
-                              }
-                            />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {customerOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                    <FieldError msg={errors.customer?.message as string | undefined} />
-                    {usingFallback && (
-                      <p className="text-sm text-amber-600">
-                        ⚠ Using offline airline data due to API connection issue
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label htmlFor="station">
-                      Station <span className="text-red-500 font-bold">*</span>
-                    </Label>
-                    <Controller
-                      name="station"
-                      control={control}
-                      render={({ field }) => (
-                        <Select
-                          value={field.value?.value}
-                          onValueChange={(value) => {
-                            const option = stationOptions.find((opt) => opt.value === value);
-                            field.onChange(option || null);
-                          }}
-                          disabled={loadingStations || stationOptions.length === 0}
-                        >
-                          <SelectTrigger className={cn(errors.station && "border-red-500 focus:ring-red-500")}>
-                            <SelectValue
-                              placeholder={
-                                loadingStations
-                                  ? "Loading stations..."
-                                  : stationsError
-                                    ? "Failed to load stations"
-                                    : stationOptions.length === 0
-                                      ? "No stations found"
-                                      : "Select station"
-                              }
-                            />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {stationOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                    <FieldError msg={errors.station?.message as string | undefined} />
-                    {stationsUsingFallback && (
-                      <p className="text-sm text-amber-600">
-                        ⚠ Using offline station data due to API connection issue
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Route From / Route To */}
-                <div className="grid grid-cols-2 gap-4">
-                  <CreatableRouteSelect
-                    name="routeFrom"
-                    control={control}
-                    label="Route From"
-                    placeholder="Select Route From"
-                    errorMessage={errors.routeFrom?.message as string | undefined}
-                  />
-                  <CreatableRouteSelect
-                    name="routeTo"
-                    control={control}
-                    label="Route To"
-                    placeholder="Select Route To"
-                    errorMessage={errors.routeTo?.message as string | undefined}
-                  />
-                </div>
-
-                {/* A/C Reg / A/C Type */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <Label htmlFor="acReg">A/C Reg</Label>
-                    <Input {...register("acReg")} placeholder="A/C Reg" autoComplete="off" />
-                    <FieldError msg={errors.acReg?.message} />
-                  </div>
-                  <div className="space-y-1">
-                    <SearchableSelectField
-                      name="acType"
-                      control={control}
-                      label="A/C Type *"
-                      placeholder="Select A/C Type"
-                      options={familyCodeOptions}
-                      isLoading={isLoadingFamilyCode}
-                      errorMessage={errors.acType?.message}
-                    />
-                  </div>
-                </div>
-
-                {/* Aircraft-Engine Combination */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-medium text-slate-700">Aircraft-Engine :</span>
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={comboMode === "combination"}
-                        onCheckedChange={(checked) => handleModeChange(checked ? "combination" : "manual")}
-                        color="primary"
-                        size="sm"
-                      />
-                      <span className="text-sm text-slate-600">Select Combination</span>
-                    </div>
-                  </div>
-
-                  {comboMode === "combination" ? (
-                    <div className="grid grid-cols-5 gap-4">
-                      <div className="col-span-2 space-y-1">
-                        <Label>Combination</Label>
-                        <Select
-                          value={selectedComboId || undefined}
-                          onValueChange={handleComboSelect}
-                          disabled={!selectedAcType?.value}
-                        >
-                          <SelectTrigger>
-                            <SelectValue
-                              placeholder={selectedAcType?.value ? "Select Combination" : "Select A/C Type first"}
-                            />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {combinationOptions.map((opt) => (
-                              <SelectItem key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                  <div className="space-y-3.5">
+                    {/* Customer / Station */}
+                    <div className="grid lg:grid-cols-2 gap-4">
                       <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Family Code</Label>
-                        <Input value={mappedFamilyCode || ""} readOnly disabled className="bg-slate-50" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Series</Label>
-                        <Input value={selectedSeries || ""} readOnly disabled className="bg-slate-50" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Engine Code</Label>
-                        <Input value={selectedEngineCode || ""} readOnly disabled className="bg-slate-50" />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-1">
-                        <Label>Family Code</Label>
-                        <Input
-                          value={mappedFamilyCode || ""}
-                          readOnly
-                          disabled
-                          placeholder="Select A/C Type first"
-                          className="bg-slate-50"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label>Series</Label>
-                        <Input {...register("series")} placeholder="e.g. NEO" disabled={!selectedAcType?.value} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label>Engine Code</Label>
-                        <Input
-                          {...register("engineCode")}
-                          placeholder="e.g. LEAP-1A"
-                          disabled={!selectedAcType?.value}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <Separator className="my-3" />
-
-                {/* ARRIVAL + DEPARTURE */}
-                <div className="grid lg:grid-cols-2 gap-4">
-                  {/* ARRIVAL */}
-                  <div>
-                    <h4 className="text-sm font-semibold mb-2 text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-blue-600"></span>
-                      Arrival (Local Time)
-                    </h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <Label htmlFor="flightArrival">
-                          Flight No <span className="text-red-500 font-bold">*</span>
+                        <Label htmlFor="customer">
+                          Customer / Airlines <span className="text-red-500 font-bold">*</span>
                         </Label>
-                        <Input
-                          {...register("flightArrival")}
-                          placeholder="Flight No"
-                          autoComplete="off"
-                          className={cn(errors.flightArrival && "border-red-500 focus-visible:ring-red-500")}
-                        />
-                        <FieldError msg={errors.flightArrival?.message} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="arrivalDate">
-                          {flightMode === "recurring" ? (
-                            "Date (Schedule Driven)"
-                          ) : (
-                            <>
-                              Date <span className="text-red-500 font-bold">*</span>
-                            </>
+                        <Controller
+                          name="customer"
+                          control={control}
+                          render={({ field }) => (
+                            <Select
+                              value={field.value?.value}
+                              onValueChange={(value) => {
+                                const option = customerOptions.find((opt) => opt.value === value);
+                                field.onChange(option || null);
+                              }}
+                              disabled={loadingAirlines || customerOptions.length === 0}
+                            >
+                              <SelectTrigger className={cn(errors.customer && "border-red-500 focus:ring-red-500")}>
+                                <SelectValue
+                                  placeholder={
+                                    loadingAirlines
+                                      ? "Loading airlines..."
+                                      : airlinesError
+                                        ? "Failed to load airlines"
+                                        : customerOptions.length === 0
+                                          ? "No airlines found"
+                                          : "Select customer"
+                                  }
+                                />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {customerOptions.map((option) => (
+                                  <SelectItem key={option.value} value={option.value}>
+                                    {option.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           )}
-                        </Label>
-                        {flightMode === "one-time" ? (
-                          <Controller
-                            name="arrivalDate"
-                            control={control}
-                            render={({ field }) => (
-                              <CustomDateInput
-                                value={field.value}
-                                onChange={field.onChange}
-                                placeholder="DD-MMM-YYYY"
-                                className={cn(errors.arrivalDate && "border-red-500 focus-visible:ring-red-500")}
-                              />
-                            )}
-                          />
-                        ) : (
-                          <div className="h-10 px-3 py-2 rounded-md border border-purple-200 bg-purple-50/60 text-xs text-purple-700 flex items-center font-medium">
-                            {recurringStartDate ? `${recurringStartDate} (Start)` : "Follows Recurrence"}
-                          </div>
+                        />
+                        <FieldError msg={errors.customer?.message as string | undefined} />
+                        {usingFallback && (
+                          <p className="text-sm text-amber-600">
+                            ⚠ Using offline airline data due to API connection issue
+                          </p>
                         )}
-                        <FieldError msg={errors.arrivalDate?.message} />
                       </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="sta">
-                          STA (Local) <span className="text-red-500 font-bold">*</span>
-                        </Label>
-                        <Controller
-                          name="sta"
-                          control={control}
-                          render={({ field }) => (
-                            <CustomTimeInput
-                              value={field.value}
-                              onChange={field.onChange}
-                              onBlur={field.onBlur}
-                              placeholder="HH:mm"
-                              className={cn(errors.sta && "border-red-500 focus-visible:ring-red-500")}
-                            />
-                          )}
-                        />
-                        <FieldError msg={errors.sta?.message} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="ata">ATA (Local)</Label>
-                        <Controller
-                          name="ata"
-                          control={control}
-                          render={({ field }) => (
-                            <CustomTimeInput
-                              value={field.value}
-                              onChange={field.onChange}
-                              onBlur={field.onBlur}
-                              placeholder="HH:mm"
-                              className={cn(errors.ata && "border-red-500 focus-visible:ring-red-500")}
-                            />
-                          )}
-                        />
-                        <FieldError msg={errors.ata?.message} />
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* DEPARTURE */}
-                  <div>
-                    <h4 className="text-sm font-semibold mb-2 text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
-                      Departure (Local Time)
-                    </h4>
-                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
-                        <Label htmlFor="flightDeparture">Flight No</Label>
-                        <Input {...register("flightDeparture")} placeholder="Flight No" autoComplete="off" />
-                        <FieldError msg={errors.flightDeparture?.message} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="departureDate">
-                          {flightMode === "recurring" ? (
-                            "Date (Schedule Driven)"
-                          ) : (
-                            <>
-                              Date <span className="text-red-500 font-bold">*</span>
-                            </>
-                          )}
+                        <Label htmlFor="station">
+                          Station <span className="text-red-500 font-bold">*</span>
                         </Label>
-                        {flightMode === "one-time" ? (
-                          <Controller
-                            name="departureDate"
-                            control={control}
-                            render={({ field }) => (
-                              <CustomDateInput
-                                value={field.value}
-                                onChange={field.onChange}
-                                placeholder="DD-MMM-YYYY"
-                              />
-                            )}
-                          />
-                        ) : (
-                          <div className="h-10 px-3 py-2 rounded-md border border-purple-200 bg-purple-50/60 text-xs text-purple-700 flex items-center font-medium">
-                            {isDepartureNextDay ? "Next Day (+1 Day)" : "Same Day as Arrival"}
-                          </div>
+                        <Controller
+                          name="station"
+                          control={control}
+                          render={({ field }) => (
+                            <Select
+                              value={field.value?.value}
+                              onValueChange={(value) => {
+                                const option = stationOptions.find((opt) => opt.value === value);
+                                field.onChange(option || null);
+                              }}
+                              disabled={loadingStations || stationOptions.length === 0}
+                            >
+                              <SelectTrigger className={cn(errors.station && "border-red-500 focus:ring-red-500")}>
+                                <SelectValue
+                                  placeholder={
+                                    loadingStations
+                                      ? "Loading stations..."
+                                      : stationsError
+                                        ? "Failed to load stations"
+                                        : stationOptions.length === 0
+                                          ? "No stations found"
+                                          : "Select station"
+                                  }
+                                />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {stationOptions.map((option) => (
+                                  <SelectItem key={option.value} value={option.value}>
+                                    {option.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                        <FieldError msg={errors.station?.message as string | undefined} />
+                        {stationsUsingFallback && (
+                          <p className="text-sm text-amber-600">
+                            ⚠ Using offline station data due to API connection issue
+                          </p>
                         )}
-                        <FieldError msg={errors.departureDate?.message} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="std">
-                          STD (Local) <span className="text-red-500 font-bold">*</span>
-                        </Label>
-                        <Controller
-                          name="std"
-                          control={control}
-                          render={({ field }) => (
-                            <CustomTimeInput
-                              value={field.value}
-                              onChange={field.onChange}
-                              onBlur={field.onBlur}
-                              placeholder="HH:mm"
-                              className={cn(errors.std && "border-red-500 focus-visible:ring-red-500")}
-                            />
-                          )}
-                        />
-                        <FieldError msg={errors.std?.message} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="atd">ATD (Local)</Label>
-                        <Controller
-                          name="atd"
-                          control={control}
-                          render={({ field }) => (
-                            <CustomTimeInput
-                              value={field.value}
-                              onChange={field.onChange}
-                              onBlur={field.onBlur}
-                              placeholder="HH:mm"
-                              className={cn(errors.atd && "border-red-500 focus-visible:ring-red-500")}
-                            />
-                          )}
-                        />
-                        <FieldError msg={errors.atd?.message} />
                       </div>
                     </div>
-                  </div>
-                </div>
 
-                <Separator className="my-3" />
-
-                <div className="grid lg:grid-cols-2 gap-4">
-                  <div className="space-y-3">
-                    <div className="space-y-1">
-                      <Label htmlFor="bay">Bay</Label>
-                      <Input {...register("bay")} placeholder="Bay" autoComplete="off" />
-                      <FieldError msg={errors.bay?.message} />
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="status">Status</Label>
-                      <Controller
-                        name="status"
+                    {/* Route From / Route To */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <CreatableRouteSelect
+                        name="routeFrom"
                         control={control}
-                        render={({ field }) => (
-                          <Select
-                            value={field.value?.value}
-                            onValueChange={(value) => {
-                              const option = statusOptions.find((opt) => opt.value === value);
-                              field.onChange(option || null);
-                            }}
-                            disabled={loadingStatus || statusOptions.length === 0}
-                          >
-                            <SelectTrigger>
-                              <SelectValue
-                                placeholder={
-                                  loadingStatus
-                                    ? "Loading status..."
-                                    : statusError
-                                      ? "Failed to load status"
-                                      : statusOptions.length === 0
-                                        ? "No status found"
-                                        : "Select status"
-                                }
-                              />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {statusOptions.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
+                        label="Route From"
+                        placeholder="Select Route From"
+                        errorMessage={errors.routeFrom?.message as string | undefined}
                       />
-                      <FieldError msg={errors.status?.message as string | undefined} />
-                      {statusUsingFallback && (
-                        <p className="text-sm text-amber-600">
-                          ⚠ Using offline status data due to API connection issue
-                        </p>
+                      <CreatableRouteSelect
+                        name="routeTo"
+                        control={control}
+                        label="Route To"
+                        placeholder="Select Route To"
+                        errorMessage={errors.routeTo?.message as string | undefined}
+                      />
+                    </div>
+
+                    {/* A/C Reg / A/C Type */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <Label htmlFor="acReg">A/C Reg</Label>
+                        <Input {...register("acReg")} placeholder="A/C Reg" autoComplete="off" />
+                        <FieldError msg={errors.acReg?.message} />
+                      </div>
+                      <div className="space-y-1">
+                        <SearchableSelectField
+                          name="acType"
+                          control={control}
+                          label="A/C Type *"
+                          placeholder="Select A/C Type"
+                          options={familyCodeOptions}
+                          isLoading={isLoadingFamilyCode}
+                          errorMessage={errors.acType?.message}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Aircraft-Engine Combination */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-medium text-slate-700">Aircraft-Engine :</span>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={comboMode === "combination"}
+                            onCheckedChange={(checked) => handleModeChange(checked ? "combination" : "manual")}
+                            color="primary"
+                            size="sm"
+                          />
+                          <span className="text-sm text-slate-600">Select Combination</span>
+                        </div>
+                      </div>
+
+                      {comboMode === "combination" ? (
+                        <div className="grid grid-cols-5 gap-4">
+                          <div className="col-span-2 space-y-1">
+                            <Label>Combination</Label>
+                            <Select
+                              value={selectedComboId || undefined}
+                              onValueChange={handleComboSelect}
+                              disabled={!selectedAcType?.value}
+                            >
+                              <SelectTrigger>
+                                <SelectValue
+                                  placeholder={selectedAcType?.value ? "Select Combination" : "Select A/C Type first"}
+                                />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {combinationOptions.map((opt) => (
+                                  <SelectItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Family Code</Label>
+                            <Input value={mappedFamilyCode || ""} readOnly disabled className="bg-slate-50" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Series</Label>
+                            <Input value={selectedSeries || ""} readOnly disabled className="bg-slate-50" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Engine Code</Label>
+                            <Input value={selectedEngineCode || ""} readOnly disabled className="bg-slate-50" />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="space-y-1">
+                            <Label>Family Code</Label>
+                            <Input
+                              value={mappedFamilyCode || ""}
+                              readOnly
+                              disabled
+                              placeholder="Select A/C Type first"
+                              className="bg-slate-50"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Series</Label>
+                            <Input {...register("series")} placeholder="e.g. NEO" disabled={!selectedAcType?.value} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Engine Code</Label>
+                            <Input
+                              {...register("engineCode")}
+                              placeholder="e.g. LEAP-1A"
+                              disabled={!selectedAcType?.value}
+                            />
+                          </div>
+                        </div>
                       )}
                     </div>
-                  </div>
 
-                  <div className="space-y-1">
-                    <Label htmlFor="note">Note</Label>
-                    <Textarea {...register("note")} placeholder="Note..." className="h-28" />
-                    <FieldError msg={errors.note?.message} />
+                    <Separator className="my-3" />
+
+                    {/* ARRIVAL + DEPARTURE */}
+                    <div className="grid lg:grid-cols-2 gap-4">
+                      {/* ARRIVAL */}
+                      <div>
+                        <h4 className="text-sm font-semibold mb-2 text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+                          Arrival (Local Time)
+                        </h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <Label htmlFor="flightArrival">
+                              Flight No <span className="text-red-500 font-bold">*</span>
+                            </Label>
+                            <Input
+                              {...register("flightArrival")}
+                              placeholder="Flight No"
+                              autoComplete="off"
+                              className={cn(errors.flightArrival && "border-red-500 focus-visible:ring-red-500")}
+                            />
+                            <FieldError msg={errors.flightArrival?.message} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="arrivalDate">
+                              {flightMode === "recurring" ? (
+                                "Date (Schedule Driven)"
+                              ) : (
+                                <>
+                                  Date <span className="text-red-500 font-bold">*</span>
+                                </>
+                              )}
+                            </Label>
+                            {flightMode === "one-time" ? (
+                              <Controller
+                                name="arrivalDate"
+                                control={control}
+                                render={({ field }) => (
+                                  <CustomDateInput
+                                    value={field.value}
+                                    onChange={field.onChange}
+                                    placeholder="DD-MMM-YYYY"
+                                    className={cn(errors.arrivalDate && "border-red-500 focus-visible:ring-red-500")}
+                                  />
+                                )}
+                              />
+                            ) : (
+                              <div className="h-10 px-3 py-2 rounded-md border border-purple-200 bg-purple-50/60 text-xs text-purple-700 flex items-center font-medium">
+                                {recurringStartDate ? `${recurringStartDate} (Start)` : "Follows Recurrence"}
+                              </div>
+                            )}
+                            <FieldError msg={errors.arrivalDate?.message} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="sta">
+                              STA (Local) <span className="text-red-500 font-bold">*</span>
+                            </Label>
+                            <Controller
+                              name="sta"
+                              control={control}
+                              render={({ field }) => (
+                                <CustomTimeInput
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  onBlur={field.onBlur}
+                                  placeholder="HH:mm"
+                                  className={cn(errors.sta && "border-red-500 focus-visible:ring-red-500")}
+                                />
+                              )}
+                            />
+                            <FieldError msg={errors.sta?.message} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="ata">ATA (Local)</Label>
+                            <Controller
+                              name="ata"
+                              control={control}
+                              render={({ field }) => (
+                                <CustomTimeInput
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  onBlur={field.onBlur}
+                                  placeholder="HH:mm"
+                                  className={cn(errors.ata && "border-red-500 focus-visible:ring-red-500")}
+                                />
+                              )}
+                            />
+                            <FieldError msg={errors.ata?.message} />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* DEPARTURE */}
+                      <div>
+                        <h4 className="text-sm font-semibold mb-2 text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
+                          Departure (Local Time)
+                        </h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <Label htmlFor="flightDeparture">Flight No</Label>
+                            <Input {...register("flightDeparture")} placeholder="Flight No" autoComplete="off" />
+                            <FieldError msg={errors.flightDeparture?.message} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="departureDate">
+                              {flightMode === "recurring" ? (
+                                "Date (Schedule Driven)"
+                              ) : (
+                                <>
+                                  Date <span className="text-red-500 font-bold">*</span>
+                                </>
+                              )}
+                            </Label>
+                            {flightMode === "one-time" ? (
+                              <Controller
+                                name="departureDate"
+                                control={control}
+                                render={({ field }) => (
+                                  <CustomDateInput
+                                    value={field.value}
+                                    onChange={field.onChange}
+                                    placeholder="DD-MMM-YYYY"
+                                  />
+                                )}
+                              />
+                            ) : (
+                              <div className="h-10 px-3 py-2 rounded-md border border-purple-200 bg-purple-50/60 text-xs text-purple-700 flex items-center font-medium">
+                                {isDepartureNextDay ? "Next Day (+1 Day)" : "Same Day as Arrival"}
+                              </div>
+                            )}
+                            <FieldError msg={errors.departureDate?.message} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="std">
+                              STD (Local) <span className="text-red-500 font-bold">*</span>
+                            </Label>
+                            <Controller
+                              name="std"
+                              control={control}
+                              render={({ field }) => (
+                                <CustomTimeInput
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  onBlur={field.onBlur}
+                                  placeholder="HH:mm"
+                                  className={cn(errors.std && "border-red-500 focus-visible:ring-red-500")}
+                                />
+                              )}
+                            />
+                            <FieldError msg={errors.std?.message} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="atd">ATD (Local)</Label>
+                            <Controller
+                              name="atd"
+                              control={control}
+                              render={({ field }) => (
+                                <CustomTimeInput
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  onBlur={field.onBlur}
+                                  placeholder="HH:mm"
+                                  className={cn(errors.atd && "border-red-500 focus-visible:ring-red-500")}
+                                />
+                              )}
+                            />
+                            <FieldError msg={errors.atd?.message} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Separator className="my-3" />
+
+                    <div className="grid lg:grid-cols-2 gap-4">
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <Label htmlFor="bay">Bay</Label>
+                          <Input {...register("bay")} placeholder="Bay" autoComplete="off" />
+                          <FieldError msg={errors.bay?.message} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="status">Status</Label>
+                          <Controller
+                            name="status"
+                            control={control}
+                            render={({ field }) => (
+                              <Select
+                                value={field.value?.value}
+                                onValueChange={(value) => {
+                                  const option = statusOptions.find((opt) => opt.value === value);
+                                  field.onChange(option || null);
+                                }}
+                                disabled={loadingStatus || statusOptions.length === 0}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue
+                                    placeholder={
+                                      loadingStatus
+                                        ? "Loading status..."
+                                        : statusError
+                                          ? "Failed to load status"
+                                          : statusOptions.length === 0
+                                            ? "No status found"
+                                            : "Select status"
+                                    }
+                                  />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {statusOptions.map((option) => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                      {option.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                          <FieldError msg={errors.status?.message as string | undefined} />
+                          {statusUsingFallback && (
+                            <p className="text-sm text-amber-600">
+                              ⚠ Using offline status data due to API connection issue
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label htmlFor="note">Note</Label>
+                        <Textarea {...register("note")} placeholder="Note..." className="h-28" />
+                        <FieldError msg={errors.note?.message} />
+                      </div>
+                    </div>
                   </div>
-                </div>
-                </div>
                 </FlightFormSection>
 
                 <FlightFormSection

@@ -16,6 +16,8 @@ import {
     DEFAULT_FLIGHT_STATUS,
     withStatusColumn,
     FlightValidateRequestItem,
+    toFlightImportRequestItem,
+    FlightServiceListItem,
     FlightValidateResponse,
 } from '@/components/flight-timeline/types/flight-import.types';
 import { validateFlightRow } from '@/components/flight-timeline/schemas/flight-validation.schema';
@@ -526,12 +528,16 @@ export const useFlightExcelImport = () => {
                 const mechResult = parseAndMatchStaff(String(mechValue), 'MECH');
                 const mechIdList = mechResult.found.map(staff => staff.id);
 
-                // Get CHECK status ID
-                const checkValue = row['CHECK'] || '';
+                // Get CHECK status ID & services
+                const checkValue = row['CHECK'] || row['Check'] || row['check'] || '';
                 const checkMatch = checkStatusOptions.find((opt: { value: string; label: string; id: number }) =>
                     opt.value.toUpperCase() === String(checkValue).trim().toUpperCase()
                 );
-                const maintenanceStatusId = checkMatch?.id || undefined;
+                const maintenanceStatusId = checkMatch?.id ?? 0;
+                const trimmedCheck = String(checkValue || '').trim();
+                const flightServiceLists: FlightServiceListItem[] = trimmedCheck
+                    ? trimmedCheck.split(',').map((s) => s.trim()).filter(Boolean).map((code) => ({ code, subTypes: [] }))
+                    : [];
 
                 // Format datetime with sheet date context
                 const formatFullDateTime = (dateValue: any, timeValue: any): string => {
@@ -591,6 +597,7 @@ export const useFlightExcelImport = () => {
                 };
 
                 return {
+                    flightServiceLists,
                     rowId,
                     airlinesId,
                     stationId,
@@ -837,12 +844,16 @@ export const useFlightExcelImport = () => {
                 const mechResult = parseAndMatchStaff(String(mechValue), 'MECH');
                 const mechIdList = mechResult.found.map(staff => staff.id);
 
-                // Get CHECK status ID
-                const checkValue = row['CHECK'] || '';
+                // Get CHECK status ID & services
+                const checkValue = row['CHECK'] || row['Check'] || row['check'] || '';
                 const checkMatch = checkStatusOptions.find((opt: { value: string; label: string; id: number }) =>
                     opt.value.toUpperCase() === String(checkValue).trim().toUpperCase()
                 );
-                const maintenanceStatusId = checkMatch?.id || undefined;
+                const maintenanceStatusId = checkMatch?.id ?? 0;
+                const trimmedCheck = String(checkValue || '').trim();
+                const flightServiceLists: FlightServiceListItem[] = trimmedCheck
+                    ? trimmedCheck.split(',').map((s) => s.trim()).filter(Boolean).map((code) => ({ code, subTypes: [] }))
+                    : [];
 
                 // Format dates - combine separate Date + Time columns
                 const formatFullDateTime = (dateValue: any, timeValue: any): string => {
@@ -904,6 +915,7 @@ export const useFlightExcelImport = () => {
                 };
 
                 return {
+                    flightServiceLists,
                     rowId,
                     airlinesId,
                     stationId,
@@ -930,7 +942,7 @@ export const useFlightExcelImport = () => {
             });
 
             // Call upload API
-            await axios.post('/flight/importlist-filghtinfo', uploadRequestData);
+            await axios.post('/flight/importlist-filghtinfo', uploadRequestData.map(toFlightImportRequestItem));
 
             const sheetsCount = Object.keys(validatedRowsBySheet).length;
             toast.success(`Successfully imported ${uploadRequestData.length} flight records from ${sheetsCount} sheet(s)`);

@@ -228,8 +228,8 @@ const PreviewStep: React.FC<PreviewStepProps> = ({ flightInfosId }) => {
                         <tr key={idx} className="hover:bg-muted/30">
                           <Td>{tow.bayFrom}</Td>
                           <Td>{tow.bayTo}</Td>
-                          <Td>{tow.onDate} {tow.onTime}</Td>
-                          <Td>{tow.offDate} {tow.offTime}</Td>
+                          <Td>{tow.onDate?.includes('T') ? formatUtcToLocalDisplay(tow.onDate) : `${tow.onDate || ''} ${tow.onTime || ''}`.trim()}</Td>
+                          <Td>{tow.offDate?.includes('T') ? formatUtcToLocalDisplay(tow.offDate) : `${tow.offDate || ''} ${tow.offTime || ''}`.trim()}</Td>
                         </tr>
                       ))}
                     </tbody>

@@ -8,6 +8,12 @@ import { Card } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipArrow, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useCombinations, useSystemConfigs } from '@/lib/api/master/aircraft-engine/aircraftEngine.hooks';
+import type { AircraftEngineCombination } from '@/lib/api/master/aircraft-engine/aircraftEngine.types';
 import { cn } from '@/lib/utils';
 import { groupCombinationDisplayLabels } from '@/lib/utils/aircraftEngineDisplay';
 import { useRosterStaff } from '@/lib/roster/useRosterData';
@@ -22,6 +28,7 @@ import {
     type AircraftLicenceStaffData,
 } from '@/lib/api/roster/certifyingStaff';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useConfig } from '@/hooks/use-config';
 import { isValidCertifyingStaff, movementStatus, type MovementStatus, type RosterStaff } from '@/lib/roster/manpower';
 import { EmptyBlock, LoadingBlock, Pill, RosterHeader, StatTile, StationSelect } from '../components/RosterUi';
 import {
@@ -142,12 +149,166 @@ function AmelAcTypeDisplay({ acType }: { acType: string }) {
     );
 }
 
+// ── Aircraft-Engine Filter Component (matching flight/create-project.tsx) ──
+
+interface AircraftEngineFilterProps {
+    familyCode: string;
+    comboMode: 'combination' | 'manual';
+    onComboModeChange: (mode: 'combination' | 'manual') => void;
+    selectedComboId: string;
+    onComboSelect: (comboId: string, combo?: AircraftEngineCombination) => void;
+    series: string;
+    onSeriesChange: (series: string) => void;
+    engineCode: string;
+    onEngineCodeChange: (engine: string) => void;
+    combinations?: AircraftEngineCombination[];
+    className?: string;
+}
+
+function AircraftEngineFilter({
+    familyCode,
+    comboMode,
+    onComboModeChange,
+    selectedComboId,
+    onComboSelect,
+    series,
+    onSeriesChange,
+    engineCode,
+    onEngineCodeChange,
+    combinations = [],
+    className,
+}: AircraftEngineFilterProps) {
+    // Build combination options filtered by selected A/C Type (familyCode)
+    const combinationOptions = useMemo(() => {
+        if (!combinations || !familyCode) return [];
+        return combinations
+            .filter((c: AircraftEngineCombination) => c.familyCode === familyCode)
+            .map((c: AircraftEngineCombination) => ({
+                value: String(c.id),
+                label: c.displayLabel,
+                combo: c,
+            }));
+    }, [combinations, familyCode]);
+
+    return (
+        <div className={cn('space-y-2.5 pt-3 border-t border-border/70', className)}>
+            {/* Mode toggle */}
+            <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Aircraft-Engine :</span>
+                <div className="flex items-center gap-2">
+                    <Switch
+                        checked={comboMode === 'combination'}
+                        onCheckedChange={(checked) => onComboModeChange(checked ? 'combination' : 'manual')}
+                        color="primary"
+                        size="sm"
+                    />
+                    <span className="text-sm text-slate-600 dark:text-slate-400">Select Combination</span>
+                </div>
+            </div>
+
+            {comboMode === 'combination' ? (
+                /* ── Combination mode ── */
+                <div className="grid grid-cols-1 sm:grid-cols-5 gap-3.5">
+                    <div className="sm:col-span-2 space-y-1">
+                        <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Combination</Label>
+                        <Select
+                            value={selectedComboId || undefined}
+                            onValueChange={(val) => {
+                                const found = combinationOptions.find((o) => o.value === val);
+                                onComboSelect(val, found?.combo);
+                            }}
+                            disabled={!familyCode}
+                        >
+                            <SelectTrigger className="h-8.5 bg-background text-xs">
+                                <SelectValue
+                                    placeholder={familyCode ? 'Select Combination' : 'Select A/C Type first'}
+                                />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-60">
+                                {combinationOptions.map((opt) => (
+                                    <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                                        {opt.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Family Code</Label>
+                        <Input
+                            value={familyCode || ''}
+                            readOnly
+                            disabled
+                            placeholder="Select A/C Type first"
+                            className="h-8.5 bg-slate-50 dark:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 disabled:opacity-80"
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Series</Label>
+                        <Input
+                            value={series || ''}
+                            readOnly
+                            disabled
+                            className="h-8.5 bg-slate-50 dark:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 disabled:opacity-80"
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Engine Code</Label>
+                        <Input
+                            value={engineCode || ''}
+                            readOnly
+                            disabled
+                            className="h-8.5 bg-slate-50 dark:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 disabled:opacity-80"
+                        />
+                    </div>
+                </div>
+            ) : (
+                /* ── Manual mode ── */
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                    <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Family Code</Label>
+                        <Input
+                            value={familyCode || ''}
+                            readOnly
+                            disabled
+                            placeholder="Select A/C Type first"
+                            className="h-8.5 bg-slate-50 dark:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 disabled:opacity-80"
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Series</Label>
+                        <Input
+                            value={series}
+                            onChange={(e) => onSeriesChange(e.target.value)}
+                            placeholder="e.g. NEO"
+                            disabled={!familyCode}
+                            className="h-8.5 bg-background text-xs"
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Engine Code</Label>
+                        <Input
+                            value={engineCode}
+                            onChange={(e) => onEngineCodeChange(e.target.value)}
+                            placeholder="e.g. LEAP-1A"
+                            disabled={!familyCode}
+                            className="h-8.5 bg-background text-xs"
+                        />
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 // ── Page Component ──
 
 type CertifyingStaffTab = 'amel' | 'licence';
 
 export default function CertifyingStaffPage() {
     const live = useRosterStaff();
+    const [config] = useConfig();
+    const isSidebarLight = config.sidebarColor === 'light';
     const [activeTab, setActiveTab] = useState<CertifyingStaffTab>('amel');
 
     const staff = live.staff as (RosterStaff & { acType?: string; amelColKeys?: string[] })[];
@@ -165,14 +326,83 @@ export default function CertifyingStaffPage() {
         return Array.from(set).sort();
     }, [staff]);
 
+    // Master data for Aircraft-Engine selector
+    const { data: combinationsData } = useCombinations();
+    const { data: systemConfigsData } = useSystemConfigs();
+
+    const familyCodeOptions = useMemo(() => {
+        const seen = new Set<string>();
+        const options: { value: string; label: string }[] = [];
+
+        if (systemConfigsData) {
+            systemConfigsData.forEach((c) => {
+                if (c.familyCode && !seen.has(c.familyCode)) {
+                    seen.add(c.familyCode);
+                    options.push({ value: c.familyCode, label: c.familyCode });
+                }
+            });
+        }
+
+        if (combinationsData) {
+            combinationsData.forEach((c: AircraftEngineCombination) => {
+                if (c.familyCode && !seen.has(c.familyCode)) {
+                    seen.add(c.familyCode);
+                    options.push({ value: c.familyCode, label: c.familyCode });
+                }
+            });
+        }
+
+        ['A318', 'A319', 'A320', 'A321', 'A330', 'A350', 'B737', 'B767', 'B777', 'B787'].forEach((t) => {
+            if (!seen.has(t)) {
+                seen.add(t);
+                options.push({ value: t, label: t });
+            }
+        });
+
+        return options.sort((a, b) => a.label.localeCompare(b.label));
+    }, [systemConfigsData, combinationsData]);
+
     // ── AMEL API States & Query ──
     const [amelSearch, setAmelSearch] = useState('');
     const [amelStation, setAmelStation] = useState('');
     const [amelAircraftType, setAmelAircraftType] = useState('');
+    const [amelComboMode, setAmelComboMode] = useState<'combination' | 'manual'>('combination');
+    const [amelSelectedComboId, setAmelSelectedComboId] = useState<string>('');
+    const [amelSeries, setAmelSeries] = useState<string>('');
+    const [amelEngineCode, setAmelEngineCode] = useState<string>('');
     const [amelPage, setAmelPage] = useState(1);
     const [amelPageSize, setAmelPageSize] = useState(20);
 
     const debouncedAmelSearch = useDebounce(amelSearch, 400);
+    const debouncedAmelSeries = useDebounce(amelSeries, 400);
+    const debouncedAmelEngineCode = useDebounce(amelEngineCode, 400);
+
+    const handleAmelAcTypeChange = (val: string) => {
+        setAmelAircraftType(val);
+        setAmelSelectedComboId('');
+        setAmelSeries('');
+        setAmelEngineCode('');
+        setAmelPage(1);
+    };
+
+    const handleAmelComboModeChange = (mode: 'combination' | 'manual') => {
+        setAmelComboMode(mode);
+        setAmelSelectedComboId('');
+        setAmelSeries('');
+        setAmelEngineCode('');
+    };
+
+    const handleAmelComboSelect = (comboId: string, combo?: AircraftEngineCombination) => {
+        setAmelSelectedComboId(comboId);
+        if (combo) {
+            setAmelSeries(combo.series || '');
+            setAmelEngineCode(combo.engineCode || '');
+        } else {
+            setAmelSeries('');
+            setAmelEngineCode('');
+        }
+        setAmelPage(1);
+    };
 
     const amelQuery = useQuery({
         queryKey: [
@@ -203,28 +433,89 @@ export default function CertifyingStaffPage() {
 
     const amelData = amelQuery.data;
     const amelColumns = amelData?.columns;
-    const amelRows = amelData?.rows ?? [];
+    const rawAmelRows = amelData?.rows ?? [];
     const amelPagination = amelData?.pagination ?? {
         page: amelPage,
         pageSize: amelPageSize,
-        totalRecords: amelRows.length,
-        totalPages: Math.ceil(amelRows.length / amelPageSize) || 1,
+        totalRecords: rawAmelRows.length,
+        totalPages: Math.ceil(rawAmelRows.length / amelPageSize) || 1,
     };
-    const amelGroups: AmelGroupColumn[] = amelColumns?.groups ?? [];
+    const rawAmelGroups: AmelGroupColumn[] = amelColumns?.groups ?? [];
+
+    const amelGroups = useMemo(() => {
+        let groups = rawAmelGroups;
+        const sQuery = debouncedAmelSeries.toLowerCase().trim();
+        const eQuery = debouncedAmelEngineCode.toLowerCase().trim();
+
+        if (sQuery || eQuery) {
+            groups = groups
+                .map((g) => {
+                    const matchesAircraft = sQuery ? g.aircraft.toLowerCase().includes(sQuery) : true;
+                    const filteredCols = g.columns.filter((c) => {
+                        const cLabel = (c.label || '').toLowerCase();
+                        const cEngine = (c.engine || '').toLowerCase();
+                        const cCode = (c.code || '').toLowerCase();
+
+                        const matchesSeries = !sQuery || matchesAircraft || cLabel.includes(sQuery) || cCode.includes(sQuery);
+                        const matchesEngine = !eQuery || cEngine.includes(eQuery) || cLabel.includes(eQuery) || cCode.includes(eQuery);
+
+                        return matchesSeries && matchesEngine;
+                    });
+
+                    return {
+                        ...g,
+                        columns: filteredCols,
+                    };
+                })
+                .filter((g) => g.columns.length > 0);
+        }
+
+        return groups;
+    }, [rawAmelGroups, debouncedAmelSeries, debouncedAmelEngineCode]);
+
+    const amelRows = useMemo(() => {
+        const hasSeriesFilter = Boolean(debouncedAmelSeries.trim());
+        const hasEngineFilter = Boolean(debouncedAmelEngineCode.trim());
+
+        if (!hasSeriesFilter && !hasEngineFilter) {
+            return rawAmelRows;
+        }
+
+        if (amelGroups.length === 0) {
+            return [];
+        }
+
+        const activeColIds = new Set<string>();
+        amelGroups.forEach((g) => g.columns.forEach((c) => activeColIds.add(c.id)));
+
+        if (activeColIds.size === 0) {
+            return [];
+        }
+
+        return rawAmelRows.filter((row) =>
+            Array.from(activeColIds).some((colId) => row.qualifications?.[colId]?.qualified)
+        );
+    }, [rawAmelRows, amelGroups, debouncedAmelSeries, debouncedAmelEngineCode]);
+
+    const isAmelClientFiltered = Boolean(debouncedAmelSeries.trim() || debouncedAmelEngineCode.trim());
+    const effectiveAmelTotal = isAmelClientFiltered ? amelRows.length : amelPagination.totalRecords;
     const totalAmelColumns = amelGroups.reduce((acc, g) => acc + g.columns.length, 0);
 
-    const amelAircraftTypeOptions = useMemo(() => {
-        const types = new Set<string>();
-        amelGroups.forEach((g) => g.aircraft && types.add(g.aircraft));
-        ['A319', 'A320', 'A321', 'B767', 'B777', 'B787'].forEach((t) => types.add(t));
-        return Array.from(types).sort();
-    }, [amelGroups]);
+    const isAmelFiltering =
+        amelSearch !== '' ||
+        amelStation !== '' ||
+        amelAircraftType !== '' ||
+        amelSeries !== '' ||
+        amelEngineCode !== '' ||
+        amelSelectedComboId !== '';
 
-    const isAmelFiltering = amelSearch !== '' || amelStation !== '' || amelAircraftType !== '';
     const clearAmelFilters = () => {
         setAmelSearch('');
         setAmelStation('');
         setAmelAircraftType('');
+        setAmelSelectedComboId('');
+        setAmelSeries('');
+        setAmelEngineCode('');
         setAmelPage(1);
     };
 
@@ -232,10 +523,43 @@ export default function CertifyingStaffPage() {
     const [licenceSearch, setLicenceSearch] = useState('');
     const [licenceStation, setLicenceStation] = useState('');
     const [licenceAircraftType, setLicenceAircraftType] = useState('');
+    const [licenceComboMode, setLicenceComboMode] = useState<'combination' | 'manual'>('combination');
+    const [licenceSelectedComboId, setLicenceSelectedComboId] = useState<string>('');
+    const [licenceSeries, setLicenceSeries] = useState<string>('');
+    const [licenceEngineCode, setLicenceEngineCode] = useState<string>('');
     const [licencePage, setLicencePage] = useState(1);
     const [licencePageSize, setLicencePageSize] = useState(20);
 
     const debouncedLicenceSearch = useDebounce(licenceSearch, 400);
+    const debouncedLicenceSeries = useDebounce(licenceSeries, 400);
+    const debouncedLicenceEngineCode = useDebounce(licenceEngineCode, 400);
+
+    const handleLicenceAcTypeChange = (val: string) => {
+        setLicenceAircraftType(val);
+        setLicenceSelectedComboId('');
+        setLicenceSeries('');
+        setLicenceEngineCode('');
+        setLicencePage(1);
+    };
+
+    const handleLicenceComboModeChange = (mode: 'combination' | 'manual') => {
+        setLicenceComboMode(mode);
+        setLicenceSelectedComboId('');
+        setLicenceSeries('');
+        setLicenceEngineCode('');
+    };
+
+    const handleLicenceComboSelect = (comboId: string, combo?: AircraftEngineCombination) => {
+        setLicenceSelectedComboId(comboId);
+        if (combo) {
+            setLicenceSeries(combo.series || '');
+            setLicenceEngineCode(combo.engineCode || '');
+        } else {
+            setLicenceSeries('');
+            setLicenceEngineCode('');
+        }
+        setLicencePage(1);
+    };
 
     const licenceQuery = useQuery({
         queryKey: [
@@ -266,14 +590,92 @@ export default function CertifyingStaffPage() {
 
     const licenceData = licenceQuery.data;
     const licenceColumns = licenceData?.columns;
-    const licenceAirlines: AircraftLicenceAirline[] = licenceColumns?.airlines ?? [];
-    const licenceRows: AircraftLicenceStaffRow[] = licenceData?.rows ?? [];
+    const rawLicenceAirlines: AircraftLicenceAirline[] = licenceColumns?.airlines ?? [];
+    const rawLicenceRows: AircraftLicenceStaffRow[] = licenceData?.rows ?? [];
     const licencePagination = licenceData?.pagination ?? {
         page: licencePage,
         pageSize: licencePageSize,
-        totalRecords: licenceRows.length,
-        totalPages: Math.ceil(licenceRows.length / licencePageSize) || 1,
+        totalRecords: rawLicenceRows.length,
+        totalPages: Math.ceil(rawLicenceRows.length / licencePageSize) || 1,
     };
+
+    const licenceAirlines = useMemo(() => {
+        let airlines = rawLicenceAirlines;
+        const sQuery = debouncedLicenceSeries.toLowerCase().trim();
+        const eQuery = debouncedLicenceEngineCode.toLowerCase().trim();
+
+        if (sQuery || eQuery) {
+            airlines = airlines
+                .map((al) => {
+                    const matchedAircraftTypes = al.aircraftTypes
+                        .map((at) => {
+                            const typeMatchesSeries = sQuery ? at.typeName.toLowerCase().includes(sQuery) : true;
+                            const filteredSubtypes = at.subtypes.filter((st) => {
+                                const stLabel = (st.label || '').toLowerCase();
+                                const stEngine = (st.engine || '').toLowerCase();
+
+                                const matchesSeries = !sQuery || typeMatchesSeries || stLabel.includes(sQuery) || stEngine.includes(sQuery);
+                                const matchesEngine = !eQuery || stEngine.includes(eQuery) || stLabel.includes(eQuery);
+
+                                return matchesSeries && matchesEngine;
+                            });
+
+                            return {
+                                ...at,
+                                subtypes: filteredSubtypes,
+                            };
+                        })
+                        .filter((at) => at.subtypes.length > 0);
+
+                    return {
+                        ...al,
+                        aircraftTypes: matchedAircraftTypes,
+                    };
+                })
+                .filter((al) => al.aircraftTypes.length > 0);
+        }
+
+        return airlines;
+    }, [rawLicenceAirlines, debouncedLicenceSeries, debouncedLicenceEngineCode]);
+
+    const licenceRows = useMemo(() => {
+        const hasSeriesFilter = Boolean(debouncedLicenceSeries.trim());
+        const hasEngineFilter = Boolean(debouncedLicenceEngineCode.trim());
+
+        if (!hasSeriesFilter && !hasEngineFilter) {
+            return rawLicenceRows;
+        }
+
+        if (licenceAirlines.length === 0) {
+            return [];
+        }
+
+        const activeColsByAirline = new Map<string, Set<string>>();
+        licenceAirlines.forEach((al) => {
+            const stSet = new Set<string>();
+            al.aircraftTypes.forEach((at) => at.subtypes.forEach((st) => stSet.add(st.id)));
+            if (stSet.size > 0) {
+                activeColsByAirline.set(al.airlineId, stSet);
+            }
+        });
+
+        return rawLicenceRows.filter((row) => {
+            for (const [alId, stSet] of activeColsByAirline.entries()) {
+                const alAuths = row.authorizations?.[alId];
+                if (!alAuths) continue;
+                for (const stId of stSet) {
+                    const auth = alAuths[stId];
+                    if (auth && (auth.status === 'true' || auth.status === 'pending' || auth.status === 'false')) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        });
+    }, [rawLicenceRows, licenceAirlines, debouncedLicenceSeries, debouncedLicenceEngineCode]);
+
+    const isLicenceClientFiltered = Boolean(debouncedLicenceSeries.trim() || debouncedLicenceEngineCode.trim());
+    const effectiveLicenceTotal = isLicenceClientFiltered ? licenceRows.length : licencePagination.totalRecords;
 
     const totalLicenceSubtypes = useMemo(() => {
         return licenceAirlines.reduce(
@@ -282,23 +684,21 @@ export default function CertifyingStaffPage() {
         );
     }, [licenceAirlines]);
 
-    const licenceAircraftTypeOptions = useMemo(() => {
-        const types = new Set<string>();
-        licenceAirlines.forEach((al) => {
-            al.aircraftTypes.forEach((at) => {
-                if (at.typeName) types.add(at.typeName);
-                if (at.typeId) types.add(at.typeId);
-            });
-        });
-        ['A319', 'A320', 'A321', 'B767', 'B777', 'B787'].forEach((t) => types.add(t));
-        return Array.from(types).sort();
-    }, [licenceAirlines]);
+    const isLicenceFiltering =
+        licenceSearch !== '' ||
+        licenceStation !== '' ||
+        licenceAircraftType !== '' ||
+        licenceSeries !== '' ||
+        licenceEngineCode !== '' ||
+        licenceSelectedComboId !== '';
 
-    const isLicenceFiltering = licenceSearch !== '' || licenceStation !== '' || licenceAircraftType !== '';
     const clearLicenceFilters = () => {
         setLicenceSearch('');
         setLicenceStation('');
         setLicenceAircraftType('');
+        setLicenceSelectedComboId('');
+        setLicenceSeries('');
+        setLicenceEngineCode('');
         setLicencePage(1);
     };
 
@@ -356,63 +756,80 @@ export default function CertifyingStaffPage() {
                        ══════════════════════════════════════════════════════════════ */}
                     <TabsContent value="amel" className="m-0 focus-visible:outline-none">
                         {/* Filter bar for AMEL */}
-                        <div className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3">
-                            <div className="relative min-w-[200px] max-w-[300px] flex-1">
-                                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                                <input
-                                    type="search"
-                                    value={amelSearch}
-                                    onChange={(e) => {
-                                        setAmelSearch(e.target.value);
+                        <div className="border-b border-border bg-card px-4 py-3 space-y-3">
+                            <div className="flex flex-wrap items-center gap-3">
+                                <div className="relative min-w-[200px] max-w-[300px] flex-1">
+                                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                                    <input
+                                        type="search"
+                                        value={amelSearch}
+                                        onChange={(e) => {
+                                            setAmelSearch(e.target.value);
+                                            setAmelPage(1);
+                                        }}
+                                        placeholder="Search staff name, ID or position..."
+                                        className="h-8 w-full rounded-lg border border-border bg-card pl-8 pr-3 text-xs placeholder:text-muted-foreground/60 focus:border-[#075CA2]/40 focus:outline-none focus:ring-2 focus:ring-[#075CA2]/20"
+                                    />
+                                </div>
+                                <StationSelect
+                                    stations={stations}
+                                    value={amelStation}
+                                    onChange={(val) => {
+                                        setAmelStation(val);
                                         setAmelPage(1);
                                     }}
-                                    placeholder="Search staff name, ID or position..."
-                                    className="h-8 w-full rounded-lg border border-border bg-card pl-8 pr-3 text-xs placeholder:text-muted-foreground/60 focus:border-[#075CA2]/40 focus:outline-none focus:ring-2 focus:ring-[#075CA2]/20"
+                                    allowAll
+                                    extraOptions={[{ value: UNASSIGNED, label: 'No station' }]}
                                 />
-                            </div>
-                            <StationSelect
-                                stations={stations}
-                                value={amelStation}
-                                onChange={(val) => {
-                                    setAmelStation(val);
-                                    setAmelPage(1);
-                                }}
-                                allowAll
-                                extraOptions={[{ value: UNASSIGNED, label: 'No station' }]}
-                            />
-                            {amelAircraftTypeOptions.length > 0 && (
                                 <label className="flex items-center gap-1.5 text-xs">
                                     <span className="text-muted-foreground font-medium">A/C Type</span>
                                     <select
                                         value={amelAircraftType}
-                                        onChange={(e) => {
-                                            setAmelAircraftType(e.target.value);
-                                            setAmelPage(1);
-                                        }}
+                                        onChange={(e) => handleAmelAcTypeChange(e.target.value)}
                                         className="h-8 rounded-lg border border-border bg-card px-2.5 text-xs text-foreground focus:border-[#075CA2]/40 focus:outline-none focus:ring-2 focus:ring-[#075CA2]/20"
                                     >
                                         <option value="">All A/C Types</option>
-                                        {amelAircraftTypeOptions.map((t) => (
-                                            <option key={t} value={t}>
-                                                {t}
+                                        {familyCodeOptions.map((opt) => (
+                                            <option key={opt.value} value={opt.value}>
+                                                {opt.label}
                                             </option>
                                         ))}
                                     </select>
                                 </label>
-                            )}
-                            {isAmelFiltering && (
-                                <button
-                                    type="button"
-                                    onClick={clearAmelFilters}
-                                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 text-[11px] font-semibold text-red-500 transition-all hover:bg-red-100 dark:bg-red-950/30 dark:border-red-800"
-                                >
-                                    <X className="h-3 w-3" />
-                                    Clear
-                                </button>
-                            )}
-                            <span className="ml-auto text-xs text-muted-foreground">
-                                {amelPagination.totalRecords} staff · {amelGroups.length} Aircraft Series · {totalAmelColumns} Engine Columns
-                            </span>
+                                {isAmelFiltering && (
+                                    <button
+                                        type="button"
+                                        onClick={clearAmelFilters}
+                                        className="inline-flex h-8 items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 text-[11px] font-semibold text-red-500 transition-all hover:bg-red-100 dark:bg-red-950/30 dark:border-red-800"
+                                    >
+                                        <X className="h-3 w-3" />
+                                        Clear
+                                    </button>
+                                )}
+                                <span className="ml-auto text-xs text-muted-foreground">
+                                    {amelRows.length} of {effectiveAmelTotal} staff · {amelGroups.length} Aircraft Series · {totalAmelColumns} Engine Columns
+                                </span>
+                            </div>
+
+                            {/* Aircraft-Engine Filter matching example */}
+                            <AircraftEngineFilter
+                                familyCode={amelAircraftType}
+                                comboMode={amelComboMode}
+                                onComboModeChange={handleAmelComboModeChange}
+                                selectedComboId={amelSelectedComboId}
+                                onComboSelect={handleAmelComboSelect}
+                                series={amelSeries}
+                                onSeriesChange={(val) => {
+                                    setAmelSeries(val);
+                                    setAmelPage(1);
+                                }}
+                                engineCode={amelEngineCode}
+                                onEngineCodeChange={(val) => {
+                                    setAmelEngineCode(val);
+                                    setAmelPage(1);
+                                }}
+                                combinations={combinationsData}
+                            />
                         </div>
 
                         {/* Title Subheader matching Image 1 */}
@@ -434,17 +851,20 @@ export default function CertifyingStaffPage() {
                             <LoadingBlock label="Loading AMEL certifying staff data..." />
                         ) : amelQuery.error ? (
                             <EmptyBlock>Failed to load staff: {(amelQuery.error as Error).message}</EmptyBlock>
-                        ) : amelRows.length === 0 ? (
+                        ) : amelRows.length === 0 || amelGroups.length === 0 ? (
                             <EmptyBlock>No staff match these filters.</EmptyBlock>
                         ) : (
                             <div className="max-h-[calc(100vh-320px)] overflow-auto">
                                 <table className="w-full border-separate border-spacing-0 text-xs">
                                     <thead className="sticky top-0 z-30">
                                         {/* Row 1: Fixed ENGINE (sticky left colSpan 4) + Scrollable Aircraft Series */}
-                                        <tr>
+                                        <tr className={cn(config.sidebarColor !== 'light' && `dark theme-${config.sidebarColor}`)}>
                                             <th
                                                 colSpan={4}
-                                                className="sticky left-0 z-40 border-b border-r-2 border-r-slate-300 dark:border-r-slate-600 bg-slate-100 dark:bg-slate-800 px-3 py-2 text-center text-sm font-extrabold uppercase tracking-wider text-slate-900 dark:text-slate-100 shadow-[3px_0_8px_-1px_rgba(0,0,0,0.18)]"
+                                                className={cn(
+                                                    'sticky left-0 z-40 border-b border-r-2 border-r-slate-300 dark:border-r-slate-600 bg-sidebar px-3 py-2 text-center text-sm font-extrabold uppercase tracking-wider shadow-[3px_0_8px_-1px_rgba(0,0,0,0.18)]',
+                                                    isSidebarLight ? 'text-slate-900 dark:text-slate-100' : 'text-white'
+                                                )}
                                                 style={{
                                                     left: 0,
                                                     minWidth: AMEL_LEFT_ACTYPE + AMEL_COL_ACTYPE,
@@ -459,8 +879,9 @@ export default function CertifyingStaffPage() {
                                                     key={group.id}
                                                     colSpan={group.columns.length}
                                                     className={cn(
-                                                        'border-b border-l border-border bg-slate-50 dark:bg-slate-800/90 py-2 px-1 text-center text-[11px] font-bold text-slate-800 dark:text-slate-200',
-                                                        gi === 0 && 'border-l-border'
+                                                        'border-b border-l border-white/20 dark:border-slate-700 bg-sidebar py-2 px-1 text-center text-[11px] font-bold',
+                                                        isSidebarLight ? 'text-slate-800 dark:text-slate-200' : 'text-white',
+                                                        gi === 0 && 'border-l-transparent'
                                                     )}
                                                 >
                                                     {group.aircraft}
@@ -665,15 +1086,15 @@ export default function CertifyingStaffPage() {
                                 <span>
                                     Showing{' '}
                                     <strong className="text-foreground">
-                                        {amelPagination.totalRecords === 0
+                                        {effectiveAmelTotal === 0
                                             ? 0
                                             : (amelPagination.page - 1) * amelPagination.pageSize + 1}
                                     </strong>{' '}
                                     to{' '}
                                     <strong className="text-foreground">
-                                        {Math.min(amelPagination.page * amelPagination.pageSize, amelPagination.totalRecords)}
+                                        {Math.min(amelPagination.page * amelPagination.pageSize, effectiveAmelTotal)}
                                     </strong>{' '}
-                                    of <strong className="text-foreground">{amelPagination.totalRecords}</strong> records
+                                    of <strong className="text-foreground">{effectiveAmelTotal}</strong> records
                                 </span>
 
                                 {/* Page navigation buttons */}
@@ -730,63 +1151,80 @@ export default function CertifyingStaffPage() {
                        ══════════════════════════════════════════════════════════════ */}
                     <TabsContent value="licence" className="m-0 focus-visible:outline-none">
                         {/* Filter bar for Aircraft Licence */}
-                        <div className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3">
-                            <div className="relative min-w-[200px] max-w-[300px] flex-1">
-                                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                                <input
-                                    type="search"
-                                    value={licenceSearch}
-                                    onChange={(e) => {
-                                        setLicenceSearch(e.target.value);
+                        <div className="border-b border-border bg-card px-4 py-3 space-y-3">
+                            <div className="flex flex-wrap items-center gap-3">
+                                <div className="relative min-w-[200px] max-w-[300px] flex-1">
+                                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                                    <input
+                                        type="search"
+                                        value={licenceSearch}
+                                        onChange={(e) => {
+                                            setLicenceSearch(e.target.value);
+                                            setLicencePage(1);
+                                        }}
+                                        placeholder="Search staff name, ID or position..."
+                                        className="h-8 w-full rounded-lg border border-border bg-card pl-8 pr-3 text-xs placeholder:text-muted-foreground/60 focus:border-[#075CA2]/40 focus:outline-none focus:ring-2 focus:ring-[#075CA2]/20"
+                                    />
+                                </div>
+                                <StationSelect
+                                    stations={stations}
+                                    value={licenceStation}
+                                    onChange={(val) => {
+                                        setLicenceStation(val);
                                         setLicencePage(1);
                                     }}
-                                    placeholder="Search staff name, ID or position..."
-                                    className="h-8 w-full rounded-lg border border-border bg-card pl-8 pr-3 text-xs placeholder:text-muted-foreground/60 focus:border-[#075CA2]/40 focus:outline-none focus:ring-2 focus:ring-[#075CA2]/20"
+                                    allowAll
+                                    extraOptions={[{ value: UNASSIGNED, label: 'No station' }]}
                                 />
-                            </div>
-                            <StationSelect
-                                stations={stations}
-                                value={licenceStation}
-                                onChange={(val) => {
-                                    setLicenceStation(val);
-                                    setLicencePage(1);
-                                }}
-                                allowAll
-                                extraOptions={[{ value: UNASSIGNED, label: 'No station' }]}
-                            />
-                            {licenceAircraftTypeOptions.length > 0 && (
                                 <label className="flex items-center gap-1.5 text-xs">
                                     <span className="text-muted-foreground font-medium">A/C Type</span>
                                     <select
                                         value={licenceAircraftType}
-                                        onChange={(e) => {
-                                            setLicenceAircraftType(e.target.value);
-                                            setLicencePage(1);
-                                        }}
+                                        onChange={(e) => handleLicenceAcTypeChange(e.target.value)}
                                         className="h-8 rounded-lg border border-border bg-card px-2.5 text-xs text-foreground focus:border-[#075CA2]/40 focus:outline-none focus:ring-2 focus:ring-[#075CA2]/20"
                                     >
                                         <option value="">All A/C Types</option>
-                                        {licenceAircraftTypeOptions.map((t) => (
-                                            <option key={t} value={t}>
-                                                {t}
+                                        {familyCodeOptions.map((opt) => (
+                                            <option key={opt.value} value={opt.value}>
+                                                {opt.label}
                                             </option>
                                         ))}
                                     </select>
                                 </label>
-                            )}
-                            {isLicenceFiltering && (
-                                <button
-                                    type="button"
-                                    onClick={clearLicenceFilters}
-                                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 text-[11px] font-semibold text-red-500 transition-all hover:bg-red-100 dark:bg-red-950/30 dark:border-red-800"
-                                >
-                                    <X className="h-3 w-3" />
-                                    Clear
-                                </button>
-                            )}
-                            <span className="ml-auto text-xs text-muted-foreground">
-                                {licencePagination.totalRecords} staff · {licenceAirlines.length} Airlines · {totalLicenceSubtypes} Subtype Columns
-                            </span>
+                                {isLicenceFiltering && (
+                                    <button
+                                        type="button"
+                                        onClick={clearLicenceFilters}
+                                        className="inline-flex h-8 items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 text-[11px] font-semibold text-red-500 transition-all hover:bg-red-100 dark:bg-red-950/30 dark:border-red-800"
+                                    >
+                                        <X className="h-3 w-3" />
+                                        Clear
+                                    </button>
+                                )}
+                                <span className="ml-auto text-xs text-muted-foreground">
+                                    {licenceRows.length} of {effectiveLicenceTotal} staff · {licenceAirlines.length} Airlines · {totalLicenceSubtypes} Subtype Columns
+                                </span>
+                            </div>
+
+                            {/* Aircraft-Engine Filter matching example */}
+                            <AircraftEngineFilter
+                                familyCode={licenceAircraftType}
+                                comboMode={licenceComboMode}
+                                onComboModeChange={handleLicenceComboModeChange}
+                                selectedComboId={licenceSelectedComboId}
+                                onComboSelect={handleLicenceComboSelect}
+                                series={licenceSeries}
+                                onSeriesChange={(val) => {
+                                    setLicenceSeries(val);
+                                    setLicencePage(1);
+                                }}
+                                engineCode={licenceEngineCode}
+                                onEngineCodeChange={(val) => {
+                                    setLicenceEngineCode(val);
+                                    setLicencePage(1);
+                                }}
+                                combinations={combinationsData}
+                            />
                         </div>
 
                         {/* Title Subheader matching Image 2 */}
@@ -808,17 +1246,20 @@ export default function CertifyingStaffPage() {
                             <LoadingBlock label="Loading Aircraft Licence data..." />
                         ) : licenceQuery.error ? (
                             <EmptyBlock>Failed to load staff: {(licenceQuery.error as Error).message}</EmptyBlock>
-                        ) : licenceRows.length === 0 ? (
+                        ) : licenceRows.length === 0 || licenceAirlines.length === 0 ? (
                             <EmptyBlock>No staff match these filters.</EmptyBlock>
                         ) : (
                             <div className="max-h-[calc(100vh-320px)] overflow-auto">
                                 <table className="w-full border-separate border-spacing-0 text-xs">
                                     <thead className="sticky top-0 z-30">
                                         {/* Row 1: Fixed Airlines (sticky left colSpan 4) + Airline Headers */}
-                                        <tr>
+                                        <tr className={cn(config.sidebarColor !== 'light' && `dark theme-${config.sidebarColor}`)}>
                                             <th
                                                 colSpan={4}
-                                                className="sticky left-0 z-40 border-b border-r-2 border-r-slate-300 dark:border-r-slate-600 bg-slate-100 dark:bg-slate-800 px-3 py-2 text-center text-sm font-extrabold uppercase tracking-wider text-slate-900 dark:text-slate-100 shadow-[3px_0_8px_-1px_rgba(0,0,0,0.18)]"
+                                                className={cn(
+                                                    'sticky left-0 z-40 border-b border-r-2 border-r-slate-300 dark:border-r-slate-600 bg-sidebar px-3 py-2 text-center text-sm font-extrabold uppercase tracking-wider shadow-[3px_0_8px_-1px_rgba(0,0,0,0.18)]',
+                                                    isSidebarLight ? 'text-slate-900 dark:text-slate-100' : 'text-white'
+                                                )}
                                                 style={{
                                                     left: 0,
                                                     minWidth: AMEL_LEFT_ACTYPE + AMEL_COL_ACTYPE,
@@ -838,8 +1279,9 @@ export default function CertifyingStaffPage() {
                                                         key={al.airlineId}
                                                         colSpan={Math.max(subCount, 1)}
                                                         className={cn(
-                                                            'whitespace-nowrap border-b border-l border-border bg-slate-50 dark:bg-slate-800/90 px-3 py-2 text-center text-xs font-bold uppercase tracking-wide text-slate-800 dark:text-slate-200 align-middle',
-                                                            ai === 0 && 'border-l-border'
+                                                            'whitespace-nowrap border-b border-l border-white/20 dark:border-slate-700 bg-sidebar px-3 py-2 text-center text-xs font-bold uppercase tracking-wide align-middle',
+                                                            isSidebarLight ? 'text-slate-800 dark:text-slate-200' : 'text-white',
+                                                            ai === 0 && 'border-l-transparent'
                                                         )}
                                                     >
                                                         {al.airlineName} {al.airlineCode ? `(${al.airlineCode})` : ''}
@@ -1120,15 +1562,15 @@ export default function CertifyingStaffPage() {
                                 <span>
                                     Showing{' '}
                                     <strong className="text-foreground">
-                                        {licencePagination.totalRecords === 0
+                                        {effectiveLicenceTotal === 0
                                             ? 0
                                             : (licencePagination.page - 1) * licencePagination.pageSize + 1}
                                     </strong>{' '}
                                     to{' '}
                                     <strong className="text-foreground">
-                                        {Math.min(licencePagination.page * licencePagination.pageSize, licencePagination.totalRecords)}
+                                        {Math.min(licencePagination.page * licencePagination.pageSize, effectiveLicenceTotal)}
                                     </strong>{' '}
-                                    of <strong className="text-foreground">{licencePagination.totalRecords}</strong> records
+                                    of <strong className="text-foreground">{effectiveLicenceTotal}</strong> records
                                 </span>
 
                                 {/* Page navigation buttons */}

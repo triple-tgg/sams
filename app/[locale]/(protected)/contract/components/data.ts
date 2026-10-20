@@ -118,8 +118,10 @@ export const defaultPricingRate: Omit<PricingRate, 'id'> = {
     tsChk5to6hrsNoCert: 0,
     additionalFee6hrsPlusNoCert: 0,
     // Service Rates - Transit Checks (Other)
-    standbyPerCheck: 0,
-    onCallPerCheck: 0,
+    standbyEngineer: 0,
+    standbyMechanic: 0,
+    onCallEngineer: 0,
+    onCallMechanic: 0,
     // Service Rates - Routine Checks
     dailyCheck: 0,
     preFlightCheck: 0,

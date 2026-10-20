@@ -202,12 +202,22 @@ function KpiTile({ card }: { card: KpiCard }) {
 }
 
 function DailyTable({ title, rows, peak }: { title: string; rows: DailyRow[]; peak: DailyRow }) {
-    const renderRow = (r: DailyRow, isPeak = false) => (
-        <tr key={r.day} className={cn('border-t border-border', isPeak ? 'font-bold' : 'hover:bg-muted/20 transition-colors')}>
-            <td className={td}>{r.day}</td>
-            <td className={cn(td, 'tabular-nums')}>{r.day_pos} / {r.night_pos}</td>
-            <td className={cn(td, 'text-right tabular-nums')}>{r.required}</td>
-            <td className={cn(td, 'text-right tabular-nums')}>{r.available}</td>
+    const renderRow = (r: DailyRow, isPeak = false, index = 0) => (
+        <tr
+            key={r.day}
+            className={cn(
+                'border-t border-border transition-colors',
+                isPeak
+                    ? 'border-t-2 border-border bg-slate-100/90 font-bold dark:bg-slate-800/80 hover:bg-slate-200/70 dark:hover:bg-slate-800'
+                    : index % 2 === 1
+                      ? 'bg-slate-50/80 hover:bg-slate-100/70 dark:bg-slate-900/40 dark:hover:bg-slate-800/60'
+                      : 'bg-card hover:bg-slate-50 dark:hover:bg-slate-900/50'
+            )}
+        >
+            <td className={cn(td, isPeak && 'font-bold')}>{r.day}</td>
+            <td className={cn(td, 'tabular-nums', isPeak && 'font-bold')}>{r.day_pos} / {r.night_pos}</td>
+            <td className={cn(td, 'text-right tabular-nums', isPeak && 'font-bold')}>{r.required}</td>
+            <td className={cn(td, 'text-right tabular-nums', isPeak && 'font-bold')}>{r.available}</td>
             <td className={td}><StaffingBadge required={r.required} available={r.available} /></td>
         </tr>
     );
@@ -227,8 +237,8 @@ function DailyTable({ title, rows, peak }: { title: string; rows: DailyRow[]; pe
                         </tr>
                     </thead>
                     <tbody>
-                        {rows.map((r) => renderRow(r))}
-                        {renderRow(peak, true)}
+                        {rows.map((r, i) => renderRow(r, false, i))}
+                        {renderRow(peak, true, rows.length)}
                     </tbody>
                 </table>
             </div>
@@ -261,8 +271,17 @@ function SimulationCard({ title, rows }: { title: string; rows: ExtraShiftSimula
                         </tr>
                     </thead>
                     <tbody>
-                        {rows.map((row) => (
-                            <tr key={row.extraPerDay} className={cn('border-t border-border hover:bg-muted/20 transition-colors', row.status !== 'more' && 'font-bold')}>
+                        {rows.map((row, i) => (
+                            <tr
+                                key={row.extraPerDay}
+                                className={cn(
+                                    'border-t border-border transition-colors',
+                                    i % 2 === 1
+                                        ? 'bg-slate-50/80 hover:bg-slate-100/70 dark:bg-slate-900/40 dark:hover:bg-slate-800/60'
+                                        : 'bg-card hover:bg-slate-50 dark:hover:bg-slate-900/50',
+                                    row.status !== 'more' && 'font-bold'
+                                )}
+                            >
                                 <td className={cn(td, 'text-center tabular-nums')}>{row.extraPerDay}</td>
                                 <td className={cn(td, 'text-center tabular-nums')}>{row.mainShift}</td>
                                 <td className={cn(td, 'text-center tabular-nums')}>{row.totalPositions}</td>
@@ -342,7 +361,7 @@ export function SummaryTab({ onViewFlights }: { onViewFlights: () => void }) {
                 <h2 className="mb-3 text-sm font-bold text-[#075CA2] dark:text-sky-300">
                     จำนวนเที่ยวบินต่อวันที่ทีมปัจจุบันรับได้ (ประมาณ)
                 </h2>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto rounded-md border border-border">
                     <table className="w-full border-collapse">
                         <thead className="bg-muted/40">
                             <tr>
@@ -353,8 +372,16 @@ export function SummaryTab({ onViewFlights }: { onViewFlights: () => void }) {
                             </tr>
                         </thead>
                         <tbody>
-                            {CAPACITY_ROWS.map((r) => (
-                                <tr key={r.label} className="border-t border-border hover:bg-muted/20 transition-colors">
+                            {CAPACITY_ROWS.map((r, i) => (
+                                <tr
+                                    key={r.label}
+                                    className={cn(
+                                        'border-t border-border transition-colors',
+                                        i % 2 === 1
+                                            ? 'bg-slate-50/80 hover:bg-slate-100/70 dark:bg-slate-900/40 dark:hover:bg-slate-800/60'
+                                            : 'bg-card hover:bg-slate-50 dark:hover:bg-slate-900/50'
+                                    )}
+                                >
                                     <td className={cn(td, 'font-medium text-foreground')}>{r.label}</td>
                                     <td className={cn(td, 'text-right tabular-nums')}>{r.avgPerDay}</td>
                                     <td className={cn(td, 'text-right tabular-nums')}>{r.maxPerDay}</td>

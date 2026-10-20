@@ -15,6 +15,8 @@ export interface ContractAirlineObj {
     updatedby: string;
     colorForeground: string;
     colorBackground: string;
+    emailTo: string | null;
+    emailCc: string | null;
 }
 
 // Interface for Contract Status object in contract response
@@ -61,12 +63,14 @@ export interface ContractListItem {
     effectiveFrom: string;
     validFrom: string;
     expiresOn: string;
+    escalationDate: string | null;
     isNoExpiryDate: boolean | null;
     serviceStation: string[];
     creditTerms: string;
     contractStatusObj: ContractStatusObj;
     contractTypeObj: ContractTypeObj;
     personnelList: ContractPersonnel[] | null;
+    currencyType: string | null;
 }
 
 // Interface for Contract list request

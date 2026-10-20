@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import '@/lib/dayjs';
-import { Activity, CheckCircle2, Plane, RotateCcw, Save, Search, SlidersHorizontal, UserCheck, Users } from 'lucide-react';
+import { Activity, Plane, Search, SlidersHorizontal, UserCheck, Users } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
@@ -21,29 +21,15 @@ import {
 } from '@/lib/roster/manpower';
 import { EmptyBlock, Pill, RosterHeader, StationSelect, WeekNav, td, th } from '../../components/RosterUi';
 import { SUMMARY_MOCK_SHORTAGE, SummaryTab } from './SummaryTab';
+import { DEFAULT_SETTINGS_RULES, SettingsTab, type SettingsRules } from './SettingsTab';
 
 type TabKey = 'summary' | 'settings' | 'staff' | 'flights';
-
-const PARAM_FIELDS: { key: keyof ManpowerParams; label: string; desc: string; unit: string; category: string }[] = [
-    { key: 'receiveMinutes', label: 'Overnight Receive Window', desc: 'Ground time needed to receive overnight arrival', unit: 'min', category: 'Handling' },
-    { key: 'releaseMinutes', label: 'Overnight Release Window', desc: 'Ground time needed before overnight departure', unit: 'min', category: 'Handling' },
-    { key: 'bufferMinutes', label: 'Walking & Transition Buffer', desc: 'Transit buffer added after each work block', unit: 'min', category: 'Handling' },
-    { key: 'nightWindowStartHour', label: 'Overnight Window Start', desc: 'Overnight ground threshold begins', unit: ':00', category: 'Shift Timing' },
-    { key: 'nightWindowEndHour', label: 'Overnight Window End', desc: 'Overnight ground threshold ends', unit: ':00', category: 'Shift Timing' },
-    { key: 'dayShiftStartHour', label: 'Day Shift Report Hour', desc: 'Day shift duty start time', unit: ':00', category: 'Shift Timing' },
-    { key: 'nightShiftStartHour', label: 'Night Shift Report Hour', desc: 'Night shift duty start time', unit: ':00', category: 'Shift Timing' },
-    { key: 'workDays', label: 'Work Days in Cycle', desc: 'Consecutive working days in roster pattern', unit: 'days', category: 'Roster Pattern' },
-    { key: 'offDays', label: 'Rest Days in Cycle', desc: 'Consecutive days off in roster pattern', unit: 'days', category: 'Roster Pattern' },
-    { key: 'annualLeaveDays', label: 'Annual Leave Allowance', desc: 'Average annual leave taken per person/year', unit: 'days/yr', category: 'Relief & Absence' },
-    { key: 'sickLeaveDays', label: 'Sick Leave Allowance', desc: 'Average sick leave provision per person/year', unit: 'days/yr', category: 'Relief & Absence' },
-    { key: 'trainingDays', label: 'Mandatory Training Days', desc: 'Annual recurrent & type training days', unit: 'days/yr', category: 'Relief & Absence' },
-];
 
 export default function ManpowerPlanningPage() {
     const [stationCode, setStationCode] = useState(DEFAULT_ROSTER_STATION);
     const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
     const [params, setParams] = useState<ManpowerParams>(DEFAULT_MANPOWER_PARAMS);
-    const [savedParamsAlert, setSavedParamsAlert] = useState(false);
+    const [rules, setRules] = useState<SettingsRules>(DEFAULT_SETTINGS_RULES);
     const [activeTab, setActiveTab] = useState<TabKey>('summary');
 
     // Filter states for Staff Tab
@@ -60,18 +46,6 @@ export default function ManpowerPlanningPage() {
     const { flights } = useRosterFlights(stationCode, weekStart);
 
     const stationStaff = useMemo(() => staff.filter((s) => s.stationCode === stationCode), [staff, stationCode]);
-
-    const setParam = (key: keyof ManpowerParams, raw: string) => {
-        const value = Number(raw);
-        if (Number.isFinite(value) && value >= 0) {
-            setParams((p) => ({ ...p, [key]: value }));
-        }
-    };
-
-    const handleSaveParams = () => {
-        setSavedParamsAlert(true);
-        setTimeout(() => setSavedParamsAlert(false), 3000);
-    };
 
     // Filtered Staff
     const filteredStaff = useMemo(() => {
@@ -199,123 +173,10 @@ export default function ManpowerPlanningPage() {
             {activeTab === 'summary' && <SummaryTab onViewFlights={() => setActiveTab('flights')} />}
 
             {/* ═══════════════════════════════════════════════════════════════════
-                TAB 2: ตั้งค่า (Settings / Assumptions)
+                TAB 2: ตั้งค่า (Settings / Rules)
                ═══════════════════════════════════════════════════════════════════ */}
             {activeTab === 'settings' && (
-                <div className="space-y-4">
-                    <Card className="overflow-hidden p-6">
-                        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4 mb-6">
-                            <div>
-                                <h2 className="text-base font-semibold text-foreground">การตั้งค่าตัวแปรคำนวณกำลังคน (Manpower Assumptions)</h2>
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                    ปรับแต่งสมมติฐานตามสูตรมาตรฐาน Manpower Workbook เพื่อคำนวณอัตรากำลังคนและ Relief Factor
-                                </p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setParams(DEFAULT_MANPOWER_PARAMS)}
-                                    className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border px-3 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                                >
-                                    <RotateCcw className="h-3.5 w-3.5" />
-                                    คืนค่าเริ่มต้น (Reset Defaults)
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleSaveParams}
-                                    className="inline-flex h-9 items-center gap-1.5 rounded-md bg-[#075CA2] text-white px-4 text-xs font-semibold hover:bg-[#064B85] shadow-xs transition-colors"
-                                >
-                                    <Save className="h-3.5 w-3.5" />
-                                    บันทึกการตั้งค่า
-                                </button>
-                            </div>
-                        </div>
-
-                        {savedParamsAlert && (
-                            <div className="mb-6 flex items-center gap-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 p-3 text-xs font-medium text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                                <CheckCircle2 className="h-4 w-4" />
-                                บันทึกการตั้งค่าตัวแปรเรียบร้อยแล้ว การคำนวณในแท็บอื่นจะอัปเดตอัตโนมัติ
-                            </div>
-                        )}
-
-                        {/* Parameter Groups */}
-                        {['Handling', 'Shift Timing', 'Roster Pattern', 'Relief & Absence'].map((category) => (
-                            <div key={category} className="mb-6">
-                                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">{category}</h3>
-                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                    {PARAM_FIELDS.filter((f) => f.category === category).map((f) => (
-                                        <div key={f.key} className="rounded-lg border border-border bg-card p-3.5 flex flex-col justify-between">
-                                            <div>
-                                                <div className="text-xs font-semibold text-foreground">{f.label}</div>
-                                                <div className="text-[11px] text-muted-foreground mt-0.5">{f.desc}</div>
-                                            </div>
-                                            <div className="mt-3 flex items-center gap-2">
-                                                <input
-                                                    type="number"
-                                                    min={0}
-                                                    value={params[f.key] as number}
-                                                    onChange={(e) => setParam(f.key, e.target.value)}
-                                                    className="h-8 w-24 rounded border border-border bg-background px-2.5 text-sm font-semibold tabular-nums focus:outline-none focus:ring-2 focus:ring-[#075CA2]/20"
-                                                />
-                                                <span className="text-xs text-muted-foreground font-medium">{f.unit}</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
-
-                        {/* Calculated Formula Cards */}
-                        <div className="mt-8 rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 p-5">
-                            <h3 className="text-sm font-semibold text-[#075CA2] dark:text-sky-300 mb-3">
-                                ผลลัพธ์ตัวคูณกำลังคนจากการตั้งค่า (Calculated Multipliers)
-                            </h3>
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                                <div className="rounded-lg bg-card p-4 border border-border">
-                                    <div className="text-xs text-muted-foreground">Staff per Position (Pattern)</div>
-                                    <div className="mt-1 text-2xl font-bold text-foreground tabular-nums">
-                                        {staffPerPosition(params).toFixed(2)}
-                                    </div>
-                                    <div className="text-[11px] text-muted-foreground mt-1">
-                                        สูตร: (Work {params.workDays} + Off {params.offDays}) ÷ Work {params.workDays}
-                                    </div>
-                                </div>
-
-                                <div className="rounded-lg bg-card p-4 border border-border">
-                                    <div className="text-xs text-muted-foreground">Relief Factor (Absence Buffer)</div>
-                                    <div className="mt-1 text-2xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                                        {reliefFactor(params).toFixed(3)}
-                                    </div>
-                                    <div className="text-[11px] text-muted-foreground mt-1">
-                                        ชดเชยลาพักผ่อน ({params.annualLeaveDays}d) + ป่วย ({params.sickLeaveDays}d) + อบรม ({params.trainingDays}d)
-                                    </div>
-                                </div>
-
-                                <div className="rounded-lg bg-card p-4 border border-border">
-                                    <div className="text-xs text-muted-foreground">Effective Headcount per Peak Position</div>
-                                    <div className="mt-1 text-2xl font-bold text-[#075CA2] dark:text-sky-400 tabular-nums">
-                                        {(staffPerPosition(params) * reliefFactor(params)).toFixed(2)}
-                                    </div>
-                                    <div className="text-[11px] text-muted-foreground mt-1">
-                                        ต้องมีช่าง { (staffPerPosition(params) * reliefFactor(params)).toFixed(2) } คน เพื่อรองรับ 1 ตำแหน่งต่อเนื่อง
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="mt-4 pt-3 border-t border-border flex items-center gap-3">
-                                <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-foreground">
-                                    <input
-                                        type="checkbox"
-                                        checked={params.includePlanning}
-                                        onChange={(e) => setParams((p) => ({ ...p, includePlanning: e.target.checked }))}
-                                        className="h-4 w-4 rounded border-border text-[#075CA2] focus:ring-[#075CA2]"
-                                    />
-                                    รวมเที่ยวบินสถานะวางแผน (Include Planning Flights) ในการคำนวณกำลังคน
-                                </label>
-                            </div>
-                        </div>
-                    </Card>
-                </div>
+                <SettingsTab params={params} onParamsChange={setParams} rules={rules} onRulesChange={setRules} />
             )}
 
             {/* ═══════════════════════════════════════════════════════════════════

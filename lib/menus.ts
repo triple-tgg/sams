@@ -121,11 +121,11 @@ export function getMenuList(pathname: string, t: any): Group[] {
               badge: "NEW",
             },
             {
-              permCode: "MONTHLY_FREQUENCY",
-              href: "/production-planner/monthly-frequency",
-              label: "Monthly Frequency",
-              active: pathname.includes("/production-planner/monthly-frequency"),
-              icon: "heroicons-outline:table-cells",
+              permCode: "CUSTOMER_SERVICE_TYPE",
+              href: "/production-planner/customer-service-type",
+              label: "Customer Service Type",
+              active: pathname.includes("/production-planner/customer-service-type"),
+              icon: "heroicons-outline:clipboard-document-list",
               badge: "NEW",
             },
             {

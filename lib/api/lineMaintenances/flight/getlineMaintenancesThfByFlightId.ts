@@ -21,6 +21,8 @@ export interface CodeObject {
 export interface AirlineCodeObject extends CodeObject {
   colorForeground: string | null;
   colorBackground: string | null;
+  emailTo: string | null;
+  emailCc: string | null;
 }
 
 export interface AcTypeCodeObject {
@@ -47,6 +49,9 @@ export interface AcTypeCodeObject {
   createdBy: string | null;
   updatedDate: string | null;
   updatedBy: string | null;
+  familyCode: string | null;
+  colorForeground: string | null;
+  colorBackground: string | null;
 }
 
 export interface MaintenanceStatus {
@@ -76,9 +81,15 @@ export interface StaffDisplay {
 
 // ── Flight ──
 
+export interface FlightServiceListItem {
+  code: string;
+  subTypes: string[];
+}
+
 export interface Flight {
   flightsId: number | null;
   flightInfosId: number | null;
+  flightServiceLists: FlightServiceListItem[] | null;
   airlineObj: AirlineCodeObject;
   stationObj: CodeObject;
   acReg: string | null;
@@ -103,8 +114,19 @@ export interface Flight {
   routeFrom: string | null;
   routeTo: string | null;
   acTypeObj: AcTypeCodeObject | null;
+  acTypeId: number | null;
+  series: string | null;
+  engineCode: string | null;
   filePath: string | null;
   thfNumber: string | null;
+  lineMaintenancesId: number | null;
+  isMapping: boolean | null;
+  mappingStatus: string | null;
+  revisionReason: string | null;
+  revisionCategory: string | null;
+  revisionRequestedBy: string | null;
+  revisionRequestedAt: string | null;
+  revisionCount: number | null;
   csList: StaffDisplay[] | null;
   mechList: StaffDisplay[] | null;
   etaDate: string | null;
@@ -146,8 +168,9 @@ export interface Personnel {
   staff: StaffData;
   formDate: string | null;
   toDate: string | null;
-  formTime: string | null;
-  toTime: string | null;
+  /** No longer returned by the API — time is part of formDate / toDate. */
+  formTime?: string | null;
+  toTime?: string | null;
   note: string | null;
 }
 
@@ -186,8 +209,9 @@ export interface AircraftTowing {
   bayTo: string | null;
   onDate: string | null;
   offDate: string | null;
-  onTime: string | null;
-  offTime: string | null;
+  /** No longer returned by the API — time is part of onDate / offDate. */
+  onTime?: string | null;
+  offTime?: string | null;
 }
 
 export interface Aircraft {
@@ -258,7 +282,7 @@ export const getlineMaintenancesThfByFlightId = async (
   params: LineMaintenanceThfParams
 ): Promise<LineMaintenanceThfResponse> => {
   try {
-    const response = await axiosConfig.get(`/lineMaintenances/flightInfo/${params.flightInfosId}`);
+    const response = await axiosConfig.get<LineMaintenanceThfResponse>(`/lineMaintenances/flightInfo/${params.flightInfosId}`);
     return response.data;
   } catch (error) {
     console.error("Get line maintenances THF by flight ID error:", error);

@@ -142,16 +142,22 @@ export const EXCEL_COLUMN_MAPPING: Record<string, string> = {
 };
 
 /**
+ * Service item in flight validation/import
+ */
+export interface FlightServiceListItem {
+    code: string;
+    subTypes: string[];
+}
+
+/**
  * API validate request item
  */
 export interface FlightValidateRequestItem {
+    flightServiceLists: FlightServiceListItem[];
     rowId: number;
     airlinesId: number;
     stationId: number;
     acTypeId: number;
-    /** Aircraft-Engine combination id (0 when not resolved). */
-    aircraftEngineId: number;
-    familyCode: string;
     series: string;
     engineCode: string;
     acReg: string;
@@ -165,12 +171,47 @@ export interface FlightValidateRequestItem {
     bayNo: string;
     csIdList: number[];
     mechIdList: number[];
-    maintenanceStatusId?: number;
+    maintenanceStatusId: number;
+    note: string;
+    datasource: string;
+    /** Aircraft-Engine combination id (0 when not resolved). */
+    aircraftEngineId?: number;
+    familyCode?: string;
     /** Flight status code from /master/Status (e.g. "Normal"). */
     statusCode?: string;
-    note: string;
-    datasource?: string;
     userName?: string;
+}
+
+/**
+ * API import request item — POST /flight/importlist-filghtinfo
+ */
+export type FlightImportRequestItem = Omit<FlightValidateRequestItem, 'aircraftEngineId' | 'familyCode' | 'statusCode' | 'userName'>;
+
+/** Keep only the fields the import endpoint accepts. */
+export function toFlightImportRequestItem(item: FlightValidateRequestItem): FlightImportRequestItem {
+    return {
+        flightServiceLists: item.flightServiceLists,
+        rowId: item.rowId,
+        airlinesId: item.airlinesId,
+        stationId: item.stationId,
+        acTypeId: item.acTypeId,
+        series: item.series,
+        engineCode: item.engineCode,
+        acReg: item.acReg,
+        arrivalFlightNo: item.arrivalFlightNo,
+        departureFlightNo: item.departureFlightNo,
+        routeFrom: item.routeFrom,
+        routeTo: item.routeTo,
+        arrivalStaDate: item.arrivalStaDate,
+        departureStdDate: item.departureStdDate,
+        etaDate: item.etaDate,
+        bayNo: item.bayNo,
+        csIdList: item.csIdList,
+        mechIdList: item.mechIdList,
+        maintenanceStatusId: item.maintenanceStatusId,
+        note: item.note,
+        datasource: item.datasource,
+    };
 }
 
 /**

@@ -186,13 +186,21 @@ export const validateTimeRange = (from: string, to: string): boolean => {
 export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse | null): ServicesFormInputs | null => {
   if (!queryData?.responseData) return null;
 
-  const { aircraft, lineMaintenance, rampFuel, actualUplift } = queryData.responseData;
+  const { flight, aircraft, lineMaintenance, rampFuel, actualUplift } = queryData.responseData;
 
-  // Map aircraft checks
+  // Map aircraft checks — saved THF checks first, otherwise default from the flight's services
+  const flightServices = (flight?.flightServiceLists ?? []).filter(service => !!service.code);
   const aircraftChecks = (aircraft?.aircraftCheckType?.length ?? 0) > 0
     ? aircraft.aircraftCheckType!.map(check => ({
       maintenanceTypes: check.checkType || "",
       maintenanceSubTypes: Array.isArray(check.checkSubType) ? check.checkSubType : [],
+      laeMH: "",
+      mechMH: "",
+    }))
+    : flightServices.length > 0
+    ? flightServices.map(service => ({
+      maintenanceTypes: service.code,
+      maintenanceSubTypes: Array.isArray(service.subTypes) ? service.subTypes : [],
       laeMH: "",
       mechMH: "",
     }))

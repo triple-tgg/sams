@@ -12,11 +12,16 @@ export interface ResFlightItem extends Pagination {
 }
 
 
+export interface FlightServiceListItem {
+  code: string
+  subTypes: string[]
+}
+
 export interface FlightItem {
   flightsId: number | null
   flightInfosId: number | null
   /** Service lines attached to the flight (null when none) */
-  flightServiceLists?: unknown[] | null
+  flightServiceLists?: FlightServiceListItem[] | null
   airlineObj: AirlineObj | null
   stationObj: StationObj | null
   acReg: string

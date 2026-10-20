@@ -34,10 +34,12 @@ const transformContractData = (apiData: ContractListItem[]): Contract[] => {
     effective: item.effectiveFrom,
     valid: item.validFrom,
     expires: item.expiresOn,
+    escalationDate: item.escalationDate ?? null,
     noExpiry: item.isNoExpiryDate ?? false,
     location: item.serviceStation ? Array.from(new Set(item.serviceStation)).join(", ") : "-",
     station: item.serviceStation?.[0] || "-",
     status: item.contractStatusObj?.code || item.contractStatusObj?.name || "-",
+    currency: item.currencyType ?? null,
   }));
 };
 

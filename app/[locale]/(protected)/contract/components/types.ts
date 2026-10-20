@@ -20,10 +20,12 @@ export interface Contract {
     effective: string;
     valid: string;
     expires: string;
+    escalationDate?: string | null;
     noExpiry: boolean;
     location: string;
     station: string;
     status: string;
+    currency?: string | null;
 }
 
 // Pricing Rate interface for multi-rate pricing
@@ -47,8 +49,10 @@ export interface PricingRate {
     tsChk5to6hrsNoCert: number;
     additionalFee6hrsPlusNoCert: number;
     // Service Rates - Transit Checks (Other)
-    standbyPerCheck: number;
-    onCallPerCheck: number;
+    standbyEngineer: number;
+    standbyMechanic: number;
+    onCallEngineer: number;
+    onCallMechanic: number;
     // Service Rates - Routine Checks
     dailyCheck: number;
     preFlightCheck: number;
@@ -107,7 +111,7 @@ export interface ContractFormData {
     expiresOn: string;
     isNoExpiryDate: boolean;
     /** YYYY-MM-DD; empty when not set. */
-    escalationDate: string;
+    escalationDate: string; // "MM-DD" — year is added on submit
     domicileCountry: string;
     currency: string;
     status: string;

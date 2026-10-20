@@ -287,14 +287,22 @@ export const ContractViewA4 = ({ formData, isLoading }: ContractViewA4Props) => 
                                         {/* Transit Checks - Other */}
                                         <div className="mb-5">
                                             <p className="font-semibold mb-1">Transit Checks (Other)</p>
-                                            <div className="grid grid-cols-3 gap-2">
+                                            <div className="grid grid-cols-2 gap-2">
                                                 <div>
-                                                    <span className="text-muted-foreground">Standby Per Check:</span>
-                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.standbyPerCheck)}/check</span>
+                                                    <span className="text-muted-foreground">Standby (Engineer):</span>
+                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.standbyEngineer)}/check</span>
                                                 </div>
                                                 <div>
-                                                    <span className="text-muted-foreground">On-Call Per Check:</span>
-                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.onCallPerCheck)}/check</span>
+                                                    <span className="text-muted-foreground">Standby (Mechanic):</span>
+                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.standbyMechanic)}/check</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-muted-foreground">On-Call (Engineer):</span>
+                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.onCallEngineer)}/check</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-muted-foreground">On-Call (Mechanic):</span>
+                                                    <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.onCallMechanic)}/check</span>
                                                 </div>
                                             </div>
                                         </div>

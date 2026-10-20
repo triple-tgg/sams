@@ -24,8 +24,10 @@ export interface ContractPricingDataRequest {
     tsChk4to5hrsNoCert: number;
     tsChk5to6hrsNoCert: number;
     additionalFee6hrsPlusNoCert: number;
-    standbyPerCheck: number;
-    onCallPerCheck: number;
+    standbyEngineer: number;
+    standbyMechanic: number;
+    onCallEngineer: number;
+    onCallMechanic: number;
     dailyCheck: number;
     preFlightCheck: number;
     weeklyCheck: number;

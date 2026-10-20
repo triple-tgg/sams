@@ -37,7 +37,7 @@ export const ROUTE_PERMISSION_MAP: RoutePermission[] = [
     { path: "/production-planner/dashboard",            menuCodes: ["PRODUCTION_DASHBOARD"] },
     { path: "/production-planner/production-plan",      menuCodes: ["PRODUCTION_PLAN"] },
     { path: "/production-planner/revenue-plan",         menuCodes: ["REVENUE_PLAN"] },
-    { path: "/production-planner/monthly-frequency",    menuCodes: ["MONTHLY_FREQUENCY"] },
+    { path: "/production-planner/customer-service-type", menuCodes: ["CUSTOMER_SERVICE_TYPE"] },
     { path: "/production-planner/import-flight-data",   menuCodes: ["IMPORT_FLIGHT_DATA"] },
     { path: "/production-planner",                      menuCodes: ["PRODUCTION_PLANNER"] },
 

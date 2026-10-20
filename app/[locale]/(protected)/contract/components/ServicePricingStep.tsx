@@ -420,17 +420,31 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                     <p className="text-xs font-bold text-muted-foreground">Other</p>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <PriceInput
-                                            id={`${rate.id}-standbyPerCheck`}
-                                            label="Stand-by"
-                                            value={rate.standbyPerCheck}
-                                            onChange={handleNumberChange("standbyPerCheck")}
+                                            id={`${rate.id}-standbyEngineer`}
+                                            label="Standby (Engineer)"
+                                            value={rate.standbyEngineer}
+                                            onChange={handleNumberChange("standbyEngineer")}
                                             suffix="/Check" currencyLabel={currencyLabel}
                                         />
                                         <PriceInput
-                                            id={`${rate.id}-onCallPerCheck`}
-                                            label="On Call"
-                                            value={rate.onCallPerCheck}
-                                            onChange={handleNumberChange("onCallPerCheck")}
+                                            id={`${rate.id}-standbyMechanic`}
+                                            label="Standby (Mechanic)"
+                                            value={rate.standbyMechanic}
+                                            onChange={handleNumberChange("standbyMechanic")}
+                                            suffix="/Check" currencyLabel={currencyLabel}
+                                        />
+                                        <PriceInput
+                                            id={`${rate.id}-onCallEngineer`}
+                                            label="On-Call (Engineer)"
+                                            value={rate.onCallEngineer}
+                                            onChange={handleNumberChange("onCallEngineer")}
+                                            suffix="/Check" currencyLabel={currencyLabel}
+                                        />
+                                        <PriceInput
+                                            id={`${rate.id}-onCallMechanic`}
+                                            label="On-Call (Mechanic)"
+                                            value={rate.onCallMechanic}
+                                            onChange={handleNumberChange("onCallMechanic")}
                                             suffix="/Check" currencyLabel={currencyLabel}
                                         />
                                     </div>

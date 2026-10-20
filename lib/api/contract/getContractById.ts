@@ -84,8 +84,10 @@ export interface ContractDetailPricingData {
     tsChk4to5hrsNoCert: number;
     tsChk5to6hrsNoCert: number;
     additionalFee6hrsPlusNoCert: number;
-    standbyPerCheck: number;
-    onCallPerCheck: number;
+    standbyEngineer: number | null;
+    standbyMechanic: number | null;
+    onCallEngineer: number | null;
+    onCallMechanic: number | null;
     dailyCheck: number;
     preFlightCheck: number;
     weeklyCheck: number;
@@ -138,7 +140,7 @@ export interface ContractDetail {
     validFrom: string;
     expiresOn: string;
     isNoExpiryDate: boolean | null;
-    escalationDate?: string | null;
+    escalationDate: string | null;
     creditTerms: string;
     contractStatusObj: ContractDetailStatusObj;
     serviceStation: string[];
