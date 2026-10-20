@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import type { PreInvoiceItem } from "@/lib/api/contract/invoiceApi";
+import { getInvoiceCurrency, type PreInvoiceItem } from "@/lib/api/contract/invoiceApi";
 
 /**
  * Export Pre-Invoice data to Excel file
@@ -13,11 +13,15 @@ export const exportPreInvoiceToExcel = (
 ) => {
     if (invoices.length === 0) return;
 
+    const currency = getInvoiceCurrency(invoices);
+    const totalHeader = currency ? `Total (${currency})` : "Total";
+
     // Build rows
     const rows = invoices.map((inv) => ({
         "Date": inv.activityDate,
         "Airline": inv.airlineObj?.code || "",
         "Station": inv.stationCode,
+        "Currency": inv.currencyType || "",
         "Flight No.": inv.flightNo,
         "Aircraft": inv.aircraftCode,
         "A/C Reg.": inv.acReg || "",
@@ -40,8 +44,10 @@ export const exportPreInvoiceToExcel = (
         "5-6hrs NoCert": inv.tsChk5to6hrsNoCert,
         "6+hrs NoCert": inv.additionalFee6hrsPlusNoCert,
         // Other Checks
-        "Standby": inv.standbyPerCheck,
-        "On Call": inv.onCallPerCheck,
+        "Standby (Engineer)": inv.standbyEngineer ?? 0,
+        "Standby (Mechanic)": inv.standbyMechanic ?? 0,
+        "On-Call (Engineer)": inv.onCallEngineer ?? 0,
+        "On-Call (Mechanic)": inv.onCallMechanic ?? 0,
         "Pre-Flight": inv.preFlightCheck,
         "Weekly": inv.weeklyCheck,
         "Night Stop": inv.nightStop,
@@ -55,7 +61,7 @@ export const exportPreInvoiceToExcel = (
         "Engine Oil": inv.engineOilQuad,
         "Hydraulic Fluid": inv.hydraulicFluidQuad,
         // Total
-        "Total (USD)": inv.totalServicePrice,
+        [totalHeader]: inv.totalServicePrice,
         "Remark": inv.remark || "",
     }));
 

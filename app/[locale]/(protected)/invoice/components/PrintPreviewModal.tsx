@@ -18,7 +18,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Printer } from "lucide-react";
-import type { DraftInvoiceItem } from "@/lib/api/contract/invoiceApi";
+import { getInvoiceCurrency, type DraftInvoiceItem } from "@/lib/api/contract/invoiceApi";
 
 interface PrintPreviewModalProps {
     open: boolean;
@@ -45,6 +45,8 @@ export const PrintPreviewModal = ({
 
     const totalQuantity = invoices.reduce((sum, inv) => sum + inv.quantity, 0);
     const totalAmount = invoices.reduce((sum, inv) => sum + inv.amount, 0);
+    const currency = getInvoiceCurrency(invoices);
+    const withCurrency = (label: string) => (currency ? `${label} (${currency})` : label);
     const printDate = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
     const handlePrint = () => {
@@ -98,8 +100,8 @@ export const PrintPreviewModal = ({
                             <th>Item</th>
                             <th>Description</th>
                             <th>Quantity</th>
-                            <th>Unit Price</th>
-                            <th>Amount</th>
+                            <th>${withCurrency("Unit Price")}</th>
+                            <th>${withCurrency("Amount")}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -117,7 +119,7 @@ export const PrintPreviewModal = ({
                             <td></td>
                             <td>${formatCurrency(totalQuantity)}</td>
                             <td></td>
-                            <td>${formatCurrency(totalAmount)}</td>
+                            <td>${formatCurrency(totalAmount)}${currency ? ` ${currency}` : ""}</td>
                         </tr>
                     </tbody>
                 </table>
@@ -185,8 +187,8 @@ export const PrintPreviewModal = ({
                                     <TableHead className="w-[60px] text-primary-foreground">Item</TableHead>
                                     <TableHead className="text-primary-foreground">Description</TableHead>
                                     <TableHead className="w-[100px] text-right text-primary-foreground">Quantity</TableHead>
-                                    <TableHead className="w-[120px] text-right text-primary-foreground">Unit Price</TableHead>
-                                    <TableHead className="w-[120px] text-right text-primary-foreground">Amount</TableHead>
+                                    <TableHead className="w-[120px] text-right text-primary-foreground">{withCurrency("Unit Price")}</TableHead>
+                                    <TableHead className="w-[120px] text-right text-primary-foreground">{withCurrency("Amount")}</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -207,6 +209,7 @@ export const PrintPreviewModal = ({
                                     <TableCell />
                                     <TableCell className="text-right font-bold text-primary text-sm">
                                         {formatCurrency(totalAmount)}
+                                        {currency && <span className="ml-1">{currency}</span>}
                                     </TableCell>
                                 </TableRow>
                             </TableBody>

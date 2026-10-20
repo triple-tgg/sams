@@ -8,7 +8,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import type { DraftInvoiceItem } from "@/lib/api/contract/invoiceApi";
+import { getInvoiceCurrency, type DraftInvoiceItem } from "@/lib/api/contract/invoiceApi";
 
 interface DraftInvoiceTableProps {
     invoices: DraftInvoiceItem[];
@@ -26,6 +26,8 @@ export const DraftInvoiceTable = ({
     // Calculate totals
     const totalQuantity = invoices.reduce((sum, inv) => sum + inv.quantity, 0);
     const totalAmount = invoices.reduce((sum, inv) => sum + inv.amount, 0);
+    const currency = getInvoiceCurrency(invoices);
+    const withCurrency = (label: string) => (currency ? `${label} (${currency})` : label);
 
     if (isLoading) {
         return (
@@ -45,8 +47,8 @@ export const DraftInvoiceTable = ({
                     <TableHead className="w-[80px]">ITEM</TableHead>
                     <TableHead className="min-w-[300px]">DESCRIPTION</TableHead>
                     <TableHead className="w-[120px] text-right">QUANTITY</TableHead>
-                    <TableHead className="w-[150px] text-right">UNIT PRICE</TableHead>
-                    <TableHead className="w-[150px] text-right">AMOUNT</TableHead>
+                    <TableHead className="w-[150px] text-right">{withCurrency("UNIT PRICE")}</TableHead>
+                    <TableHead className="w-[150px] text-right">{withCurrency("AMOUNT")}</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -73,7 +75,10 @@ export const DraftInvoiceTable = ({
                             <TableCell></TableCell>
                             <TableCell className="text-right font-bold">{formatCurrency(totalQuantity)}</TableCell>
                             <TableCell></TableCell>
-                            <TableCell className="text-right font-bold text-primary">{formatCurrency(totalAmount)}</TableCell>
+                            <TableCell className="text-right font-bold text-primary">
+                                {formatCurrency(totalAmount)}
+                                {currency && <span className="ml-1">{currency}</span>}
+                            </TableCell>
                         </TableRow>
                     </>
                 )}

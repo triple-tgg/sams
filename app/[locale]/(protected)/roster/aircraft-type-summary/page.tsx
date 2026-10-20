@@ -1,66 +1,62 @@
 'use client';
 
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Icon } from '@/components/ui/icon';
 import { ChevronRight, Search, UserCheck } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { useRosterStaff } from '@/lib/roster/useRosterData';
-import { useCombinations } from '@/lib/api/master/aircraft-engine/aircraftEngine.hooks';
-import type { AircraftEngineCombination } from '@/lib/api/master/aircraft-engine/aircraftEngine.types';
+import { useStations } from '@/lib/api/hooks/useStations';
 import {
-    countByTypeEngine,
-    normalizeCode,
-    enginesMatch,
-    type RosterStaff,
-    type TypeEngineCount,
-} from '@/lib/roster/manpower';
+    useEngineSummary,
+    type EngineSummaryCombination,
+} from '@/lib/api/roster/engineSummary';
 import { EmptyBlock, LoadingBlock } from '../components/RosterUi';
 
-interface FamilyRow {
-    familyCode: string;
-    engines: TypeEngineCount[];
-    licensed: number;
-    certifying: number;
-}
-
-/** Distinct people across the engines of one family. */
-function distinct(lists: RosterStaff[][]): number {
-    return new Set(lists.flat().map((s) => s.staffId)).size;
+/** Badge + progress-bar colours per backend status code; unknown codes fall back by keyword. */
+function statusStyle(status: string): { badgeClass: string; barClass: string } {
+    const s = status.toUpperCase();
+    if (s.startsWith('NO_')) {
+        return {
+            badgeClass: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800/50',
+            barClass: 'bg-rose-500',
+        };
+    }
+    if (s.includes('LOW')) {
+        return {
+            badgeClass: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/50',
+            barClass: 'bg-amber-500',
+        };
+    }
+    return {
+        badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/50',
+        barClass: 'bg-emerald-500',
+    };
 }
 
 /** Drawer component displaying the Aircraft Engine Combinations list for an expanded aircraft engine row */
 function EngineCombinationsDrawer({
     familyCode,
     engineCode,
-    allCombinations,
+    combinations,
 }: {
     familyCode: string;
     engineCode: string;
-    allCombinations: AircraftEngineCombination[];
+    combinations: EngineSummaryCombination[];
 }) {
-    const combos = useMemo(() => {
-        const matches = allCombinations.filter(
-            (c) =>
-                normalizeCode(c.familyCode) === normalizeCode(familyCode) &&
-                enginesMatch(c.engineCode, engineCode)
-        );
-        if (matches.length > 0) return matches;
-
-        // Fallback display if not yet registered in master combination table
-        return [
-            {
-                id: 0,
-                familyCode,
-                series: '',
-                engineCode,
-                displayLabel: `${familyCode} (${engineCode || 'All'})`,
-                similarTechnology: 'Standard',
-                updatedBy: 'system',
-                updatedAtUtc: '',
-            } as AircraftEngineCombination,
-        ];
-    }, [allCombinations, familyCode, engineCode]);
+    // Fallback display if not yet registered in master combination table
+    const combos: EngineSummaryCombination[] =
+        combinations.length > 0
+            ? combinations
+            : [
+                  {
+                      id: 0,
+                      familyCode,
+                      series: '',
+                      engineCode,
+                      displayLabel: `${familyCode} (${engineCode || 'All'})`,
+                      similarTechnology: null,
+                  },
+              ];
 
     return (
         <div className="space-y-2 py-1.5 px-1">
@@ -121,62 +117,22 @@ function EngineCombinationsDrawer({
 }
 
 export default function AircraftTypeSummaryPage() {
-    const { staff, stations, isLoading, error } = useRosterStaff();
-    const { data: allCombinations = [] } = useCombinations();
+    const { data: stationsResp } = useStations();
+    const stations = useMemo(() => (stationsResp?.responseData ?? []).filter((s) => !s.isdelete), [stationsResp]);
     const [stationCode, setStationCode] = useState('');
     const [search, setSearch] = useState('');
+    // Debounced copy of search — keeps typing from firing a request per keystroke
+    const [appliedSearch, setAppliedSearch] = useState('');
     const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-    const stationStaff = useMemo(
-        () => (stationCode ? staff.filter((s) => s.stationCode === stationCode) : staff),
-        [staff, stationCode]
-    );
-    const counts = useMemo(() => countByTypeEngine(stationStaff), [stationStaff]);
+    useEffect(() => {
+        const timer = setTimeout(() => setAppliedSearch(search.trim()), 400);
+        return () => clearTimeout(timer);
+    }, [search]);
 
-    const families = useMemo<FamilyRow[]>(() => {
-        const map = new Map<string, TypeEngineCount[]>();
-        counts.forEach((c) => map.set(c.familyCode, [...(map.get(c.familyCode) ?? []), c]));
-        return Array.from(map.entries()).map(([familyCode, engines]) => ({
-            familyCode,
-            engines,
-            licensed: distinct(engines.map((e) => e.licensed)),
-            certifying: distinct(engines.map((e) => e.certifying)),
-        }));
-    }, [counts]);
-
-    // KPI Metrics calculation
-    const totalLicensedStaff = useMemo(() => distinct(counts.map((c) => c.licensed)), [counts]);
-    const activeCS = useMemo(
-        () => stationStaff.filter((s) => counts.some((c) => c.certifying.includes(s))).length,
-        [stationStaff, counts]
-    );
-    const coveragePercentage = totalLicensedStaff > 0 ? Math.round((activeCS / totalLicensedStaff) * 100) : 0;
-
-    // Filter families & engines based on search query
-    const filteredFamilies = useMemo(() => {
-        if (!search.trim()) return families;
-        const q = search.trim().toLowerCase();
-        return families
-            .map((fam) => {
-                const famMatch = fam.familyCode.toLowerCase().includes(q);
-                const matchingEngines = fam.engines.filter(
-                    (e) =>
-                        famMatch ||
-                        e.engineCode.toLowerCase().includes(q) ||
-                        e.licensed.some(
-                            (s) =>
-                                s.name.toLowerCase().includes(q) ||
-                                s.employeeId.toLowerCase().includes(q)
-                        )
-                );
-                if (famMatch) return fam;
-                if (matchingEngines.length > 0) {
-                    return { ...fam, engines: matchingEngines };
-                }
-                return null;
-            })
-            .filter((fam): fam is FamilyRow => fam !== null);
-    }, [families, search]);
+    const { data, isLoading, error } = useEngineSummary({ station: stationCode, search: appliedSearch });
+    const kpi = data?.kpiSummary;
+    const families = data?.families ?? [];
 
     const toggle = (key: string) =>
         setExpanded((prev) => {
@@ -246,7 +202,7 @@ export default function AircraftTypeSummaryPage() {
                         </div>
                         <div className="mt-2 flex items-baseline gap-1.5">
                             <span className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100 tabular-nums">
-                                {families.length}
+                                {kpi?.fleetModelsCount ?? 0}
                             </span>
                             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Models</span>
                         </div>
@@ -260,7 +216,7 @@ export default function AircraftTypeSummaryPage() {
                         </div>
                         <div className="mt-2 flex items-baseline gap-1.5">
                             <span className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100 tabular-nums">
-                                {counts.length}
+                                {kpi?.engineVariantsCount ?? 0}
                             </span>
                             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Types</span>
                         </div>
@@ -274,7 +230,7 @@ export default function AircraftTypeSummaryPage() {
                         </div>
                         <div className="mt-2 flex items-baseline gap-1.5">
                             <span className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100 tabular-nums">
-                                {totalLicensedStaff}
+                                {kpi?.licenceHoldersCount ?? 0}
                             </span>
                             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Staff</span>
                         </div>
@@ -288,12 +244,12 @@ export default function AircraftTypeSummaryPage() {
                         </div>
                         <div className="mt-2 flex items-baseline gap-2">
                             <span className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100 tabular-nums">
-                                {activeCS}
+                                {kpi?.activeCsCount ?? 0}
                             </span>
                             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Authorized</span>
                             <span className="text-slate-300 dark:text-slate-600">|</span>
                             <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                                {coveragePercentage}% Coverage
+                                {kpi?.coveragePercentage ?? 0}% Coverage
                             </span>
                         </div>
                     </div>
@@ -305,8 +261,8 @@ export default function AircraftTypeSummaryPage() {
                 {isLoading ? (
                     <LoadingBlock label="Loading engine summary..." />
                 ) : error ? (
-                    <EmptyBlock>Failed to load staff: {(error as Error).message}</EmptyBlock>
-                ) : filteredFamilies.length === 0 ? (
+                    <EmptyBlock>Failed to load engine summary: {error.message}</EmptyBlock>
+                ) : families.length === 0 ? (
                     <EmptyBlock>No aircraft or engines match your filter criteria.</EmptyBlock>
                 ) : (
                     <div className="overflow-x-auto">
@@ -332,7 +288,7 @@ export default function AircraftTypeSummaryPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredFamilies.map((fam) => (
+                                {families.map((fam) => (
                                     <Fragment key={fam.familyCode}>
                                         {/* Family Model Header Row (e.g. A318, A319, A320, B777) */}
                                         <tr className="border-t border-b border-slate-200/90 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/40">
@@ -340,6 +296,11 @@ export default function AircraftTypeSummaryPage() {
                                             <td className="py-3 px-4 font-black text-sm text-slate-900 dark:text-slate-100">
                                                 <div className="inline-flex items-center gap-2">
                                                     <span>{fam.familyCode}</span>
+                                                    {fam.familyName && fam.familyName !== fam.familyCode && (
+                                                        <span className="text-xs font-semibold text-slate-500">
+                                                            {fam.familyName}
+                                                        </span>
+                                                    )}
                                                     <Icon
                                                         icon="mdi:airplane"
                                                         className="h-4 w-4 text-slate-500 opacity-90 inline-block"
@@ -355,14 +316,14 @@ export default function AircraftTypeSummaryPage() {
                                             {/* Column 3: LICENCE HOLDERS */}
                                             <td className="py-3 px-4 text-right tabular-nums">
                                                 <span className="font-extrabold text-slate-900 dark:text-slate-100">
-                                                    {fam.licensed}
+                                                    {fam.summary.licensedCount}
                                                 </span>{' '}
                                                 <span className="text-xs font-semibold text-slate-500">Staff</span>
                                             </td>
 
                                             {/* Column 4: VALID CS */}
                                             <td className="py-3 px-4 text-right font-extrabold text-slate-900 dark:text-slate-100 tabular-nums">
-                                                {fam.certifying}
+                                                {fam.summary.certifyingCount}
                                             </td>
 
                                             {/* Column 5: COVERAGE & READINESS STATUS */}
@@ -371,54 +332,16 @@ export default function AircraftTypeSummaryPage() {
 
                                         {/* Engine Variant Sub-rows */}
                                         {fam.engines.map((e) => {
-                                            const open = expanded.has(e.key);
-                                            const certCount = e.certifying.length;
-                                            const licCount = e.licensed.length;
-
-                                            // Determine status badge, progress bar color and readiness percentage
-                                            let badgeLabel = 'Adequate';
-                                            let badgeClass =
-                                                'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/50';
-                                            let barClass = 'bg-emerald-500';
-                                            let pct = 90;
-
-                                            if (certCount === 0) {
-                                                badgeLabel = 'No Authorised CS';
-                                                badgeClass =
-                                                    'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800/50';
-                                                barClass = 'bg-rose-500';
-                                                pct = 0;
-                                            } else if (certCount <= 2) {
-                                                badgeLabel = 'Low Coverage ≤ 2';
-                                                badgeClass =
-                                                    'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/50';
-                                                barClass = 'bg-amber-500';
-                                                pct = Math.min(
-                                                    45,
-                                                    Math.max(
-                                                        25,
-                                                        Math.round((certCount / Math.max(1, licCount)) * 100)
-                                                    )
-                                                );
-                                            } else {
-                                                badgeLabel = 'Adequate';
-                                                badgeClass =
-                                                    'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/50';
-                                                barClass = 'bg-emerald-500';
-                                                pct = Math.min(
-                                                    95,
-                                                    Math.max(
-                                                        60,
-                                                        Math.round((certCount / Math.max(1, licCount)) * 100)
-                                                    )
-                                                );
-                                            }
+                                            const key = `${fam.familyCode}|${e.engineCode}`;
+                                            const open = expanded.has(key);
+                                            const { badgeClass, barClass } = statusStyle(e.status);
+                                            const pct = Math.max(0, Math.min(100, Math.round(e.coveragePercentage)));
 
                                             return (
-                                                <Fragment key={e.key}>
+                                                <Fragment key={key}>
                                                     <tr
                                                         className="border-t border-slate-100 dark:border-slate-800/60 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 cursor-pointer transition-colors"
-                                                        onClick={() => toggle(e.key)}
+                                                        onClick={() => toggle(key)}
                                                     >
                                                         {/* Column 1: Blank for sub-rows */}
                                                         <td className="py-2.5 px-4"></td>
@@ -433,24 +356,19 @@ export default function AircraftTypeSummaryPage() {
                                                                     )}
                                                                 />
                                                                 <span className="font-semibold text-slate-800 dark:text-slate-200">
-                                                                    {e.engineCode || '—'}
+                                                                    {e.engineName || e.engineCode || '—'}
                                                                 </span>
-                                                                {e.engineCode && (
-                                                                    <span className="ml-1.5 inline-flex items-center rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[11px] font-semibold text-slate-700 dark:text-slate-300">
-                                                                        {e.engineCode}
-                                                                    </span>
-                                                                )}
                                                             </div>
                                                         </td>
 
                                                         {/* Column 3: Licence holders count */}
                                                         <td className="py-2.5 px-4 text-right font-semibold text-slate-800 dark:text-slate-200 tabular-nums">
-                                                            {e.licensed.length}
+                                                            {e.licensedCount}
                                                         </td>
 
                                                         {/* Column 4: Valid CS with 'Authorised' label */}
                                                         <td className="py-2.5 px-4 text-right font-semibold text-slate-800 dark:text-slate-200 tabular-nums">
-                                                            <span>{e.certifying.length} Authorised</span>
+                                                            <span>{e.certifyingCount} Authorised</span>
                                                         </td>
 
                                                         {/* Column 5: Status Badge + Progress Bar + % */}
@@ -462,7 +380,7 @@ export default function AircraftTypeSummaryPage() {
                                                                         badgeClass
                                                                     )}
                                                                 >
-                                                                    {badgeLabel}
+                                                                    {e.statusLabel || e.status}
                                                                 </span>
 
                                                                 {/* Progress Bar */}
@@ -492,7 +410,7 @@ export default function AircraftTypeSummaryPage() {
                                                                 <EngineCombinationsDrawer
                                                                     familyCode={fam.familyCode}
                                                                     engineCode={e.engineCode}
-                                                                    allCombinations={allCombinations}
+                                                                    combinations={e.combinations ?? []}
                                                                 />
                                                             </td>
                                                         </tr>

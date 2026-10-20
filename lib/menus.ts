@@ -123,7 +123,7 @@ export function getMenuList(pathname: string, t: any): Group[] {
             {
               permCode: "CUSTOMER_SERVICE_TYPE",
               href: "/production-planner/customer-service-type",
-              label: "Customer Service Type",
+              label: "Customer Service",
               active: pathname.includes("/production-planner/customer-service-type"),
               icon: "heroicons-outline:clipboard-document-list",
               badge: "NEW",

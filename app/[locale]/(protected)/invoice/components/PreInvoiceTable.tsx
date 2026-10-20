@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/table";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import type { PreInvoiceItem } from "@/lib/api/contract/invoiceApi";
+import { getInvoiceCurrency, type PreInvoiceItem } from "@/lib/api/contract/invoiceApi";
 
 interface PreInvoiceTableProps {
     invoices: PreInvoiceItem[];
@@ -26,8 +26,8 @@ const formatDate = (dateString: string) => {
     });
 };
 
-const formatValue = (value: number) => {
-    if (value === 0) return "-";
+const formatValue = (value: number | null) => {
+    if (!value) return "-";
     return value.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 };
 
@@ -37,6 +37,7 @@ export const PreInvoiceTable = ({
 }: PreInvoiceTableProps) => {
     // Calculate grand total
     const grandTotal = invoices.reduce((sum, inv) => sum + inv.totalServicePrice, 0);
+    const currency = getInvoiceCurrency(invoices);
 
     if (isLoading) {
         return (
@@ -58,6 +59,7 @@ export const PreInvoiceTable = ({
                         <TableHead className="min-w-[100px]">Date</TableHead>
                         <TableHead className="min-w-[80px]">Airline</TableHead>
                         <TableHead className="min-w-[80px]">Station</TableHead>
+                        <TableHead className="min-w-[80px]">Currency</TableHead>
                         <TableHead className="min-w-[130px]">Flight No.</TableHead>
                         <TableHead className="min-w-[100px]">Aircraft</TableHead>
                         <TableHead className="min-w-[90px]">A/C Reg.</TableHead>
@@ -81,8 +83,10 @@ export const PreInvoiceTable = ({
                         <TableHead className="min-w-[110px]">5-6hrs NoCert</TableHead>
                         <TableHead className="min-w-[110px]">6+hrs NoCert</TableHead>
                         {/* Other Checks */}
-                        <TableHead className="min-w-[90px]">Standby</TableHead>
-                        <TableHead className="min-w-[90px]">On Call</TableHead>
+                        <TableHead className="min-w-[140px]">Standby (Engineer)</TableHead>
+                        <TableHead className="min-w-[140px]">Standby (Mechanic)</TableHead>
+                        <TableHead className="min-w-[140px]">On-Call (Engineer)</TableHead>
+                        <TableHead className="min-w-[140px]">On-Call (Mechanic)</TableHead>
                         <TableHead className="min-w-[100px]">Pre-Flight</TableHead>
                         <TableHead className="min-w-[90px]">Weekly</TableHead>
                         <TableHead className="min-w-[90px]">Night Stop</TableHead>
@@ -96,14 +100,14 @@ export const PreInvoiceTable = ({
                         <TableHead className="min-w-[100px]">Engine Oil</TableHead>
                         <TableHead className="min-w-[110px]">Hydraulic</TableHead>
                         {/* Total */}
-                        <TableHead className="min-w-[120px] font-semibold">Total (USD)</TableHead>
+                        <TableHead className="min-w-[120px] font-semibold">{currency ? `Total (${currency})` : "Total"}</TableHead>
                         <TableHead className="min-w-[180px]">Remark</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {invoices.length === 0 ? (
                         <TableRow>
-                            <TableCell colSpan={35} className="text-center py-8 text-muted-foreground">
+                            <TableCell colSpan={38} className="text-center py-8 text-muted-foreground">
                                 No pre-invoice records found
                             </TableCell>
                         </TableRow>
@@ -125,6 +129,7 @@ export const PreInvoiceTable = ({
                                         </span>
                                     </TableCell>
                                     <TableCell>{inv.stationCode}</TableCell>
+                                    <TableCell>{inv.currencyType || "-"}</TableCell>
                                     <TableCell className="font-medium">{inv.flightNo}</TableCell>
                                     <TableCell>{inv.aircraftCode}</TableCell>
                                     <TableCell>{inv.acReg || "-"}</TableCell>
@@ -156,8 +161,10 @@ export const PreInvoiceTable = ({
                                     <TableCell>{formatValue(inv.tsChk5to6hrsNoCert)}</TableCell>
                                     <TableCell>{formatValue(inv.additionalFee6hrsPlusNoCert)}</TableCell>
                                     {/* Other Checks */}
-                                    <TableCell>{formatValue(inv.standbyPerCheck)}</TableCell>
-                                    <TableCell>{formatValue(inv.onCallPerCheck)}</TableCell>
+                                    <TableCell>{formatValue(inv.standbyEngineer)}</TableCell>
+                                    <TableCell>{formatValue(inv.standbyMechanic)}</TableCell>
+                                    <TableCell>{formatValue(inv.onCallEngineer)}</TableCell>
+                                    <TableCell>{formatValue(inv.onCallMechanic)}</TableCell>
                                     <TableCell>{formatValue(inv.preFlightCheck)}</TableCell>
                                     <TableCell>{formatValue(inv.weeklyCheck)}</TableCell>
                                     <TableCell>{formatValue(inv.nightStop)}</TableCell>
@@ -180,11 +187,12 @@ export const PreInvoiceTable = ({
                             {/* Grand Total Row */}
                             {invoices.length > 0 && (
                                 <TableRow className="bg-muted/30 border-t-2">
-                                    <TableCell colSpan={33} className="font-bold text-right">
+                                    <TableCell colSpan={36} className="font-bold text-right">
                                         GRAND TOTAL
                                     </TableCell>
                                     <TableCell className="font-bold text-primary">
                                         {grandTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        {currency && <span className="ml-1">{currency}</span>}
                                     </TableCell>
                                     <TableCell />
                                 </TableRow>

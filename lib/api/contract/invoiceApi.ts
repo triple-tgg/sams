@@ -25,14 +25,15 @@ export interface AirlineObj {
     updatedby: string;
     colorForeground: string;
     colorBackground: string;
-    emailTo: string;
-    emailCc: string;
+    emailTo: string | null;
+    emailCc: string | null;
 }
 
 export interface PreInvoiceItem {
     activityDate: string;
     airlineObj: AirlineObj;
     stationCode: string;
+    currencyType: string | null;
     flightNo: string;
     aircraftCode: string;
     acReg: string;
@@ -55,8 +56,10 @@ export interface PreInvoiceItem {
     tsChk5to6hrsNoCert: number;
     additionalFee6hrsPlusNoCert: number;
     // Other checks
-    standbyPerCheck: number;
-    onCallPerCheck: number;
+    standbyEngineer: number | null;
+    standbyMechanic: number | null;
+    onCallEngineer: number | null;
+    onCallMechanic: number | null;
     preFlightCheck: number;
     weeklyCheck: number;
     nightStop: number;
@@ -74,6 +77,10 @@ export interface PreInvoiceItem {
     remark: string;
 }
 
+/** Currency label for a set of invoice rows, e.g. "USD"; joins with " / " when rows differ, "" when none is set. */
+export const getInvoiceCurrency = (items: { currencyType: string | null }[]): string =>
+    Array.from(new Set(items.map((i) => i.currencyType?.trim()).filter(Boolean))).join(" / ");
+
 export interface PreInvoiceResponse {
     message: string;
     responseData: PreInvoiceItem[];
@@ -83,6 +90,7 @@ export interface PreInvoiceResponse {
 // ── Draft-Invoice Response ───────────────────────────────
 export interface DraftInvoiceItem {
     item: number;
+    currencyType: string | null;
     descrition: string; // note: API typo preserved
     quantity: number;
     unitPrice: number;
