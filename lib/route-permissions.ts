@@ -60,6 +60,16 @@ export const ROUTE_PERMISSION_MAP: RoutePermission[] = [
     { path: "/qa/dashboard",                            menuCodes: ["QA"] },
     { path: "/qa",                                      menuCodes: ["QA"] },
 
+    // ── Roster ──────────────────────────────────────────────
+    { path: "/roster/flight-roster",                    menuCodes: ["FLIGHT_ROSTER", "FLIGHT ROSTER"] },
+    { path: "/roster/certifying-staff",                 menuCodes: ["CERTIFYING STAFF", "CERTIFYING_STAFF"] },
+    { path: "/roster/aircraft-type-summary",            menuCodes: ["AIRCRAFT TYPE SUMMARY", "AIRCRAFT_TYPE_SUMMARY"] },
+    { path: "/roster/manpower/planning",                menuCodes: ["MANPOWER ANALYSIS", "MANPOWER_ANALYSIS"] },
+    { path: "/roster/manpower/scheduling",              menuCodes: ["MANPOWER ANALYSIS", "MANPOWER_ANALYSIS"] },
+    { path: "/roster/manpower-analysis",                menuCodes: ["MANPOWER ANALYSIS", "MANPOWER_ANALYSIS"] },
+    { path: "/roster/manpower",                         menuCodes: ["MANPOWER ANALYSIS", "MANPOWER_ANALYSIS"] },
+    { path: "/roster",                                  menuCodes: ["ROSTER"] },
+
     // ── Master Data ─────────────────────────────────────────
     { path: "/master-data/staff",                       menuCodes: ["MASTER_DATA_STAFF"] },
     { path: "/master-data/department",                  menuCodes: ["MASTER_DATA_DEPARTMENT"] },

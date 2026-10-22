@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState, type DragEvent } from 'react';
-import { FileSpreadsheet, Lock, Upload } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
+import { CopyPlus, FileSpreadsheet, Info, Lock, Upload } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { EDITABLE_VERSION_COUNT, STATIONS, type LineInfo, type Mode, type PlanVersion } from './data';
+import { EDITABLE_VERSION_COUNT, STATIONS, YEARS, nowLabel, type LineInfo, type Mode, type PlanVersion } from './data';
 
 const fieldCls =
     'h-9 w-full rounded-md border border-border bg-background px-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/20';
@@ -315,6 +315,7 @@ export function HistoryDialog({ open, onOpenChange, versions }: { open: boolean;
                                     <td className="px-3 py-2 font-medium tabular-nums">
                                         {v.label}
                                         {i === 0 && <span className="ml-1.5 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300">ล่าสุด</span>}
+                                        {v.note && <div className="text-xs font-normal text-muted-foreground">{v.note}</div>}
                                     </td>
                                     <td className="px-3 py-2 tabular-nums">{v.year}</td>
                                     <td className="px-3 py-2 text-muted-foreground">{v.source}</td>
@@ -350,3 +351,148 @@ export function HistoryDialog({ open, onOpenChange, versions }: { open: boolean;
     );
 }
 
+// ── Create a new (blank) version ──────────────────────────────────────────────
+
+export interface NewVersionDraft {
+    year: number;
+    label: string;
+    /** Version whose rows (AL, Airline, A/C type, Engine) are copied. */
+    baseId: string;
+    note: string;
+}
+
+export function CreateVersionDialog({
+    open,
+    onOpenChange,
+    versions,
+    defaultYear,
+    defaultBaseId,
+    onConfirm,
+}: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    versions: PlanVersion[];
+    defaultYear: number;
+    defaultBaseId: string;
+    onConfirm: (draft: NewVersionDraft) => void;
+}) {
+    const [draft, setDraft] = useState<NewVersionDraft>({ year: defaultYear, label: '', baseId: defaultBaseId, note: '' });
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        if (open) {
+            setDraft({ year: defaultYear, label: nowLabel(), baseId: defaultBaseId, note: '' });
+            setError('');
+        }
+    }, [open, defaultYear, defaultBaseId]);
+
+    const set = <K extends keyof NewVersionDraft>(k: K, v: NewVersionDraft[K]) => setDraft((d) => ({ ...d, [k]: v }));
+
+    const base = versions.find((v) => v.id === draft.baseId);
+    const rowCount = useMemo(() => {
+        if (!base) return { prod: 0, rev: 0 };
+        const s = base.snapshot;
+        return { prod: s.prod.A.length + s.prod.E.length, rev: s.rev.B.length + s.rev.C.length + s.rev.D.length };
+    }, [base]);
+
+    const save = () => {
+        const label = draft.label.trim();
+        if (!label) {
+            setError('กรุณากรอกชื่อ Version');
+            return;
+        }
+        if (versions.some((v) => v.year === draft.year && v.label.toLowerCase() === label.toLowerCase())) {
+            setError(`มี Version "${label}" ในปี ${draft.year} อยู่แล้ว`);
+            return;
+        }
+        if (!base) {
+            setError('กรุณาเลือก Version ต้นแบบ');
+            return;
+        }
+        onConfirm({ ...draft, label, note: draft.note.trim() });
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent size="md" className="max-w-xl">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <CopyPlus className="h-5 w-5 text-[hsl(206_92%_35%)]" /> Create New Version
+                    </DialogTitle>
+                    <DialogDescription>สร้าง version ใหม่จากรายการ Airline ของ version ที่เลือก · ตัวเลขรายเดือนเริ่มต้นเป็นค่าว่างรอกรอก</DialogDescription>
+                </DialogHeader>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <label className="space-y-1 text-xs font-semibold text-muted-foreground">
+                        ปี (Year)
+                        <select id="create-version-year" value={draft.year} onChange={(e) => set('year', Number(e.target.value))} className={fieldCls}>
+                            {YEARS.map((y) => (
+                                <option key={y} value={y}>
+                                    {y}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                    <label className="space-y-1 text-xs font-semibold text-muted-foreground">
+                        ชื่อ Version
+                        <input
+                            id="create-version-label"
+                            value={draft.label}
+                            onChange={(e) => set('label', e.target.value)}
+                            maxLength={40}
+                            placeholder="เช่น Revised Q4 2026"
+                            className={fieldCls}
+                        />
+                    </label>
+                    <label className="space-y-1 text-xs font-semibold text-muted-foreground sm:col-span-2">
+                        คัดลอกรายการ Airline จาก Version
+                        <select id="create-version-base" value={draft.baseId} onChange={(e) => set('baseId', e.target.value)} className={fieldCls}>
+                            {YEARS.map((y) => {
+                                const list = versions.filter((v) => v.year === y);
+                                if (!list.length) return null;
+                                return (
+                                    <optgroup key={y} label={String(y)}>
+                                        {list.map((v) => (
+                                            <option key={v.id} value={v.id}>
+                                                {v.label} · {v.source}
+                                            </option>
+                                        ))}
+                                    </optgroup>
+                                );
+                            })}
+                        </select>
+                        <span className="block font-normal">
+                            คัดลอกเฉพาะ Station, AL, Airline, A/C type, Aircraft Engine · Production {rowCount.prod} แถว / Revenue B–D {rowCount.rev} แถว
+                        </span>
+                    </label>
+                    <label className="space-y-1 text-xs font-semibold text-muted-foreground sm:col-span-2">
+                        หมายเหตุ (ไม่บังคับ)
+                        <textarea
+                            id="create-version-note"
+                            value={draft.note}
+                            onChange={(e) => set('note', e.target.value)}
+                            rows={2}
+                            maxLength={200}
+                            placeholder="เหตุผลที่สร้าง version นี้"
+                            className={cn(fieldCls, 'h-auto resize-none py-2')}
+                        />
+                    </label>
+                </div>
+                <div className="flex gap-2 rounded-lg bg-blue-50 px-3 py-2.5 text-sm text-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
+                    <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>
+                        ข้อมูล Budget / Plan / Actual ทุกเดือนจะแสดงเป็น <b>&ldquo;—&rdquo;</b> (รอกรอก) · กด ✎ ที่แถวเพื่อกรอกตัวเลข หรือ Import เข้า version นี้
+                    </span>
+                </div>
+                {error && <div className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">{error}</div>}
+                <DialogFooter className="gap-2">
+                    <button type="button" className={btnOutline} onClick={() => onOpenChange(false)}>
+                        ยกเลิก
+                    </button>
+                    <button id="create-version-submit" type="button" className={btnPrimary} onClick={save}>
+                        <CopyPlus className="h-4 w-4" /> สร้าง Version
+                    </button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}

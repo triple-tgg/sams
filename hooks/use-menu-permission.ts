@@ -12,8 +12,10 @@ function findPermissionByCode(
     items: MenuPermissionItem[],
     code: string
 ): MenuPermissionItem | null {
+    const norm = (s?: string) => s?.trim().replace(/\s+/g, "_").toUpperCase();
+    const targetNorm = norm(code);
     for (const item of items) {
-        if (item.menuCode === code) return item;
+        if (item.menuCode === code || norm(item.menuCode) === targetNorm) return item;
         if (item.children && item.children.length > 0) {
             const found = findPermissionByCode(item.children, code);
             if (found) return found;

@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { toast } from 'sonner';
-import { ChevronDown, ChevronsDownUp, ChevronsUpDown, Download, FileSpreadsheet, History, Lock, MoreHorizontal, Plus, Upload } from 'lucide-react';
+import { ChevronDown, ChevronsDownUp, ChevronsUpDown, CopyPlus, Download, FileSpreadsheet, History, Lock, MoreHorizontal, Plus, Upload } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -19,6 +19,7 @@ import {
     STATIONS,
     THF_RULES,
     YEARS,
+    blankSnapshotFrom,
     buildGridLines,
     closedMonths,
     isProdCat,
@@ -26,7 +27,7 @@ import {
     removeLine,
     setSnapshotValue,
     simulateOagPlan,
-    sum,
+    sumOrNull,
     upsertLine,
     type CatCode,
     type GridLine,
@@ -37,7 +38,17 @@ import {
 } from './data';
 import { isVersionEditable, updatePlanStore, usePlanStore } from './store';
 import { PlanGrid, rowDefs } from './PlanGrid';
-import { HistoryDialog, ImportDialog, LineDialog, btnOutline, btnPrimary, type ImportKind, type LineDraft } from './dialogs';
+import {
+    CreateVersionDialog,
+    HistoryDialog,
+    ImportDialog,
+    LineDialog,
+    btnOutline,
+    btnPrimary,
+    type ImportKind,
+    type LineDraft,
+    type NewVersionDraft,
+} from './dialogs';
 
 const SERIES_CHIP: Record<Series, string> = { b: '#5b6778', p: '#1f5fbf', a: 'hsl(206, 92%, 35%)' };
 
@@ -60,6 +71,7 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
     const [lineDialog, setLineDialog] = useState<{ open: boolean; initial: LineDraft | null }>({ open: false, initial: null });
     const [importOpen, setImportOpen] = useState(false);
     const [historyOpen, setHistoryOpen] = useState(false);
+    const [createOpen, setCreateOpen] = useState(false);
 
     const yearVersions = store.versions.filter((v) => v.year === year);
     const version: PlanVersion | undefined = yearVersions.find((v) => v.id === versionId) ?? yearVersions[0];
@@ -172,6 +184,30 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
         setImportOpen(false);
     };
 
+    // ── Create New Version: rows (AL, Airline, A/C type, Engine) copied, monthly data blank ──
+    const onCreateVersion = (draft: NewVersionDraft) => {
+        const base = store.versions.find((v) => v.id === draft.baseId);
+        if (!base) return;
+        const created: PlanVersion = {
+            id: `v${Date.now()}`,
+            year: draft.year,
+            label: draft.label,
+            source: 'Key in',
+            note: draft.note || undefined,
+            createdBy: userName,
+            editedBy: null,
+            editedAt: null,
+            snapshot: blankSnapshotFrom(base.snapshot),
+        };
+        const minYear = new Date().getFullYear() - 2;
+        updatePlanStore((s) => ({ ...s, versions: [created, ...s.versions].filter((v) => v.year >= minYear) }));
+        setYear(draft.year);
+        setVersionId(created.id);
+        setCollapsed({});
+        setCreateOpen(false);
+        toast.success(`Created version ${draft.label} (${draft.year}) — monthly figures are blank, ready to key in`);
+    };
+
     // ── Export (Excel) ──
     const exportXlsx = async () => {
         const XLSX = await import('xlsx');
@@ -190,7 +226,7 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
             .forEach((l) =>
                 defs.forEach((d) => {
                     if (d.kind !== 'series') return;
-                    aoa.push([l.station, l.al, l.airline, l.acType, l.engine, SERIES_LABEL[d.s], ...l[d.s], sum(l[d.s])]);
+                    aoa.push([l.station, l.al, l.airline, l.acType, l.engine, SERIES_LABEL[d.s], ...l[d.s], sumOrNull(l[d.s])]);
                 })
             );
         const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -349,6 +385,18 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
                         <DropdownMenuContent align="end" className="min-w-64">
                             {/* Dialogs open after the menu closes, so Radix doesn't leave pointer-events locked */}
                             <DropdownMenuItem
+                                id="plan-create-version"
+                                disabled={editing}
+                                onSelect={() => setTimeout(() => setCreateOpen(true))}
+                                className="flex-col items-start gap-0.5 py-2"
+                            >
+                                <span className="flex items-center gap-2 font-medium">
+                                    <CopyPlus className="h-4 w-4 text-[hsl(206_92%_35%)]" /> Create New Version
+                                </span>
+                                <span className="pl-6 text-xs text-muted-foreground">ใช้รายการ Airline เดิม · ตัวเลขรายเดือนรอกรอก</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
                                 disabled={!editable || editing}
                                 onSelect={() => setTimeout(() => setLineDialog({ open: true, initial: null }))}
                                 className="flex-col items-start gap-0.5 py-2"
@@ -498,6 +546,14 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
             />
             <ImportDialog open={importOpen} onOpenChange={setImportOpen} mode={mode} latestVersion={store.versions[0].label} onConfirm={onImport} />
             <HistoryDialog open={historyOpen} onOpenChange={setHistoryOpen} versions={store.versions} />
+            <CreateVersionDialog
+                open={createOpen}
+                onOpenChange={setCreateOpen}
+                versions={store.versions}
+                defaultYear={year}
+                defaultBaseId={version?.id ?? store.versions[0]?.id ?? ''}
+                onConfirm={onCreateVersion}
+            />
         </div>
     );
 }

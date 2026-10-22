@@ -20,6 +20,7 @@ import { useRosterStaff } from '@/lib/roster/useRosterData';
 import {
     getAmelCertifyingStaff,
     getAircraftLicenceStaff,
+    useCertifyingStaffSummary,
     type AmelStaffRow,
     type AmelGroupColumn,
     type AmelCertifyingStaffData,
@@ -702,10 +703,8 @@ export default function CertifyingStaffPage() {
         setLicencePage(1);
     };
 
-    // Overall KPI counts
-    const certifying = staff.filter(isValidCertifyingStaff);
-    const moving = certifying.filter((s) => movementStatus(s) !== 'Permanent').length;
-    const unassigned = certifying.filter((s) => !s.stationCode).length;
+    // Overall KPI counts from API: GET /roster/certifying-staff-summary
+    const { data: summaryData } = useCertifyingStaffSummary();
 
     return (
         <div className="space-y-4">
@@ -717,10 +716,18 @@ export default function CertifyingStaffPage() {
                     subtitle="Aircraft licences and customer authorizations per person"
                 />
                 <div className="grid grid-cols-2 gap-3 px-5 py-4 md:grid-cols-4">
-                    <StatTile label="Valid CS" value={certifying.length} unit="people" />
-                    <StatTile label="Licence holders" value={staff.length} unit="people" />
-                    <StatTile label="Rotate / Transfer" value={moving} tone={moving > 0 ? 'warning' : 'default'} />
-                    <StatTile label="No station" value={unassigned} tone={unassigned > 0 ? 'danger' : 'success'} />
+                    <StatTile label="Valid CS" value={summaryData?.validCs ?? 0} unit="people" />
+                    <StatTile label="Licence holders" value={summaryData?.licenceHolders ?? 0} unit="people" />
+                    <StatTile
+                        label="Rotate / Transfer"
+                        value={summaryData?.rotateTransfer ?? 0}
+                        tone={(summaryData?.rotateTransfer ?? 0) > 0 ? 'warning' : 'default'}
+                    />
+                    <StatTile
+                        label="No station"
+                        value={summaryData?.noStation ?? 0}
+                        tone={(summaryData?.noStation ?? 0) > 0 ? 'danger' : 'success'}
+                    />
                 </div>
             </Card>
 

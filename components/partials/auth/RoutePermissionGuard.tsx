@@ -15,7 +15,11 @@ function buildCanViewMap(items: MenuPermissionItem[]): Map<string, boolean> {
     const map = new Map<string, boolean>();
     const walk = (list: MenuPermissionItem[]) => {
         for (const item of list) {
-            map.set(item.menuCode, item.canView);
+            if (item.menuCode) {
+                map.set(item.menuCode, item.canView);
+                map.set(item.menuCode.replace(/\s+/g, "_"), item.canView);
+                map.set(item.menuCode.replace(/_/g, " "), item.canView);
+            }
             if (item.children && item.children.length > 0) {
                 walk(item.children);
             }

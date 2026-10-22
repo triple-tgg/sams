@@ -58,9 +58,16 @@ export function useFilteredMenuList(pathname: string, t: any): Group[] {
     return React.useMemo(() => {
         if (!isPermLoaded) return [];
 
-        // Flatten nested children into a single map: menuCode → canView
+        // Flatten nested children into a single map: menuCode → canView (with alias normalization)
         const flat = flattenPermissions(permMenus);
-        const canViewMap = new Map(flat.map((m) => [m.menuCode, m.canView]));
+        const canViewMap = new Map<string, boolean>();
+        flat.forEach((m) => {
+            if (m.menuCode) {
+                canViewMap.set(m.menuCode, m.canView);
+                canViewMap.set(m.menuCode.replace(/\s+/g, "_"), m.canView);
+                canViewMap.set(m.menuCode.replace(/_/g, " "), m.canView);
+            }
+        });
 
         /**
          * Check if a permCode is viewable.

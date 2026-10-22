@@ -7,12 +7,11 @@ import {
     MONTHS,
     SERIES_LABEL,
     STATIONS,
-    addSeries,
+    blanks,
     fmt,
     pct,
-    sum,
+    sumOrNull,
     totalBoth,
-    zeros,
     type GridLine,
     type Mode,
     type MonthValues,
@@ -43,6 +42,9 @@ interface Totals {
     p: MonthValues;
     a: MonthValues;
 }
+
+/** Add two series for subtotals: blank ("—") cells are skipped; null only when both are blank. */
+const addLoose = (a: MonthValues, b: MonthValues): MonthValues => a.map((x, i) => (x == null && b[i] == null ? null : (x ?? 0) + (b[i] ?? 0)));
 
 function VarCell({ x, y, grand }: { x: number | null; y: number | null; grand?: boolean }) {
     if (x == null || y == null || y === 0) {
@@ -235,7 +237,7 @@ export function PlanGrid({
                                 );
                             })}
                             <div className={cn('whitespace-nowrap px-2 py-1.5 text-right font-bold tabular-nums', isRev && 'text-xs')}>
-                                {fmt(sum(series[d.s]))}
+                                {fmt(sumOrNull(series[d.s]))}
                             </div>
                         </>
                     )}
@@ -274,23 +276,23 @@ export function PlanGrid({
         ];
     };
 
-    let gb: MonthValues = zeros();
-    let gp: MonthValues = zeros();
-    let ga: MonthValues = zeros();
+    let gb: MonthValues = blanks();
+    let gp: MonthValues = blanks();
+    let ga: MonthValues = blanks();
 
     const body = stations.map((st) => {
         const stLines = lines.filter((l) => l.station === st);
-        let tb: MonthValues = zeros();
-        let tp: MonthValues = zeros();
-        let ta: MonthValues = zeros();
+        let tb: MonthValues = blanks();
+        let tp: MonthValues = blanks();
+        let ta: MonthValues = blanks();
         stLines.forEach((l) => {
-            tb = addSeries(tb, l.b);
-            tp = addSeries(tp, l.p);
-            ta = addSeries(ta, l.a);
+            tb = addLoose(tb, l.b);
+            tp = addLoose(tp, l.p);
+            ta = addLoose(ta, l.a);
         });
-        gb = addSeries(gb, tb);
-        gp = addSeries(gp, tp);
-        ga = addSeries(ga, ta);
+        gb = addLoose(gb, tb);
+        gp = addLoose(gp, tp);
+        ga = addLoose(ga, ta);
         const [ya, yb] = totalBoth(ta, tb);
         const isClosed = !!collapsed[st];
         return (

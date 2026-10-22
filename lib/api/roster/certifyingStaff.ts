@@ -1,4 +1,5 @@
 import axiosConfig from "@/lib/axios.config";
+import { useQuery } from "@tanstack/react-query";
 
 export interface AmelCertifyingStaffRequest {
     search: string;
@@ -161,5 +162,36 @@ export const getAircraftLicenceCertifyingStaff = async (
 };
 
 export const getAircraftLicenceStaff = getAircraftLicenceCertifyingStaff;
+
+// ── Certifying Staff Summary Types & API ──
+
+export interface CertifyingStaffSummaryData {
+    validCs: number;
+    licenceHolders: number;
+    rotateTransfer: number;
+    noStation: number;
+}
+
+export interface CertifyingStaffSummaryResponse {
+    message: string;
+    responseData: CertifyingStaffSummaryData;
+    error?: string;
+}
+
+export const getCertifyingStaffSummary = async (): Promise<CertifyingStaffSummaryResponse> => {
+    const res = await axiosConfig.get<CertifyingStaffSummaryResponse>(
+        "/roster/certifying-staff-summary"
+    );
+    return res.data;
+};
+
+export function useCertifyingStaffSummary() {
+    return useQuery<CertifyingStaffSummaryData, Error>({
+        queryKey: ["roster", "certifying-staff-summary"],
+        queryFn: async () => (await getCertifyingStaffSummary()).responseData,
+        staleTime: 60 * 1000,
+        refetchOnWindowFocus: false,
+    });
+}
 
 

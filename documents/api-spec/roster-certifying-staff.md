@@ -8,12 +8,13 @@
 
 ## 1. Overview Endpoints
 
-แนะนำให้ออกแบบเป็น 2 Endpoint แยกตาม Tab เพื่อประสิทธิภาพและความกระชับของ Payload:
+Endpoint สำหรับหน้าจอ Certifying Staff:
 
 | Method | Endpoint Path | Description |
 | :--- | :--- | :--- |
-| `GET` | `/api/v1/roster/certifying-staff/amel` | ดึงข้อมูล Matrix คอลัมน์และรายชื่อ Staff ของ Tab **AMEL** |
-| `GET` | `/api/v1/roster/certifying-staff/aircraft-licence` | ดึงข้อมูล Matrix คอลัมน์ สายการบิน และสิทธิ์ของ Tab **Aircraft Licence** |
+| `GET` | `/roster/certifying-staff-summary` | ดึงข้อมูลสรุป KPI การ์ดด้านบน (Valid CS, Licence Holders, Rotate/Transfer, No Station) |
+| `POST` | `/roster/certifying-staff/amel` | ดึงข้อมูล Matrix คอลัมน์และรายชื่อ Staff ของ Tab **AMEL** |
+| `POST` | `/roster/certifying-staff/aircraft-licence` | ดึงข้อมูล Matrix คอลัมน์ สายการบิน และสิทธิ์ของ Tab **Aircraft Licence** |
 
 ### Common Query Parameters (ทั้ง 2 Endpoints)
 

@@ -128,15 +128,6 @@ export function getMenuList(pathname: string, t: any): Group[] {
               icon: "heroicons-outline:clipboard-document-list",
               badge: "NEW",
             },
-            {
-              permCode: "IMPORT_FLIGHT_DATA",
-              hasDivider: true,
-              href: "/production-planner/import-flight-data",
-              label: "Import Flight Data",
-              active: pathname.includes("/production-planner/import-flight-data"),
-              icon: "heroicons-outline:arrow-up-tray",
-              badge: "PP-01",
-            },
           ]
         }
       ]
@@ -282,15 +273,15 @@ export function getMenuList(pathname: string, t: any): Group[] {
       id: "roster",
       menus: [
         {
-          // No permCode yet: codes missing from the permission API hide the menu.
-          // Add ROSTER* codes here and in route-permissions.ts once they exist in the DB.
           id: "roster",
+          permCode: "ROSTER",
           href: "/roster/flight-roster",
           label: t("Roster"),
           active: pathname.includes("/roster"),
           icon: "heroicons-outline:calendar-days",
           submenus: [
             {
+              permCode: "FLIGHT_ROSTER",
               href: "/roster/flight-roster",
               label: t("rosterFlightRoster"),
               active: pathname.includes("/roster/flight-roster"),
@@ -298,6 +289,7 @@ export function getMenuList(pathname: string, t: any): Group[] {
               children: [],
             },
             {
+              permCode: "CERTIFYING STAFF",
               href: "/roster/certifying-staff",
               label: t("rosterCertifyingStaff"),
               active: pathname.includes("/roster/certifying-staff"),
@@ -305,6 +297,7 @@ export function getMenuList(pathname: string, t: any): Group[] {
               children: [],
             },
             {
+              permCode: "AIRCRAFT TYPE SUMMARY",
               href: "/roster/aircraft-type-summary",
               label: t("rosterAircraftTypeSummary"),
               active: pathname.includes("/roster/aircraft-type-summary"),
@@ -312,6 +305,7 @@ export function getMenuList(pathname: string, t: any): Group[] {
               children: [],
             },
             {
+              permCode: "MANPOWER ANALYSIS",
               href: "/roster/manpower/planning",
               label: t("rosterManpower"),
               active: pathname.includes("/roster/manpower") || pathname.includes("/roster/manpower-analysis"),

@@ -69,19 +69,20 @@ export interface LineInfo {
 export interface ProdLine extends LineInfo {
     /** Initial service price = contract minimum rate (USD per flight). */
     priceUsd: number;
-    budget: number[];
-    plan: number[];
+    /** `null` = not keyed in yet (shown as "—"). */
+    budget: MonthValues;
+    plan: MonthValues;
     /** Done THF count — read-only, comes from THF. */
-    actual: number[];
+    actual: MonthValues;
     /** Revenue budget in THB (keyed / imported on Revenue Plan). */
-    revBudget: number[];
+    revBudget: MonthValues;
 }
 
 /** Category B / C / D revenue line: everything in THB, imported or keyed in. */
 export interface RevLine extends LineInfo {
-    budget: number[];
-    plan: number[];
-    actual: number[];
+    budget: MonthValues;
+    plan: MonthValues;
+    actual: MonthValues;
 }
 
 export interface Snapshot {
@@ -95,6 +96,8 @@ export interface PlanVersion {
     /** Named by import date, e.g. "08 Oct 2026 14:20". */
     label: string;
     source: 'Import OAG' | 'Key in';
+    /** Optional remark entered when the version was created manually. */
+    note?: string;
     createdBy: string;
     editedBy: string | null;
     editedAt: string | null;
@@ -104,6 +107,13 @@ export interface PlanVersion {
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 export const zeros = () => MONTHS.map(() => 0);
+/** Months awaiting key-in. */
+export const blanks = (): MonthValues => MONTHS.map(() => null);
+
+/** Sum, or null when no month has a value yet (so totals show "—"). */
+export function sumOrNull(values: MonthValues): number | null {
+    return values.some((v) => v != null) ? sum(values) : null;
+}
 
 /** Months whose figures are final (a month is shown once it has ended). */
 export function closedMonths(year: number, now = new Date()): number {
@@ -170,9 +180,9 @@ export function buildGridLines(mode: Mode, cat: CatCode, snap: Snapshot, fx: num
             return {
                 ...l,
                 b: l.revBudget,
-                p: l.plan.map((u, i) => Math.round(u * l.priceUsd * fx[i])),
+                p: l.plan.map((u, i) => (u == null ? null : Math.round(u * l.priceUsd * fx[i]))),
                 a: maskOpen(
-                    l.actual.map((u, i) => Math.round(u * l.priceUsd * INVOICE_UPLIFT[i] * fx[i])),
+                    l.actual.map((u, i) => (u == null ? null : Math.round(u * l.priceUsd * INVOICE_UPLIFT[i] * fx[i]))),
                     closed
                 ),
                 editable: { b: true, p: false, a: false },
@@ -190,13 +200,13 @@ export function buildGridLines(mode: Mode, cat: CatCode, snap: Snapshot, fx: num
 
 /** Write one keyed-in value back into the snapshot (immutably). */
 export function setSnapshotValue(snap: Snapshot, mode: Mode, cat: CatCode, lineId: string, series: Series, month: number, value: number): Snapshot {
-    const put = (arr: number[]) => arr.map((v, i) => (i === month ? value : v));
+    const put = (arr: MonthValues) => arr.map((v, i) => (i === month ? value : v));
     if (isProdCat(cat)) {
         const field: keyof ProdLine | null = mode === 'prod' ? (series === 'b' ? 'budget' : series === 'p' ? 'plan' : null) : series === 'b' ? 'revBudget' : null;
         if (!field) return snap;
         return {
             ...snap,
-            prod: { ...snap.prod, [cat]: snap.prod[cat].map((l) => (l.id === lineId ? { ...l, [field]: put(l[field] as number[]) } : l)) },
+            prod: { ...snap.prod, [cat]: snap.prod[cat].map((l) => (l.id === lineId ? { ...l, [field]: put(l[field] as MonthValues) } : l)) },
         };
     }
     const field = series === 'b' ? 'budget' : series === 'p' ? 'plan' : 'actual';
@@ -224,6 +234,20 @@ export function upsertLine(snap: Snapshot, cat: CatCode, info: LineInfo & { pric
 export function removeLine(snap: Snapshot, cat: CatCode, lineId: string): Snapshot {
     if (isProdCat(cat)) return { ...snap, prod: { ...snap.prod, [cat]: snap.prod[cat].filter((l) => l.id !== lineId) } };
     return { ...snap, rev: { ...snap.rev, [cat]: snap.rev[cat].filter((l) => l.id !== lineId) } };
+}
+
+/**
+ * New version template: keeps the row info (Station, AL, Airline, A/C type, Engine, contract price)
+ * from `base`, but every monthly figure is blank ("—") and waits to be keyed in.
+ */
+export function blankSnapshotFrom(base: Snapshot): Snapshot {
+    const prod = (lines: ProdLine[]): ProdLine[] =>
+        lines.map((l) => ({ ...l, budget: blanks(), plan: blanks(), actual: blanks(), revBudget: blanks() }));
+    const rev = (lines: RevLine[]): RevLine[] => lines.map((l) => ({ ...l, budget: blanks(), plan: blanks(), actual: blanks() }));
+    return {
+        prod: { A: prod(base.prod.A), E: prod(base.prod.E) },
+        rev: { B: rev(base.rev.B), C: rev(base.rev.C), D: rev(base.rev.D) },
+    };
 }
 
 // ── Mock data ───────────────────────────────────────────────────────────────
@@ -363,6 +387,6 @@ export function buildInitialVersions(): PlanVersion[] {
 /** Simulates an OAG import: same rows, recounted Plan frequencies. */
 export function simulateOagPlan(snap: Snapshot, seed: number): Snapshot {
     const recount = (lines: ProdLine[]) =>
-        lines.map((l, ri) => ({ ...l, plan: l.budget.map((v, i) => Math.max(0, v + DP[(i + ri + seed) % 12])) }));
+        lines.map((l, ri) => ({ ...l, plan: l.budget.map((v, i) => (v == null ? null : Math.max(0, v + DP[(i + ri + seed) % 12]))) }));
     return { ...snap, prod: { A: recount(snap.prod.A), E: recount(snap.prod.E) } };
 }
