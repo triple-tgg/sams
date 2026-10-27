@@ -25,6 +25,7 @@ Endpoint สำหรับหน้าจอ Certifying Staff:
 | `aircraftType` | `string` | No | `ALL` | กรองตาม Aircraft Model (เช่น `A320`, `B737`) |
 | `page` | `number` | No | `1` | เลขหน้า (Pagination) |
 | `pageSize` | `number` | No | `20` | จำนวนรายการต่อหน้า (Pagination) |
+| `staffType` | `string` | No | - | (เฉพาะ `/amel`) กรองตาม Staff Type code — หน้า **Roster > Mech Staff** ส่ง `"MECH"` เพื่อแสดงเฉพาะ Staff Type Mech, หน้า Certifying Staff ไม่ส่ง |
 
 ---
 

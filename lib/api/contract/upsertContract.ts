@@ -34,6 +34,9 @@ export interface ContractPricingDataRequest {
     nightStop: number;
     additionalLaeMhHr: number;
     additionalMechMhHr: number;
+    /** Complimentary Defect Rectification Hours (MH) */
+    complimentaryDefectLaeMh: number;
+    complimentaryDefectMechMh: number;
     lhOrRhNoseWheelRpl: number;
     lhAndRhNoseWheelRpl: number;
     mainWheelRpl: number;
@@ -54,6 +57,8 @@ export interface ContractPricingDataRequest {
     disbursement: number;
     escalation: number;
     latePenalty: number;
+    /** Retention Fee — fixed monthly charge */
+    retentionFee: number;
 }
 
 // Interface for personnel in request
@@ -84,6 +89,10 @@ export interface ContractUpsertRequest {
     personnelList: ContractPersonnelRequest[];
     domicileCountry: string;
     currencyType: string;
+    /** "PER_CONTRACT" = one contract amount, "PER_RATE" = entered on each rate. */
+    retentionFeeType: "PER_CONTRACT" | "PER_RATE";
+    /** Contract-level monthly Retention Fee (entered total, or sum of rates). */
+    retentionFee: number;
 }
 
 // Interface for upsert response data

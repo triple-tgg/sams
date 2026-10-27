@@ -2,6 +2,7 @@
 
 import { useLayoutEffect, useRef, useState } from "react";
 import { ContractFormData } from "./types";
+import { getRetentionFeeTotal } from "./data";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { FileText, Calendar, MapPin, Plane, DollarSign } from "lucide-react";
@@ -194,6 +195,21 @@ export const ContractViewA4 = ({ formData, isLoading }: ContractViewA4Props) => 
                         Service Pricing Rates
                     </h3>
 
+                    {/* Retention Fee (Fixed Monthly) — contract level, with entry source */}
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/30 px-4 py-2 text-xs">
+                        <div className="flex items-center gap-2">
+                            <span className="font-semibold text-primary">Retention Fee (Fixed Monthly):</span>
+                            <span className="font-semibold">{currencySymbol} {formatCurrency(getRetentionFeeTotal(formData))}/month</span>
+                        </div>
+                        <span
+                            className={formData.retentionFeeMode === "per-rate"
+                                ? "rounded bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700"
+                                : "rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700"}
+                        >
+                            {formData.retentionFeeMode === "per-rate" ? "Entered per rate (sum of rates)" : "Entered as contract total"}
+                        </span>
+                    </div>
+
                     {formData.pricingRates.length === 0 ? (
                         <p className="text-sm text-muted-foreground italic">No pricing rates configured.</p>
                     ) : (
@@ -339,6 +355,17 @@ export const ContractViewA4 = ({ formData, isLoading }: ContractViewA4Props) => 
                                                     <span className="font-medium ml-1">{currencySymbol} {formatCurrency(rate.additionalMechMhHr)}/hr</span>
                                                 </div>
                                             </div>
+                                            <p className="text-muted-foreground font-semibold mt-2 mb-1">Complimentary Defect Rectification Hours</p>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                <div>
+                                                    <span className="text-muted-foreground">LAE:</span>
+                                                    <span className="font-medium ml-1">{rate.complimentaryDefectLaeMh ?? 0} MH</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-muted-foreground">Mechanic:</span>
+                                                    <span className="font-medium ml-1">{rate.complimentaryDefectMechMh ?? 0} MH</span>
+                                                </div>
+                                            </div>
                                         </div>
 
                                         {/* Wheel Services */}
@@ -445,6 +472,14 @@ export const ContractViewA4 = ({ formData, isLoading }: ContractViewA4Props) => 
                                                 <div>
                                                     <span className="text-muted-foreground">Late Penalty:</span>
                                                     <span className="font-medium ml-1">{formatCurrency(rate.latePenalty)}% of actual amount</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-muted-foreground">Retention Fee:</span>
+                                                    <span className="font-medium ml-1">
+                                                        {formData.retentionFeeMode === "total"
+                                                            ? "Included in contract total"
+                                                            : `${currencySymbol} ${formatCurrency(rate.retentionFee ?? 0)}/month`}
+                                                    </span>
                                                 </div>
                                             </div>
                                         </div>

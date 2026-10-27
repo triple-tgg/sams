@@ -81,7 +81,6 @@ export const ContractTable = ({
                     <TableHead className="whitespace-nowrap">Expires</TableHead>
                     <TableHead className="whitespace-nowrap text-center">No Expiry</TableHead>
                     <TableHead className="whitespace-nowrap">Escalation</TableHead>
-                    <TableHead className="whitespace-nowrap">Currency</TableHead>
                     <TableHead className="whitespace-nowrap">Location</TableHead>
                     <TableHead className="whitespace-nowrap">Status</TableHead>
                     <TableHead className={`whitespace-nowrap text-center w-[88px] ${STICKY_ACTION}`}>Action</TableHead>
@@ -90,7 +89,7 @@ export const ContractTable = ({
             <TableBody>
                 {contracts.length === 0 ? (
                     <TableRow>
-                        <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                             No contracts found
                         </TableCell>
                     </TableRow>
@@ -130,7 +129,6 @@ export const ContractTable = ({
                                     </div>
                                 </TableCell>
                                 <TableCell className="whitespace-nowrap">{contract.escalationDate ? formatDayMonth(contract.escalationDate) : "-"}</TableCell>
-                                <TableCell className="whitespace-nowrap">{contract.currency || "-"}</TableCell>
                                 <TableCell className="whitespace-nowrap">{contract.location}</TableCell>
                                 <TableCell>{getStatusBadge(contract.status)}</TableCell>
                                 <TableCell className={`w-[88px] ${STICKY_ACTION}`}>

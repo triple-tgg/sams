@@ -1,6 +1,13 @@
 // Contract status type
 export type ContractStatus = "all" | "active" | "on-hold" | "terminated";
 
+/**
+ * Where Retention Fee (fixed monthly) is entered:
+ * - "total":    one contract-level amount (per-rate inputs are locked)
+ * - "per-rate": entered on each rate; the contract total is the sum
+ */
+export type RetentionFeeMode = "total" | "per-rate";
+
 // Operational Contact interface
 export interface OperationalContact {
     id: number | string;
@@ -61,6 +68,9 @@ export interface PricingRate {
     // Service Rates - Labor
     additionalLaeMhHr: number;
     additionalMechMhHr: number;
+    // Service Rates - Labor: Complimentary Defect Rectification Hours (MH)
+    complimentaryDefectLaeMh: number;
+    complimentaryDefectMechMh: number;
     // Service Rates - Wheel Services
     lhOrRhNoseWheelRpl: number;
     lhAndRhNoseWheelRpl: number;
@@ -85,6 +95,8 @@ export interface PricingRate {
     disbursement: number;
     escalation: number;
     latePenalty: number;
+    /** Retention Fee — fixed monthly charge (currency/month) */
+    retentionFee: number;
 }
 
 // Contract Form Data interface
@@ -118,6 +130,10 @@ export interface ContractFormData {
     // Pricing Rates (multi-rate)
     pricingRates: PricingRate[];
     yearlyIncreaseRate: string;
+    // Retention Fee (fixed monthly) — contract level
+    retentionFeeMode: RetentionFeeMode;
+    /** Contract-level amount; only editable when mode = "total". */
+    retentionFeeTotal: number;
     // Billing
     billingAttn: string;
     billingEmail: string;

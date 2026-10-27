@@ -7,6 +7,8 @@ export interface AmelCertifyingStaffRequest {
     aircraftType: string;
     page: number;
     pageSize: number;
+    /** Staff type code filter, e.g. "MECH" (Mech Staff) or "CS". Omit for all. */
+    staffType?: string;
 }
 
 export interface AmelFixedColumn {
@@ -47,6 +49,8 @@ export interface AmelStaffRow {
     staffNo: string;
     name: string;
     position: string;
+    /** Staff type code (e.g. "MECH", "CS"), shown as "Type / Position". */
+    staffType?: string | null;
     aircraftType: string;
     station: string | null;
     qualifications: Record<string, AmelQualification>;

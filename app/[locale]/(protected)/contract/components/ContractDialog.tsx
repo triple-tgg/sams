@@ -12,8 +12,8 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { Check, ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
-import { ContractFormData, PricingRate, OperationalContact } from "./types";
-import { defaultFormData, FORM_STEPS } from "./data";
+import { ContractFormData, PricingRate, OperationalContact, RetentionFeeMode } from "./types";
+import { defaultFormData, FORM_STEPS, getRetentionFeeTotal } from "./data";
 import { GeneralInfoStep } from "./GeneralInfoStep";
 import { ServicePricingStep } from "./ServicePricingStep";
 import { OperationalContactStep } from "./OperationalContactStep";
@@ -35,6 +35,18 @@ interface ContractDialogProps {
     mode?: DialogMode;
     contractId?: number;
 }
+
+// Retention Fee: use the saved mode; for older contracts without it, infer from per-rate values.
+const resolveRetentionFee = (
+    data: ContractDetail
+): Pick<ContractFormData, "retentionFeeMode" | "retentionFeeTotal"> => {
+    const hasRateValues = data.pricingDataList?.some((p) => (p.retentionFee || 0) > 0) ?? false;
+    const retentionFeeMode: RetentionFeeMode =
+        data.retentionFeeType === "PER_RATE" ? "per-rate"
+            : data.retentionFeeType === "PER_CONTRACT" ? "total"
+                : hasRateValues ? "per-rate" : "total";
+    return { retentionFeeMode, retentionFeeTotal: data.retentionFee || 0 };
+};
 
 // Transform API data to form data
 const transformApiToFormData = (data: ContractDetail): ContractFormData => {
@@ -87,6 +99,8 @@ const transformApiToFormData = (data: ContractDetail): ContractFormData => {
             nightStop: p.nightStop || 0,
             additionalLaeMhHr: p.additionalLaeMhHr || 0,
             additionalMechMhHr: p.additionalMechMhHr || 0,
+            complimentaryDefectLaeMh: p.complimentaryDefectLaeMh || 0,
+            complimentaryDefectMechMh: p.complimentaryDefectMechMh || 0,
             lhOrRhNoseWheelRpl: p.lhOrRhNoseWheelRpl || 0,
             lhAndRhNoseWheelRpl: p.lhAndRhNoseWheelRpl || 0,
             mainWheelRpl: p.mainWheelRpl || 0,
@@ -107,8 +121,10 @@ const transformApiToFormData = (data: ContractDetail): ContractFormData => {
             disbursement: p.disbursement || 0,
             escalation: p.escalation || 0,
             latePenalty: p.latePenalty || 0,
+            retentionFee: p.retentionFee || 0,
         })) || [],
         yearlyIncreaseRate: "",
+        ...resolveRetentionFee(data),
         billingAttn: "",
         billingEmail: "",
         billingPhone: "",
@@ -133,6 +149,7 @@ const transformFormDataToRequest = (
     userName: string,
     isCreate: boolean = false
 ): ContractUpsertRequest => {
+    const isRetentionTotal = formData.retentionFeeMode === "total";
     const pricingDataList: ContractPricingDataRequest[] = formData.pricingRates.map((rate) => ({
         // For create mode, always set id = 0
         // For edit mode, existing rates keep their real API id, but newly added rates
@@ -162,6 +179,8 @@ const transformFormDataToRequest = (
         nightStop: rate.nightStop,
         additionalLaeMhHr: rate.additionalLaeMhHr,
         additionalMechMhHr: rate.additionalMechMhHr,
+        complimentaryDefectLaeMh: rate.complimentaryDefectLaeMh,
+        complimentaryDefectMechMh: rate.complimentaryDefectMechMh,
         lhOrRhNoseWheelRpl: rate.lhOrRhNoseWheelRpl,
         lhAndRhNoseWheelRpl: rate.lhAndRhNoseWheelRpl,
         mainWheelRpl: rate.mainWheelRpl,
@@ -182,6 +201,8 @@ const transformFormDataToRequest = (
         disbursement: rate.disbursement,
         escalation: rate.escalation,
         latePenalty: rate.latePenalty,
+        // Locked (0) when Retention Fee is entered as a contract total
+        retentionFee: isRetentionTotal ? 0 : rate.retentionFee,
     }));
 
     return {
@@ -212,6 +233,8 @@ const transformFormDataToRequest = (
         })),
         domicileCountry: formData.domicileCountry || "",
         currencyType: formData.currency || "",
+        retentionFeeType: isRetentionTotal ? "PER_CONTRACT" : "PER_RATE",
+        retentionFee: getRetentionFeeTotal(formData),
     };
 };
 
@@ -266,6 +289,12 @@ export const ContractDialog = ({
 
     const handlePricingRatesChange = (pricingRates: PricingRate[]) => {
         setFormData((prev) => ({ ...prev, pricingRates }));
+    };
+
+    const handleRetentionFeeChange = (
+        patch: Partial<Pick<ContractFormData, "retentionFeeMode" | "retentionFeeTotal">>
+    ) => {
+        setFormData((prev) => ({ ...prev, ...patch }));
     };
 
     const handleContactsChange = (operationalContacts: OperationalContact[]) => {
@@ -462,7 +491,7 @@ export const ContractDialog = ({
                     />
                 );
             case 2:
-                return <ServicePricingStep formData={formData} onPricingRatesChange={handlePricingRatesChange} mode={mode} fieldErrors={fieldErrors} />;
+                return <ServicePricingStep formData={formData} onPricingRatesChange={handlePricingRatesChange} onRetentionFeeChange={handleRetentionFeeChange} mode={mode} fieldErrors={fieldErrors} />;
             case 3:
                 return <OperationalContactStep formData={formData} onContactsChange={handleContactsChange} />;
             default:

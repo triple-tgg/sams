@@ -130,6 +130,8 @@ export const defaultPricingRate: Omit<PricingRate, 'id'> = {
     // Service Rates - Labor
     additionalLaeMhHr: 0,
     additionalMechMhHr: 0,
+    complimentaryDefectLaeMh: 0,
+    complimentaryDefectMechMh: 0,
     // Service Rates - Wheel Services
     lhOrRhNoseWheelRpl: 0,
     lhAndRhNoseWheelRpl: 0,
@@ -154,6 +156,7 @@ export const defaultPricingRate: Omit<PricingRate, 'id'> = {
     disbursement: 0,
     escalation: 0,
     latePenalty: 0,
+    retentionFee: 0,
 };
 
 export const defaultFormData: ContractFormData = {
@@ -185,6 +188,9 @@ export const defaultFormData: ContractFormData = {
     // Pricing Rates (multi-rate)
     pricingRates: [],
     yearlyIncreaseRate: "",
+    // Retention Fee (fixed monthly)
+    retentionFeeMode: "total",
+    retentionFeeTotal: 0,
     // Billing
     billingAttn: "",
     billingEmail: "",
@@ -199,6 +205,20 @@ export const defaultFormData: ContractFormData = {
     contractDocumentPath: "",
     contractDocumentName: "",
 };
+
+// ── Retention Fee helpers ──
+
+/** Sum of Retention Fee entered on each rate. */
+export const sumRateRetentionFees = (rates: PricingRate[]): number =>
+    rates.reduce((sum, r) => sum + (Number(r.retentionFee) || 0), 0);
+
+/** Effective contract-level Retention Fee for the current mode. */
+export const getRetentionFeeTotal = (
+    formData: Pick<ContractFormData, "retentionFeeMode" | "retentionFeeTotal" | "pricingRates">
+): number =>
+    formData.retentionFeeMode === "per-rate"
+        ? sumRateRetentionFees(formData.pricingRates)
+        : Number(formData.retentionFeeTotal) || 0;
 
 export const FORM_STEPS = [
     { id: 1, title: "General Info", titleEn: "Contract Details" },

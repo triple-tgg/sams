@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, type ReactNode } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -17,10 +17,10 @@ import {
     CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, ChevronDown, Trash2, MapPin, Plane, Check, Copy } from "lucide-react";
+import { Plus, ChevronDown, Trash2, MapPin, Plane, Check, Copy, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ContractFormData, PricingRate } from "./types";
-import { defaultPricingRate } from "./data";
+import { ContractFormData, PricingRate, RetentionFeeMode } from "./types";
+import { defaultPricingRate, getRetentionFeeTotal, sumRateRetentionFees } from "./data";
 import { useStationsOptions } from "@/lib/api/hooks/useStations";
 import { useSystemConfigs } from "@/lib/api/master/aircraft-engine/aircraftEngine.hooks";
 import {
@@ -28,13 +28,30 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ServicePricingStepProps {
     formData: ContractFormData;
     onPricingRatesChange: (pricingRates: PricingRate[]) => void;
+    /** Update contract-level Retention Fee mode / total. */
+    onRetentionFeeChange?: (patch: Partial<Pick<ContractFormData, "retentionFeeMode" | "retentionFeeTotal">>) => void;
     mode?: "create" | "edit" | "view";
     fieldErrors?: Record<string, string>;
 }
+
+const RETENTION_MODE_OPTIONS: { value: RetentionFeeMode; label: string }[] = [
+    { value: "total", label: "Contract" },
+    { value: "per-rate", label: "Per Rate" },
+];
 
 // Reusable Price Input with combined currency suffix
 const PriceInput = ({
@@ -44,6 +61,10 @@ const PriceInput = ({
     onChange,
     suffix,
     currencyLabel = "USD",
+    rawSuffix = false,
+    step,
+    disabled = false,
+    hint,
 }: {
     id: string;
     label: string;
@@ -51,6 +72,13 @@ const PriceInput = ({
     onChange: (value: number) => void;
     suffix: string;
     currencyLabel?: string;
+    /** Show suffix as-is (e.g. "MH") without the currency prefix. */
+    rawSuffix?: boolean;
+    /** Input step (e.g. 0.5 for half-hour increments). */
+    step?: number;
+    disabled?: boolean;
+    /** Small helper text under the input. */
+    hint?: ReactNode;
 }) => (
     <div className="space-y-1.5">
         <Label htmlFor={id} className="text-xs">{label}</Label>
@@ -59,14 +87,17 @@ const PriceInput = ({
                 id={id}
                 type="number"
                 min={0}
+                step={step}
                 value={value}
+                disabled={disabled}
                 onChange={(e) => onChange(Number(e.target.value) || 0)}
                 className="rounded-r-none border-r-0 text-right"
             />
             <span className="inline-flex items-center px-3 h-9 text-sm border rounded-r-md bg-muted text-muted-foreground whitespace-nowrap">
-                {suffix.startsWith("%") ? suffix : `${currencyLabel}${suffix}`}
+                {rawSuffix || suffix.startsWith("%") ? suffix : `${currencyLabel}${suffix}`}
             </span>
         </div>
+        {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
     </div>
 );
 
@@ -83,8 +114,41 @@ const FORM_GROUPS = [
 
 type FormGroupKey = typeof FORM_GROUPS[number];
 
-export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "create", fieldErrors = {} }: ServicePricingStepProps) => {
+export const ServicePricingStep = ({ formData, onPricingRatesChange, onRetentionFeeChange, mode = "create", fieldErrors = {} }: ServicePricingStepProps) => {
     const currencyLabel = formData.currency ? formData.currency.toUpperCase() : "USD";
+    const isView = mode === "view";
+    const retentionMode = formData.retentionFeeMode;
+    const rateRetentionSum = sumRateRetentionFees(formData.pricingRates);
+    const retentionTotal = getRetentionFeeTotal(formData);
+
+    // Mode the user is switching to, waiting for confirmation (null = no dialog)
+    const [pendingRetentionMode, setPendingRetentionMode] = useState<RetentionFeeMode | null>(null);
+
+    /** Switch mode and clear the data that belonged to the previous mode. */
+    const applyRetentionModeChange = (next: RetentionFeeMode) => {
+        if (next === "total") {
+            // Per Rate → Contract: clear every rate's Retention Fee
+            onRetentionFeeChange?.({ retentionFeeMode: "total", retentionFeeTotal: 0 });
+            if (rateRetentionSum > 0) {
+                onPricingRatesChange(formData.pricingRates.map((r) => ({ ...r, retentionFee: 0 })));
+            }
+        } else {
+            // Contract → Per Rate: clear the contract total
+            onRetentionFeeChange?.({ retentionFeeMode: "per-rate", retentionFeeTotal: 0 });
+        }
+    };
+
+    const handleRetentionModeChange = (next: RetentionFeeMode) => {
+        if (next === retentionMode) return;
+        const hasDataToClear = next === "total"
+            ? rateRetentionSum > 0
+            : (Number(formData.retentionFeeTotal) || 0) > 0;
+        if (hasDataToClear) {
+            setPendingRetentionMode(next); // ask first
+        } else {
+            applyRetentionModeChange(next);
+        }
+    };
     const [expandedRates, setExpandedRates] = useState<Set<number | string>>(new Set());
     const [expandedFormGroups, setExpandedFormGroups] = useState<Map<number | string, Set<FormGroupKey>>>(new Map());
 
@@ -526,7 +590,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                             </div>
                         </CollapsibleTrigger>
                         <CollapsibleContent>
-                            <div className="px-4 pb-4">
+                            <div className="px-4 pb-4 space-y-4">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <PriceInput
                                         id={`${rate.id}-additionalLaeMhHr`}
@@ -542,6 +606,27 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                         onChange={handleNumberChange("additionalMechMhHr")}
                                         suffix="/Hr" currencyLabel={currencyLabel}
                                     />
+                                </div>
+
+                                {/* Complimentary Defect Rectification Hours */}
+                                <div className="space-y-2">
+                                    <p className="text-xs font-bold text-muted-foreground">Complimentary Defect Rectification Hours</p>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <PriceInput
+                                            id={`${rate.id}-complimentaryDefectLaeMh`}
+                                            label="LAE"
+                                            value={rate.complimentaryDefectLaeMh}
+                                            onChange={handleNumberChange("complimentaryDefectLaeMh")}
+                                            suffix="MH" rawSuffix step={0.5}
+                                        />
+                                        <PriceInput
+                                            id={`${rate.id}-complimentaryDefectMechMh`}
+                                            label="Mechanic"
+                                            value={rate.complimentaryDefectMechMh}
+                                            onChange={handleNumberChange("complimentaryDefectMechMh")}
+                                            suffix="MH" rawSuffix step={0.5}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </CollapsibleContent>
@@ -786,6 +871,19 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
                                         onChange={handleNumberChange("latePenalty")}
                                         suffix="% of Actual Amount" currencyLabel={currencyLabel}
                                     />
+                                    <PriceInput
+                                        id={`${rate.id}-retentionFee`}
+                                        label="Retention Fee (Fixed Monthly)"
+                                        value={rate.retentionFee}
+                                        onChange={handleNumberChange("retentionFee")}
+                                        suffix="/Month" currencyLabel={currencyLabel}
+                                        disabled={retentionMode === "total"}
+                                        hint={retentionMode === "total" ? (
+                                            <span className="inline-flex items-center gap-1">
+                                                <Lock className="h-3 w-3" /> Entered as contract total
+                                            </span>
+                                        ) : undefined}
+                                    />
                                 </div>
                             </div>
                         </CollapsibleContent>
@@ -797,6 +895,87 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, mode = "cre
 
     return (
         <div className="space-y-4">
+            {/* Retention Fee (Fixed Monthly) — contract level */}
+            <div className="rounded-lg border bg-card p-4 space-y-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <h4 className="text-sm font-semibold">Retention Fee (Fixed Monthly)</h4>
+                        <p className="text-xs text-muted-foreground">
+                            Enter one total for the contract, or enter it on each rate.
+                        </p>
+                    </div>
+                    <div role="radiogroup" aria-label="Retention Fee input mode" className="inline-flex rounded-md border bg-muted/40 p-0.5">
+                        {RETENTION_MODE_OPTIONS.map((opt) => {
+                            const active = retentionMode === opt.value;
+                            return (
+                                <button
+                                    key={opt.value}
+                                    id={`retention-mode-${opt.value}`}
+                                    type="button"
+                                    role="radio"
+                                    aria-checked={active}
+                                    disabled={isView}
+                                    onClick={() => handleRetentionModeChange(opt.value)}
+                                    className={cn(
+                                        "px-3 py-1.5 text-xs font-medium rounded transition-colors disabled:cursor-not-allowed",
+                                        active
+                                            ? "bg-background text-primary shadow-sm"
+                                            : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                >
+                                    {opt.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <PriceInput
+                        id="retentionFeeTotal"
+                        label={retentionMode === "total" ? "Total Retention Fee" : "Total Retention Fee (sum of rates)"}
+                        value={retentionTotal}
+                        onChange={(v) => onRetentionFeeChange?.({ retentionFeeTotal: v })}
+                        suffix="/Month" currencyLabel={currencyLabel}
+                        disabled={isView || retentionMode === "per-rate"}
+                        hint={retentionMode === "total"
+                            ? "Per-rate Retention Fee inputs are locked."
+                            : `Calculated from ${formData.pricingRates.length} rate(s). Edit the amount inside each rate.`}
+                    />
+                </div>
+            </div>
+
+            {/* Confirm before clearing Retention Fee data when switching mode */}
+            <AlertDialog
+                open={pendingRetentionMode !== null}
+                onOpenChange={(open) => { if (!open) setPendingRetentionMode(null); }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            Switch Retention Fee to {pendingRetentionMode === "total" ? "Contract" : "Per Rate"}?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {pendingRetentionMode === "total"
+                                ? `The Retention Fee entered in each rate (total ${currencyLabel} ${rateRetentionSum.toLocaleString()}/Month) will be cleared.`
+                                : `The contract Retention Fee (${currencyLabel} ${(Number(formData.retentionFeeTotal) || 0).toLocaleString()}/Month) will be cleared.`}
+                            {" "}This cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel id="retention-mode-cancel">Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            id="retention-mode-confirm"
+                            onClick={() => {
+                                if (pendingRetentionMode) applyRetentionModeChange(pendingRetentionMode);
+                                setPendingRetentionMode(null);
+                            }}
+                        >
+                            Clear &amp; Switch
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             {/* Empty State / Add Button */}
             {formData.pricingRates.length === 0 ? (
                 <div className="border-2 border-dashed rounded-lg p-8 text-center">

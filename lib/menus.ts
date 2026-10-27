@@ -127,6 +127,14 @@ export function getMenuList(pathname: string, t: any): Group[] {
               active: pathname.includes("/production-planner/customer-service-type"),
               icon: "heroicons-outline:clipboard-document-list",
               badge: "NEW",
+              hasDivider: true, // divider line after Revenue Plan
+            },
+            {
+              // TODO: restore `permCode: "CONFIG_VERSION_PLAN"` once backend adds it to the permission API
+              href: "/production-planner/config-version-plan",
+              label: "Config Version Plan",
+              active: pathname.includes("/production-planner/config-version-plan"),
+              icon: "heroicons-outline:adjustments-horizontal",
             },
           ]
         }
@@ -294,6 +302,14 @@ export function getMenuList(pathname: string, t: any): Group[] {
               label: t("rosterCertifyingStaff"),
               active: pathname.includes("/roster/certifying-staff"),
               icon: "heroicons-outline:identification",
+              children: [],
+            },
+            {
+              permCode: "MECH STAFF",
+              href: "/roster/mech-staff",
+              label: t("rosterMechStaff"),
+              active: pathname.includes("/roster/mech-staff"),
+              icon: "heroicons-outline:wrench-screwdriver",
               children: [],
             },
             {

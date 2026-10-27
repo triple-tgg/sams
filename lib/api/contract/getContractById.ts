@@ -94,6 +94,8 @@ export interface ContractDetailPricingData {
     nightStop: number;
     additionalLaeMhHr: number;
     additionalMechMhHr: number;
+    complimentaryDefectLaeMh?: number | null;
+    complimentaryDefectMechMh?: number | null;
     lhOrRhNoseWheelRpl: number;
     lhAndRhNoseWheelRpl: number;
     mainWheelRpl: number;
@@ -114,6 +116,7 @@ export interface ContractDetailPricingData {
     disbursement: number | null;
     escalation: number | null;
     latePenalty: number | null;
+    retentionFee?: number | null;
     isDelete: boolean;
     createdDate: string;
     createdBy: string;
@@ -150,6 +153,8 @@ export interface ContractDetail {
     personnelList: ContractDetailPersonnel[] | null;
     domicileCountry: string | null;
     currencyType: string | null;
+    retentionFeeType?: "PER_CONTRACT" | "PER_RATE" | null;
+    retentionFee?: number | null;
 }
 
 // Interface for get contract by ID API response
