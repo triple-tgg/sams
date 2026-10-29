@@ -38,8 +38,7 @@ export const ROUTE_PERMISSION_MAP: RoutePermission[] = [
     { path: "/production-planner/production-plan",      menuCodes: ["PRODUCTION_PLAN"] },
     { path: "/production-planner/revenue-plan",         menuCodes: ["REVENUE_PLAN"] },
     { path: "/production-planner/customer-service-type", menuCodes: ["CUSTOMER_SERVICE_TYPE"] },
-    // TODO: restore once backend adds CONFIG_VERSION_PLAN (falls back to PRODUCTION_PLANNER for now)
-    // { path: "/production-planner/config-version-plan",  menuCodes: ["CONFIG_VERSION_PLAN"] },
+    { path: "/production-planner/config-version-plan",  menuCodes: ["CONFIG_VERSION_PLAN"] },
     { path: "/production-planner/import-flight-data",   menuCodes: ["IMPORT_FLIGHT_DATA"] },
     { path: "/production-planner",                      menuCodes: ["PRODUCTION_PLANNER"] },
 

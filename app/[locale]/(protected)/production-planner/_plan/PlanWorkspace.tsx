@@ -19,34 +19,45 @@ import {
     STATIONS,
     THF_RULES,
     YEARS,
-    blankSnapshotFrom,
     buildGridLines,
+    fmt,
     closedMonths,
     isProdCat,
     nowLabel,
-    removeLine,
+    appendLines,
+    isPlaceholderLine,
+    mergeAircraft,
+    patchLineInfo,
+    removeLines,
+    renameAirline,
+    applyStationStructure,
+    stationStructure,
     setSnapshotValue,
     simulateOagPlan,
+    snapshotFromStructure,
     sumOrNull,
-    upsertLine,
     type CatCode,
     type GridLine,
     type Mode,
     type PlanVersion,
+    type StationGroup,
+    type VersionLogEntry,
     type Series,
     type Snapshot,
 } from './data';
 import { isVersionEditable, updatePlanStore, usePlanStore } from './store';
-import { PlanGrid, rowDefs } from './PlanGrid';
+import { PlanGrid, airlineKey, pathKeys, rowDefs } from './PlanGrid';
 import {
     CreateVersionDialog,
     HistoryDialog,
     ImportDialog,
-    LineDialog,
+    AircraftComboDialog,
+    StationDialog,
     btnOutline,
+    useConfirmDelete,
     btnPrimary,
+    type AircraftPatch,
     type ImportKind,
-    type LineDraft,
     type NewVersionDraft,
 } from './dialogs';
 
@@ -67,8 +78,23 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
     const [sel, setSel] = useState<Record<Series, boolean>>({ b: true, p: false, a: true });
     const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
     /** One airline row is edited at a time; edits are kept on a copy until saved. */
-    const [edit, setEdit] = useState<{ lineId: string; snapshot: Snapshot } | null>(null);
-    const [lineDialog, setLineDialog] = useState<{ open: boolean; initial: LineDraft | null }>({ open: false, initial: null });
+    const [edit, setEdit] = useState<{ lineId: string; series: Series; snapshot: Snapshot } | null>(null);
+    /** Row whose A/C type + Engine is being changed. */
+    const { confirmDelete, confirmDialog } = useConfirmDelete();
+    const [aircraftLine, setAircraftLine] = useState<GridLine | null>(null);
+    /** "+ Station": a station not in this category yet, opened with its first airline. */
+    const [newStationOpen, setNewStationOpen] = useState(false);
+    const newStationLine = useMemo(() => (newStationOpen ? { station: '', al: '', airline: '', acType: '', engine: '' } : null), [newStationOpen]);
+    /** Station getting a new airline (AL, name, type group and rows keyed in the combination dialog). */
+    const [newAirlineStation, setNewAirlineStation] = useState<string | null>(null);
+    const newAirlineLine = useMemo(() => (newAirlineStation ? { station: newAirlineStation, al: '', airline: '', acType: '', engine: '' } : null), [newAirlineStation]);
+    /** Airline getting a new type group (rows picked in the combination dialog). */
+    const [newGroup, setNewGroup] = useState<{ line: GridLine; group: string } | null>(null);
+    // Stable object: the dialog resets its selection whenever `line` changes
+    const newGroupLine = useMemo(
+        () => newGroup && { station: newGroup.line.station, al: newGroup.line.al, airline: newGroup.line.airline, typeGroup: newGroup.group, acType: '', engine: '' },
+        [newGroup]
+    );
     const [importOpen, setImportOpen] = useState(false);
     const [historyOpen, setHistoryOpen] = useState(false);
     const [createOpen, setCreateOpen] = useState(false);
@@ -100,22 +126,31 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
     };
 
     // ── Row edit (by airline record) ──
-    /** Persist a snapshot into the selected version and log who edited it. */
-    const commit = (next: Snapshot) => {
+    /** Persist a snapshot into the selected version and append the change to its log. */
+    const commit = (next: Snapshot, entry: Pick<VersionLogEntry, 'action' | 'summary' | 'changes'>) => {
         if (!version) return;
         const editedAt = nowLabel();
+        const logged: VersionLogEntry = { at: editedAt, by: userName, cat, ...entry };
         updatePlanStore((s) => ({
             ...s,
-            versions: s.versions.map((v) => (v.id === version.id ? { ...v, snapshot: next, editedBy: userName, editedAt } : v)),
+            versions: s.versions.map((v) => (v.id === version.id ? { ...v, snapshot: next, editedBy: userName, editedAt, log: [...v.log, logged] } : v)),
         }));
     };
+    const where = (l: Pick<GridLine, 'station' | 'airline' | 'typeGroup' | 'acType'>) => `${l.airline}${l.typeGroup ? ` › ${l.typeGroup}` : ''} › ${l.acType} (${l.station})`;
 
-    const startRowEdit = (line: GridLine) => version && setEdit({ lineId: line.id, snapshot: version.snapshot });
+    const startRowEdit = (line: GridLine, series: Series) => version && setEdit({ lineId: line.id, series, snapshot: version.snapshot });
     const cancelRowEdit = () => setEdit(null);
     const saveRowEdit = () => {
         if (!edit) return;
         const line = lines.find((l) => l.id === edit.lineId);
-        commit(edit.snapshot);
+        // Month-by-month diff of the series that was keyed in
+        const before = version && buildGridLines(mode, cat, version.snapshot, fx, closed).find((l) => l.id === edit.lineId);
+        const changes = line && before ? MONTHS.flatMap((m, i) => (before[edit.series][i] !== line[edit.series][i] ? [`${m}: ${fmt(before[edit.series][i])} → ${fmt(line[edit.series][i])}`] : [])) : [];
+        commit(edit.snapshot, {
+            action: 'figures',
+            summary: `Edited ${SERIES_LABEL[edit.series]} of ${line ? where(line) : 'row'}${changes.length ? '' : ' (no change)'}`,
+            changes,
+        });
         setEdit(null);
         toast.success(`Saved ${line ? `${line.airline} (${line.station})` : 'row'} to version ${version?.label}`);
     };
@@ -123,30 +158,150 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
     const onCellChange = (lineId: string, s: Series, month: number, value: number) =>
         setEdit((e) => (e && e.lineId === lineId ? { ...e, snapshot: setSnapshotValue(e.snapshot, mode, cat, lineId, s, month, value) } : e));
 
-    const onSaveLine = (line: LineDraft) => {
-        setLineDialog({ open: false, initial: null });
-        if (line.id) {
-            // Editing details of the row being edited — applied on Save
-            setEdit((e) => (e ? { ...e, snapshot: upsertLine(e.snapshot, cat, line) } : e));
-            return;
-        }
-        if (!version) return;
-        // New row: save it, then open it for keying in monthly figures
-        const id = `${cat}-${line.station}-${Date.now()}`;
-        const next = upsertLine(version.snapshot, cat, { ...line, id });
-        commit(next);
-        setEdit({ lineId: id, snapshot: next });
-        setCollapsed((c) => ({ ...c, [line.station]: false }));
-        if (station !== 'ALL' && station !== line.station) setStation(line.station);
-        toast.success(`Added ${line.airline} (${line.station}) — enter the monthly figures, then Save`);
+    // ── Edit Station (modal): the station's rows rebuilt from its edited structure ──
+    const [stationDialog, setStationDialog] = useState<StationGroup | null>(null);
+    const onEditStation = (st: string) => setStationDialog(stationStructure(lines, st));
+
+    const onSaveStation = (group: StationGroup): string | void => {
+        if (!version || !stationDialog) return;
+        const st = stationDialog.station;
+        const outline = (g: StationGroup) => g.airlines.map((a) => `${a.airline} (${a.typeGroups.map((t) => t.name).join('/') || '—'})`).join(', ') || '—';
+        const [before, after] = [outline(stationDialog), outline(group)];
+        commit(applyStationStructure(version.snapshot, cat, st, group), {
+            action: 'edit',
+            summary: `Edited station ${st}`,
+            changes: before === after ? [] : [`Before: ${before}`, `After: ${after}`],
+        });
+        setStationDialog(null);
+        toast.success(`Saved station ${st}`);
     };
 
-    const onDeleteLine = (line: GridLine) => {
+    const onRenameAirline = (line: GridLine, to: { al: string; airline: string }) => {
+        if (!version) return false;
+        if (!to.al || !to.airline) {
+            toast.error('AL and airline name are required');
+            return false;
+        }
+        if (to.al === line.al && to.airline === line.airline) return true;
+        if (lines.some((l) => l.station === line.station && l.al === to.al && l.airline === to.airline)) {
+            toast.error(`${to.airline} (${to.al}) already exists at ${line.station}`);
+            return false;
+        }
+        commit(renameAirline(version.snapshot, cat, line.station, line, to), { action: 'edit', summary: `Renamed airline ${line.airline} (${line.al}) → ${to.airline} (${to.al}) at ${line.station}` });
+        // Carry the collapse state of the airline and its type groups over to the new name
+        const from = airlineKey(line);
+        const next = airlineKey({ ...line, ...to });
+        setCollapsed((c) => Object.fromEntries(Object.entries(c).map(([k, v]) => [k === from || k.startsWith(`${from}|`) ? next + k.slice(from.length) : k, v])));
+        toast.success(`Updated airline ${line.airline} → ${to.airline} (${line.station})`);
+        return true;
+    };
+
+    const onSaveAircraft = (picked: AircraftPatch[]) => {
+        if (!version || !aircraftLine) return;
+        const patch = mergeAircraft(picked);
+        commit(patchLineInfo(version.snapshot, cat, aircraftLine.id, patch), {
+            action: 'edit',
+            summary: `Changed A/C type of ${where(aircraftLine)}`,
+            changes: [`A/C type: ${aircraftLine.acType} → ${patch.acType}`, `Engine: ${aircraftLine.engine} → ${patch.engine}`],
+        });
+        setAircraftLine(null);
+        toast.success(`Updated A/C type of ${aircraftLine.airline} (${aircraftLine.station}) to ${patch.acType}`);
+    };
+
+    const sameAirline = (a: Pick<GridLine, 'station' | 'al' | 'airline'>) => (l: Pick<GridLine, 'station' | 'al' | 'airline'>) =>
+        l.station === a.station && l.al === a.al && l.airline === a.airline;
+
+    const onSaveNewGroup = (picked: AircraftPatch[]) => {
+        if (!version || !newGroup) return;
+        const { line, group } = newGroup;
+        const base = { station: line.station, al: line.al, airline: line.airline, typeGroup: group };
+        // All picked combinations go into one row; the airline's placeholder row (if any) is no longer needed
+        const cleared = removeLines(version.snapshot, cat, (l) => sameAirline(line)(l) && isPlaceholderLine(l));
+        const merged = mergeAircraft(picked);
+        commit(appendLines(cleared, cat, [{ ...base, ...merged }]), { action: 'add', summary: `Added type group ${group} to ${line.airline} (${line.station})`, changes: [`A/C type: ${merged.acType}`, `Engine: ${merged.engine}`] });
+        setCollapsed((c) => ({ ...c, ...Object.fromEntries(pathKeys(base).map((k) => [k, false])) }));
+        setNewGroup(null);
+        toast.success(`Added type group ${group} to ${line.airline} (${line.station}) with ${picked.length} A/C type(s) — monthly figures are blank, ready to key in`);
+    };
+
+    const freeStations = STATIONS.filter((st) => !lines.some((l) => l.station === st));
+
+    const onSaveNewStation = (picked: AircraftPatch[], info: { station: string; al: string; airline: string; typeGroup: string }) => {
         if (!version) return;
-        if (!window.confirm(`Delete row "${line.airline}" (${line.station})? This cannot be undone.`)) return;
-        commit(removeLine(version.snapshot, cat, line.id));
-        setEdit(null);
-        toast.success(`Deleted ${line.airline} (${line.station})`);
+        // All picked combinations go into one row
+        const merged = mergeAircraft(picked);
+        commit(appendLines(version.snapshot, cat, [{ ...info, ...merged }]), {
+            action: 'add',
+            summary: `Added station ${info.station} with airline ${info.airline} (${info.al})`,
+            changes: [`Type group: ${info.typeGroup}`, `A/C type: ${merged.acType}`, `Engine: ${merged.engine}`],
+        });
+        setCollapsed((c) => ({ ...c, ...Object.fromEntries(pathKeys(info).map((k) => [k, false])) }));
+        if (station !== 'ALL' && station !== info.station) setStation(info.station);
+        setNewStationOpen(false);
+        toast.success(`Added station ${info.station} with airline ${info.airline} — monthly figures are blank, ready to key in`);
+    };
+
+    const onSaveNewAirline = (picked: AircraftPatch[], info: { al: string; airline: string; typeGroup: string }) => {
+        if (!version || !newAirlineStation) return;
+        const base = { ...info, station: newAirlineStation };
+        if (lines.some(sameAirline(base))) return `${info.airline} (${info.al}) already exists at ${newAirlineStation}.`;
+        // All picked combinations go into one row
+        const merged = mergeAircraft(picked);
+        commit(appendLines(version.snapshot, cat, [{ ...base, ...merged }]), {
+            action: 'add',
+            summary: `Added airline ${info.airline} (${info.al}) at ${newAirlineStation}`,
+            changes: [`Type group: ${info.typeGroup}`, `A/C type: ${merged.acType}`, `Engine: ${merged.engine}`],
+        });
+        setCollapsed((c) => ({ ...c, ...Object.fromEntries(pathKeys(base).map((k) => [k, false])) }));
+        setNewAirlineStation(null);
+        toast.success(`Added airline ${info.airline} (${newAirlineStation}) with ${picked.length} A/C type(s) — monthly figures are blank, ready to key in`);
+    };
+
+    const onDeleteAirline = (line: GridLine) => {
+        if (!version) return;
+        const n = lines.filter(sameAirline(line)).length;
+        confirmDelete({
+            title: `Delete airline ${line.airline} (${line.station})?`,
+            description: `All ${n} row(s) of this airline in Category ${cat}, including their monthly figures, will be deleted. This cannot be undone.`,
+            onConfirm: () => {
+                commit(removeLines(version.snapshot, cat, sameAirline(line)), { action: 'delete', summary: `Deleted airline ${line.airline} (${line.station}) — ${n} row(s)` });
+                toast.success(`Deleted airline ${line.airline} (${line.station})`);
+            },
+        });
+    };
+
+    const onDeleteStation = (st: string) => {
+        if (!version) return;
+        const stLines = lines.filter((l) => l.station === st);
+        const airlines = new Set(stLines.map((l) => `${l.al}|${l.airline}`)).size;
+        confirmDelete({
+            title: `Delete station ${st}?`,
+            description: `All ${airlines} airline(s) and ${stLines.length} row(s) at ${st} in Category ${cat}, including their monthly figures, will be deleted. This cannot be undone.`,
+            onConfirm: () => {
+                commit(removeLines(version.snapshot, cat, (l) => l.station === st), { action: 'delete', summary: `Deleted station ${st} — ${airlines} airline(s), ${stLines.length} row(s)` });
+                toast.success(`Deleted station ${st} from Category ${cat}`);
+            },
+        });
+    };
+
+    const onDeleteTypeGroup = (line: GridLine, group: string) => {
+        if (!version) return;
+        const inGroup = (l: Pick<GridLine, 'station' | 'al' | 'airline' | 'typeGroup'>) => sameAirline(line)(l) && l.typeGroup === group;
+        const n = lines.filter(inGroup).length;
+        confirmDelete({
+            title: `Delete type group ${group}?`,
+            description: `Only type group ${group} of ${line.airline} (${line.station}) is deleted — its ${n} A/C type row(s) and their monthly figures. The airline and its other type groups stay. This cannot be undone.`,
+            onConfirm: () => {
+                const next = removeLines(version.snapshot, cat, inGroup);
+                // Last type group gone: keep the airline with an empty placeholder row so "+ Type group" is still reachable
+                const left = lines.some((l) => sameAirline(line)(l) && !inGroup(l));
+                commit(left ? next : appendLines(next, cat, [{ station: line.station, al: line.al, airline: line.airline, acType: '—', engine: '—' }]), {
+                    action: 'delete',
+                    summary: `Deleted type group ${group} of ${line.airline} (${line.station}) — ${n} row(s)`,
+                });
+                toast.success(`Deleted type group ${group} of ${line.airline} (${line.station})`);
+            },
+        });
     };
 
     // ── Currency rate ──
@@ -167,6 +322,7 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
                 editedBy: null,
                 editedAt: null,
                 snapshot: simulateOagPlan(base, store.versions.length),
+                log: [{ at: label, by: userName, action: 'import', summary: `Version created from OAG import (${fileName})` }],
             };
             const minYear = new Date().getFullYear() - 2;
             updatePlanStore((s) => ({ ...s, versions: [created, ...s.versions].filter((v) => v.year >= minYear) }));
@@ -177,17 +333,19 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
             updatePlanStore((s) => ({
                 ...s,
                 budgetImportedAt: kind === 'budget' ? label : s.budgetImportedAt,
-                versions: s.versions.map((v) => (v.id === target.id ? { ...v, editedBy: userName, editedAt: label } : v)),
+                versions: s.versions.map((v) =>
+                    v.id === target.id
+                        ? { ...v, editedBy: userName, editedAt: label, log: [...v.log, { at: label, by: userName, action: 'import' as const, summary: `Imported ${kind === 'budget' ? 'Budget' : 'Category B/C/D data'} from ${fileName}` }] }
+                        : v
+                ),
             }));
             toast.success(`${kind === 'budget' ? 'Budget' : 'Category B/C/D data'} imported from ${fileName} into version ${target.label}`);
         }
         setImportOpen(false);
     };
 
-    // ── Create New Version: rows (AL, Airline, A/C type, Engine) copied, monthly data blank ──
+    // ── Create New Version: rows built from the Station → Airline → Type group → A/C type structure ──
     const onCreateVersion = (draft: NewVersionDraft) => {
-        const base = store.versions.find((v) => v.id === draft.baseId);
-        if (!base) return;
         const created: PlanVersion = {
             id: `v${Date.now()}`,
             year: draft.year,
@@ -197,15 +355,26 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
             createdBy: userName,
             editedBy: null,
             editedAt: null,
-            snapshot: blankSnapshotFrom(base.snapshot),
+            snapshot: snapshotFromStructure(draft.structure, [draft.cat]),
+            log: [
+                {
+                    at: draft.label,
+                    by: userName,
+                    action: 'create',
+                    cat: draft.cat,
+                    summary: `Version created by key in — ${draft.structure.length} station(s)`,
+                    changes: draft.structure.map((g) => `${g.station}: ${g.airlines.map((a) => a.airline).join(', ') || '—'}`),
+                },
+            ],
         };
         const minYear = new Date().getFullYear() - 2;
         updatePlanStore((s) => ({ ...s, versions: [created, ...s.versions].filter((v) => v.year >= minYear) }));
         setYear(draft.year);
+        setCat(draft.cat);
         setVersionId(created.id);
         setCollapsed({});
         setCreateOpen(false);
-        toast.success(`Created version ${draft.label} (${draft.year}) — monthly figures are blank, ready to key in`);
+        toast.success(`Created version ${draft.label} (${draft.year}) in Category ${draft.cat} with ${draft.structure.length} station(s) — monthly figures are blank, ready to key in`);
     };
 
     // ── Export (Excel) ──
@@ -258,9 +427,9 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
     const title = isRev ? 'Revenue Plan' : 'Production Plan';
     const unitText = isRev
         ? isProdCat(cat)
-            ? 'หน่วย: บาท (THB) · Plan = จำนวน Flight × Initial Price (USD) × อัตราแลกเปลี่ยนรายเดือน'
-            : 'หน่วย: บาท (THB) · Import / Key in ทั้ง Budget, Plan และ Actual'
-        : 'หน่วย: unit (จำนวน flight) · นับจาก Airline + Station + Aircraft';
+            ? 'Unit: Baht (THB) · Plan = Flights × Initial Price (USD) × monthly exchange rate'
+            : 'Unit: Baht (THB) · Budget, Plan and Actual are imported or keyed in'
+        : 'Unit: units (flights) · counted by Airline + Station + Aircraft';
 
     return (
         <div className="space-y-4">
@@ -275,13 +444,13 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
                             {version?.editedBy && (
                                 <>
                                     {' '}
-                                    · แก้ไขล่าสุดโดย <b className="text-foreground">{version.editedBy}</b> เมื่อ {version.editedAt}
+                                    · Last edited by <b className="text-foreground">{version.editedBy}</b> on {version.editedAt}
                                 </>
                             )}
                         </p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                        <span className="text-xs text-muted-foreground">เลือก Category</span>
+                        <span className="text-xs text-muted-foreground">Category</span>
                         <div className="flex overflow-hidden rounded-md border border-border bg-card">
                             {CATEGORIES.map((c, i) => {
                                 const off = !isRev && !isProdCat(c.code);
@@ -292,7 +461,7 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
                                         disabled={off || editing}
                                         aria-pressed={cat === c.code}
                                         onClick={() => setCat(c.code)}
-                                        title={`${c.code} — ${c.name}${off ? ' (ไม่มี Production Plan)' : ''}`}
+                                        title={`${c.code} — ${c.name}${off ? ' (no Production Plan)' : ''}`}
                                         className={cn(
                                             'h-8 min-w-8 px-2.5 text-xs font-bold transition-colors',
                                             i > 0 && 'border-l border-border',
@@ -344,7 +513,7 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
                             {yearVersions.map((v) => (
                                 <option key={v.id} value={v.id}>
                                     {v.label}
-                                    {v.id === store.versions[0].id ? ' (ล่าสุด)' : ''}
+                                    {v.id === store.versions[0].id ? ' (latest)' : ''}
                                     {isVersionEditable(store.versions, v.id) ? '' : ' 🔒'}
                                 </option>
                             ))}
@@ -352,7 +521,7 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
                     </label>
                     {!editable && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400">
-                            <Lock className="h-3 w-3" /> ดูอย่างเดียว (แก้ไขได้เฉพาะ {EDITABLE_VERSION_COUNT} version ล่าสุด)
+                            <Lock className="h-3 w-3" /> Read-only (only the latest {EDITABLE_VERSION_COUNT} versions are editable)
                         </span>
                     )}
 
@@ -372,13 +541,13 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
                                 <span className="flex items-center gap-2 font-medium">
                                     <FileSpreadsheet className="h-4 w-4 text-emerald-600" /> Excel (.xlsx)
                                 </span>
-                                <span className="pl-6 text-xs text-muted-foreground">ตามตัวกรองและค่าที่เลือกอยู่ แก้ต่อได้</span>
+                                <span className="pl-6 text-xs text-muted-foreground">Current filters and series, editable</span>
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <button type="button" className={cn(btnOutline, 'w-9 px-0')} aria-label="ตัวเลือกเพิ่มเติม">
+                            <button type="button" className={cn(btnOutline, 'w-9 px-0')} aria-label="More options">
                                 <MoreHorizontal className="h-4 w-4" />
                             </button>
                         </DropdownMenuTrigger>
@@ -393,33 +562,21 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
                                 <span className="flex items-center gap-2 font-medium">
                                     <CopyPlus className="h-4 w-4 text-[hsl(206_92%_35%)]" /> Create New Version
                                 </span>
-                                <span className="pl-6 text-xs text-muted-foreground">ใช้รายการ Airline เดิม · ตัวเลขรายเดือนรอกรอก</span>
+                                <span className="pl-6 text-xs text-muted-foreground">Define Station / Airline / A/C type · monthly figures to key in</span>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                                disabled={!editable || editing}
-                                onSelect={() => setTimeout(() => setLineDialog({ open: true, initial: null }))}
-                                className="flex-col items-start gap-0.5 py-2"
-                            >
-                                <span className="flex items-center gap-2 font-medium">
-                                    <Plus className="h-4 w-4" /> เพิ่มแถว
-                                </span>
-                                <span className="pl-6 text-xs text-muted-foreground">
-                                    {editable ? 'เพิ่ม Airline ใหม่แล้วกรอกตัวเลขรายเดือน' : `แก้ไขได้เฉพาะ ${EDITABLE_VERSION_COUNT} version ล่าสุด`}
-                                </span>
-                            </DropdownMenuItem>
                             <DropdownMenuItem onSelect={downloadTemplate} className="flex-col items-start gap-0.5 py-2">
                                 <span className="flex items-center gap-2 font-medium">
-                                    <FileSpreadsheet className="h-4 w-4" /> ดาวน์โหลด Template
+                                    <FileSpreadsheet className="h-4 w-4" /> Download Template
                                 </span>
-                                <span className="pl-6 text-xs text-muted-foreground">Budget และ Plan</span>
+                                <span className="pl-6 text-xs text-muted-foreground">Budget and Plan</span>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onSelect={() => setTimeout(() => setHistoryOpen(true))} className="flex-col items-start gap-0.5 py-2">
                                 <span className="flex items-center gap-2 font-medium">
-                                    <History className="h-4 w-4" /> ประวัติ Version
+                                    <History className="h-4 w-4" /> Version History
                                 </span>
-                                <span className="pl-6 text-xs text-muted-foreground">Import และ log การแก้ไขทุก version</span>
+                                <span className="pl-6 text-xs text-muted-foreground">Imports and change log of every version</span>
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
@@ -428,16 +585,16 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
 
             {editing && (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-                    แก้ไขทีละแถว (Airline) ใน version <b>{version?.label}</b>
-                    {isRev && isProdCat(cat) && ' · Plan / Actual คำนวณอัตโนมัติ — แก้จำนวน flight ที่หน้า Production Plan'}
-                    {!isRev && ' · Actual มาจาก THF ที่ Done แล้ว แก้ไม่ได้'} · กด &quot;บันทึก&quot; ใต้แถวเพื่อบันทึก log ชื่อและวันที่แก้ไข
+                    Edit one row at a time in version <b>{version?.label}</b>
+                    {isRev && isProdCat(cat) && ' · Plan / Actual are calculated — change flight counts on Production Plan'}
+                    {!isRev && ' · Actual comes from completed THFs and cannot be edited'} · click &quot;Save&quot; under the row to log who edited it and when
                 </div>
             )}
 
             {/* ── Table ── */}
             <Card className="overflow-hidden">
                 <div className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3">
-                    <span className="text-sm text-muted-foreground">แสดง</span>
+                    <span className="text-sm text-muted-foreground">Show</span>
                     <div className="flex flex-wrap gap-2">
                         {SERIES.map((k) => {
                             const on = sel[k];
@@ -462,13 +619,22 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
                         })}
                     </div>
                     <span className="text-xs text-muted-foreground">
-                        {selectedCount > 1 ? 'เลือกมากกว่า 1 ค่า → แสดงแถว Δ เปรียบเทียบ (▲ สูงกว่า · ▼ ต่ำกว่า)' : 'เลือกเพิ่มอีกค่าเพื่อดูแถวเปรียบเทียบ'}
+                        {selectedCount > 1 ? 'More than 1 selected → Δ comparison rows shown (▲ higher · ▼ lower)' : 'Select another series to see comparison rows'}
                     </span>
                     <div className="flex-1" />
+                    <button
+                        type="button"
+                        className={cn(btnOutline, 'h-8 px-3 text-xs text-[hsl(206_92%_35%)] dark:text-sky-300')}
+                        disabled={!editable || editing || !freeStations.length}
+                        onClick={() => setNewStationOpen(true)}
+                        title={!editable ? `Only the latest ${EDITABLE_VERSION_COUNT} versions are editable` : !freeStations.length ? 'All stations already added' : 'Add Station'}
+                    >
+                        <Plus className="h-3.5 w-3.5" /> Station
+                    </button>
                     <TooltipProvider>
                         {[
-                            { label: 'ขยายทั้งหมด', icon: ChevronsUpDown, onClick: () => setCollapsed({}) },
-                            { label: 'ดูเฉพาะยอดรวมสถานี', icon: ChevronsDownUp, onClick: () => setCollapsed(Object.fromEntries(STATIONS.map((s) => [s, true]))) },
+                            { label: 'Expand all', icon: ChevronsUpDown, onClick: () => setCollapsed({}) },
+                            { label: 'Station totals only', icon: ChevronsDownUp, onClick: () => setCollapsed(Object.fromEntries(STATIONS.map((s) => [s, true]))) },
                         ].map(({ label, icon: Icon, onClick }) => (
                             <Tooltip key={label}>
                                 <TooltipTrigger asChild>
@@ -487,16 +653,23 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
                     sel={sel}
                     stationFilter={station}
                     collapsed={collapsed}
-                    onToggleStation={(st) => setCollapsed((c) => ({ ...c, [st]: !c[st] }))}
+                    onToggle={(k) => setCollapsed((c) => ({ ...c, [k]: !c[k] }))}
                     closed={closed}
                     canEdit={editable && !editing}
                     editingLineId={edit?.lineId ?? null}
+                    editingSeries={edit?.series ?? null}
                     onStartEdit={startRowEdit}
+                    onEditAircraft={setAircraftLine}
+                    onAddTypeGroup={(line, group) => setNewGroup({ line, group })}
+                    onAddAirline={setNewAirlineStation}
+                    onDeleteStation={onDeleteStation}
+                    onEditStation={onEditStation}
+                    onDeleteAirline={onDeleteAirline}
+                    onDeleteTypeGroup={onDeleteTypeGroup}
                     onSaveEdit={saveRowEdit}
                     onCancelEdit={cancelRowEdit}
-                    onEditInfo={(l) => setLineDialog({ open: true, initial: { id: l.id, station: l.station, al: l.al, airline: l.airline, acType: l.acType, engine: l.engine, priceUsd: l.priceUsd } })}
-                    onDeleteLine={onDeleteLine}
                     onCellChange={onCellChange}
+                    onRenameAirline={onRenameAirline}
                     fx={hasFx ? { values: fx, onChange: onFxChange } : undefined}
                     unit={unit}
                 />
@@ -505,7 +678,7 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
             {/* ── Data reference ── */}
             <Card className="p-5">
                 <h2 className="mb-3 text-sm font-bold text-foreground">
-                    ที่มาของข้อมูล — Category {cat} ({CATEGORIES.find((c) => c.code === cat)?.name})
+                    Data sources — Category {cat} ({CATEGORIES.find((c) => c.code === cat)?.name})
                 </h2>
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                     {SERIES.map((k) => (
@@ -519,11 +692,11 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
                 </div>
                 <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
                     <li>
-                        ตัวเลข Actual ของแต่ละเดือนจะแสดงเมื่อสิ้นสุดเดือนนั้นๆ ({closed === 12 ? 'ครบทั้งปี' : closed === 0 ? 'ยังไม่มีเดือนที่ปิดแล้ว' : `ปิดแล้ว Jan–${MONTHS[closed - 1]}`})
+                        Each month's Actual is shown once that month has ended ({closed === 12 ? 'full year' : closed === 0 ? 'no month closed yet' : `closed Jan–${MONTHS[closed - 1]}`})
                     </li>
-                    <li>เก็บ version ย้อนหลัง 3 ปี · แก้ไขได้ {EDITABLE_VERSION_COUNT} version ล่าสุด · ทุกการแก้ไขบันทึกชื่อและวันที่แก้ไขล่าสุด</li>
-                    {isRev && isProdCat(cat) && <li>Initial Service price = ราคา Minimum Rate ตาม Contract ของแต่ละประเภทการให้บริการ</li>}
-                    {!isRev && <li>Plan จาก OAG: ระบบสรุปจำนวน flight รายเดือนจากไฟล์ที่ import แต่ละครั้ง โดยนับจาก Airline, Station และ Aircraft</li>}
+                    <li>Versions are kept for 3 years · the latest {EDITABLE_VERSION_COUNT} are editable · every edit records who made it and when</li>
+                    {isRev && isProdCat(cat) && <li>Initial Service price = the contract Minimum Rate of each service type</li>}
+                    {!isRev && <li>Plan from OAG: monthly flights are summarised from each imported file, counted by Airline, Station and Aircraft</li>}
                 </ul>
                 {isProdCat(cat) && (
                     <div className="mt-3 rounded-lg bg-blue-50/60 px-3.5 py-2.5 text-xs text-slate-700 dark:bg-blue-950/30 dark:text-slate-300">
@@ -536,22 +709,61 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
                 )}
             </Card>
 
-            <LineDialog
-                open={lineDialog.open}
-                onOpenChange={(open) => setLineDialog((d) => ({ ...d, open }))}
-                initial={lineDialog.initial}
-                withPrice={isProdCat(cat)}
-                defaultStation={station === 'ALL' ? STATIONS[0] : station}
-                onSave={onSaveLine}
+            {confirmDialog}
+            <StationDialog
+                open={!!stationDialog}
+                onOpenChange={(open) => !open && setStationDialog(null)}
+                initial={stationDialog}
+                onSave={onSaveStation}
+            />
+            <AircraftComboDialog
+                open={!!aircraftLine}
+                onOpenChange={(open) => !open && setAircraftLine(null)}
+                line={aircraftLine}
+                takenIds={
+                    aircraftLine
+                        ? lines
+                              .filter((l) => l.id !== aircraftLine.id && l.station === aircraftLine.station && l.al === aircraftLine.al && l.airline === aircraftLine.airline && l.typeGroup === aircraftLine.typeGroup)
+                              .flatMap((l) => l.combinationIds ?? (l.combinationId != null ? [l.combinationId] : []))
+                        : []
+                }
+                onSave={onSaveAircraft}
+            />
+            <AircraftComboDialog
+                open={!!newGroup}
+                onOpenChange={(open) => !open && setNewGroup(null)}
+                mode="add"
+                line={newGroupLine}
+                takenIds={[]}
+                onSave={onSaveNewGroup}
+            />
+            <AircraftComboDialog
+                open={newStationOpen}
+                onOpenChange={setNewStationOpen}
+                mode="station"
+                stations={freeStations}
+                line={newStationLine}
+                takenIds={[]}
+                onSave={onSaveNewStation}
+            />
+            <AircraftComboDialog
+                open={!!newAirlineStation}
+                onOpenChange={(open) => !open && setNewAirlineStation(null)}
+                mode="airline"
+                line={newAirlineLine}
+                takenIds={[]}
+                onSave={onSaveNewAirline}
             />
             <ImportDialog open={importOpen} onOpenChange={setImportOpen} mode={mode} latestVersion={store.versions[0].label} onConfirm={onImport} />
             <HistoryDialog open={historyOpen} onOpenChange={setHistoryOpen} versions={store.versions} />
             <CreateVersionDialog
                 open={createOpen}
                 onOpenChange={setCreateOpen}
+                mode={mode}
                 versions={store.versions}
                 defaultYear={year}
-                defaultBaseId={version?.id ?? store.versions[0]?.id ?? ''}
+                defaultStation={station === 'ALL' ? STATIONS[0] : station}
+                defaultCat={cat}
                 onConfirm={onCreateVersion}
             />
         </div>

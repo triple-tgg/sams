@@ -130,7 +130,7 @@ export function getMenuList(pathname: string, t: any): Group[] {
               hasDivider: true, // divider line after Revenue Plan
             },
             {
-              // TODO: restore `permCode: "CONFIG_VERSION_PLAN"` once backend adds it to the permission API
+              permCode: "CONFIG_VERSION_PLAN",
               href: "/production-planner/config-version-plan",
               label: "Config Version Plan",
               active: pathname.includes("/production-planner/config-version-plan"),

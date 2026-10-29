@@ -57,8 +57,8 @@ export function CustomerDialog({
         const name = draft.name.trim();
         const icao = draft.icao.trim().toUpperCase();
         const iata = draft.iata.trim().toUpperCase();
-        if (!name || !icao) return setError('กรุณากรอกชื่อ Airline และ ICAO');
-        if (existingIcaos.some((x) => x === icao && x !== initial?.icao)) return setError(`ICAO ${icao} มีอยู่แล้วในระบบ`);
+        if (!name || !icao) return setError('Please enter the Airline name and ICAO.');
+        if (existingIcaos.some((x) => x === icao && x !== initial?.icao)) return setError(`ICAO ${icao} already exists.`);
         onSave(
             {
                 name,
@@ -74,14 +74,14 @@ export function CustomerDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent size="md" className="max-w-3xl">
                 <DialogHeader>
-                    <DialogTitle>{initial ? 'แก้ไขลูกค้า' : 'เพิ่มลูกค้า'}</DialogTitle>
-                    <DialogDescription>{initial ? 'กดบันทึกแล้วมีผลทันที' : 'กรอกข้อมูลลูกค้าและบริการที่ให้'}</DialogDescription>
+                    <DialogTitle>{initial ? 'Edit Customer' : 'Add Customer'}</DialogTitle>
+                    <DialogDescription>{initial ? 'Changes apply as soon as you save' : 'Enter the customer and the services provided'}</DialogDescription>
                 </DialogHeader>
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
                     <label className="space-y-1 text-xs font-semibold text-muted-foreground sm:col-span-2">
                         Airline
-                        <input id="cs-ed-name" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="เช่น Cebu Pacific" className={fieldCls} />
+                        <input id="cs-ed-name" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="e.g. Cebu Pacific" className={fieldCls} />
                     </label>
                     <label className="space-y-1 text-xs font-semibold text-muted-foreground">
                         ICAO
@@ -97,7 +97,7 @@ export function CustomerDialog({
                     <div className="grid grid-cols-[100px_140px_1fr_1fr_36px] gap-2 border-b border-border bg-muted/40 px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
                         <span>Station</span>
                         <span>Service Type</span>
-                        <span>เงื่อนไขเพิ่มเติม</span>
+                        <span>Add-on</span>
                         <span>Aircraft Type</span>
                         <span />
                     </div>
@@ -117,11 +117,11 @@ export function CustomerDialog({
                                         ))}
                                     </select>
                                 </div>
-                                <input aria-label="เงื่อนไขเพิ่มเติม" value={s.addon} onChange={(e) => setLine(i, { addon: e.target.value })} placeholder="(ถ้ามี)" className={fieldCls} />
+                                <input aria-label="Add-on" value={s.addon} onChange={(e) => setLine(i, { addon: e.target.value })} placeholder="(optional)" className={fieldCls} />
                                 <input aria-label="Aircraft type" value={s.aircraft} onChange={(e) => setLine(i, { aircraft: e.target.value })} placeholder="A320, B737NG" className={fieldCls} />
                                 <button
                                     type="button"
-                                    aria-label="ลบบริการนี้"
+                                    aria-label="Remove this service"
                                     disabled={draft.services.length === 1}
                                     onClick={() => setDraft((d) => ({ ...d, services: d.services.filter((_, j) => j !== i) }))}
                                     className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-red-950/30"
@@ -135,7 +135,7 @@ export function CustomerDialog({
                             onClick={() => setDraft((d) => ({ ...d, services: [...d.services, emptyLine()] }))}
                             className="inline-flex items-center gap-1 text-sm font-semibold text-[hsl(206_92%_35%)] hover:underline dark:text-sky-300"
                         >
-                            <Plus className="h-3.5 w-3.5" /> เพิ่มบริการ
+                            <Plus className="h-3.5 w-3.5" /> Add service
                         </button>
                     </div>
                 </div>
@@ -148,10 +148,10 @@ export function CustomerDialog({
 
                 <DialogFooter>
                     <button type="button" className={btnOutline} onClick={() => onOpenChange(false)}>
-                        ยกเลิก
+                        Cancel
                     </button>
                     <button type="button" className={btnPrimary} onClick={save}>
-                        บันทึก
+                        Save
                     </button>
                 </DialogFooter>
             </DialogContent>
@@ -216,11 +216,11 @@ export function CsImportDialog({
         setError('');
         try {
             const res = await parseFile(f);
-            if (!res.list.length) setError('ไม่พบข้อมูลที่ถูกต้องในไฟล์ (ตรวจสอบหัวคอลัมน์ตาม Template)');
+            if (!res.list.length) setError('No valid rows found in the file (check the column headers against the Template).');
             setPreview(res);
         } catch {
             setPreview(null);
-            setError('อ่านไฟล์ไม่สำเร็จ รองรับเฉพาะ .xlsx, .xls, .csv');
+            setError('Could not read the file. Only .xlsx, .xls and .csv are supported.');
         }
     };
 
@@ -237,7 +237,7 @@ export function CsImportDialog({
             <DialogContent size="md" className="max-w-xl">
                 <DialogHeader>
                     <DialogTitle>Import Customer Service Type</DialogTitle>
-                    <DialogDescription>วางไฟล์ Excel หรือ CSV · ยังไม่มีการบันทึกจนกว่าจะกด &quot;นำเข้า&quot;</DialogDescription>
+                    <DialogDescription>Drop an Excel or CSV file · nothing is saved until you click &quot;Import&quot;</DialogDescription>
                 </DialogHeader>
 
                 <div
@@ -257,23 +257,23 @@ export function CsImportDialog({
                     )}
                 >
                     {file ? <FileSpreadsheet className="h-8 w-8 text-emerald-600" /> : <Upload className="h-8 w-8 text-muted-foreground" />}
-                    <p className="text-sm font-semibold text-foreground">{file ? file.name : 'ลากไฟล์มาวาง หรือคลิกเพื่อเลือกไฟล์'}</p>
-                    <p className="text-xs text-muted-foreground">.xlsx · .xls · .csv — หนึ่งแถวต่อหนึ่งบริการ (Airline + Station)</p>
+                    <p className="text-sm font-semibold text-foreground">{file ? file.name : 'Drop a file here, or click to browse'}</p>
+                    <p className="text-xs text-muted-foreground">.xlsx · .xls · .csv — one row per service (Airline + Station)</p>
                     <input ref={inputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                    <span>คอลัมน์: {CS_SHEET_HEADER.slice(0, 7).join(' · ')}</span>
+                    <span>Columns: {CS_SHEET_HEADER.slice(0, 7).join(' · ')}</span>
                     <button type="button" onClick={onTemplate} className="font-semibold text-[hsl(206_92%_35%)] hover:underline dark:text-sky-300">
-                        ดาวน์โหลด Template
+                        Download Template
                     </button>
                 </div>
 
                 {preview && preview.list.length > 0 && (
                     <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
-                        พบลูกค้า <b>{preview.list.length}</b> ราย · <b>{lines}</b> บริการ
-                        {preview.skipped > 0 && <> · ข้าม {preview.skipped} แถวที่ข้อมูลไม่ครบ</>}
-                        <div className="mt-1 text-xs opacity-80">ลูกค้าที่มี ICAO ซ้ำกับในระบบจะถูกแทนที่ด้วยข้อมูลจากไฟล์</div>
+                        Found <b>{preview.list.length}</b> customer(s) · <b>{lines}</b> service(s)
+                        {preview.skipped > 0 && <> · {preview.skipped} incomplete row(s) skipped</>}
+                        <div className="mt-1 text-xs opacity-80">Customers whose ICAO already exists will be replaced with the data from the file</div>
                     </div>
                 )}
                 {error && (
@@ -284,10 +284,10 @@ export function CsImportDialog({
 
                 <DialogFooter>
                     <button type="button" className={btnOutline} onClick={() => onOpenChange(false)}>
-                        ยกเลิก
+                        Cancel
                     </button>
                     <button type="button" className={btnPrimary} disabled={!preview?.list.length} onClick={() => file && preview && onConfirm(preview.list, file.name)}>
-                        นำเข้า
+                        Import
                     </button>
                 </DialogFooter>
             </DialogContent>

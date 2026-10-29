@@ -6,6 +6,8 @@ export const YEARS = [2026, 2025, 2024];
 /** Versions are kept for 3 years; only the newest N can still be edited. */
 export const EDITABLE_VERSION_COUNT = 5;
 export const STATIONS = ['BKK', 'DMK', 'HKT', 'CNX'];
+/** Aircraft type groups an airline's A/C types are filed under. */
+export const TYPE_GROUPS = ['Aero', 'Y'];
 
 export type Mode = 'prod' | 'rev';
 export type CatCode = 'A' | 'B' | 'C' | 'D' | 'E';
@@ -30,27 +32,27 @@ export const SERIES_LABEL: Record<Series, string> = { b: 'Budget', p: 'Plan', a:
 /** Where each value comes from — shown as a reference under the table. */
 export const SOURCE_REF: Record<Mode, Record<CatCode, Record<Series, string>>> = {
     prod: {
-        A: { b: 'Import OAG / Key in', p: 'Import OAG / Key in', a: 'จำนวน THF ที่ Done (THF 1)' },
+        A: { b: 'Import OAG / Key in', p: 'Import OAG / Key in', a: 'Completed THF count (THF 1)' },
         B: { b: '—', p: '—', a: '—' },
         C: { b: '—', p: '—', a: '—' },
         D: { b: '—', p: '—', a: '—' },
-        E: { b: 'Import OAG / Key in', p: 'Import OAG / Key in', a: 'จำนวน THF ที่ Done (THF 2)' },
+        E: { b: 'Import OAG / Key in', p: 'Import OAG / Key in', a: 'Completed THF count (THF 2)' },
     },
     rev: {
-        A: { b: 'Import / Key in', p: 'จำนวน Flight × Initial Price', a: 'ราคาจริงจาก THF ที่ออก invoice' },
+        A: { b: 'Import / Key in', p: 'Flights × Initial Price', a: 'Actual price from invoiced THFs' },
         B: { b: 'Import / Key in', p: 'Import / Key in', a: 'Import / Key in' },
         C: { b: 'Import / Key in', p: 'Import / Key in', a: 'Import / Key in' },
         D: { b: 'Import / Key in', p: 'Import / Key in', a: 'Import / Key in' },
-        E: { b: 'Import / Key in', p: 'จำนวน Flight × Initial Price', a: 'ราคาจริงจาก THF ที่ออก invoice' },
+        E: { b: 'Import / Key in', p: 'Flights × Initial Price', a: 'Actual price from invoiced THFs' },
     },
 };
 
 export const THF_RULES: { cat: 'A' | 'E'; title: string; items: string[] }[] = [
-    { cat: 'A', title: 'THF 1 (Cat A)', items: ['นับ Service ใน THF ที่เป็นประเภท Transit Check และมี Sub Type'] },
+    { cat: 'A', title: 'THF 1 (Cat A)', items: ['Counts THF services of type Transit Check that have a Sub Type'] },
     {
         cat: 'E',
         title: 'THF 2 (Cat E)',
-        items: ['Towing = Transit + Blank + Towing', 'Marshalling = Transit + Marshalling', 'Night stop = Night Stop + Blank', 'อื่นๆ ที่ไม่ใช่ Transit'],
+        items: ['Towing = Transit + Blank + Towing', 'Marshalling = Transit + Marshalling', 'Night stop = Night Stop + Blank', 'Anything else that is not Transit'],
     },
 ];
 
@@ -63,6 +65,12 @@ export interface LineInfo {
     airline: string;
     acType: string;
     engine: string;
+    /** Aircraft type group within the airline — one of TYPE_GROUPS. */
+    typeGroup?: string;
+    /** Aircraft-Engine Combination master id the A/C type + Engine were picked from. */
+    combinationId?: number;
+    /** All combinations picked for this row (a row may cover several, e.g. "B737-800, B737-8"). */
+    combinationIds?: number[];
 }
 
 /** Category A / E line: flight units + contract minimum price. */
@@ -90,6 +98,20 @@ export interface Snapshot {
     rev: Record<'B' | 'C' | 'D', RevLine[]>;
 }
 
+export type LogAction = 'create' | 'import' | 'figures' | 'add' | 'edit' | 'delete';
+
+/** One change made to a version — shown in the version history detail. */
+export interface VersionLogEntry {
+    at: string;
+    by: string;
+    action: LogAction;
+    /** Category the change was made in (absent for version-wide events). */
+    cat?: CatCode;
+    summary: string;
+    /** Cell-level detail, e.g. "Jan: 5 → 6". */
+    changes?: string[];
+}
+
 export interface PlanVersion {
     id: string;
     year: number;
@@ -102,6 +124,8 @@ export interface PlanVersion {
     editedBy: string | null;
     editedAt: string | null;
     snapshot: Snapshot;
+    /** Oldest first. */
+    log: VersionLogEntry[];
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -216,38 +240,150 @@ export function setSnapshotValue(snap: Snapshot, mode: Mode, cat: CatCode, lineI
     };
 }
 
-export function upsertLine(snap: Snapshot, cat: CatCode, info: LineInfo & { priceUsd?: number }): Snapshot {
-    if (isProdCat(cat)) {
-        const exists = snap.prod[cat].some((l) => l.id === info.id);
-        const lines = exists
-            ? snap.prod[cat].map((l) => (l.id === info.id ? { ...l, ...info, priceUsd: info.priceUsd ?? l.priceUsd } : l))
-            : [...snap.prod[cat], { ...info, priceUsd: info.priceUsd ?? 0, budget: zeros(), plan: zeros(), actual: zeros(), revBudget: zeros() }];
-        return { ...snap, prod: { ...snap.prod, [cat]: lines } };
-    }
-    const exists = snap.rev[cat].some((l) => l.id === info.id);
-    const lines = exists
-        ? snap.rev[cat].map((l) => (l.id === info.id ? { ...l, ...info } : l))
-        : [...snap.rev[cat], { ...info, budget: zeros(), plan: zeros(), actual: zeros() }];
-    return { ...snap, rev: { ...snap.rev, [cat]: lines } };
-}
-
 export function removeLine(snap: Snapshot, cat: CatCode, lineId: string): Snapshot {
     if (isProdCat(cat)) return { ...snap, prod: { ...snap.prod, [cat]: snap.prod[cat].filter((l) => l.id !== lineId) } };
     return { ...snap, rev: { ...snap.rev, [cat]: snap.rev[cat].filter((l) => l.id !== lineId) } };
 }
 
-/**
- * New version template: keeps the row info (Station, AL, Airline, A/C type, Engine, contract price)
- * from `base`, but every monthly figure is blank ("—") and waits to be keyed in.
- */
-export function blankSnapshotFrom(base: Snapshot): Snapshot {
-    const prod = (lines: ProdLine[]): ProdLine[] =>
-        lines.map((l) => ({ ...l, budget: blanks(), plan: blanks(), actual: blanks(), revBudget: blanks() }));
-    const rev = (lines: RevLine[]): RevLine[] => lines.map((l) => ({ ...l, budget: blanks(), plan: blanks(), actual: blanks() }));
+/** Patch the descriptive fields of one row (A/C type, Engine, …) without touching its figures. */
+export function patchLineInfo(snap: Snapshot, cat: CatCode, lineId: string, patch: Partial<Omit<LineInfo, 'id'>>): Snapshot {
+    const apply = <T extends LineInfo>(l: T): T => (l.id === lineId ? { ...l, ...patch } : l);
+    if (isProdCat(cat)) return { ...snap, prod: { ...snap.prod, [cat]: snap.prod[cat].map(apply) } };
+    return { ...snap, rev: { ...snap.rev, [cat]: snap.rev[cat].map(apply) } };
+}
+
+/** Stand-in row that keeps an airline in the table while it has no type group / A/C type yet. */
+export const isPlaceholderLine = (l: LineInfo) => !l.typeGroup && l.acType === '—' && !l.combinationIds?.length && l.combinationId == null;
+
+/** Remove every row matching `match` (e.g. a whole airline or one of its type groups). */
+export function removeLines(snap: Snapshot, cat: CatCode, match: (l: LineInfo) => boolean): Snapshot {
+    if (isProdCat(cat)) return { ...snap, prod: { ...snap.prod, [cat]: snap.prod[cat].filter((l) => !match(l)) } };
+    return { ...snap, rev: { ...snap.rev, [cat]: snap.rev[cat].filter((l) => !match(l)) } };
+}
+
+/** Append new rows with blank monthly figures (same as rows created from a structure). */
+export function appendLines(snap: Snapshot, cat: CatCode, infos: Omit<LineInfo, 'id'>[]): Snapshot {
+    const stamp = Date.now();
+    const withId = infos.map((info, i) => ({ ...info, id: `${cat}-${info.station}-${stamp}-${i}` }));
+    if (isProdCat(cat)) return { ...snap, prod: { ...snap.prod, [cat]: [...snap.prod[cat], ...withId.map((l) => ({ ...l, priceUsd: 0, budget: blanks(), plan: blanks(), actual: blanks(), revBudget: blanks() }))] } };
+    return { ...snap, rev: { ...snap.rev, [cat]: [...snap.rev[cat], ...withId.map((l) => ({ ...l, budget: blanks(), plan: blanks(), actual: blanks() }))] } };
+}
+
+/** Rename an airline (AL + name) on every row it has at one station in a category. */
+export function renameAirline(snap: Snapshot, cat: CatCode, station: string, from: Pick<LineInfo, 'al' | 'airline'>, to: Pick<LineInfo, 'al' | 'airline'>): Snapshot {
+    const rename = <T extends LineInfo>(l: T): T => (l.station === station && l.al === from.al && l.airline === from.airline ? { ...l, ...to } : l);
+    if (isProdCat(cat)) return { ...snap, prod: { ...snap.prod, [cat]: snap.prod[cat].map(rename) } };
+    return { ...snap, rev: { ...snap.rev, [cat]: snap.rev[cat].map(rename) } };
+}
+
+/** New version template: an empty table (no rows) — lines are added via "+ Add row" or Import. */
+export function emptySnapshot(): Snapshot {
+    return { prod: { A: [], E: [] }, rev: { B: [], C: [], D: [] } };
+}
+
+/** Structure keyed in when creating a version: Station → Airline → Type group → A/C type + Engine. */
+export interface StationGroup {
+    station: string;
+    airlines: {
+        al: string;
+        airline: string;
+        /** Existing airline this node was loaded from (editing a station) — its rows keep their figures. */
+        from?: { al: string; airline: string };
+        typeGroups: { name: string; aircraft: { combinationId: number | null; acType: string; engine: string }[] }[];
+    }[];
+}
+
+/** Several A/C type + Engine picks folded into one row: "A319/A320-200", "CFM LEAP-1A/CFM56/IAE PW1100G". */
+export function mergeAircraft(picked: { acType: string; engine: string; combinationId?: number | null; combinationIds?: number[] }[]) {
+    const uniq = (xs: string[]) => Array.from(new Set(xs.filter((x) => x && x !== '—')));
+    const ids = picked.flatMap((p) => p.combinationIds ?? (p.combinationId != null ? [p.combinationId] : []));
     return {
-        prod: { A: prod(base.prod.A), E: prod(base.prod.E) },
-        rev: { B: rev(base.rev.B), C: rev(base.rev.C), D: rev(base.rev.D) },
+        acType: uniq(picked.map((p) => p.acType)).join('/') || '—',
+        engine: uniq(picked.map((p) => p.engine)).join('/') || '—',
+        combinationId: ids[0],
+        combinationIds: ids,
     };
+}
+
+/** One row per type group (its A/C types merged); an airline without type groups gets one "—" row. */
+export function structureLines(structure: StationGroup[]): Omit<LineInfo, 'id'>[] {
+    return structure.flatMap(({ station, airlines }) =>
+        airlines.flatMap(({ al, airline, typeGroups }) =>
+            typeGroups.length
+                ? typeGroups.map((g) => ({ station, al, airline, typeGroup: g.name, ...mergeAircraft(g.aircraft) }))
+                : [{ station, al, airline, acType: '—', engine: '—' }]
+        )
+    );
+}
+
+/** New version built from the structure: the same rows in each selected category, monthly figures blank. */
+export function snapshotFromStructure(structure: StationGroup[], cats: CatCode[]): Snapshot {
+    const snap = emptySnapshot();
+    const infos = structureLines(structure);
+    const stamp = Date.now();
+    cats.forEach((cat) => {
+        const withId = infos.map((info, i) => ({ ...info, id: `${cat}-${info.station}-${stamp}-${i}` }));
+        if (isProdCat(cat)) snap.prod[cat] = withId.map((l) => ({ ...l, priceUsd: 0, budget: blanks(), plan: blanks(), actual: blanks(), revBudget: blanks() }));
+        else snap.rev[cat] = withId.map((l) => ({ ...l, budget: blanks(), plan: blanks(), actual: blanks() }));
+    });
+    return snap;
+}
+
+/** Editable structure of one station, built from its rows (placeholder rows become an airline without type groups). */
+export function stationStructure(lines: LineInfo[], station: string): StationGroup {
+    const airlines: StationGroup['airlines'] = [];
+    lines
+        .filter((l) => l.station === station)
+        .forEach((l) => {
+            let a = airlines.find((x) => x.al === l.al && x.airline === l.airline);
+            if (!a) {
+                a = { al: l.al, airline: l.airline, from: { al: l.al, airline: l.airline }, typeGroups: [] };
+                airlines.push(a);
+            }
+            if (!l.typeGroup) return;
+            let g = a.typeGroups.find((t) => t.name === l.typeGroup);
+            if (!g) {
+                g = { name: l.typeGroup, aircraft: [] };
+                a.typeGroups.push(g);
+            }
+            const ids = l.combinationIds ?? (l.combinationId != null ? [l.combinationId] : []);
+            // Combination rows get their A/C type + Engine text from the master when saved; older rows keep their text
+            g.aircraft.push(...(ids.length ? ids.map((id) => ({ combinationId: id, acType: '', engine: '' })) : [{ combinationId: null, acType: l.acType, engine: l.engine }]));
+        });
+    airlines.forEach((a) => a.typeGroups.sort((x, y) => TYPE_GROUPS.indexOf(x.name) - TYPE_GROUPS.indexOf(y.name)));
+    return { station, airlines };
+}
+
+/**
+ * Replace a station's rows with an edited structure. A row whose airline (by `from`) and type group still exist keeps
+ * its id and monthly figures; rows merged into one type group have their figures added up. New groups start blank.
+ */
+export function applyStationStructure(snap: Snapshot, cat: CatCode, fromStation: string, group: StationGroup): Snapshot {
+    const loose = (a: MonthValues, b: MonthValues): MonthValues => a.map((x, i) => (x == null && b[i] == null ? null : (x ?? 0) + (b[i] ?? 0)));
+    const stamp = Date.now();
+    const build = <T extends LineInfo>(old: T[], blank: (info: LineInfo) => T, fields: (keyof T)[]): T[] => {
+        const mine = old.filter((l) => l.station === fromStation);
+        const rows = group.airlines.flatMap((a) => {
+            const src = a.from ?? a;
+            const ofAirline = mine.filter((l) => l.al === src.al && l.airline === src.airline);
+            return structureLines([{ station: group.station, airlines: [a] }]).map((info, i): T => {
+                const matches = ofAirline.filter((l) => (info.typeGroup ? l.typeGroup === info.typeGroup : !l.typeGroup));
+                if (!matches.length) return blank({ ...info, id: `${cat}-${group.station}-${stamp}-${a.al}-${i}` });
+                const merged = { ...matches[0], ...info, id: matches[0].id } as T;
+                fields.forEach((f) => {
+                    merged[f] = matches.map((m) => m[f] as MonthValues).reduce(loose) as T[typeof f];
+                });
+                return merged;
+            });
+        });
+        return [...old.filter((l) => l.station !== fromStation), ...rows];
+    };
+    if (isProdCat(cat)) {
+        const lines = build<ProdLine>(snap.prod[cat], (info) => ({ ...info, priceUsd: 0, budget: blanks(), plan: blanks(), actual: blanks(), revBudget: blanks() }), ['budget', 'plan', 'actual', 'revBudget']);
+        return { ...snap, prod: { ...snap.prod, [cat]: lines } };
+    }
+    const lines = build<RevLine>(snap.rev[cat], (info) => ({ ...info, budget: blanks(), plan: blanks(), actual: blanks() }), ['budget', 'plan', 'actual']);
+    return { ...snap, rev: { ...snap.rev, [cat]: lines } };
 }
 
 // ── Mock data ───────────────────────────────────────────────────────────────
@@ -262,7 +398,8 @@ const RAW_A: RawProd[] = [
     ['BKK', 'XX', 'Airline 5', 'A320', 'V2500 / CFM56 / PW1100G / CFM LEAP-1A', [7, 7, 7, 8, 7, 8, 7, 8, 7, 7, 7, 10], 31.32],
     ['BKK', 'XX', 'Airline 6', 'B737', 'CFM56', [10, 15, 10, 15, 10, 15, 10, 15, 10, 15, 10, 15], 30.45],
     ['BKK', 'XX', 'Airline 7', 'A320', 'V2500', [15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15], 31],
-    ['HKT', 'XX', 'Airline 1', 'B737NG/MAX, A320', 'CFM LEAP-1B, CFM56', [5, 6, 7, 8, 2, 2, 3, 4, 5, 9, 10, 12], 30],
+    ['HKT', 'XX', 'Airline 1', 'B737NG/MAX', 'CFM LEAP-1B', [3, 4, 4, 5, 1, 1, 2, 2, 3, 5, 6, 7], 30],
+    ['HKT', 'XX', 'Airline 1', 'A320', 'CFM56', [2, 2, 3, 3, 1, 1, 1, 2, 2, 4, 4, 5], 30],
     ['HKT', 'XX', 'Airline 2', 'A320NEO, A320', 'V2500 / CFM56 / PW1100G / CFM LEAP-1A', [20, 20, 20, 10, 10, 10, 10, 10, 10, 20, 20, 20], 31],
     ['HKT', 'XX', 'Airline 3', 'B737MAX8', 'CFM LEAP-1B', [30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30], 31],
     ['HKT', 'XX', 'Airline 4', 'B737NG', 'CFM56', [60, 60, 60, 30, 30, 30, 30, 30, 30, 45, 60, 60], 29],
@@ -273,6 +410,7 @@ const RAW_A: RawProd[] = [
 const RAW_E: RawProd[] = [
     ['BKK', 'XX', 'Airline 1', 'B737-800', 'NG CFM56', [3, 3, 4, 4, 3, 3, 3, 4, 4, 3, 3, 4], 45],
     ['BKK', 'XX', 'Airline 5', 'A320', 'V2500', [6, 6, 6, 7, 6, 6, 6, 7, 6, 6, 7, 8], 52],
+    ['BKK', 'XX', 'Airline 5', 'B737-800', 'NG CFM56', [2, 2, 2, 3, 2, 2, 2, 3, 2, 2, 3, 3], 46],
     ['BKK', 'XX', 'Airline 7', 'A320', 'V2500', [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 48],
     ['HKT', 'XX', 'Airline 2', 'A320NEO, A320', 'PW1100G / CFM LEAP-1A', [8, 8, 8, 5, 5, 5, 5, 5, 5, 8, 8, 8], 50],
     ['HKT', 'XX', 'Airline 4', 'B737NG', 'CFM56', [12, 12, 12, 6, 6, 6, 6, 6, 6, 10, 12, 12], 46],
@@ -310,6 +448,9 @@ const VARY = [0.97, 1.02, 0.99, 1.04, 1.0, 0.96, 1.03, 1.01, 0.98, 1.05, 1.0, 0.
 
 const YEAR_SCALE: Record<number, number> = { 2026: 1, 2025: 0.9, 2024: 0.8 };
 
+/** Mock type group: Airbus types under "Aero", the rest under "Y"; non-aircraft rows have none. */
+const mockTypeGroup = (acType: string) => (acType === '—' ? undefined : acType.startsWith('A') ? 'Aero' : 'Y');
+
 function buildProdLines(raw: RawProd[], cat: 'A' | 'E', year: number, seed: number, fx: number[]): ProdLine[] {
     const scale = YEAR_SCALE[year] ?? 1;
     return raw.map(([station, al, airline, acType, engine, base, priceUsd], ri) => {
@@ -323,6 +464,7 @@ function buildProdLines(raw: RawProd[], cat: 'A' | 'E', year: number, seed: numb
             airline,
             acType,
             engine,
+            typeGroup: mockTypeGroup(acType),
             priceUsd,
             budget,
             plan,
@@ -343,6 +485,7 @@ function buildRevLines(cat: 'B' | 'C' | 'D', year: number, seed: number): RevLin
             airline,
             acType,
             engine,
+            typeGroup: mockTypeGroup(acType),
             budget,
             plan: budget.map((v, i) => Math.round((v * VARY[(i + ri + seed) % 12]) / 1000) * 1000),
             actual: budget.map((v, i) => Math.round((v * VARY[(i + ri * 2 + seed + 3) % 12]) / 1000) * 1000),
@@ -381,6 +524,10 @@ export function buildInitialVersions(): PlanVersion[] {
         editedBy,
         editedAt,
         snapshot: buildSnapshot(year, i),
+        log: [
+            { at: label, by: createdBy, action: source === 'Import OAG' ? 'import' : 'create', summary: source === 'Import OAG' ? 'Version created from OAG import' : 'Version created by key in' },
+            ...(editedBy && editedAt ? [{ at: editedAt, by: editedBy, action: 'figures' as const, cat: 'A' as const, summary: 'Edited Budget of Airline 1 (BKK)', changes: ['Mar: 5 → 6', 'Apr: 5 → 6'] }] : []),
+        ],
     }));
 }
 
