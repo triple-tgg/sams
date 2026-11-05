@@ -20,6 +20,7 @@ import { usePreInvoice, useDraftInvoice } from "@/lib/api/hooks/useInvoice";
 import { useThfDocumentListQuery } from "@/lib/api/hooks/useThfDocumentListQuery";
 import { buildListDoneOrMappedRequest } from "@/lib/api/lineMaintenances/listDoneOrMapped";
 import type { InvoiceRequest } from "@/lib/api/contract/invoiceApi";
+import { CURRENCY_VALUES, CurrencyType } from "@/lib/constants/currency";
 
 import { dateTimeUtils } from "@/lib/dayjs";
 
@@ -36,6 +37,7 @@ const InvoicePage = () => {
     const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
     const [selectedAircraftTypes, setSelectedAircraftTypes] = useState<string[]>([]);
     const [thfNumber, setThfNumber] = useState<string>("");
+    const [selectedCurrency, setSelectedCurrency] = useState<string>(CurrencyType.USD);
 
     // ── Search State (committed on Search click) ────────────
     const [searchParams, setSearchParams] = useState<InvoiceRequest>({
@@ -45,7 +47,9 @@ const InvoicePage = () => {
         stationCodeList: [],
         airCraftTypeCodeList: [],
         thfNumber: "",
+        currencyType: CurrencyType.USD,
     });
+    const [searchTrigger, setSearchTrigger] = useState(0);
     const hasSearched = true;
 
     // ── Tab State ───────────────────────────────────────────
@@ -53,28 +57,72 @@ const InvoicePage = () => {
     const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
 
     // ── API Hooks ───────────────────────────────────────────
+    const canFetchInvoice = hasSearched && Boolean(searchParams.airlineCode);
+
     const {
         data: preInvoiceData,
         isLoading: isLoadingPre,
         isFetching: isFetchingPre,
-    } = usePreInvoice(searchParams, hasSearched);
+    } = usePreInvoice(searchParams, canFetchInvoice, searchTrigger);
 
     const {
         data: draftInvoiceData,
         isLoading: isLoadingDraft,
         isFetching: isFetchingDraft,
-    } = useDraftInvoice(searchParams, hasSearched);
+    } = useDraftInvoice(searchParams, canFetchInvoice, searchTrigger);
 
-    // THF DOCUMENT tab count only – the table fetches its own page of rows
+    // THF DOCUMENT tab count – matches page 1 of ThfDocumentTable so React Query deduplicates the request
     const thfCountRequest = useMemo(
-        () => buildListDoneOrMappedRequest(searchParams, 1, 1),
+        () => buildListDoneOrMappedRequest(searchParams, 1, 50),
         [searchParams]
     );
-    const { data: thfData } = useThfDocumentListQuery(thfCountRequest, hasSearched);
+    const { data: thfData, isFetching: isFetchingThf } = useThfDocumentListQuery(
+        thfCountRequest,
+        hasSearched,
+        searchTrigger
+    );
 
-    const preInvoices = preInvoiceData?.responseData ?? [];
-    const draftInvoices = draftInvoiceData?.responseData ?? [];
-    const isSearching = isFetchingPre || isFetchingDraft;
+    const rawPreInvoices = useMemo(
+        () => (canFetchInvoice ? preInvoiceData?.responseData ?? [] : []),
+        [canFetchInvoice, preInvoiceData?.responseData]
+    );
+    const rawDraftInvoices = useMemo(
+        () => (canFetchInvoice ? draftInvoiceData?.responseData ?? [] : []),
+        [canFetchInvoice, draftInvoiceData?.responseData]
+    );
+
+    const currencyOptions = useMemo(() => {
+        const set = new Set<string>(CURRENCY_VALUES);
+        for (const item of rawPreInvoices) {
+            const c = item.currencyType?.trim().toUpperCase();
+            if (c) set.add(c);
+        }
+        for (const item of rawDraftInvoices) {
+            const c = item.currencyType?.trim().toUpperCase();
+            if (c) set.add(c);
+        }
+        return Array.from(set);
+    }, [rawPreInvoices, rawDraftInvoices]);
+
+    const activeCurrencyFilter = (selectedCurrency || searchParams.currencyType || CurrencyType.USD).trim().toUpperCase();
+
+    const preInvoices = useMemo(() => {
+        if (!activeCurrencyFilter) return rawPreInvoices;
+        return rawPreInvoices.filter((inv) => {
+            const c = (inv.currencyType ?? "").trim().toUpperCase();
+            return !c || c === activeCurrencyFilter;
+        });
+    }, [rawPreInvoices, activeCurrencyFilter]);
+
+    const draftInvoices = useMemo(() => {
+        if (!activeCurrencyFilter) return rawDraftInvoices;
+        return rawDraftInvoices.filter((inv) => {
+            const c = (inv.currencyType ?? "").trim().toUpperCase();
+            return !c || c === activeCurrencyFilter;
+        });
+    }, [rawDraftInvoices, activeCurrencyFilter]);
+
+    const isSearching = isFetchingPre || isFetchingDraft || isFetchingThf;
 
     // ── Pagination ──────────────────────────────────────────
     const [page, setPage] = useState(1);
@@ -108,9 +156,19 @@ const InvoicePage = () => {
     const handleTabChange = (tab: InvoiceTabType) => {
         setActiveTab(tab);
         setPage(1);
+        if (tab !== "thf-document" && selectedAirline && !searchParams.airlineCode) {
+            setSearchParams((prev) => ({
+                ...prev,
+                airlineCode: selectedAirline,
+                currencyType: selectedCurrency || CurrencyType.USD,
+            }));
+        }
     };
 
     const handleSearch = useCallback(() => {
+        if (activeTab !== "thf-document" && !selectedAirline) {
+            return;
+        }
         const request: InvoiceRequest = {
             dateStart: startDate,
             dateEnd: endDate,
@@ -118,10 +176,12 @@ const InvoicePage = () => {
             stationCodeList: selectedLocations,
             airCraftTypeCodeList: selectedAircraftTypes,
             thfNumber: activeTab === "thf-document" ? thfNumber.trim() : "",
+            currencyType: selectedCurrency || CurrencyType.USD,
         };
         setSearchParams(request);
+        setSearchTrigger((prev) => prev + 1);
         setPage(1);
-    }, [startDate, endDate, selectedAirline, selectedLocations, selectedAircraftTypes, activeTab, thfNumber]);
+    }, [startDate, endDate, selectedAirline, selectedLocations, selectedAircraftTypes, activeTab, thfNumber, selectedCurrency]);
 
     const handlePrevPage = () => {
         if (page > 1) setPage(page - 1);
@@ -138,9 +198,10 @@ const InvoicePage = () => {
             preInvoices,
             searchParams.airlineCode,
             searchParams.dateStart,
-            searchParams.dateEnd
+            searchParams.dateEnd,
+            activeCurrencyFilter
         );
-    }, [preInvoices, searchParams]);
+    }, [preInvoices, searchParams, activeCurrencyFilter]);
 
     // ── Print Preview (DRAFT-INVOICE only) ──────────────────
     const handleOpenPrintPreview = () => {
@@ -175,6 +236,7 @@ const InvoicePage = () => {
                     <InvoiceFilters
                         selectedAirline={selectedAirline}
                         onAirlineChange={setSelectedAirline}
+                        allowAllAirline={activeTab === "thf-document"}
                         startDate={startDate}
                         onStartDateChange={setStartDate}
                         endDate={endDate}
@@ -186,6 +248,18 @@ const InvoicePage = () => {
                         thfNumber={thfNumber}
                         onThfNumberChange={setThfNumber}
                         showThfNumber={activeTab === "thf-document"}
+                        selectedCurrency={selectedCurrency}
+                        onCurrencyChange={(val) => {
+                            const nextCurrency = val || CurrencyType.USD;
+                            setSelectedCurrency(nextCurrency);
+                            setSearchParams((prev) => ({
+                                ...prev,
+                                currencyType: nextCurrency,
+                            }));
+                            setPage(1);
+                        }}
+                        showCurrencyFilter={activeTab === "pre-invoice" || activeTab === "draft-invoice"}
+                        currencyOptions={currencyOptions}
                         onSearch={handleSearch}
                         isSearching={isSearching}
                     />
@@ -206,16 +280,28 @@ const InvoicePage = () => {
                                     <ThfDocumentTable
                                         searchParams={searchParams}
                                         hasSearched={hasSearched}
+                                        searchTrigger={searchTrigger}
                                     />
+                                ) : !searchParams.airlineCode ? (
+                                    <div className="flex flex-col items-center justify-center py-16 text-center rounded-md border">
+                                        <p className="text-sm font-medium text-muted-foreground mb-1">
+                                            Please select an Airline to search
+                                        </p>
+                                        <p className="text-xs text-muted-foreground/70">
+                                            Select an Airline from the filter above and click &quot;Search&quot; to view {activeTab === "pre-invoice" ? "Pre-Invoice" : "Draft-Invoice"} records.
+                                        </p>
+                                    </div>
                                 ) : activeTab === "pre-invoice" ? (
                                     <PreInvoiceTable
                                         invoices={paginatedPreInvoices}
                                         isLoading={isLoadingPre}
+                                        currencyType={activeCurrencyFilter}
                                     />
                                 ) : (
                                     <DraftInvoiceTable
                                         invoices={paginatedDraftInvoices}
                                         isLoading={isLoadingDraft}
+                                        currencyType={activeCurrencyFilter}
                                     />
                                 )}
                             </div>
@@ -302,6 +388,7 @@ const InvoicePage = () => {
                 airlineCode={searchParams?.airlineCode}
                 stationCodes={searchParams?.stationCodeList?.length > 0 ? searchParams.stationCodeList.join(", ") : ""}
                 dateRange={searchParams ? `${searchParams.dateStart} to ${searchParams.dateEnd}` : ""}
+                currencyType={activeCurrencyFilter}
             />
         </div>
     );

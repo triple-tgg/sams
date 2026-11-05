@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react'
 
-export type SubmitPhase = 'idle' | 'saving_files' | 'sharepoint' | 'success' | 'error'
+export type SubmitPhase = 'idle' | 'saving_files' | 'sharepoint' | 'sharepoint_error' | 'success' | 'error'
 
 type StepContextType = {
   activeStep: number

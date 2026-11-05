@@ -43,6 +43,7 @@ const CustomerAirlinePage = () => {
 
     // Filter states
     const [filterCode, setFilterCode] = useState("");
+    const [filterCarrierCode, setFilterCarrierCode] = useState("");
     const [filterName, setFilterName] = useState("");
     const [filterEmailTo, setFilterEmailTo] = useState("");
     const [filterEmailCc, setFilterEmailCc] = useState("");
@@ -50,6 +51,7 @@ const CustomerAirlinePage = () => {
     // Applied filters (sent to API on search)
     const [appliedFilters, setAppliedFilters] = useState<{
         code?: string;
+        carrierCode?: string;
         name?: string;
         emailTo?: string;
         emailCc?: string;
@@ -60,6 +62,7 @@ const CustomerAirlinePage = () => {
     const [selectedAirline, setSelectedAirline] = useState<AirlineItem | null>(null);
     const [pendingFormData, setPendingFormData] = useState<{
         code: string;
+        carrierCode: string;
         name: string;
         description: string;
         colorForeground: string;
@@ -74,6 +77,7 @@ const CustomerAirlinePage = () => {
             page,
             perPage,
             ...(appliedFilters.code && { code: appliedFilters.code }),
+            ...(appliedFilters.carrierCode && { carrierCode: appliedFilters.carrierCode }),
             ...(appliedFilters.name && { name: appliedFilters.name }),
             ...(appliedFilters.emailTo && { emailTo: appliedFilters.emailTo }),
             ...(appliedFilters.emailCc && { emailCc: appliedFilters.emailCc }),
@@ -86,14 +90,16 @@ const CustomerAirlinePage = () => {
         setPage(1);
         setAppliedFilters({
             code: filterCode.trim() || undefined,
+            carrierCode: filterCarrierCode.trim() || undefined,
             name: filterName.trim() || undefined,
             emailTo: filterEmailTo.trim() || undefined,
             emailCc: filterEmailCc.trim() || undefined,
         });
-    }, [filterCode, filterName, filterEmailTo, filterEmailCc]);
+    }, [filterCode, filterCarrierCode, filterName, filterEmailTo, filterEmailCc]);
 
     const handleClearFilters = useCallback(() => {
         setFilterCode("");
+        setFilterCarrierCode("");
         setFilterName("");
         setFilterEmailTo("");
         setFilterEmailCc("");
@@ -105,7 +111,7 @@ const CustomerAirlinePage = () => {
         if (e.key === "Enter") handleSearch();
     };
 
-    const hasActiveFilters = !!(appliedFilters.code || appliedFilters.name || appliedFilters.emailTo || appliedFilters.emailCc);
+    const hasActiveFilters = !!(appliedFilters.code || appliedFilters.carrierCode || appliedFilters.name || appliedFilters.emailTo || appliedFilters.emailCc);
 
     const { data: airlineDetailData, isLoading: isLoadingDetail } = useAirlineById(
         selectedAirline?.id ?? 0,
@@ -163,6 +169,7 @@ const CustomerAirlinePage = () => {
         const payload = {
             id: 0,
             code: formData.code,
+            carrierCode: formData.carrierCode,
             name: formData.name,
             description: formData.description,
             isdelete: false,
@@ -195,6 +202,7 @@ const CustomerAirlinePage = () => {
         const payload = {
             id: selectedAirline.id,
             code: formData.code,
+            carrierCode: formData.carrierCode,
             name: formData.name,
             description: formData.description,
             isdelete: false,
@@ -292,6 +300,16 @@ const CustomerAirlinePage = () => {
                                     />
                                 </div>
                                 <div className="flex-1 min-w-[140px] max-w-[200px]">
+                                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Carrier Code</label>
+                                    <Input
+                                        placeholder="Search carrier code..."
+                                        value={filterCarrierCode}
+                                        onChange={(e) => setFilterCarrierCode(e.target.value)}
+                                        onKeyDown={handleFilterKeyDown}
+                                        className="h-9"
+                                    />
+                                </div>
+                                <div className="flex-1 min-w-[140px] max-w-[200px]">
                                     <label className="text-xs font-medium text-muted-foreground mb-1 block">Name</label>
                                     <Input
                                         placeholder="Search name..."
@@ -340,6 +358,7 @@ const CustomerAirlinePage = () => {
                                     <TableRow>
                                         <TableHead className="w-[60px]">No.</TableHead>
                                         <TableHead className="w-[100px]">Code</TableHead>
+                                        <TableHead className="w-[120px]">Carrier Code</TableHead>
                                         <TableHead>Name</TableHead>
                                         <TableHead className="w-[120px]">Preview</TableHead>
                                         <TableHead className="w-[120px]">Created By</TableHead>
@@ -353,6 +372,7 @@ const CustomerAirlinePage = () => {
                                             <TableRow key={index}>
                                                 <TableCell><Skeleton className="h-4 w-6" /></TableCell>
                                                 <TableCell><Skeleton className="h-4 w-14" /></TableCell>
+                                                <TableCell><Skeleton className="h-4 w-14" /></TableCell>
                                                 <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                                                 <TableCell><Skeleton className="h-7 w-16 rounded" /></TableCell>
                                                 <TableCell><Skeleton className="h-4 w-16" /></TableCell>
@@ -362,7 +382,7 @@ const CustomerAirlinePage = () => {
                                         ))
                                     ) : airlines.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                            <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                                                 No airlines found
                                             </TableCell>
                                         </TableRow>
@@ -371,6 +391,7 @@ const CustomerAirlinePage = () => {
                                             <TableRow key={airline.id}>
                                                 <TableCell>{(page - 1) * perPage + index + 1}</TableCell>
                                                 <TableCell className="font-medium">{airline.code}</TableCell>
+                                                <TableCell>{airline.carrierCode || "-"}</TableCell>
                                                 <TableCell>{airline.name || "-"}</TableCell>
                                                 <TableCell>
                                                     <div

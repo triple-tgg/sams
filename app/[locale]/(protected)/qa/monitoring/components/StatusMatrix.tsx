@@ -14,9 +14,10 @@ interface StatusMatrixProps {
     SortIcon: React.ComponentType<{ field: SortField }>
     onEnroll?: (empId: string, courseId: string) => void
     enrollments?: Record<string, string>
+    onCellClick?: (emp: Employee, course: CourseRef) => void
 }
 
-export function StatusMatrix({ employees, courses, selectedId, onSelect, sortField, sortDir, onSort, SortIcon, onEnroll, enrollments }: StatusMatrixProps) {
+export function StatusMatrix({ employees, courses, selectedId, onSelect, sortField, sortDir, onSort, SortIcon, onEnroll, enrollments, onCellClick }: StatusMatrixProps) {
     return (
         <TooltipProvider>
             <div className="overflow-x-auto">
@@ -102,17 +103,25 @@ export function StatusMatrix({ employees, courses, selectedId, onSelect, sortFie
                                                 lastTrainingStr = parsedIssueDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })
                                             }
                                         } else if (due && due !== '-' && due !== 'na') {
-                                            const dueDate = new Date(due)
-                                            if (!isNaN(dueDate.getTime())) {
-                                                const lastTraining = new Date(dueDate)
-                                                lastTraining.setMonth(lastTraining.getMonth() - c.interval)
-                                                lastTrainingStr = lastTraining.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })
+                                            if (due.toLowerCase() === 'permanent' || due.toLowerCase() === 'never' || due.startsWith('9999')) {
+                                                lastTrainingStr = '-'
+                                            } else {
+                                                const dueDate = new Date(due)
+                                                if (!isNaN(dueDate.getTime())) {
+                                                    const lastTraining = new Date(dueDate)
+                                                    lastTraining.setMonth(lastTraining.getMonth() - c.interval)
+                                                    lastTrainingStr = lastTraining.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })
+                                                }
                                             }
                                         }
                                         if (due && due !== '-' && due !== 'na') {
-                                            const dueDate = new Date(due)
-                                            if (!isNaN(dueDate.getTime())) {
-                                                dueDateStr = dueDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })
+                                            if (due.toLowerCase() === 'permanent' || due.toLowerCase() === 'never' || due.startsWith('9999')) {
+                                                dueDateStr = 'Never'
+                                            } else {
+                                                const dueDate = new Date(due)
+                                                if (!isNaN(dueDate.getTime())) {
+                                                    dueDateStr = dueDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })
+                                                }
                                             }
                                         }
 
@@ -131,9 +140,12 @@ export function StatusMatrix({ employees, courses, selectedId, onSelect, sortFie
 
                                         return (
                                             <td key={c.id}
-                                                className="text-center border-l border-border/50 transition-opacity"
+                                                className="text-center border-l border-border/50 transition-all cursor-pointer hover:ring-2 hover:ring-primary/40 hover:z-10 relative select-none"
                                                 style={{ background: m.bg, padding: '6px 2px', minWidth: 100 }}
-                                                onClick={(e) => e.stopPropagation()}>
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    onCellClick?.(emp, c)
+                                                }}>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                         <div className="cursor-pointer w-full h-full flex flex-col items-center justify-center">
@@ -143,22 +155,16 @@ export function StatusMatrix({ employees, courses, selectedId, onSelect, sortFie
                                                             ) : (
                                                                 <div className="flex flex-col items-center justify-center min-h-[32px] w-full h-full gap-0.5">
                                                                     {isEnrolled ? (
-                                                                        <div
-                                                                            onClick={(e) => { e.stopPropagation(); onEnroll?.(emp.id, c.id) }}
-                                                                            className="w-full flex-1 flex flex-col items-center justify-center text-[11px] font-extrabold px-1.5 py-0.5 rounded-sm text-white bg-primary border border-primary/30 hover:opacity-80 transition-opacity">
+                                                                        <div className="w-full flex-1 flex flex-col items-center justify-center text-[11px] font-extrabold px-1.5 py-0.5 rounded-sm text-white bg-primary border border-primary/30 hover:opacity-80 transition-opacity">
                                                                             ENROLLED
                                                                         </div>
                                                                     ) : s === 'warning' && d !== null ? (
-                                                                        <div
-                                                                            onClick={(e) => { e.stopPropagation(); onEnroll?.(emp.id, c.id) }}
-                                                                            className="w-full flex-1 flex flex-col items-center justify-center font-extrabold px-1.5 py-0.5 rounded-sm text-white hover:opacity-80 transition-opacity" style={{ background: m.dot }}>
+                                                                        <div className="w-full flex-1 flex flex-col items-center justify-center font-extrabold px-1.5 py-0.5 rounded-sm text-white hover:opacity-80 transition-opacity" style={{ background: m.dot }}>
                                                                             <div className='text-[14px] leading-none'>{d}</div>
                                                                             <div className='text-[8px] mt-0.5'>DAYS LEFT</div>
                                                                         </div>
                                                                     ) : s === 'expired' ? (
-                                                                        <div
-                                                                            onClick={(e) => { e.stopPropagation(); onEnroll?.(emp.id, c.id) }}
-                                                                            className="w-full flex-1 flex flex-col items-center justify-center text-md font-extrabold px-1.5 py-0.5 rounded-sm text-white hover:opacity-80 transition-opacity" style={{ background: m.dot }}>EXP</div>
+                                                                        <div className="w-full flex-1 flex flex-col items-center justify-center text-md font-extrabold px-1.5 py-0.5 rounded-sm text-white hover:opacity-80 transition-opacity" style={{ background: m.dot }}>EXP</div>
                                                                     ) : (
                                                                         <>
                                                                             <div className="text-[10px] font-medium text-muted-foreground bg-black/5 px-1.5 rounded">{lastTrainingStr}</div>
@@ -204,6 +210,9 @@ export function StatusMatrix({ employees, courses, selectedId, onSelect, sortFie
                                                                     </div>
                                                                 </div>
                                                             )}
+                                                            <div className="border-t border-border/50 pt-1 mt-1 text-[10px] text-primary font-semibold">
+                                                                Click to view & edit details
+                                                            </div>
                                                         </div>
                                                     </TooltipContent>
                                                 </Tooltip>

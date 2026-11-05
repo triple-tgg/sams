@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, User, Phone, Briefcase, Save, UserPlus, Camera, Trash2, ChevronDown, GraduationCap, Plus, Loader2, FileText, Upload, X, CheckCircle2, Shield, Award, Pencil, Plane } from 'lucide-react'
 import { useUpsertStaff, useUploadStaffFile } from '@/lib/api/hooks/useQAStaffManagement'
 import { useStaffDepartments, useStaffDepartmentPositions } from '@/lib/api/master/organization.hooks'
+import { useStaffDepartmentAmo145s, useStaffDepartmentPositionAmo145s } from '@/lib/api/master/organization-amo145.hooks'
 import { useCombinations } from '@/lib/api/master/aircraft-engine/aircraftEngine.hooks'
 import { UpsertStaffRequest } from '@/lib/api/qa/staff-management'
 import { toast } from 'sonner'
@@ -212,6 +213,11 @@ export default function NewStaffPage() {
     const [submitAttempted, setSubmitAttempted] = useState(false)
     const [documents, setDocuments] = useState<DocumentUpload[]>([])
 
+    // ── Part-145 AMO assignment ──
+    const [isPart145, setIsPart145] = useState(false)
+    const [amoDepartment, setAmoDepartment] = useState('')
+    const [amoPosition, setAmoPosition] = useState('')
+
     // Fetch document types from API and initialize documents
     const { data: docTypesResp } = useStaffDocumentTypes()
     useEffect(() => {
@@ -245,6 +251,8 @@ export default function NewStaffPage() {
     // ── Fetch departments & positions from API ──
     const { data: deptData } = useStaffDepartments()
     const { data: posData } = useStaffDepartmentPositions()
+    const { data: amoDeptData } = useStaffDepartmentAmo145s()
+    const { data: amoPosData } = useStaffDepartmentPositionAmo145s()
     const { staffTypes: staffTypesList } = useStaffsTypesAll()
     const { data: stationsData } = useStations()
     const stations = useMemo(() => (stationsData?.responseData || []).filter(s => !s.isdelete), [stationsData])
@@ -282,6 +290,41 @@ export default function NewStaffPage() {
         if (!form.department) return allPositions
         return allPositions.filter(p => p.staffDepartmentId === Number(form.department))
     }, [allPositions, form.department])
+
+    const amoDepartments = useMemo(() => {
+        return (amoDeptData?.responseData || []).filter(d => !d.isdelete)
+    }, [amoDeptData])
+
+    const allAmoPositions = useMemo(() => {
+        return (amoPosData?.responseData || []).filter(p => !p.isdelete)
+    }, [amoPosData])
+
+    const filteredAmoPositions = useMemo(() => {
+        if (!amoDepartment) return allAmoPositions
+        return allAmoPositions.filter(p => p.staffDepartmentAmo145Id === Number(amoDepartment))
+    }, [allAmoPositions, amoDepartment])
+
+    const updateAmoDepartment = (value: string) => {
+        setAmoDepartment(value)
+        const currentPositionBelongs = allAmoPositions.some(
+            p => p.id.toString() === amoPosition && p.staffDepartmentAmo145Id === Number(value)
+        )
+        if (!currentPositionBelongs) setAmoPosition('')
+    }
+
+    const updateAmoPosition = (value: string) => {
+        setAmoPosition(value)
+        const selected = allAmoPositions.find(p => p.id.toString() === value)
+        if (selected?.staffDepartmentAmo145Id) setAmoDepartment(selected.staffDepartmentAmo145Id.toString())
+    }
+
+    const togglePart145 = (checked: boolean) => {
+        setIsPart145(checked)
+        if (!checked) {
+            setAmoDepartment('')
+            setAmoPosition('')
+        }
+    }
 
     const update = (field: keyof StaffForm, value: string) => {
         if (field === 'department') {
@@ -321,12 +364,20 @@ export default function NewStaffPage() {
         return rule.validate(form[field])
     }, [form, touched, submitAttempted])
 
+    const amoDepartmentError = isPart145 && !amoDepartment ? 'AMO Department is required' : null
+    const amoPositionError = isPart145 && !amoPosition ? 'AMO Position is required' : null
+    const getAmoError = (field: 'amoDepartment' | 'amoPosition') => {
+        if (!submitAttempted && !touched[field]) return null
+        return field === 'amoDepartment' ? amoDepartmentError : amoPositionError
+    }
+
     const hasErrors = useMemo(() => {
+        if (amoDepartmentError || amoPositionError) return true
         return Object.keys(VALIDATION_RULES).some(field => {
             const rule = VALIDATION_RULES[field]
             return rule.validate(form[field as keyof StaffForm]) !== null
         })
-    }, [form])
+    }, [form, amoDepartmentError, amoPositionError])
 
     const inputCls = useCallback((field: keyof StaffForm) => {
         return getError(field) ? inputError : inputNormal
@@ -480,6 +531,8 @@ export default function NewStaffPage() {
             startDate: form.startDate || '',
             endWorkingDate: null,
             staffDepartmentPositionId: positionId,
+            isDepartmentAmo145: isPart145,
+            staffDepartmentPositionAmo145Id: isPart145 && amoPosition ? Number(amoPosition) : 0,
             stationId: form.station ? Number(form.station) : null,
             staffstypeid,
             jobTitle: form.jobTitle || positionName || '',
@@ -717,6 +770,36 @@ export default function NewStaffPage() {
                                     <Field label="Job Note">
                                         <input type="text" value={form.jobTitle} onChange={e => update('jobTitle', e.target.value)} placeholder="e.g. Senior Aircraft Mechanic" className={inputNormal} />
                                     </Field>
+                                </div>
+
+                                {/* Part-145 AMO */}
+                                <div className="mt-5 pt-4 border-t border-slate-100">
+                                    <label className="inline-flex items-center gap-2.5 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={isPart145}
+                                            onChange={e => togglePart145(e.target.checked)}
+                                            className="h-4 w-4 rounded border-slate-300 text-slate-700 focus:ring-slate-400 cursor-pointer"
+                                        />
+                                        <span className="text-sm font-medium text-slate-700">Part-145 Approved Maintenance Organization (AMO)</span>
+                                    </label>
+
+                                    {isPart145 && (
+                                        <div className="grid grid-cols-2 gap-x-5 gap-y-4 mt-4">
+                                            <Field label="AMO Department" required error={getAmoError('amoDepartment')}>
+                                                <select value={amoDepartment} onChange={e => updateAmoDepartment(e.target.value)} onBlur={() => touch('amoDepartment')} className={getAmoError('amoDepartment') ? selectError : selectNormal}>
+                                                    <option value="">Select Department</option>
+                                                    {amoDepartments.map(d => <option key={d.id} value={d.id.toString()}>{d.name}</option>)}
+                                                </select>
+                                            </Field>
+                                            <Field label="AMO Position" required error={getAmoError('amoPosition')}>
+                                                <select value={amoPosition} onChange={e => updateAmoPosition(e.target.value)} onBlur={() => touch('amoPosition')} className={getAmoError('amoPosition') ? selectError : selectNormal}>
+                                                    <option value="">Select Position</option>
+                                                    {filteredAmoPositions.map(p => <option key={p.id} value={p.id.toString()}>{p.name}</option>)}
+                                                </select>
+                                            </Field>
+                                        </div>
+                                    )}
                                 </div>
                             </SectionCard>
 

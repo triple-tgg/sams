@@ -71,6 +71,14 @@ export default function TrainingSchedulerPage() {
         queryFn: () => getSchedulerCalendar({ month: null, year: listYear })
     })
 
+    // Fetch Training Data Statuses
+    const { data: trainingDataStatusesResp } = useTrainingDataStatuses()
+    const statusOptions = useMemo(() => (trainingDataStatusesResp?.responseData || []) as TrainingDataStatus[], [trainingDataStatusesResp])
+
+    // Fetch Attendance Types
+    const { data: attendanceTypesResp } = useAttendanceTypes()
+    const attendanceTypes = attendanceTypesResp?.responseData || []
+
     function mapSessions(data: typeof calendarResp): Session[] {
         if (!data?.responseData) return []
         return data.responseData.map((s: SchedulerSessionData) => {
@@ -79,6 +87,7 @@ export default function TrainingSchedulerPage() {
             const dateEnd = s.endDate?.split('T')[0] ?? ''
             const timeStart = s.startDate?.split('T')[1]?.substring(0, 5) ?? ''
             const timeEnd = s.endDate?.split('T')[1]?.substring(0, 5) ?? ''
+            const matchedStatus = statusOptions.find(st => st.id === s.trainingDataStatusesId)
 
             return {
                 id: s.id,
@@ -94,7 +103,8 @@ export default function TrainingSchedulerPage() {
                 instructor: s.instructorName,
                 courseInstructorId: s.courseInstructorId ?? 0,
                 venue: s.venueName,
-                status: s.statusName,
+                status: matchedStatus?.name || s.statusName || 'Scheduled',
+                trainingDataStatusesId: s.trainingDataStatusesId,
                 enrolled: s.enrolledCount,
                 maxParticipants: s.maxParticipants,
                 dept: s.targetDepartmentName,
@@ -104,8 +114,8 @@ export default function TrainingSchedulerPage() {
         })
     }
 
-    const apiSessions = useMemo<Session[]>(() => mapSessions(calendarResp), [calendarResp])
-    const listSessions = useMemo<Session[]>(() => mapSessions(listResp), [listResp])
+    const apiSessions = useMemo<Session[]>(() => mapSessions(calendarResp), [calendarResp, statusOptions])
+    const listSessions = useMemo<Session[]>(() => mapSessions(listResp), [listResp, statusOptions])
 
     // Calendar/Gantt use monthly data; List uses yearly data
     const activeSessions = view === 'list' ? listSessions : (calendarResp ? apiSessions : sessions)
@@ -116,14 +126,6 @@ export default function TrainingSchedulerPage() {
         queryFn: () => getCourseList({ categoryId: null, courseName: '', courseDepartmentRequirementId: null, page: 1, perPage: 9999 })
     })
     const listCourses = useMemo(() => (courseListResp?.responseData || []) as CourseData[], [courseListResp])
-
-    // Fetch Training Data Statuses
-    const { data: trainingDataStatusesResp } = useTrainingDataStatuses()
-    const statusOptions = (trainingDataStatusesResp?.responseData || []) as TrainingDataStatus[]
-
-    // Fetch Attendance Types
-    const { data: attendanceTypesResp } = useAttendanceTypes()
-    const attendanceTypes = attendanceTypesResp?.responseData || []
 
     // Filtered
     const filtered = useMemo(() => activeSessions.filter(s => {
@@ -220,6 +222,7 @@ export default function TrainingSchedulerPage() {
             await queryClient.invalidateQueries({ queryKey: ['scheduler-list'] })
             await queryClient.invalidateQueries({ queryKey: ['scheduler-calendar'] })
             await queryClient.invalidateQueries({ queryKey: ['scheduler-dashboard-calendar'] })
+            await queryClient.invalidateQueries({ queryKey: ['scheduler'] })
             if (editSession) {
                 await queryClient.invalidateQueries({ queryKey: ['scheduler-session-detail', editSession.id] })
             }

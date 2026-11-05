@@ -50,10 +50,10 @@ function DonutChart({ percentage }: { percentage: number }) {
 }
 
 // ── Compute training status from validUntil ──
-function getTrainingStatus(validUntil: string): 'Valid' | 'Expired' | 'Permanent' | 'Expiring Soon' {
-    if (!validUntil || validUntil === '-') return 'Permanent'
+function getTrainingStatus(validUntil: string): 'Valid' | 'Expired' | 'Never' | 'Expiring Soon' {
+    if (!validUntil || validUntil === '-' || validUntil.toLowerCase() === 'permanent' || validUntil.toLowerCase() === 'never' || validUntil.startsWith('9999')) return 'Never'
     const parsed = new Date(validUntil)
-    if (isNaN(parsed.getTime())) return 'Permanent'
+    if (isNaN(parsed.getTime())) return 'Never'
     const now = new Date()
     if (parsed < now) return 'Expired'
     const in90Days = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000)
@@ -61,11 +61,12 @@ function getTrainingStatus(validUntil: string): 'Valid' | 'Expired' | 'Permanent
     return 'Valid'
 }
 
-// ── Format validUntil: show "Permanent" as-is, otherwise format as date ──
+// ── Format validUntil: show "Never" for permanent/never, otherwise format as date ──
 function formatValidUntil(val: string, fallback = '—'): string {
     if (!val) return fallback
+    if (val.toLowerCase() === 'permanent' || val.toLowerCase() === 'never' || val.startsWith('9999')) return 'Never'
     const parsed = new Date(val)
-    if (isNaN(parsed.getTime())) return val // e.g. "Permanent"
+    if (isNaN(parsed.getTime())) return val
     return parsed.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
@@ -357,16 +358,20 @@ function TrainingNeedsMatrix({ staff }: { staff: StaffData }) {
 
 // ── Status Badge ──
 function StatusBadge({ status }: { status: string }) {
+    const s = status.toLowerCase()
     const styles = {
         Valid: 'bg-green-50 text-green-600',
         Expired: 'bg-red-50 text-red-600',
+        Never: 'bg-sky-50 text-slate-500',
         Permanent: 'bg-sky-50 text-slate-500',
         'Expiring Soon': 'bg-amber-50 text-amber-600',
-    }[status] ?? 'bg-slate-100 text-slate-500'
+    }[status] ?? (s.includes('never') || s.includes('perm') ? 'bg-sky-50 text-slate-500' : 'bg-slate-100 text-slate-500')
+
+    const label = (s === 'permanent' || s === 'never') ? 'Never' : status
 
     return (
         <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-md ${styles}`}>
-            {status}
+            {label}
         </span>
     )
 }
@@ -721,7 +726,7 @@ function matchesCourse(name: string | null | undefined, query: string, code?: st
 type TrainingStatus = ReturnType<typeof getTrainingStatus>
 
 /** Filter order: the statuses that need action first. */
-const TRAINING_STATUS_ORDER: TrainingStatus[] = ['Expired', 'Expiring Soon', 'Valid', 'Permanent']
+const TRAINING_STATUS_ORDER: TrainingStatus[] = ['Expired', 'Expiring Soon', 'Valid', 'Never']
 
 // ── Status column header with a filter list ──
 function StatusFilterHeader({
@@ -916,7 +921,7 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
         // Fallback: compute from currentTraining (only when API failed)
         const total = currentTraining.length
         const expired = currentTraining.filter(t => getTrainingStatus(t.validUntil) === 'Expired').length
-        const permanent = currentTraining.filter(t => getTrainingStatus(t.validUntil) === 'Permanent').length
+        const permanent = currentTraining.filter(t => getTrainingStatus(t.validUntil) === 'Never').length
         const now = new Date()
         const in90Days = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000)
         const expiringSoon = currentTraining.filter(t => {
@@ -933,7 +938,7 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
 
     // Status counts follow the course search, so each option says how many rows it would show.
     const trainingStatusCounts = useMemo(() => {
-        const counts: Record<TrainingStatus, number> = { Valid: 0, Expired: 0, Permanent: 0, 'Expiring Soon': 0 }
+        const counts: Record<TrainingStatus, number> = { Valid: 0, Expired: 0, Never: 0, 'Expiring Soon': 0 }
         for (const t of currentTraining) {
             if (matchesCourse(t.course, trainingSearch, t.courseCode)) counts[getTrainingStatus(t.validUntil)]++
         }
@@ -993,14 +998,14 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
                 }
             case 'permanent':
                 return {
-                    title: 'Permanent Courses',
+                    title: 'Never Expire Courses',
                     count: stats.permanent,
                     icon: <ShieldCheck className="h-5 w-5" />,
                     iconClass: 'bg-sky-50 text-sky-500',
                     badgeClass: 'bg-sky-50 text-sky-700 border border-sky-200',
                     courses: summary?.permanentList?.length
                         ? summary.permanentList
-                        : fallbackAll.filter(t => getTrainingStatus(t.validUntil) === 'Permanent'),
+                        : fallbackAll.filter(t => getTrainingStatus(t.validUntil) === 'Never'),
                 }
             case 'expiringSoon':
                 return {
@@ -1151,11 +1156,11 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
                             <div className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wide sm:tracking-wider break-words group-hover:text-slate-600 transition-colors">Expired</div>
                         </div>
 
-                        {/* Training Permanent Count */}
+                        {/* Training Permanent / Never Count */}
                         <div
                             onClick={() => setSummaryModalType('permanent')}
                             className="bg-white border border-[#e8ecf1] hover:border-sky-400 hover:shadow-md hover:-translate-y-0.5 rounded-[14px] py-3.5 px-3.5 sm:py-5 sm:px-5 min-w-0 cursor-pointer transition-all duration-200 group"
-                            title="Click to view permanent courses"
+                            title="Click to view never expiring courses"
                         >
                             <div className="flex items-center justify-between gap-2.5 mb-3">
                                 <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-sky-50 text-sky-500 group-hover:bg-sky-100 transition-colors">
@@ -1163,7 +1168,7 @@ export function TrainingTab({ staff }: { staff: StaffData }) {
                                 </div>
                             </div>
                             <div className="text-2xl sm:text-3xl font-bold text-slate-800 mb-1">{stats.permanent}</div>
-                            <div className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wide sm:tracking-wider break-words group-hover:text-slate-600 transition-colors">Permanent</div>
+                            <div className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wide sm:tracking-wider break-words group-hover:text-slate-600 transition-colors">Never</div>
                         </div>
 
                         {/* Training Expiring Soon Count */}

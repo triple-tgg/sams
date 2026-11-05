@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { Check, ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
 import { ContractFormData, PricingRate, OperationalContact, RetentionFeeMode } from "./types";
 import { defaultFormData, FORM_STEPS, getRetentionFeeTotal } from "./data";
+import { normalizeCurrency } from "@/lib/constants/currency";
 import { GeneralInfoStep } from "./GeneralInfoStep";
 import { ServicePricingStep } from "./ServicePricingStep";
 import { OperationalContactStep } from "./OperationalContactStep";
@@ -70,7 +71,7 @@ const transformApiToFormData = (data: ContractDetail): ContractFormData => {
         // Escalation recurs yearly: the form keeps only "MM-DD"; the API may add a time part.
         escalationDate: data.escalationDate ? data.escalationDate.slice(5, 10) : "",
         domicileCountry: data.domicileCountry || "",
-        currency: data.currencyType?.trim().toLowerCase() || "",
+        currency: normalizeCurrency(data.currencyType),
         status: data.contractStatusObj?.code || "",
         pricingRates: data.pricingDataList?.map((p) => ({
             id: p.id,

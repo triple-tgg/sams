@@ -17,7 +17,7 @@ import {
   ContractTabs,
   ContractDialog,
 } from "./components";
-import ConfirmCredentialsDialog from "@/app/[locale]/(protected)/master-data/staff/components/ConfirmCredentialsDialog";
+import ConfirmCredentialsDialog from "./components/ConfirmCredentialsDialog";
 import { useContractList, defaultContractListRequest } from "@/lib/api/hooks/useContractList";
 import { useDeleteContract } from "@/lib/api/hooks/useContractOperations";
 import { ContractListItem } from "@/lib/api/contract/getContractList";

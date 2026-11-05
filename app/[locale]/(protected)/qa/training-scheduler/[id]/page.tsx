@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Clock, MapPin, Search, UserPlus, Trash2, Calendar as CalendarIcon, AlertCircle, Users, GraduationCap, Mail, Printer, Lock, MoreVertical, CheckCircle, FileEdit, Unlock, PlayCircle, Edit3, XCircle, Award, File, Video, Loader2, ChevronLeft, ChevronRight, UserRoundCog, Eye, FileText, CheckCircle2, Link2, BookOpen } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -68,10 +68,10 @@ export default function ScheduleDetailPage() {
     const { data: availableStaffRaw = [], isLoading: isLoadingStaff } = useStaffForEnrollment(sessionId)
     const availableStaff: StaffItem[] = availableStaffRaw.map((s: StaffForEnrollmentItem) => ({
         id: String(s.staffId),
-        name: s.fullNameEn || `${s.title ?? ''} ${s.name ?? ''}`.trim(),
-        code: s.code ?? '',
+        name: s.fullNameEn || `${s.title ?? ''} ${s.name ?? ''}`.trim() || (s as any).employeeName || (s as any).staffName || '',
+        code: s.code || s.employeeId || (s as any).staffCode || '',
         license: '',
-        dept: s.departmentName ?? '',
+        dept: s.departmentName || (s as any).department || '',
         expireStatus: s.status || 'Valid',
         date: '-',
         status: 'available',
@@ -114,14 +114,32 @@ export default function ScheduleDetailPage() {
     }, [enrolledData])
 
     const [staffSearch, setStaffSearch] = useState('')
+    const filteredAvailableStaff = useMemo(() => {
+        return availableStaff
+            .filter(s =>
+                s.name.toLowerCase().includes(staffSearch.toLowerCase()) ||
+                s.code.includes(staffSearch) ||
+                s.dept.toLowerCase().includes(staffSearch.toLowerCase())
+            )
+            .sort((a, b) => {
+                const order: Record<string, number> = { 'Expired': 0, 'Expiring Soon': 1, 'Require': 2 };
+                return (order[a.expireStatus ?? ''] ?? 3) - (order[b.expireStatus ?? ''] ?? 3);
+            })
+    }, [availableStaff, staffSearch])
     const [selectedEnrolledIds, setSelectedEnrolledIds] = useState<Set<string>>(new Set())
-    const [sessionStatus, setSessionStatus] = useState<'Draft' | 'Open Registration' | 'Registration Closed' | 'In Progress' | 'Grading' | 'Completed' | 'Cancelled'>('Open Registration')
+    const [sessionStatus, setSessionStatus] = useState<string>('')
 
     useEffect(() => {
-        if (session && trainingStatuses.length > 0) {
-            const matched = trainingStatuses.find((s: any) => s.id === session.trainingDataStatusesId)
-            if (matched) {
-                setSessionStatus(matched.name as typeof sessionStatus)
+        if (session) {
+            if (trainingStatuses.length > 0) {
+                const matched = trainingStatuses.find((s: any) => s.id === session.trainingDataStatusesId)
+                if (matched) {
+                    setSessionStatus(matched.name)
+                    return
+                }
+            }
+            if (session.status) {
+                setSessionStatus(session.status)
             }
         }
         // Load attachments from session data
@@ -285,7 +303,8 @@ export default function ScheduleDetailPage() {
     }
 
     const ALLOWED_NEXT_STATUS: Record<string, string[]> = {
-        'Draft': ['Draft', 'Open Registration', 'Cancelled'],
+        'Scheduled': ['Scheduled', 'Draft', 'Open Registration', 'Registration Closed', 'In Progress', 'Cancelled'],
+        'Draft': ['Draft', 'Scheduled', 'Open Registration', 'Cancelled'],
         'Open Registration': ['Open Registration', 'Registration Closed', 'Cancelled'],
         'Registration Closed': ['Registration Closed', 'Open Registration', 'In Progress', 'Cancelled'],
         'In Progress': ['In Progress', 'Grading', 'Cancelled'],
@@ -295,7 +314,8 @@ export default function ScheduleDetailPage() {
     }
 
     const isStatusDisabled = (targetStatus: string) => {
-        return !ALLOWED_NEXT_STATUS[sessionStatus]?.includes(targetStatus);
+        if (!sessionStatus || !ALLOWED_NEXT_STATUS[sessionStatus]) return false;
+        return !ALLOWED_NEXT_STATUS[sessionStatus].includes(targetStatus);
     }
 
     const cfg = STATUS_CONFIG[session?.status ?? 'Scheduled'] || STATUS_CONFIG.Scheduled
@@ -521,7 +541,8 @@ export default function ScheduleDetailPage() {
                                         sessionStatus === 'In Progress' ? 'bg-blue-100 text-blue-700' :
                                             sessionStatus === 'Registration Closed' ? 'bg-amber-100 text-amber-700' :
                                                 sessionStatus === 'Open Registration' ? 'bg-emerald-100 text-emerald-700' :
-                                                    'bg-slate-100 text-slate-700'
+                                                    sessionStatus === 'Scheduled' ? 'bg-blue-100 text-blue-700' :
+                                                        'bg-slate-100 text-slate-700'
                                 }`}>
                                 {sessionStatus}
                             </span>
@@ -542,13 +563,29 @@ export default function ScheduleDetailPage() {
                                     onChange={(e) => handleStatusChange(e.target.value)}
                                     className="w-full appearance-none pl-3 pr-8 py-1.5 rounded-lg text-xs font-semibold border border-border bg-white text-foreground transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20"
                                 >
-                                    <option value="Draft" disabled={isStatusDisabled('Draft')}>Draft</option>
-                                    <option value="Open Registration" disabled={isStatusDisabled('Open Registration')}>Open Registration</option>
-                                    <option value="Registration Closed" disabled={isStatusDisabled('Registration Closed')}>Registration Closed</option>
-                                    <option value="In Progress" disabled={isStatusDisabled('In Progress')}>In Progress</option>
-                                    <option value="Grading" disabled={isStatusDisabled('Grading')}>Grading</option>
-                                    <option value="Completed" disabled={isStatusDisabled('Completed')}>Completed</option>
-                                    <option value="Cancelled" disabled={isStatusDisabled('Cancelled')}>Cancelled</option>
+                                    {(() => {
+                                        const defaultStatuses = [
+                                            'Scheduled',
+                                            'Draft',
+                                            'Open Registration',
+                                            'Registration Closed',
+                                            'In Progress',
+                                            'Grading',
+                                            'Completed',
+                                            'Cancelled',
+                                        ]
+                                        const options: string[] = trainingStatuses.length > 0
+                                            ? trainingStatuses.map((s: any) => s.name)
+                                            : [...defaultStatuses]
+                                        if (sessionStatus && !options.includes(sessionStatus)) {
+                                            options.unshift(sessionStatus)
+                                        }
+                                        return options.map((statusName) => (
+                                            <option key={statusName} value={statusName} disabled={isStatusDisabled(statusName)}>
+                                                {statusName}
+                                            </option>
+                                        ))
+                                    })()}
                                 </select>
                                 <ChevronRight className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rotate-90 pointer-events-none text-current opacity-50" />
                             </div>
@@ -577,7 +614,8 @@ export default function ScheduleDetailPage() {
                                                         sessionStatus === 'In Progress' ? 'bg-blue-100 text-blue-700' :
                                                             sessionStatus === 'Registration Closed' ? 'bg-amber-100 text-amber-700' :
                                                                 sessionStatus === 'Open Registration' ? 'bg-emerald-100 text-emerald-700' :
-                                                                    'bg-slate-100 text-slate-700'
+                                                                    sessionStatus === 'Scheduled' ? 'bg-blue-100 text-blue-700' :
+                                                                        'bg-slate-100 text-slate-700'
                                                 }`}>
                                                 {sessionStatus}
                                             </span>
@@ -821,17 +859,21 @@ export default function ScheduleDetailPage() {
                                         </div>
                                     ) : (
                                         <div className="max-h-[340px] overflow-y-auto">
-                                            {availableStaff
-                                                .filter(s =>
-                                                    s.name.toLowerCase().includes(staffSearch.toLowerCase()) ||
-                                                    s.code.includes(staffSearch) ||
-                                                    s.dept.toLowerCase().includes(staffSearch.toLowerCase())
-                                                )
-                                                .sort((a, b) => {
-                                                    const order: Record<string, number> = { 'Expired': 0, 'Expiring Soon': 1, 'Require': 2 };
-                                                    return (order[a.expireStatus ?? ''] ?? 3) - (order[b.expireStatus ?? ''] ?? 3);
-                                                })
-                                                .map(staff => (
+                                            {isLoadingStaff ? (
+                                                <div className="py-8 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+                                                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                                                    <span>Loading available staff...</span>
+                                                </div>
+                                            ) : availableStaff.length === 0 ? (
+                                                <div className="py-8 text-center text-xs text-muted-foreground">
+                                                    No available staff found
+                                                </div>
+                                            ) : filteredAvailableStaff.length === 0 ? (
+                                                <div className="py-8 text-center text-xs text-muted-foreground">
+                                                    No staff found matching &quot;{staffSearch}&quot;
+                                                </div>
+                                            ) : (
+                                                filteredAvailableStaff.map(staff => (
                                                     <div key={staff.id} className="flex items-center gap-3 px-3 py-2.5 border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors group">
                                                         <div className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-200 text-slate-600 text-[10px] font-bold shrink-0">
                                                             {getInitials(staff.name)}
@@ -864,9 +906,7 @@ export default function ScheduleDetailPage() {
                                                             {enrollingId === staff.id ? 'Enrolling...' : 'Enroll'}
                                                         </button>
                                                     </div>
-                                                ))}
-                                            {availableStaff.length === 0 && (
-                                                <div className="p-6 text-center text-xs text-muted-foreground">No available staff found</div>
+                                                ))
                                             )}
                                         </div>
                                     )}
@@ -876,7 +916,7 @@ export default function ScheduleDetailPage() {
                                     <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border border-border mb-3 shadow-sm">
                                         <Lock className="w-5 h-5 text-muted-foreground" />
                                     </div>
-                                    <p className="text-sm font-semibold text-foreground">Registration Closed</p>
+                                    <p className="text-sm font-semibold text-foreground">{sessionStatus || 'Registration Closed'}</p>
                                     <p className="text-xs text-muted-foreground mt-1 max-w-[200px]">Status must be "Open Registration" to add new staff members.</p>
                                 </div>
                             )}

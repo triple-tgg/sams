@@ -82,7 +82,13 @@ export interface CompleteCertificateResponse {
 /** GET available staff for enrollment */
 export const getStaffForEnrollment = async (scheduleId: number): Promise<StaffForEnrollmentItem[]> => {
   const res = await axiosConfig.get(`/training/enrollment/staff-for-enrollment/${scheduleId}`);
-  return res.data?.responseData?.staffs ?? [];
+  const rd = res.data?.responseData;
+  if (Array.isArray(rd)) return rd;
+  if (Array.isArray(rd?.staffs)) return rd.staffs;
+  if (Array.isArray(rd?.staffList)) return rd.staffList;
+  if (Array.isArray(rd?.list)) return rd.list;
+  if (Array.isArray(res.data)) return res.data;
+  return [];
 };
 
 /** POST enrolled staff list (paginated) */

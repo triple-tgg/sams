@@ -27,10 +27,27 @@ interface PrintPreviewModalProps {
     airlineCode?: string;
     stationCodes?: string;
     dateRange?: string;
+    currencyType?: string;
 }
 
 const formatCurrency = (value: number) => {
     return value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+const formatRetentionValue = (value: number | null) => {
+    if (!value) return "-";
+    return value.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+};
+
+const formatRetentionHtml = (inv: DraftInvoiceItem) => {
+    if (!inv.retentionFeeObj || inv.retentionFeeObj.length === 0) return "-";
+    return inv.retentionFeeObj
+        .map((rf) =>
+            rf.contractNo
+                ? `<span style="color:#6b7280">${rf.contractNo}: </span><strong>${formatRetentionValue(rf.retentionFee)}</strong>`
+                : `<strong>${formatRetentionValue(rf.retentionFee)}</strong>`
+        )
+        .join("<br/>");
 };
 
 export const PrintPreviewModal = ({
@@ -40,12 +57,13 @@ export const PrintPreviewModal = ({
     airlineCode = "",
     stationCodes = "",
     dateRange = "",
+    currencyType,
 }: PrintPreviewModalProps) => {
     const printRef = useRef<HTMLDivElement>(null);
 
     const totalQuantity = invoices.reduce((sum, inv) => sum + inv.quantity, 0);
     const totalAmount = invoices.reduce((sum, inv) => sum + inv.amount, 0);
-    const currency = getInvoiceCurrency(invoices);
+    const currency = getInvoiceCurrency(invoices, currencyType);
     const withCurrency = (label: string) => (currency ? `${label} (${currency})` : label);
     const printDate = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
@@ -71,10 +89,11 @@ export const PrintPreviewModal = ({
                     .print-date { text-align: right; font-size: 9px; color: #999; margin-bottom: 15px; }
                     table { width: 100%; border-collapse: collapse; font-size: 11px; }
                     th { background-color: #1a56db; color: white; font-weight: 600; padding: 10px 8px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
-                    th:nth-child(1) { width: 60px; }
-                    th:nth-child(3), th:nth-child(4), th:nth-child(5) { text-align: right; }
+                    th:nth-child(1) { width: 50px; }
+                    th:nth-child(3) { width: 120px; }
+                    th:nth-child(4), th:nth-child(5), th:nth-child(6) { text-align: right; }
                     td { border-bottom: 1px solid #e5e7eb; padding: 8px; vertical-align: top; }
-                    td:nth-child(3), td:nth-child(4), td:nth-child(5) { text-align: right; }
+                    td:nth-child(4), td:nth-child(5), td:nth-child(6) { text-align: right; }
                     tr:nth-child(even) { background-color: #f9fafb; }
                     .total-row td { border-top: 2px solid #1a56db; font-weight: bold; font-size: 12px; padding: 12px 8px; background-color: #eff6ff; }
                     .description { white-space: pre-line; line-height: 1.4; }
@@ -99,6 +118,7 @@ export const PrintPreviewModal = ({
                         <tr>
                             <th>Item</th>
                             <th>Description</th>
+                            <th>Retention Fee</th>
                             <th>Quantity</th>
                             <th>${withCurrency("Unit Price")}</th>
                             <th>${withCurrency("Amount")}</th>
@@ -109,6 +129,7 @@ export const PrintPreviewModal = ({
                             <tr>
                                 <td>${inv.item}</td>
                                 <td class="description">${inv.descrition}</td>
+                                <td>${formatRetentionHtml(inv)}</td>
                                 <td>${formatCurrency(inv.quantity)}</td>
                                 <td>${formatCurrency(inv.unitPrice)}</td>
                                 <td>${formatCurrency(inv.amount)}</td>
@@ -116,6 +137,7 @@ export const PrintPreviewModal = ({
                         `).join("")}
                         <tr class="total-row">
                             <td>TOTAL</td>
+                            <td></td>
                             <td></td>
                             <td>${formatCurrency(totalQuantity)}</td>
                             <td></td>
@@ -184,11 +206,12 @@ export const PrintPreviewModal = ({
                         <Table>
                             <TableHeader>
                                 <TableRow className="bg-primary text-primary-foreground">
-                                    <TableHead className="w-[60px] text-primary-foreground">Item</TableHead>
+                                    <TableHead className="w-[50px] text-primary-foreground">Item</TableHead>
                                     <TableHead className="text-primary-foreground">Description</TableHead>
-                                    <TableHead className="w-[100px] text-right text-primary-foreground">Quantity</TableHead>
-                                    <TableHead className="w-[120px] text-right text-primary-foreground">{withCurrency("Unit Price")}</TableHead>
-                                    <TableHead className="w-[120px] text-right text-primary-foreground">{withCurrency("Amount")}</TableHead>
+                                    <TableHead className="w-[130px] text-primary-foreground">Retention Fee</TableHead>
+                                    <TableHead className="w-[90px] text-right text-primary-foreground">Quantity</TableHead>
+                                    <TableHead className="w-[110px] text-right text-primary-foreground">{withCurrency("Unit Price")}</TableHead>
+                                    <TableHead className="w-[110px] text-right text-primary-foreground">{withCurrency("Amount")}</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -196,6 +219,26 @@ export const PrintPreviewModal = ({
                                     <TableRow key={idx} className={idx % 2 === 1 ? "bg-muted/30" : ""}>
                                         <TableCell className="font-medium">{inv.item}</TableCell>
                                         <TableCell className="whitespace-pre-line text-xs leading-relaxed py-2" dangerouslySetInnerHTML={{ __html: inv.descrition }} />
+                                        <TableCell>
+                                            {inv.retentionFeeObj && inv.retentionFeeObj.length > 0 ? (
+                                                <div className="flex flex-col gap-0.5">
+                                                    {inv.retentionFeeObj.map((rf, rfIdx) => (
+                                                        <div key={rfIdx} className="text-xs">
+                                                            {rf.contractNo ? (
+                                                                <>
+                                                                    <span className="text-muted-foreground">{rf.contractNo}: </span>
+                                                                    <span className="font-medium">{formatRetentionValue(rf.retentionFee)}</span>
+                                                                </>
+                                                            ) : (
+                                                                <span className="font-medium">{formatRetentionValue(rf.retentionFee)}</span>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                "-"
+                                            )}
+                                        </TableCell>
                                         <TableCell className="text-right">{formatCurrency(inv.quantity)}</TableCell>
                                         <TableCell className="text-right">{formatCurrency(inv.unitPrice)}</TableCell>
                                         <TableCell className="text-right font-medium">{formatCurrency(inv.amount)}</TableCell>
@@ -204,6 +247,7 @@ export const PrintPreviewModal = ({
                                 {/* Total */}
                                 <TableRow className="bg-primary/5 border-t-2 border-primary">
                                     <TableCell className="font-bold text-sm">TOTAL</TableCell>
+                                    <TableCell />
                                     <TableCell />
                                     <TableCell className="text-right font-bold">{formatCurrency(totalQuantity)}</TableCell>
                                     <TableCell />

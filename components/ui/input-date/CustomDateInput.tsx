@@ -10,6 +10,7 @@ export const CustomDateInput = React.forwardRef<
     onChange?: (value: string) => void;
     placeholder?: string;
     className?: string;
+    disabled?: boolean;
   }
 >(({ value = "", onChange, placeholder, className, ...props }, ref) => {
   const [displayValue, setDisplayValue] = React.useState("");

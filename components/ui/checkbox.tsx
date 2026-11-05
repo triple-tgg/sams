@@ -28,7 +28,7 @@ const checkboxVariants = cva(
       },
     },
     defaultVariants: {
-      color: "default",
+      color: "primary",
     },
   }
 );

@@ -25,19 +25,38 @@ export interface FlightAircraftCheck {
   maintenanceSubTypes: string[]
 }
 
-/** Convert form rows to the API shape (`aircraftCheckType`), dropping rows without a type. */
+export interface FlightServiceListItem {
+  code: string
+  subTypes: string[]
+}
+
+/** Convert form rows to `flightServiceLists` matching the API specification */
+export const toFlightServiceLists = (
+  checks: FlightAircraftCheck[] | null | undefined
+): FlightServiceListItem[] =>
+  (checks ?? [])
+    .filter((c) => !!c.maintenanceTypes)
+    .map((c) => ({
+      code: c.maintenanceTypes,
+      subTypes: c.maintenanceSubTypes ?? [],
+    }))
+
+/** Convert form rows to the legacy API shape (`aircraftCheckType`), dropping rows without a type. */
 export const toAircraftCheckPayload = (checks: FlightAircraftCheck[] | null | undefined) =>
   (checks ?? [])
     .filter((c) => !!c.maintenanceTypes)
     .map((c) => ({ checkType: c.maintenanceTypes, checkSubType: c.maintenanceSubTypes ?? [] }))
 
-/** Convert THF `aircraft.aircraftCheckType` back to form rows. */
+/** Convert THF `aircraft.aircraftCheckType` or `flightServiceLists` back to form rows. */
 export const fromAircraftCheckPayload = (
-  checks: { checkType: string | null; checkSubType: string[] | null }[] | null | undefined
+  checks: any[] | null | undefined
 ): FlightAircraftCheck[] =>
   (checks ?? [])
-    .filter((c) => !!c.checkType)
-    .map((c) => ({ maintenanceTypes: c.checkType as string, maintenanceSubTypes: c.checkSubType ?? [] }))
+    .filter((c) => !!(c.checkType || c.code))
+    .map((c) => ({
+      maintenanceTypes: (c.checkType || c.code) as string,
+      maintenanceSubTypes: c.checkSubType || c.subTypes || [],
+    }))
 
 interface FlightServiceGroupProps {
   value: FlightAircraftCheck[]
@@ -231,4 +250,7 @@ export const FlightServiceGroup: React.FC<FlightServiceGroupProps> = ({ value, o
   )
 }
 
+export * from './AircraftTowingCard'
+export * from './AircraftTowingPreviewCell'
 export default FlightServiceGroup
+

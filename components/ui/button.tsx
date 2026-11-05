@@ -172,9 +172,11 @@ export interface ButtonProps
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, color, fullWidth, shadow, rounded, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
+    // Solid buttons default to the primary colour; outline/soft/ghost keep their neutral default
+    const resolvedColor = color ?? (!variant || variant === "default" ? "primary" : undefined)
     return (
       <Comp
-        className={cn(buttonVariants({ variant, size, fullWidth, rounded, color, shadow, className }))}
+        className={cn(buttonVariants({ variant, size, fullWidth, rounded, color: resolvedColor, shadow, className }))}
         ref={ref}
         {...props}
       />

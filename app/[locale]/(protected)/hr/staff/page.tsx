@@ -667,8 +667,17 @@ export default function HRStaffListPage() {
                                                                 <User className="h-5 w-5 text-muted-foreground" />
                                                             </div>
                                                             <div>
-                                                                <div className="font-medium text-sm">
-                                                                    {staff.fullNameEn || (`${staff.title ? `${staff.title} ` : ''}${staff.name}`)}
+                                                                <div className="font-medium text-sm flex items-center gap-2">
+                                                                    <span>{staff.fullNameEn || (`${staff.title ? `${staff.title} ` : ''}${staff.name}`)}</span>
+                                                                    {staff.isDepartmentAmo145 && (
+                                                                        <span
+                                                                            className="hr-position-tag shrink-0"
+                                                                            title="Part-145 Approved Maintenance Organization (AMO)"
+                                                                            style={{ color: '#047857', borderColor: '#04785740', backgroundColor: '#04785708' }}
+                                                                        >
+                                                                            Part-145
+                                                                        </span>
+                                                                    )}
                                                                 </div>
                                                                 <div className="text-xs text-muted-foreground">{staff.code}</div>
                                                             </div>

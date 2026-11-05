@@ -96,7 +96,7 @@ const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, ti
     }
 
     const isLastStep = currentStep === steps.length - 1
-    const isSuccess = submitPhase === 'success'
+    const isSuccess = submitPhase === 'success' || submitPhase === 'sharepoint_error'
 
     const CurrentComponent = Children.toArray(children)[currentStep]
 

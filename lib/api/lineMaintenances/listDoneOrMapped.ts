@@ -1,10 +1,13 @@
 import axiosConfig from "@/lib/axios.config";
+import dayjs from "dayjs";
+import "@/lib/dayjs";
 import type {
     AcTypeObj,
     AirlineObj,
     FlightItem,
     StationObj,
     StatusObj,
+    ThfMappingStatus,
 } from "@/lib/api/flight/filghtlist.interface";
 
 // ── Request ──────────────────────────────────────────────
@@ -128,8 +131,12 @@ export const buildListDoneOrMappedRequest = (
     thhNumber: filters.thfNumber ?? "",
     thfNumber: filters.thfNumber ?? "",
     acType: filters.airCraftTypeCodeList?.[0] ?? "",
-    startDate: filters.dateStart,
-    endDate: filters.dateEnd,
+    startDate: filters.dateStart
+        ? dayjs(filters.dateStart).startOf("day").utc().format()
+        : filters.dateStart,
+    endDate: filters.dateEnd
+        ? dayjs(filters.dateEnd).endOf("day").utc().format()
+        : filters.dateEnd,
     page,
     perPage,
 });
@@ -137,6 +144,7 @@ export const buildListDoneOrMappedRequest = (
 // ── Response → FlightItem (so the flight columns keep working) ──
 export interface DoneOrMappedLookups {
     airlineCodeById?: Map<number, string>;
+    airlineById?: Map<number, { code: string; name?: string | null }>;
     stationCodeById?: Map<number, string>;
     acTypeById?: Map<number, { code: string; familyCode?: string | null }>;
     statusCodeById?: Map<number, string>;
@@ -154,7 +162,9 @@ export const mapDoneOrMappedToFlightItem = (
     const acTypeId = flight?.acTypeId ?? null;
     const statusId = flight?.statusId ?? null;
 
-    const airlineCode = airlinesId != null ? lookups.airlineCodeById?.get(airlinesId) : undefined;
+    const airline = airlinesId != null ? lookups.airlineById?.get(airlinesId) : undefined;
+    const airlineCode = airline?.code ?? (airlinesId != null ? lookups.airlineCodeById?.get(airlinesId) : undefined);
+    const airlineName = airline?.name ?? "";
     const stationCode = stationId != null ? lookups.stationCodeById?.get(stationId) : undefined;
     const acType = acTypeId != null ? lookups.acTypeById?.get(acTypeId) : undefined;
     const statusCode = statusId != null ? lookups.statusCodeById?.get(statusId) : undefined;
@@ -162,8 +172,8 @@ export const mapDoneOrMappedToFlightItem = (
     return {
         flightsId: lineMaintenance?.flightsId ?? flight?.id ?? null,
         flightInfosId: lineMaintenance?.flightInfosId ?? null,
-        airlineObj: airlinesId != null && airlineCode
-            ? ({ id: airlinesId, code: airlineCode } as AirlineObj)
+        airlineObj: airlinesId != null && (airlineCode || airlineName)
+            ? ({ id: airlinesId, code: airlineCode ?? "", name: airlineName } as AirlineObj)
             : null,
         stationObj: stationId != null && stationCode
             ? ({ id: stationId, code: stationCode } as StationObj)
@@ -196,6 +206,7 @@ export const mapDoneOrMappedToFlightItem = (
         isLlineMaintenances: Boolean(lineMaintenance),
         lineMaintenancesId: lineMaintenance?.id ?? null,
         isMapping: item.isMapping,
+        mappingStatus: ((item as unknown as Record<string, unknown>)?.mappingStatus as ThfMappingStatus) ?? ((lineMaintenance as unknown as Record<string, unknown>)?.mappingStatus as ThfMappingStatus) ?? null,
         // Every row of this endpoint already has a done/mapped THF
         state: "save",
         routeForm: flight?.routeForm ?? null,

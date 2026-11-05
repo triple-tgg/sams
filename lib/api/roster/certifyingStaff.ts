@@ -51,6 +51,7 @@ export interface AmelStaffRow {
     position: string;
     /** Staff type code (e.g. "MECH", "CS"), shown as "Type / Position". */
     staffType?: string | null;
+    staffTypeCode?: string | null;
     aircraftType: string;
     station: string | null;
     qualifications: Record<string, AmelQualification>;
@@ -80,6 +81,24 @@ export const getAmelCertifyingStaff = async (
 ): Promise<AmelCertifyingStaffResponse> => {
     const res = await axiosConfig.post<AmelCertifyingStaffResponse>(
         "/roster/certifying-staff/amel",
+        data
+    );
+    return res.data;
+};
+
+export interface AmelMechStaffRequest {
+    search: string;
+    station: string;
+    aircraftType: string;
+    page: number;
+    pageSize: number;
+}
+
+export const getAmelMechStaff = async (
+    data: AmelMechStaffRequest
+): Promise<AmelCertifyingStaffResponse> => {
+    const res = await axiosConfig.post<AmelCertifyingStaffResponse>(
+        "/roster/mech-staff/amel",
         data
     );
     return res.data;
@@ -189,13 +208,46 @@ export const getCertifyingStaffSummary = async (): Promise<CertifyingStaffSummar
     return res.data;
 };
 
-export function useCertifyingStaffSummary() {
+export function useCertifyingStaffSummary(options?: { enabled?: boolean }) {
     return useQuery<CertifyingStaffSummaryData, Error>({
         queryKey: ["roster", "certifying-staff-summary"],
         queryFn: async () => (await getCertifyingStaffSummary()).responseData,
+        enabled: options?.enabled ?? true,
         staleTime: 60 * 1000,
         refetchOnWindowFocus: false,
     });
 }
+
+// ── Mech Staff Summary Types & API ──
+
+export interface MechStaffSummaryData {
+    licenceHolders: number;
+    rotateTransfer: number;
+    noStation: number;
+}
+
+export interface MechStaffSummaryResponse {
+    message: string;
+    responseData: MechStaffSummaryData;
+    error?: string;
+}
+
+export const getMechStaffSummary = async (): Promise<MechStaffSummaryResponse> => {
+    const res = await axiosConfig.get<MechStaffSummaryResponse>(
+        "/roster/mech-staff-summary"
+    );
+    return res.data;
+};
+
+export function useMechStaffSummary(options?: { enabled?: boolean }) {
+    return useQuery<MechStaffSummaryData, Error>({
+        queryKey: ["roster", "mech-staff-summary"],
+        queryFn: async () => (await getMechStaffSummary()).responseData,
+        enabled: options?.enabled ?? true,
+        staleTime: 60 * 1000,
+        refetchOnWindowFocus: false,
+    });
+}
+
 
 

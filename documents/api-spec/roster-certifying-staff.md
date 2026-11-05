@@ -12,11 +12,13 @@ Endpoint สำหรับหน้าจอ Certifying Staff:
 
 | Method | Endpoint Path | Description |
 | :--- | :--- | :--- |
-| `GET` | `/roster/certifying-staff-summary` | ดึงข้อมูลสรุป KPI การ์ดด้านบน (Valid CS, Licence Holders, Rotate/Transfer, No Station) |
-| `POST` | `/roster/certifying-staff/amel` | ดึงข้อมูล Matrix คอลัมน์และรายชื่อ Staff ของ Tab **AMEL** |
+| `GET` | `/roster/certifying-staff-summary` | ดึงข้อมูลสรุป KPI การ์ดด้านบนหน้า Certifying Staff (Valid CS, Licence Holders, Rotate/Transfer, No Station) |
+| `GET` | `/roster/mech-staff-summary` | ดึงข้อมูลสรุป KPI การ์ดด้านบนหน้า Mech Staff (Licence Holders, Rotate/Transfer, No Station) |
+| `POST` | `/roster/certifying-staff/amel` | ดึงข้อมูล Matrix คอลัมน์และรายชื่อ Staff ของ Tab **AMEL** (หน้า Certifying Staff) |
+| `POST` | `/roster/mech-staff/amel` | ดึงข้อมูล Matrix คอลัมน์และรายชื่อ Staff ของ Tab **AMEL** (หน้า Mech Staff) |
 | `POST` | `/roster/certifying-staff/aircraft-licence` | ดึงข้อมูล Matrix คอลัมน์ สายการบิน และสิทธิ์ของ Tab **Aircraft Licence** |
 
-### Common Query Parameters (ทั้ง 2 Endpoints)
+### Common Query Parameters (ทั้ง 3 Matrix Endpoints)
 
 | Parameter | Type | Required | Default | Description |
 | :--- | :--- | :--- | :--- | :--- |
@@ -25,7 +27,6 @@ Endpoint สำหรับหน้าจอ Certifying Staff:
 | `aircraftType` | `string` | No | `ALL` | กรองตาม Aircraft Model (เช่น `A320`, `B737`) |
 | `page` | `number` | No | `1` | เลขหน้า (Pagination) |
 | `pageSize` | `number` | No | `20` | จำนวนรายการต่อหน้า (Pagination) |
-| `staffType` | `string` | No | - | (เฉพาะ `/amel`) กรองตาม Staff Type code — หน้า **Roster > Mech Staff** ส่ง `"MECH"` เพื่อแสดงเฉพาะ Staff Type Mech, หน้า Certifying Staff ไม่ส่ง |
 
 ---
 

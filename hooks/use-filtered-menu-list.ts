@@ -33,7 +33,7 @@ function flattenPermissions(items: any[]): MenuPermissionItem[] {
  */
 function filterChildren(
     children: import("@/lib/menus").SubChildren[],
-    isViewable: (code?: string) => boolean
+    isViewable: (code?: string | string[]) => boolean
 ): import("@/lib/menus").SubChildren[] {
     return children
         .filter((child) => isViewable(child.permCode))
@@ -63,22 +63,59 @@ export function useFilteredMenuList(pathname: string, t: any): Group[] {
         const canViewMap = new Map<string, boolean>();
         flat.forEach((m) => {
             if (m.menuCode) {
-                canViewMap.set(m.menuCode, m.canView);
-                canViewMap.set(m.menuCode.replace(/\s+/g, "_"), m.canView);
-                canViewMap.set(m.menuCode.replace(/_/g, " "), m.canView);
+                const raw = m.menuCode.trim();
+                const upper = raw.toUpperCase();
+                canViewMap.set(raw, m.canView);
+                canViewMap.set(upper, m.canView);
+                canViewMap.set(raw.replace(/\s+/g, "_"), m.canView);
+                canViewMap.set(upper.replace(/\s+/g, "_"), m.canView);
+                canViewMap.set(raw.replace(/_/g, " "), m.canView);
+                canViewMap.set(upper.replace(/_/g, " "), m.canView);
             }
         });
 
         /**
-         * Check if a permCode is viewable.
+         * Check if a permCode (or list of permCodes) is viewable.
          * - No permCode at all      → always show
-         * - permCode in map, canView === true  → show
-         * - permCode in map, canView === false → hide
-         * - permCode NOT in API map  → hide (ไม่มีสิทธิ์)
+         * - Single permCode         → show if canView === true
+         * - Array of permCodes      → if primary code exists in API map, use its canView;
+         *                             otherwise fall back to any matching code in the array
          */
-        const isViewable = (code?: string) => {
+        const checkSingle = (c: string) => {
+            const trimmed = c.trim();
+            const upper = trimmed.toUpperCase();
+            return (
+                canViewMap.get(trimmed) === true ||
+                canViewMap.get(upper) === true ||
+                canViewMap.get(upper.replace(/\s+/g, "_")) === true ||
+                canViewMap.get(upper.replace(/_/g, " ")) === true
+            );
+        };
+
+        const hasInMap = (c: string) => {
+            const trimmed = c.trim();
+            const upper = trimmed.toUpperCase();
+            return (
+                canViewMap.has(trimmed) ||
+                canViewMap.has(upper) ||
+                canViewMap.has(upper.replace(/\s+/g, "_")) ||
+                canViewMap.has(upper.replace(/_/g, " "))
+            );
+        };
+
+        const isViewable = (code?: string | string[]) => {
             if (!code) return true;
-            return canViewMap.get(code) === true;
+            if (Array.isArray(code)) {
+                if (code.length === 0) return true;
+                // Show if any of the candidate codes is viewable
+                return code.some((c) => checkSingle(c));
+            }
+            if (checkSingle(code)) return true;
+            // Fallback for MASTER_DATA_DEPARTMENT_AMO145 if not registered in DB yet
+            if (code === "MASTER_DATA_DEPARTMENT_AMO145" && !hasInMap(code)) {
+                return checkSingle("MASTER_DATA_DEPARTMENT");
+            }
+            return false;
         };
 
         return rawMenuList

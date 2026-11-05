@@ -7,6 +7,7 @@ import { formatDate } from '../utils'
 import { EditPersonalInfoModal } from './EditPersonalInfoModal'
 import { EditContactModal } from './EditContactModal'
 import { EditEmploymentModal } from './EditEmploymentModal'
+import { useStaffDepartmentAmo145s, useStaffDepartmentPositionAmo145s } from '@/lib/api/master/organization-amo145.hooks'
 import { EditLicenseModal } from './EditLicenseModal'
 import { EditAircraftModal } from './EditAircraftModal'
 import { useUpsertStaff, useUploadStaffFile } from '@/lib/api/hooks/useQAStaffManagement'
@@ -186,6 +187,17 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
         || stationsData?.responseData?.find(s => s.id === staff.stationId)?.code
         || '-'
     const combinations = useMemo(() => combinationsData || [], [combinationsData])
+
+    // Part-145 AMO assignment — resolve names from the AMO master lists
+    const isAmo145 = !!apiData?.isDepartmentAmo145
+    const { data: amoDeptData } = useStaffDepartmentAmo145s()
+    const { data: amoPosData } = useStaffDepartmentPositionAmo145s()
+    const amoPosition = isAmo145 && apiData?.staffDepartmentPositionAmo145Id
+        ? amoPosData?.responseData?.find(p => p.id === apiData.staffDepartmentPositionAmo145Id)
+        : undefined
+    const amoDepartment = amoPosition?.staffDepartmentAmo145Id
+        ? amoDeptData?.responseData?.find(d => d.id === amoPosition.staffDepartmentAmo145Id)
+        : undefined
     const amelLicenses = apiData?.staffAmelLicenseList?.filter(l => !l.isdelete) || []
     const amelLicense = amelLicenses[0]
 
@@ -402,6 +414,8 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
             jobTitle: data.jobNote || '',
             staffstypeid: staffstypeid,
             stationId: data.station ? Number(data.station) : null,
+            isDepartmentAmo145: !!data.isDepartmentAmo145,
+            staffDepartmentPositionAmo145Id: data.isDepartmentAmo145 && data.amoPosition ? Number(data.amoPosition) : 0,
         })
         if (!payload) return
 
@@ -610,6 +624,22 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                             <div className="col-span-3 max-md:col-span-1">
                                 <InfoRow label="Job Note" value={staff.jobNote || '-'} />
                             </div>
+                        </div>
+
+                        {/* Part-145 AMO */}
+                        <div className="mt-5 pt-4 border-t border-slate-100">
+                            <div className="flex items-center gap-2 mb-4">
+                                <span className="text-xs font-semibold text-slate-500 tracking-wide">Part-145 Approved Maintenance Organization (AMO)</span>
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${isAmo145 ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                                    {isAmo145 ? 'Yes' : 'No'}
+                                </span>
+                            </div>
+                            {isAmo145 && (
+                                <div className="grid grid-cols-3 gap-y-5 gap-x-8 max-md:grid-cols-1">
+                                    <InfoRow label="AMO Department" value={amoDepartment?.name || '-'} />
+                                    <InfoRow label="AMO Position" value={amoPosition?.name || '-'} />
+                                </div>
+                            )}
                         </div>
                     </Section>
 
@@ -1094,6 +1124,8 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                 isOpen={showEditEmployment}
                 onClose={() => setShowEditEmployment(false)}
                 staff={staff}
+                isDepartmentAmo145={!!apiData?.isDepartmentAmo145}
+                amoPositionId={apiData?.staffDepartmentPositionAmo145Id ?? null}
                 onSave={handleSaveEmployment}
             />
             <EditLicenseModal

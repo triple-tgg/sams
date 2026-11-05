@@ -37,7 +37,7 @@ const radioVariants = cva(
     compoundVariants: [],
 
     defaultVariants: {
-      color: "default",
+      color: "primary",
     }
   }
 );

@@ -4,7 +4,7 @@ export type SubChildren = {
   href: string;
   label: string;
   active: boolean;
-  permCode?: string;           // API menuCode for permission check
+  permCode?: string | string[]; // API menuCode(s) for permission check
   children?: SubChildren[];
   badge?: string;
 };
@@ -13,7 +13,7 @@ export type Submenu = {
   label: string;
   active: boolean;
   icon: any;
-  permCode?: string;           // API menuCode for permission check
+  permCode?: string | string[]; // API menuCode(s) for permission check
   submenus?: Submenu[];
   children?: SubChildren[];
   badge?: string;
@@ -27,7 +27,7 @@ export type Menu = {
   icon: any;
   submenus: Submenu[];
   id: string;
-  permCode?: string;           // API menuCode for permission check
+  permCode?: string | string[]; // API menuCode(s) for permission check
   badge?: string;
 };
 
@@ -357,24 +357,23 @@ export function getMenuList(pathname: string, t: any): Group[] {
           icon: "heroicons-outline:cog-6-tooth",
           submenus: [
             {
-              href: "/master-data/staff",
+              href: "/master-data/department",
               label: t("mdOrganization"),
-              active: pathname.includes("/master-data/staff") || pathname.includes("/master-data/department") || pathname.includes("/master-data/manager-mapping"),
+              active: pathname.includes("/master-data/department") || pathname.includes("/master-data/manager-mapping"),
               icon: "heroicons-outline:building-office-2",
               children: [
-                {
-                  permCode: "MASTER_DATA_STAFF",
-                  href: "/master-data/staff",
-                  label: t("Staff List"),
-                  active: pathname.includes("/master-data/staff"),
-                },
                 {
                   permCode: "MASTER_DATA_DEPARTMENT",
                   href: "/master-data/department",
                   label: t("mdDepartment"),
-                  active: pathname.includes("/master-data/department") && !pathname.includes("/master-data/sub-department"),
+                  active: pathname.includes("/master-data/department") && !pathname.includes("/master-data/sub-department") && !pathname.includes("/master-data/department-amo145"),
                 },
-
+                {
+                  permCode: ["MASTER_DATA_DEPARTMENT_AMO145"],
+                  href: "/master-data/department-amo145",
+                  label: t("mdDepartmentAmo145"),
+                  active: pathname.includes("/master-data/department-amo145"),
+                },
                 {
                   permCode: "MASTER_DATA_MANAGER_MAPPING",
                   href: "/master-data/manager-mapping",

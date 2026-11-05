@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { X, Briefcase } from 'lucide-react'
 import { StaffData } from '../types'
 import { useStaffDepartments, useStaffDepartmentPositions } from '@/lib/api/master/organization.hooks'
+import { useStaffDepartmentAmo145s, useStaffDepartmentPositionAmo145s } from '@/lib/api/master/organization-amo145.hooks'
 import { useStaffsTypesAll } from '@/lib/api/hooks/useStaffsTypes'
 import { useStations } from '@/lib/api/hooks/useStations'
 
@@ -16,12 +17,18 @@ interface EmploymentFormData {
     jobNote: string
     staffType: string
     station: string
+    isDepartmentAmo145: boolean
+    amoDepartment: string
+    amoPosition: string
 }
 
 interface EditEmploymentModalProps {
     isOpen: boolean
     onClose: () => void
     staff: StaffData
+    /** Current Part-145 AMO assignment (from byid). */
+    isDepartmentAmo145?: boolean
+    amoPositionId?: number | null
     onSave: (data: EmploymentFormData) => void
 }
 
@@ -80,10 +87,12 @@ function FormSelect({ label, name, value, onChange, options, disabled }: {
     )
 }
 
-export function EditEmploymentModal({ isOpen, onClose, staff, onSave }: EditEmploymentModalProps) {
+export function EditEmploymentModal({ isOpen, onClose, staff, isDepartmentAmo145 = false, amoPositionId, onSave }: EditEmploymentModalProps) {
     // Fetch departments & positions from API
     const { data: deptData } = useStaffDepartments()
     const { data: posData } = useStaffDepartmentPositions()
+    const { data: amoDeptData } = useStaffDepartmentAmo145s()
+    const { data: amoPosData } = useStaffDepartmentPositionAmo145s()
     const { staffTypes: staffTypesList } = useStaffsTypesAll()
     const { data: stationsData } = useStations()
 
@@ -99,6 +108,16 @@ export function EditEmploymentModal({ isOpen, onClose, staff, onSave }: EditEmpl
         return (posData?.responseData || []).filter(p => !p.isdelete)
     }, [posData])
 
+    const amoDepartments = useMemo(() => {
+        return (amoDeptData?.responseData || []).filter(d => !d.isdelete)
+    }, [amoDeptData])
+
+    const allAmoPositions = useMemo(() => {
+        return (amoPosData?.responseData || []).filter(p => !p.isdelete)
+    }, [amoPosData])
+
+    const [amoSubmitAttempted, setAmoSubmitAttempted] = useState(false)
+
     const [form, setForm] = useState<EmploymentFormData>({
         empId: '',
         position: '',
@@ -108,10 +127,23 @@ export function EditEmploymentModal({ isOpen, onClose, staff, onSave }: EditEmpl
         jobNote: '',
         staffType: '',
         station: '',
+        isDepartmentAmo145: false,
+        amoDepartment: '',
+        amoPosition: '',
     })
 
     // Initialize form when modal opens
     useEffect(() => {
+        const matchedAmoPosition = amoPositionId ? allAmoPositions.find(p => p.id === amoPositionId) : undefined
+        const amoInit = {
+            isDepartmentAmo145: !!isDepartmentAmo145,
+            amoPosition: isDepartmentAmo145 && amoPositionId ? amoPositionId.toString() : '',
+            amoDepartment: isDepartmentAmo145 && matchedAmoPosition?.staffDepartmentAmo145Id
+                ? matchedAmoPosition.staffDepartmentAmo145Id.toString()
+                : '',
+        }
+        if (isOpen) setAmoSubmitAttempted(false)
+
         const matchedStaffType = staffTypesList.find(
             st => (staff.staffTypeId && st.id === staff.staffTypeId) ||
                   (staff.staffType && (st.code?.toLowerCase() === staff.staffType.toLowerCase() || st.name?.toLowerCase() === staff.staffType.toLowerCase()))
@@ -133,6 +165,7 @@ export function EditEmploymentModal({ isOpen, onClose, staff, onSave }: EditEmpl
                 jobNote: staff.jobNote ?? '',
                 staffType: initialStaffType,
                 station: staff.stationId ? staff.stationId.toString() : '',
+                ...amoInit,
             })
         } else if (isOpen) {
             setForm({
@@ -144,9 +177,38 @@ export function EditEmploymentModal({ isOpen, onClose, staff, onSave }: EditEmpl
                 jobNote: staff.jobNote ?? '',
                 staffType: initialStaffType,
                 station: staff.stationId ? staff.stationId.toString() : '',
+                ...amoInit,
             })
         }
-    }, [isOpen, staff, departments, allPositions, staffTypesList])
+    }, [isOpen, staff, departments, allPositions, staffTypesList, isDepartmentAmo145, amoPositionId, allAmoPositions])
+
+    const filteredAmoPositions = useMemo(() => {
+        if (!form.amoDepartment) return allAmoPositions
+        return allAmoPositions.filter(p => p.staffDepartmentAmo145Id === Number(form.amoDepartment))
+    }, [allAmoPositions, form.amoDepartment])
+
+    const amoDepartmentOptions = useMemo(() => [
+        { value: '', label: '-- Select Department --' },
+        ...amoDepartments.map(d => ({ value: d.id.toString(), label: d.name })),
+    ], [amoDepartments])
+
+    const amoPositionOptions = useMemo(() => [
+        { value: '', label: '-- Select Position --' },
+        ...filteredAmoPositions.map(p => ({ value: p.id.toString(), label: p.name })),
+    ], [filteredAmoPositions])
+
+    const amoError = form.isDepartmentAmo145 && !form.amoPosition
+        ? 'Please select an AMO Position'
+        : null
+
+    const handleAmoToggle = (checked: boolean) => {
+        setForm(prev => ({
+            ...prev,
+            isDepartmentAmo145: checked,
+            amoDepartment: checked ? prev.amoDepartment : '',
+            amoPosition: checked ? prev.amoPosition : '',
+        }))
+    }
 
     // Filter positions based on selected department
     const filteredPositions = useMemo(() => {
@@ -196,6 +258,20 @@ export function EditEmploymentModal({ isOpen, onClose, staff, onSave }: EditEmpl
                     position: currentPositionBelongs ? prev.position : '',
                 }
             })
+        } else if (name === 'amoDepartment') {
+            setForm(prev => {
+                const currentPositionBelongs = allAmoPositions.some(
+                    p => p.id.toString() === prev.amoPosition && p.staffDepartmentAmo145Id === Number(value)
+                )
+                return { ...prev, amoDepartment: value, amoPosition: currentPositionBelongs ? prev.amoPosition : '' }
+            })
+        } else if (name === 'amoPosition') {
+            const selected = allAmoPositions.find(p => p.id.toString() === value)
+            setForm(prev => ({
+                ...prev,
+                amoPosition: value,
+                amoDepartment: selected?.staffDepartmentAmo145Id ? selected.staffDepartmentAmo145Id.toString() : prev.amoDepartment,
+            }))
         } else if (name === 'position') {
             // When position is selected, auto-fill department from position's staffDepartmentId
             const selectedPosition = allPositions.find(p => p.id.toString() === value)
@@ -211,6 +287,10 @@ export function EditEmploymentModal({ isOpen, onClose, staff, onSave }: EditEmpl
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
+        if (amoError) {
+            setAmoSubmitAttempted(true)
+            return
+        }
         onSave(form)
         onClose()
     }
@@ -306,6 +386,40 @@ export function EditEmploymentModal({ isOpen, onClose, staff, onSave }: EditEmpl
                             onChange={handleChange}
                             placeholder="e.g. Senior Aircraft Mechanic"
                         />
+
+                        {/* Part-145 AMO */}
+                        <div className="col-span-2 max-sm:col-span-1 pt-3 border-t border-slate-100">
+                            <label className="inline-flex items-center gap-2.5 cursor-pointer select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={form.isDepartmentAmo145}
+                                    onChange={e => handleAmoToggle(e.target.checked)}
+                                    className="h-4 w-4 rounded border-slate-300 cursor-pointer"
+                                />
+                                <span className="text-sm font-medium text-slate-700">Part-145 Approved Maintenance Organization (AMO)</span>
+                            </label>
+                        </div>
+                        {form.isDepartmentAmo145 && (
+                            <>
+                                <FormSelect
+                                    label="AMO Department"
+                                    name="amoDepartment"
+                                    value={form.amoDepartment}
+                                    onChange={handleChange}
+                                    options={amoDepartmentOptions}
+                                />
+                                <FormSelect
+                                    label="AMO Position"
+                                    name="amoPosition"
+                                    value={form.amoPosition}
+                                    onChange={handleChange}
+                                    options={amoPositionOptions}
+                                />
+                                {amoSubmitAttempted && amoError && (
+                                    <p className="col-span-2 max-sm:col-span-1 -mt-2 text-xs text-red-500">{amoError}</p>
+                                )}
+                            </>
+                        )}
                     </div>
 
                     {/* Footer */}

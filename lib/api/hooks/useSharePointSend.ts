@@ -31,7 +31,6 @@ export const useSharePointSend = ({
             onSuccess?.(data)
         },
         onError: (error: Error) => {
-            toast.error(error.message || 'Failed to send file to SharePoint')
             onError?.(error)
         },
     })

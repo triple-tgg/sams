@@ -4,13 +4,16 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Search, ChevronUp, ChevronDown, ChevronsUpDown, MoreVertical } from 'lucide-react'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu'
-import { CourseRef, Employee, STATUS_META, SortField, SortDir } from '../types'
+import { CourseRef, Employee, STATUS_META, SortField, SortDir, computeStatusAndDaysLeft } from '../types'
 import { StatusMatrix } from './StatusMatrix'
 import { EmployeeDetailDrawer } from './EmployeeDetailDrawer'
 import { CourseEnrollmentModal } from './CourseEnrollmentModal'
-import { useQuery } from '@tanstack/react-query'
+import { TrainingDetailModal, type EditedTrainingData } from './TrainingDetailModal'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getCourseList } from '@/lib/api/qa/course'
-import { getTrainingMonitoring } from '@/lib/api/qa/dashboardSummary'
+import { getTrainingMonitoring, upsertTrainingMonitoringExpiry, type TrainingMonitoringStaffCourse } from '@/lib/api/qa/dashboardSummary'
+import { createTrainingHistory } from '@/lib/api/qa/staff-management'
+import { toast } from 'sonner'
 
 const STATUS_FILTERS = ['All', 'expired', 'warning', 'valid'] as const
 const MONTH_FILTERS = [
@@ -71,8 +74,11 @@ export function TrainingRecordTab() {
         return []
     }, [monitoringData])
 
+    const queryClient = useQueryClient()
     const [tab, setTab] = useState('')
     const [selectedId, setSelectedId] = useState<string | null>(null)
+    const [selectedCell, setSelectedCell] = useState<{ emp: Employee, course: CourseRef } | null>(null)
+    const [editedRecords, setEditedRecords] = useState<Record<string, EditedTrainingData>>({})
     const [enrollingCourse, setEnrollingCourse] = useState<{ emp: Employee, course: CourseRef } | null>(null)
     const [enrollments, setEnrollments] = useState<Record<string, string>>({})
     const [sortField, setSortField] = useState<SortField>('no')
@@ -154,20 +160,7 @@ export function TrainingRecordTab() {
         }
     }
 
-    // Use API stats if available
-    const stats = useMemo(() => {
-        if (monitoringData?.summary) {
-            return {
-                total: monitoringData.summary.totalStaff,
-                expired: monitoringData.summary.totalExpired,
-                warning: monitoringData.summary.totalWarning,
-                valid: monitoringData.summary.totalValid,
-            }
-        }
-        return { expired: 0, warning: 0, valid: 0, total: 0 }
-    }, [monitoringData])
-
-    // Build employee list exclusively from the monitoring API.
+    // Build employee list exclusively from the monitoring API, merged with local edits.
     const filtered = useMemo(() => {
         if (activeTabObj?.staffList?.length) {
             // Map API staff to Employee-like objects for StatusMatrix
@@ -176,17 +169,41 @@ export function TrainingRecordTab() {
                 const courseStatuses: Employee['courseStatuses'] = {}
                 const courseDaysLeft: Employee['courseDaysLeft'] = {}
                 const courseIssueDates: Employee['courseIssueDates'] = {}
+                const staffCourseDataMap: Record<string, TrainingMonitoringStaffCourse> = {}
+
                 staff.courses.forEach(c => {
-                    coursesMap[c.courseId.toString()] = c.expiryDate || c.status || '-'
-                    const normalizedStatus = c.status.trim().toLowerCase()
-                    courseStatuses[c.courseId.toString()] =
-                        normalizedStatus === 'valid' ? 'valid'
-                            : normalizedStatus === 'warning' || normalizedStatus === 'expiring' ? 'warning'
-                                : normalizedStatus === 'expired' ? 'expired'
-                                    : normalizedStatus === 'not assigned' ? 'Not Assigned'
-                                        : 'missing'
-                    courseDaysLeft[c.courseId.toString()] = c.daysLeft
-                    courseIssueDates[c.courseId.toString()] = c.issueDate
+                    const cId = c.courseId.toString()
+                    const override = editedRecords[`${staff.employeeId}-${cId}`]
+                        || (staff.staffId ? editedRecords[`${staff.staffId}-${cId}`] : undefined)
+
+                    if (override) {
+                        coursesMap[cId] = override.validUntil || '-'
+                        const comp = computeStatusAndDaysLeft(override.validUntil)
+                        courseStatuses[cId] = comp.status
+                        courseDaysLeft[cId] = comp.daysLeft
+                        courseIssueDates[cId] = override.dateFrom || null
+                        staffCourseDataMap[cId] = {
+                            courseId: c.courseId,
+                            courseCode: c.courseCode,
+                            courseName: c.courseName,
+                            issueDate: override.dateFrom || null,
+                            expiryDate: override.validUntil || null,
+                            daysLeft: comp.daysLeft,
+                            status: comp.status === 'valid' ? 'Valid' : comp.status === 'warning' ? 'Expiring Soon' : comp.status === 'expired' ? 'Expired' : comp.status,
+                        }
+                    } else {
+                        coursesMap[cId] = c.expiryDate || c.status || '-'
+                        const normalizedStatus = c.status.trim().toLowerCase()
+                        courseStatuses[cId] =
+                            normalizedStatus === 'valid' || normalizedStatus === 'permanent' || normalizedStatus === 'never' ? 'valid'
+                                : normalizedStatus === 'warning' || normalizedStatus === 'expiring' ? 'warning'
+                                    : normalizedStatus === 'expired' ? 'expired'
+                                        : normalizedStatus === 'not assigned' ? 'Not Assigned'
+                                            : 'missing'
+                        courseDaysLeft[cId] = c.daysLeft
+                        courseIssueDates[cId] = c.issueDate
+                        staffCourseDataMap[cId] = c
+                    }
                 })
                 return {
                     staffId: staff.staffId,
@@ -199,6 +216,7 @@ export function TrainingRecordTab() {
                     courseStatuses,
                     courseDaysLeft,
                     courseIssueDates,
+                    staffCourseData: staffCourseDataMap,
                 } as Employee
             }).filter(emp => {
                 if (!search) return true
@@ -206,7 +224,37 @@ export function TrainingRecordTab() {
             })
         }
         return []
-    }, [activeTabObj?.staffList, search])
+    }, [activeTabObj?.staffList, search, editedRecords])
+
+    // Use API stats if available, updated dynamically if edits occurred
+    const stats = useMemo(() => {
+        if (Object.keys(editedRecords).length > 0 && filtered.length > 0) {
+            let expired = 0, warning = 0, valid = 0
+            filtered.forEach(emp => {
+                courses.forEach(c => {
+                    const s = emp.courseStatuses?.[c.id]
+                    if (s === 'expired') expired++
+                    else if (s === 'warning') warning++
+                    else if (s === 'valid') valid++
+                })
+            })
+            return {
+                total: filtered.length,
+                expired,
+                warning,
+                valid,
+            }
+        }
+        if (monitoringData?.summary) {
+            return {
+                total: monitoringData.summary.totalStaff,
+                expired: monitoringData.summary.totalExpired,
+                warning: monitoringData.summary.totalWarning,
+                valid: monitoringData.summary.totalValid,
+            }
+        }
+        return { expired: 0, warning: 0, valid: 0, total: 0 }
+    }, [monitoringData, editedRecords, filtered, courses])
 
     // Sorted employees
     const sorted = useMemo(() => {
@@ -411,6 +459,7 @@ export function TrainingRecordTab() {
                                 sortDir={sortDir}
                                 onSort={handleSort}
                                 SortIcon={SortIcon}
+                                onCellClick={(emp, course) => setSelectedCell({ emp, course })}
                                 onEnroll={(empId, courseId) => {
                                     const emp = sorted.find(e => e.id === empId)
                                     const crs = courses.find(c => c.id === courseId)
@@ -441,6 +490,96 @@ export function TrainingRecordTab() {
                 employee={selEmp}
                 courses={courses}
                 onClose={() => setSelectedId(null)}
+            />
+
+            {/* Training Detail & Edit Modal */}
+            <TrainingDetailModal
+                isOpen={!!selectedCell}
+                onClose={() => setSelectedCell(null)}
+                employee={selectedCell?.emp || null}
+                course={selectedCell?.course || null}
+                initialData={
+                    selectedCell
+                        ? editedRecords[`${selectedCell.emp.id}-${selectedCell.course.id}`]
+                            || (selectedCell.emp.staffId ? editedRecords[`${selectedCell.emp.staffId}-${selectedCell.course.id}`] : undefined)
+                        : undefined
+                }
+                onSave={async (data) => {
+                    if (!selectedCell) return
+                    const { emp, course } = selectedCell
+                    const key = `${emp.id}-${course.id}`
+                    setEditedRecords(prev => ({
+                        ...prev,
+                        [key]: data,
+                        ...(emp.staffId ? { [`${emp.staffId}-${course.id}`]: data } : {})
+                    }))
+
+                    try {
+                        let localExpiryDate: string
+                        if (data.validUntil.toLowerCase() === 'permanent' || data.validUntil.toLowerCase() === 'never') {
+                            localExpiryDate = '9999-12-31T00:00:00'
+                        } else if (/^\d{4}-\d{2}-\d{2}$/.test(data.validUntil)) {
+                            localExpiryDate = `${data.validUntil}T00:00:00`
+                        } else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(data.validUntil)) {
+                            localExpiryDate = data.validUntil.slice(0, 19)
+                        } else {
+                            const parsed = new Date(data.validUntil)
+                            if (!isNaN(parsed.getTime())) {
+                                const yyyy = parsed.getFullYear()
+                                const mm = String(parsed.getMonth() + 1).padStart(2, '0')
+                                const dd = String(parsed.getDate()).padStart(2, '0')
+                                const hh = String(parsed.getHours()).padStart(2, '0')
+                                const min = String(parsed.getMinutes()).padStart(2, '0')
+                                const ss = String(parsed.getSeconds()).padStart(2, '0')
+                                localExpiryDate = `${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}`
+                            } else {
+                                localExpiryDate = '9999-12-31T00:00:00'
+                            }
+                        }
+
+                        const staffCourse = emp.staffCourseData?.[course.id]
+                        const courseAssignmentId = Number((staffCourse as any)?.courseAssignmentId) || 0
+
+                        const res = await upsertTrainingMonitoringExpiry({
+                            staffId: emp.staffId ?? 0,
+                            courseId: Number(course.id) || Number(staffCourse?.courseId) || 0,
+                            courseAssignmentId,
+                            expiryDate: localExpiryDate,
+                        })
+
+                        // Also record training history if staffId exists
+                        if (emp.staffId && (data.dateFrom || data.provider)) {
+                            createTrainingHistory(emp.staffId, {
+                                courseName: course.label,
+                                academyName: data.provider || '-',
+                                dateFrom: data.dateFrom,
+                                dateTo: data.dateTo,
+                            }).catch(() => {})
+                        }
+
+                        // Invalidate cache to sync with backend
+                        queryClient.invalidateQueries({ queryKey: ['training-monitoring'] })
+                        if (emp.staffId) {
+                            queryClient.invalidateQueries({ queryKey: ['qa-staff-training-dashboard', emp.staffId] })
+                        }
+
+                        const successMsg = typeof res.responseData === 'string' && res.responseData.trim()
+                            ? res.responseData
+                            : (res.message || 'Training expiry updated successfully')
+                        toast.success(successMsg)
+                    } catch (err: any) {
+                        console.error('Failed to update training monitoring expiry:', err)
+                        toast.error(err.message || 'Failed to update training expiry')
+                    }
+                }}
+                onEnroll={(empId, courseId) => {
+                    const emp = sorted.find(e => e.id === empId)
+                    const crs = courses.find(c => c.id === courseId)
+                    if (emp && crs) {
+                        setSelectedCell(null)
+                        setEnrollingCourse({ emp, course: crs })
+                    }
+                }}
             />
 
             <CourseEnrollmentModal

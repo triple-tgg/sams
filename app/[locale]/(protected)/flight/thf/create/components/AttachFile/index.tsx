@@ -10,7 +10,7 @@ import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import {
   Upload, X, FileText, Check, Loader2,
-  Trash2, AlertCircle, Eye
+  Trash2, AlertCircle, AlertTriangle, Eye, RotateCcw
 } from 'lucide-react'
 
 import { useStep } from '../step-context'
@@ -93,6 +93,7 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
     isSubmitSuccess,
     isSubmitError,
     submitError,
+    sharePointError,
     resetMutation,
     hasLineMaintenanceId,
   } = useAttachFileSubmission({
@@ -260,6 +261,12 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
   // Derived states
   const pendingCount = files.filter(f => f.status === 'pending').length
   const canAddMore = files.filter(f => !f.isDelete).length < 10
+  const isCompletedPhase = submitPhase === 'success' || submitPhase === 'sharepoint_error'
+
+  const handleReopenUpload = useCallback(() => {
+    resetMutation()
+    setSubmitPhase?.('idle')
+  }, [resetMutation, setSubmitPhase])
 
   return (
     <Form {...form}>
@@ -285,95 +292,97 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
           </div>
         )}
 
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={handleFileInputChange}
+          accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+        />
+
         {/* Upload Zone */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Upload Files</h3>
-              {pendingCount > 0 && (
-                <Button
-                  type="button"
-                  onClick={() => uploadAllFiles()}
-                  disabled={isUploading || isSubmittingMutation || submitPhase === 'saving_files' || submitPhase === 'sharepoint' || submitPhase === 'success'}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+        {!isCompletedPhase && (
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Upload Files</h3>
+                {pendingCount > 0 && (
+                  <Button
+                    type="button"
+                    onClick={() => uploadAllFiles()}
+                    disabled={isUploading || isSubmittingMutation || submitPhase === 'saving_files' || submitPhase === 'sharepoint'}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    {isUploading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload All ({pendingCount})
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+
+              {/* Drag & Drop Zone */}
+              {!hasFiles && canAddMore && (
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`
+                    border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all
+                    ${isDragging
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
+                    }
+                  `}
                 >
-                  {isUploading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="mr-2 h-4 w-4" />
-                      Upload All ({pendingCount})
-                    </>
-                  )}
-                </Button>
-              )}
-            </div>
-
-            {/* Hidden file input */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              className="hidden"
-              onChange={handleFileInputChange}
-              accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.txt"
-            />
-
-            {/* Drag & Drop Zone */}
-            {!hasFiles && canAddMore && (
-              <div
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-                className={`
-                  border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all
-                  ${isDragging
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
-                  }
-                `}
-              >
-                <Upload className={`mx-auto h-10 w-10 mb-3 ${isDragging ? 'text-blue-500' : 'text-gray-400'}`} />
-                <p className="text-sm font-medium text-gray-700">
-                  Drop files here or click to browse
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Images, PDF, Word, Excel (Max 10MB per file, up to 10 files)
-                </p>
-              </div>
-            )}
-
-            {/* File Validation Errors */}
-            {fileErrors.length > 0 && (
-              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-red-800">File validation errors:</p>
-                    <ul className="text-xs text-red-700 list-disc list-inside mt-1">
-                      {fileErrors.map((err, i) => (
-                        <li key={i}>{err}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <button onClick={() => setFileErrors([])} className="text-red-400 hover:text-red-600">
-                    <X className="h-4 w-4" />
-                  </button>
+                  <Upload className={`mx-auto h-10 w-10 mb-3 ${isDragging ? 'text-blue-500' : 'text-gray-400'}`} />
+                  <p className="text-sm font-medium text-gray-700">
+                    Drop files here or click to browse
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Images, PDF, Word, Excel (Max 10MB per file, up to 10 files)
+                  </p>
                 </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              )}
+
+              {/* File Validation Errors */}
+              {fileErrors.length > 0 && (
+                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-red-800">File validation errors:</p>
+                      <ul className="text-xs text-red-700 list-disc list-inside mt-1">
+                        {fileErrors.map((err, i) => (
+                          <li key={i}>{err}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <button onClick={() => setFileErrors([])} className="text-red-400 hover:text-red-600">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* File List Grid */}
         {hasFiles && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Small Dropzone Card (when there are files and can add more) */}
-            {canAddMore && (
+            {canAddMore && !isCompletedPhase && (
               <Card
                 className={`relative overflow-hidden transition-all border-2 border-dashed cursor-pointer flex flex-col items-center justify-center min-h-[140px] shadow-sm hover:shadow-md ${
                   isDragging
@@ -478,23 +487,6 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
           </div>
         )}
 
-        {/* No Files - Empty State */}
-        {!hasFiles && (
-          <div className="border-2 border-dashed border-gray-200 rounded-lg p-12">
-            <div className="flex flex-col items-center justify-center text-center">
-              <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center mb-4">
-                <Upload className="h-6 w-6 text-blue-500" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                No Files Attached
-              </h3>
-              <p className="text-sm text-gray-500 mb-2 max-w-md">
-                Upload supporting documents for this THF (optional)
-              </p>
-            </div>
-          </div>
-        )}
-
         {/* Status Messages */}
         {/* {isSubmitError && submitError && (
           <StatusMessages
@@ -514,47 +506,55 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
         )} */}
 
         {/* Submit Progress UI */}
-        {(submitPhase === 'saving_files' || submitPhase === 'sharepoint' || submitPhase === 'success' || submitPhase === 'error') && (
+        {(submitPhase === 'saving_files' || submitPhase === 'sharepoint' || submitPhase === 'sharepoint_error' || submitPhase === 'success' || submitPhase === 'error') && (
           <Card className={`border ${
-            submitPhase === 'success' ? 'border-green-200 bg-green-50' : 
-            submitPhase === 'error' ? 'border-red-200 bg-red-50' : 
+            submitPhase === 'success' ? 'border-green-200 bg-green-50' :
+            submitPhase === 'sharepoint_error' ? 'border-amber-300 bg-amber-50' :
+            submitPhase === 'error' ? 'border-red-200 bg-red-50' :
             'border-blue-200 bg-blue-50'
           }`}>
             <CardContent className="p-6">
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 {submitPhase === 'success' ? (
                   <>
-                    <div className="h-6 w-6 rounded-full bg-green-500 flex items-center justify-center">
+                    <div className="h-6 w-6 rounded-full bg-green-500 flex items-center justify-center shrink-0">
                       <Check className="h-4 w-4 text-white" />
                     </div>
                     <span className="text-green-700">Submit Completed Successfully</span>
                   </>
+                ) : submitPhase === 'sharepoint_error' ? (
+                  <>
+                    <div className="h-6 w-6 rounded-full bg-amber-500 flex items-center justify-center shrink-0">
+                      <AlertTriangle className="h-4 w-4 text-white" />
+                    </div>
+                    <span className="text-amber-800">Submit Completed — SharePoint Upload Failed</span>
+                  </>
                 ) : submitPhase === 'error' ? (
                   <>
-                    <div className="h-6 w-6 rounded-full bg-red-500 flex items-center justify-center">
+                    <div className="h-6 w-6 rounded-full bg-red-500 flex items-center justify-center shrink-0">
                       <X className="h-4 w-4 text-white" />
                     </div>
                     <span className="text-red-700">Submit Failed</span>
                   </>
                 ) : (
                   <>
-                    <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                    <Loader2 className="h-5 w-5 animate-spin text-blue-600 shrink-0" />
                     <span className="text-blue-900">Processing Submit...</span>
                   </>
                 )}
               </h3>
-              
+
               <div className="space-y-4 ml-2 border-l-2 border-slate-200 pl-4">
                 {/* Step 1 */}
                 <div className="flex items-center gap-3">
                   {submitPhase === 'saving_files' ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-600 shrink-0" />
                   ) : submitPhase === 'error' ? (
-                    <div className="h-4 w-4 rounded-full bg-red-500 flex items-center justify-center">
+                    <div className="h-4 w-4 rounded-full bg-red-500 flex items-center justify-center shrink-0">
                       <X className="h-3 w-3 text-white" />
                     </div>
                   ) : (
-                    <div className="h-4 w-4 rounded-full bg-green-500 flex items-center justify-center">
+                    <div className="h-4 w-4 rounded-full bg-green-500 flex items-center justify-center shrink-0">
                       <Check className="h-3 w-3 text-white" />
                     </div>
                   )}
@@ -562,31 +562,82 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
                     1. Saving Attached Files
                   </span>
                 </div>
-                
+
                 {/* Step 2 */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-start gap-3">
                   {submitPhase === 'saving_files' ? (
-                    <div className="h-4 w-4 rounded-full border-2 border-slate-300" />
+                    <div className="h-4 w-4 rounded-full border-2 border-slate-300 mt-0.5 shrink-0" />
                   ) : submitPhase === 'sharepoint' ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-600 mt-0.5 shrink-0" />
+                  ) : submitPhase === 'sharepoint_error' ? (
+                    <div className="h-4 w-4 rounded-full bg-amber-500 flex items-center justify-center mt-0.5 shrink-0">
+                      <AlertTriangle className="h-3 w-3 text-white" />
+                    </div>
                   ) : submitPhase === 'error' ? (
-                    <div className="h-4 w-4 rounded-full border-2 border-slate-300" />
+                    <div className="h-4 w-4 rounded-full border-2 border-slate-300 mt-0.5 shrink-0" />
                   ) : (
-                    <div className="h-4 w-4 rounded-full bg-green-500 flex items-center justify-center">
+                    <div className="h-4 w-4 rounded-full bg-green-500 flex items-center justify-center mt-0.5 shrink-0">
                       <Check className="h-3 w-3 text-white" />
                     </div>
                   )}
-                  <span className={`text-sm font-medium ${submitPhase === 'saving_files' ? 'text-slate-400' : submitPhase === 'sharepoint' ? 'text-blue-800' : submitPhase === 'error' ? 'text-slate-400' : 'text-slate-700'}`}>
-                    2. Sending to SharePoint
-                  </span>
+                  <div>
+                    <span className={`text-sm font-medium ${
+                      submitPhase === 'saving_files' ? 'text-slate-400' :
+                      submitPhase === 'sharepoint' ? 'text-blue-800' :
+                      submitPhase === 'sharepoint_error' ? 'text-amber-800' :
+                      submitPhase === 'error' ? 'text-slate-400' :
+                      'text-slate-700'
+                    }`}>
+                      2. Sending to SharePoint{submitPhase === 'sharepoint_error' ? ' (Failed)' : ''}
+                    </span>
+                    {submitPhase === 'sharepoint_error' && (
+                      <p className="text-xs text-amber-700 mt-1">
+                        {sharePointError?.message || 'One or more files failed to upload.'}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
 
               {submitPhase === 'success' && (
-                <div className="mt-6 p-3 bg-white rounded-md border border-green-200 text-sm text-green-800 font-medium text-center">
-                  All processes completed. You can now close this window.
+                <div className="mt-6 p-3 bg-white rounded-md border border-green-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <span className="text-sm text-green-800 font-medium text-center sm:text-left">
+                    All processes completed. You can now close this window.
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleReopenUpload}
+                    className="shrink-0 border-green-300 text-green-800 hover:bg-green-100"
+                  >
+                    <Upload className="h-4 w-4 mr-1.5" />
+                    Upload Files Again
+                  </Button>
                 </div>
               )}
+
+              {submitPhase === 'sharepoint_error' && (
+                <div className="mt-6 p-3 bg-white rounded-md border border-amber-300 flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-sm text-amber-800 font-medium text-center sm:text-left">
+                    <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                    <span>
+                      Attached files were saved, but SharePoint upload failed. You can re-open upload to try again.
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleReopenUpload}
+                    className="shrink-0 border-amber-400 bg-amber-50 text-amber-900 hover:bg-amber-100"
+                  >
+                    <RotateCcw className="h-4 w-4 mr-1.5" />
+                    Re-open Upload Files
+                  </Button>
+                </div>
+              )}
+
               {submitPhase === 'error' && (
                 <div className="mt-6 p-3 bg-white rounded-md border border-red-200 text-sm text-red-800 font-medium text-center">
                   An error occurred during submission. You can edit the form and try submitting again using the buttons below.

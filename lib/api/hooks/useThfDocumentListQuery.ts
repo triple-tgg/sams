@@ -10,9 +10,13 @@ import getListDoneOrMapped, {
  * THF DOCUMENT list (Invoice) — POST /lineMaintenances/list-done-or-mapped
  * คืนเฉพาะ THF ที่ done หรือถูก mapping contract แล้ว
  */
-export function useThfDocumentListQuery(params: ListDoneOrMappedRequest, enabled = true) {
+export function useThfDocumentListQuery(
+  params: ListDoneOrMappedRequest,
+  enabled = true,
+  searchTrigger = 0
+) {
   return useQuery({
-    queryKey: ['thfDocumentList', params],
+    queryKey: ['thfDocumentList', params, searchTrigger],
     queryFn: () => getListDoneOrMapped(params),
     enabled: enabled && Boolean(params.startDate && params.endDate),
     placeholderData: keepPreviousData,

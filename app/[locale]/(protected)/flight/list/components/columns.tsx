@@ -11,6 +11,54 @@ import { formatUtcToLocalDisplay } from "@/lib/utils/flightDatetime";
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard";
 import type { ThfRevisionRecord } from "@/lib/store/useThfRevisionStore";
 
+const getDatasourceColor = (datasource?: string | null) => {
+  const ds = datasource?.trim().toLowerCase();
+  if (ds === "adhoc") return "text-primary";
+  if (ds === "recurring") return "text-purple-800 dark:text-purple-300";
+  return "";
+};
+
+const getThfTagStyle = (flight: FlightItem, revRecord?: ThfRevisionRecord) => {
+  const isRevisionRequired = flight.state === "revision_required" || revRecord?.state === "revision_required";
+  const isPendingUnlock = flight.state === "pending_unlock" || revRecord?.state === "pending_unlock";
+  const isLockedFromEdit = flight.isMapping === true && !isRevisionRequired && !isPendingUnlock;
+  const isDone = flight.state === "save" || flight.state === "submitted";
+
+  if (isRevisionRequired) {
+    return {
+      label: "Revision Required",
+      className: "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300",
+      dot: "bg-amber-500",
+    };
+  }
+  if (isPendingUnlock) {
+    return {
+      label: "Pending Approval",
+      className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-950/60 dark:text-yellow-300",
+      dot: "bg-yellow-500",
+    };
+  }
+  if (isLockedFromEdit) {
+    return {
+      label: "Locked (Pre-Invoice)",
+      className: "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300",
+      dot: "bg-blue-500",
+    };
+  }
+  if (isDone) {
+    return {
+      label: "Done",
+      className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300",
+      dot: "bg-emerald-500",
+    };
+  }
+  return {
+    label: "Draft",
+    className: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+    dot: "bg-slate-400",
+  };
+};
+
 export function getFlightColumns({
   onCreateTHF,
   onEditFlight,
@@ -25,6 +73,8 @@ export function getFlightColumns({
   onPreInvoice,
   isPreInvoiceLoading = false,
   acTypeField = "code",
+  airlineHeader = "airline Code",
+  showAirlineFullName = false,
   onRequestRevision,
   onRequestUnlock,
   onReviewUnlock,
@@ -47,6 +97,10 @@ export function getFlightColumns({
   isPreInvoiceLoading?: boolean;
   /** Which field of acTypeObj the "A/C Type" column shows */
   acTypeField?: "code" | "familyCode";
+  /** Header label for the Airline column */
+  airlineHeader?: string;
+  /** When true, displays Airline full name + code e.g. "Name (CODE)" */
+  showAirlineFullName?: boolean;
   onRequestRevision?: (flight: FlightItem) => void;
   onRequestUnlock?: (flight: FlightItem) => void;
   onReviewUnlock?: (flight: FlightItem) => void;
@@ -61,6 +115,7 @@ export function getFlightColumns({
         checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
         onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
         aria-label="Select all flights on this page"
+        className="border-white/80 bg-white/10 data-[state=checked]:bg-white data-[state=checked]:border-white data-[state=checked]:text-primary [&_svg]:stroke-primary"
       />
     ),
     cell: ({ row }) => (
@@ -80,13 +135,39 @@ export function getFlightColumns({
     //   cell: ({ row }) => <div className="bg-primary/10 border-l-4 border-l-red-600 px-6 h-20"></div>
     {
       accessorKey: "arrivalFlightNo", header: "Flight No",
-      cell: ({ row }) => <div className={clsx("font-medium text-sm whitespace-nowrap", row.original.datasource === "adhoc" ? "text-orange-400" : "")}>{row.getValue("arrivalFlightNo")}</div>
+      cell: ({ row }) => {
+        const flight = row.original;
+        const thfNo = (flight.thfNumber || (flight as any).thfNo)?.trim();
+        const displayThf = thfNo ? (thfNo.toLowerCase().startsWith("thf") ? thfNo : `THF: ${thfNo}`) : "";
+        const revRecord = getRevisionRecord?.(flight);
+        const tagStyle = thfNo ? getThfTagStyle(flight, revRecord) : null;
+
+        return (
+          <div className="flex flex-col items-start gap-0.5">
+            <span className={clsx("font-medium text-sm whitespace-nowrap", getDatasourceColor(flight.datasource))}>
+              {row.getValue("arrivalFlightNo")}
+            </span>
+            {thfNo && tagStyle && (
+              <span
+                title={`THF No: ${thfNo} (${tagStyle.label})`}
+                className={clsx(
+                  "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium leading-none whitespace-nowrap",
+                  tagStyle.className
+                )}
+              >
+                <span className={clsx("w-1.5 h-1.5 rounded-full shrink-0", tagStyle.dot)} />
+                <span>{displayThf}</span>
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       id: "station",
       header: "STATION",
       accessorFn: (row) => row?.stationObj?.code ?? "",
-      cell: ({ row, getValue }) => <span className={clsx("whitespace-nowrap", row.original.datasource === "adhoc" ? "text-orange-400" : "")}>{getValue() as string || "-"}</span>,
+      cell: ({ row, getValue }) => <span className={clsx("whitespace-nowrap", getDatasourceColor(row.original.datasource))}>{getValue() as string || "-"}</span>,
       filterFn: (row, _id, filterValue?: string[]) => {
         if (!filterValue?.length) return true;
         const cell = row.getValue("station") as string;
@@ -94,39 +175,47 @@ export function getFlightColumns({
       },
     },
     {
-      accessorKey: "airlineObj", header: "airline Code",
-      accessorFn: (row) => `${row?.airlineObj?.code ?? ""}`,
-      cell: ({ row }) => <span className={clsx("whitespace-nowrap", row.original.datasource === "adhoc" ? "text-orange-400" : "")}>{row.getValue("airlineObj") || "-"}</span>,
+      accessorKey: "airlineObj", header: airlineHeader,
+      accessorFn: (row) => {
+        const code = row?.airlineObj?.code?.trim() ?? "";
+        const name = row?.airlineObj?.name?.trim() ?? "";
+        if (showAirlineFullName) {
+          if (name && code && name !== code) return `${name} (${code})`;
+          return name || code;
+        }
+        return code;
+      },
+      cell: ({ row }) => <span className={clsx("whitespace-nowrap", getDatasourceColor(row.original.datasource))}>{row.getValue("airlineObj") || "-"}</span>,
     },
     {
       accessorKey: "acReg", header: "A/C Reg",
-      cell: ({ row }) => <span className={clsx("whitespace-nowrap", row.original.datasource === "adhoc" ? "text-orange-400" : "")}>{row.getValue("acReg") || "-"}</span>
+      cell: ({ row }) => <span className={clsx("whitespace-nowrap", getDatasourceColor(row.original.datasource))}>{row.getValue("acReg") || "-"}</span>
     },
     {
       accessorKey: "acType", header: "A/C Type",
       accessorFn: (row) =>
         `${(acTypeField === "familyCode" ? row?.acTypeObj?.familyCode : row?.acTypeObj?.code) ?? ""}`,
-      cell: ({ row }) => <span className={clsx("whitespace-nowrap", row.original.datasource === "adhoc" ? "text-orange-400" : "")}>{row.getValue("acType") || "-"}</span>,
+      cell: ({ row }) => <span className={clsx("whitespace-nowrap", getDatasourceColor(row.original.datasource))}>{row.getValue("acType") || "-"}</span>,
     },
     {
       id: "sta", header: "STA(Local)",
       accessorFn: (row) => formatUtcToLocalDisplay(row?.arrivalStaDate),
-      cell: ({ row }) => <span className={clsx("whitespace-nowrap", row.original.datasource === "adhoc" ? "text-orange-400" : "")}>{(row.getValue("sta") as string) || "-"}</span>
+      cell: ({ row }) => <span className={clsx("whitespace-nowrap", getDatasourceColor(row.original.datasource))}>{(row.getValue("sta") as string) || "-"}</span>
     },
     {
       id: "std", header: "STD(Local)",
       accessorFn: (row) => formatUtcToLocalDisplay(row?.departureStdDate),
-      cell: ({ row }) => <span className={clsx("whitespace-nowrap", row.original.datasource === "adhoc" ? "text-orange-400" : "")}>{(row.getValue("std") as string) || "-"}</span>
+      cell: ({ row }) => <span className={clsx("whitespace-nowrap", getDatasourceColor(row.original.datasource))}>{(row.getValue("std") as string) || "-"}</span>
     },
     {
       id: "ata", header: "ATA(Local)",
       accessorFn: (row) => formatUtcToLocalDisplay(row?.arrivalAtaDate),
-      cell: ({ row }) => <span className={clsx("whitespace-nowrap", row.original.datasource === "adhoc" ? "text-orange-400" : "")}>{(row.getValue("ata") as string) || "-"}</span>
+      cell: ({ row }) => <span className={clsx("whitespace-nowrap", getDatasourceColor(row.original.datasource))}>{(row.getValue("ata") as string) || "-"}</span>
     },
     {
       id: "atd", header: "ATD(Local)",
       accessorFn: (row) => formatUtcToLocalDisplay(row?.departureAtdDate),
-      cell: ({ row }) => <span className={clsx("whitespace-nowrap", row.original.datasource === "adhoc" ? "text-orange-400" : "")}>{row.getValue("atd") as string || "-"}</span>
+      cell: ({ row }) => <span className={clsx("whitespace-nowrap", getDatasourceColor(row.original.datasource))}>{row.getValue("atd") as string || "-"}</span>
     },
     {
       id: "actions",
@@ -225,11 +314,26 @@ export function getFlightColumns({
                       variant="ghost"
                       size="icon"
                       color="secondary"
-                      className="h-8 w-8 text-muted-foreground cursor-default"
+                      className={clsx(
+                        "h-8 w-8 cursor-default",
+                        !isLockedFromEdit && (flight.state === "save" || flight.state === "submitted")
+                          ? "text-emerald-600 dark:text-emerald-500 hover:text-emerald-600 disabled:opacity-100"
+                          : "text-muted-foreground"
+                      )}
                       tabIndex={-1}
                       disabled
                     >
-                      {isLockedFromEdit ? <Lock className="h-4 w-4" /> : <FileCheck className="h-4 w-4" />}
+                      {isLockedFromEdit ? (
+                        <Lock className="h-4 w-4" />
+                      ) : (
+                        <FileCheck
+                          className={clsx(
+                            "h-4 w-4",
+                            (flight.state === "save" || flight.state === "submitted") &&
+                            "text-emerald-600 dark:text-emerald-500"
+                          )}
+                        />
+                      )}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>

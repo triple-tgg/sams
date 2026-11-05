@@ -9,11 +9,12 @@ export const exportPreInvoiceToExcel = (
     invoices: PreInvoiceItem[],
     airlineCode: string,
     dateStart: string,
-    dateEnd: string
+    dateEnd: string,
+    currencyType?: string
 ) => {
     if (invoices.length === 0) return;
 
-    const currency = getInvoiceCurrency(invoices);
+    const currency = getInvoiceCurrency(invoices, currencyType);
     const totalHeader = currency ? `Total (${currency})` : "Total";
 
     // Build rows
@@ -22,6 +23,16 @@ export const exportPreInvoiceToExcel = (
         "Airline": inv.airlineObj?.code || "",
         "Station": inv.stationCode,
         "Currency": inv.currencyType || "",
+        "Retention Fee":
+            inv.retentionFeeObj && inv.retentionFeeObj.length > 0
+                ? inv.retentionFeeObj
+                      .map((rf) =>
+                          rf.contractNo
+                              ? `${rf.contractNo}: ${rf.retentionFee ?? 0}`
+                              : `${rf.retentionFee ?? 0}`
+                      )
+                      .join(", ")
+                : "",
         "Flight No.": inv.flightNo,
         "Aircraft": inv.aircraftCode,
         "A/C Reg.": inv.acReg || "",

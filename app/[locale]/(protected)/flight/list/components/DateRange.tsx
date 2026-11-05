@@ -68,11 +68,11 @@ const DateRangeFilter = ({
   };
 
   return (
-    <div className={cn("grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 w-full", className)}>
+    <div className={cn("grid gap-2 sm:gap-3 grid-cols-2 w-full", className)}>
       {/* From Date Input */}
-      <div className="flex items-center space-x-2">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
         {labels.from && (
-          <Label htmlFor="from-date" className="text-xs sm:text-sm font-medium mb-0 flex-none w-10 sm:w-auto">
+          <Label htmlFor="from-date" className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0 flex-none sm:w-auto">
             {labels.from}
             {required && <span className="text-red-500 ml-1">*</span>}
           </Label>
@@ -89,9 +89,9 @@ const DateRangeFilter = ({
       </div>
 
       {/* To Date Input */}
-      <div className="flex items-center space-x-2">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
         {labels.to && (
-          <Label htmlFor="to-date" className="text-xs sm:text-sm font-medium mb-0 flex-none w-10 sm:w-auto">
+          <Label htmlFor="to-date" className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0 flex-none sm:w-auto">
             {labels.to}
             {required && <span className="text-red-500 ml-1">*</span>}
           </Label>

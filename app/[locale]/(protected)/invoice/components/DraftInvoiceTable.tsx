@@ -13,20 +13,27 @@ import { getInvoiceCurrency, type DraftInvoiceItem } from "@/lib/api/contract/in
 interface DraftInvoiceTableProps {
     invoices: DraftInvoiceItem[];
     isLoading?: boolean;
+    currencyType?: string;
 }
 
 const formatCurrency = (value: number) => {
     return value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+const formatRetentionValue = (value: number | null) => {
+    if (!value) return "-";
+    return value.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+};
+
 export const DraftInvoiceTable = ({
     invoices,
     isLoading = false,
+    currencyType,
 }: DraftInvoiceTableProps) => {
     // Calculate totals
     const totalQuantity = invoices.reduce((sum, inv) => sum + inv.quantity, 0);
     const totalAmount = invoices.reduce((sum, inv) => sum + inv.amount, 0);
-    const currency = getInvoiceCurrency(invoices);
+    const currency = getInvoiceCurrency(invoices, currencyType);
     const withCurrency = (label: string) => (currency ? `${label} (${currency})` : label);
 
     if (isLoading) {
@@ -46,6 +53,7 @@ export const DraftInvoiceTable = ({
                 <TableRow className="bg-muted/50">
                     <TableHead className="w-[80px]">ITEM</TableHead>
                     <TableHead className="min-w-[300px]">DESCRIPTION</TableHead>
+                    <TableHead className="w-[160px]">RETENTION FEE</TableHead>
                     <TableHead className="w-[120px] text-right">QUANTITY</TableHead>
                     <TableHead className="w-[150px] text-right">{withCurrency("UNIT PRICE")}</TableHead>
                     <TableHead className="w-[150px] text-right">{withCurrency("AMOUNT")}</TableHead>
@@ -54,7 +62,7 @@ export const DraftInvoiceTable = ({
             <TableBody>
                 {invoices.length === 0 ? (
                     <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                             No draft invoice records found
                         </TableCell>
                     </TableRow>
@@ -64,6 +72,26 @@ export const DraftInvoiceTable = ({
                             <TableRow key={idx}>
                                 <TableCell className="font-medium">{invoice.item}</TableCell>
                                 <TableCell className="whitespace-pre-line py-2" dangerouslySetInnerHTML={{ __html: invoice.descrition }} />
+                                <TableCell>
+                                    {invoice.retentionFeeObj && invoice.retentionFeeObj.length > 0 ? (
+                                        <div className="flex flex-col gap-0.5">
+                                            {invoice.retentionFeeObj.map((rf, rfIdx) => (
+                                                <div key={rfIdx} className="text-xs">
+                                                    {rf.contractNo ? (
+                                                        <>
+                                                            <span className="text-muted-foreground">{rf.contractNo}: </span>
+                                                            <span className="font-medium">{formatRetentionValue(rf.retentionFee)}</span>
+                                                        </>
+                                                    ) : (
+                                                        <span className="font-medium">{formatRetentionValue(rf.retentionFee)}</span>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        "-"
+                                    )}
+                                </TableCell>
                                 <TableCell className="text-right">{formatCurrency(invoice.quantity)}</TableCell>
                                 <TableCell className="text-right">{formatCurrency(invoice.unitPrice)}</TableCell>
                                 <TableCell className="text-right font-medium">{formatCurrency(invoice.amount)}</TableCell>
@@ -72,6 +100,7 @@ export const DraftInvoiceTable = ({
                         {/* Total Row */}
                         <TableRow className="bg-muted/30 border-t-2">
                             <TableCell className="font-bold">TOTAL</TableCell>
+                            <TableCell></TableCell>
                             <TableCell></TableCell>
                             <TableCell className="text-right font-bold">{formatCurrency(totalQuantity)}</TableCell>
                             <TableCell></TableCell>

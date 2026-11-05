@@ -15,6 +15,7 @@ import { getInvoiceCurrency, type PreInvoiceItem } from "@/lib/api/contract/invo
 interface PreInvoiceTableProps {
     invoices: PreInvoiceItem[];
     isLoading?: boolean;
+    currencyType?: string;
 }
 
 const formatDate = (dateString: string) => {
@@ -34,10 +35,11 @@ const formatValue = (value: number | null) => {
 export const PreInvoiceTable = ({
     invoices,
     isLoading = false,
+    currencyType,
 }: PreInvoiceTableProps) => {
     // Calculate grand total
     const grandTotal = invoices.reduce((sum, inv) => sum + inv.totalServicePrice, 0);
-    const currency = getInvoiceCurrency(invoices);
+    const currency = getInvoiceCurrency(invoices, currencyType);
 
     if (isLoading) {
         return (
@@ -60,6 +62,7 @@ export const PreInvoiceTable = ({
                         <TableHead className="min-w-[80px]">Airline</TableHead>
                         <TableHead className="min-w-[80px]">Station</TableHead>
                         <TableHead className="min-w-[80px]">Currency</TableHead>
+                        <TableHead className="min-w-[140px]">Retention Fee</TableHead>
                         <TableHead className="min-w-[130px]">Flight No.</TableHead>
                         <TableHead className="min-w-[100px]">Aircraft</TableHead>
                         <TableHead className="min-w-[90px]">A/C Reg.</TableHead>
@@ -107,7 +110,7 @@ export const PreInvoiceTable = ({
                 <TableBody>
                     {invoices.length === 0 ? (
                         <TableRow>
-                            <TableCell colSpan={38} className="text-center py-8 text-muted-foreground">
+                            <TableCell colSpan={39} className="text-center py-8 text-muted-foreground">
                                 No pre-invoice records found
                             </TableCell>
                         </TableRow>
@@ -130,6 +133,26 @@ export const PreInvoiceTable = ({
                                     </TableCell>
                                     <TableCell>{inv.stationCode}</TableCell>
                                     <TableCell>{inv.currencyType || "-"}</TableCell>
+                                    <TableCell>
+                                        {inv.retentionFeeObj && inv.retentionFeeObj.length > 0 ? (
+                                            <div className="flex flex-col gap-0.5">
+                                                {inv.retentionFeeObj.map((rf, rfIdx) => (
+                                                    <div key={rfIdx} className="text-xs">
+                                                        {rf.contractNo ? (
+                                                            <>
+                                                                <span className="text-muted-foreground">{rf.contractNo}: </span>
+                                                                <span className="font-medium">{formatValue(rf.retentionFee)}</span>
+                                                            </>
+                                                        ) : (
+                                                            <span className="font-medium">{formatValue(rf.retentionFee)}</span>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            "-"
+                                        )}
+                                    </TableCell>
                                     <TableCell className="font-medium">{inv.flightNo}</TableCell>
                                     <TableCell>{inv.aircraftCode}</TableCell>
                                     <TableCell>{inv.acReg || "-"}</TableCell>
@@ -187,7 +210,7 @@ export const PreInvoiceTable = ({
                             {/* Grand Total Row */}
                             {invoices.length > 0 && (
                                 <TableRow className="bg-muted/30 border-t-2">
-                                    <TableCell colSpan={36} className="font-bold text-right">
+                                    <TableCell colSpan={37} className="font-bold text-right">
                                         GRAND TOTAL
                                     </TableCell>
                                     <TableCell className="font-bold text-primary">

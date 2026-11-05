@@ -19,8 +19,10 @@ import { groupCombinationDisplayLabels } from '@/lib/utils/aircraftEngineDisplay
 import { useRosterStaff } from '@/lib/roster/useRosterData';
 import {
     getAmelCertifyingStaff,
+    getAmelMechStaff,
     getAircraftLicenceStaff,
     useCertifyingStaffSummary,
+    useMechStaffSummary,
     type AmelStaffRow,
     type AmelGroupColumn,
     type AmelCertifyingStaffData,
@@ -413,13 +415,10 @@ export default function CertifyingStaffView({ variant = 'certifying' }: Certifyi
         setAmelPage(1);
     };
 
-    // Mech Staff page → only staff whose staff type is MECH
-    const amelStaffType = isMech ? 'MECH' : undefined;
-
     const amelQuery = useQuery({
         queryKey: [
             'roster',
-            'certifying-staff',
+            isMech ? 'mech-staff' : 'certifying-staff',
             'amel',
             {
                 search: debouncedAmelSearch,
@@ -427,18 +426,19 @@ export default function CertifyingStaffView({ variant = 'certifying' }: Certifyi
                 aircraftType: amelAircraftType,
                 page: amelPage,
                 pageSize: amelPageSize,
-                staffType: amelStaffType,
             },
         ],
         queryFn: async () => {
-            const res = await getAmelCertifyingStaff({
+            const payload = {
                 search: debouncedAmelSearch,
                 station: amelStation === UNASSIGNED ? '' : amelStation,
                 aircraftType: amelAircraftType,
                 page: amelPage,
                 pageSize: amelPageSize,
-                ...(amelStaffType ? { staffType: amelStaffType } : {}),
-            });
+            };
+            const res = isMech
+                ? await getAmelMechStaff(payload)
+                : await getAmelCertifyingStaff(payload);
             return res.responseData;
         },
         staleTime: 60 * 1000,
@@ -717,8 +717,12 @@ export default function CertifyingStaffView({ variant = 'certifying' }: Certifyi
         setLicencePage(1);
     };
 
-    // Overall KPI counts from API: GET /roster/certifying-staff-summary
-    const { data: summaryData } = useCertifyingStaffSummary();
+    // Overall KPI counts from API:
+    // - Certifying Staff: GET /roster/certifying-staff-summary
+    // - Mech Staff: GET /roster/mech-staff-summary
+    const { data: csSummaryData } = useCertifyingStaffSummary({ enabled: !isMech });
+    const { data: mechSummaryData } = useMechStaffSummary({ enabled: isMech });
+    const summaryData = isMech ? mechSummaryData : csSummaryData;
 
     return (
         <div className="space-y-4">
@@ -733,8 +737,10 @@ export default function CertifyingStaffView({ variant = 'certifying' }: Certifyi
                             : 'Aircraft licences and customer authorizations per person'
                     }
                 />
-                <div className="grid grid-cols-2 gap-3 px-5 py-4 md:grid-cols-4">
-                    <StatTile label="Valid CS" value={summaryData?.validCs ?? 0} unit="people" />
+                <div className={cn('grid grid-cols-2 gap-3 px-5 py-4', isMech ? 'md:grid-cols-3' : 'md:grid-cols-4')}>
+                    {!isMech && (
+                        <StatTile label="Valid CS" value={csSummaryData?.validCs ?? 0} unit="people" />
+                    )}
                     <StatTile label="Licence holders" value={summaryData?.licenceHolders ?? 0} unit="people" />
                     <StatTile
                         label="Rotate / Transfer"
@@ -1013,7 +1019,7 @@ export default function CertifyingStaffView({ variant = 'certifying' }: Certifyi
                                                         style={{ left: AMEL_LEFT_POS, minWidth: AMEL_COL_POS, width: AMEL_COL_POS, maxWidth: AMEL_COL_POS }}
                                                     >
                                                         {(() => {
-                                                            const type = s.staffType || amelStaffType;
+                                                            const type = s.staffTypeCode || s.staffType || (isMech ? 'MECH' : undefined);
                                                             const label = [type, s.position].filter(Boolean).join(' / ');
                                                             return (
                                                                 <span className="block truncate" title={label || undefined}>

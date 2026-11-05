@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   getMonitoringCrsDetail,
-  getMonitoringCrsList,
+  getMonitoringCrsListV2,
   getMonitoringCrsSummary,
   type MonitoringCrsListRequest,
 } from "./monitoring-crs";
@@ -19,7 +19,7 @@ export const monitoringCrsKeys = {
 export function useMonitoringCrsList(params: MonitoringCrsListRequest) {
   return useQuery({
     queryKey: monitoringCrsKeys.list(params),
-    queryFn: () => getMonitoringCrsList(params),
+    queryFn: () => getMonitoringCrsListV2(params),
     staleTime: 5_000,
   });
 }

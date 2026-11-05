@@ -31,6 +31,7 @@ export interface UseAttachFileSubmissionReturn {
   isSubmitSuccess: boolean
   isSubmitError: boolean
   submitError: Error | null
+  sharePointError: Error | null
   resetMutation: () => void
   hasLineMaintenanceId: boolean
 }
@@ -80,6 +81,8 @@ export const useAttachFileSubmission = ({
   const {
     sendToSharePoint,
     isSharePointLoading,
+    sharePointError,
+    resetSharePoint,
   } = useSharePointSend({
     lineMaintenancesId: lineMaintenanceId || 0,
     onSuccess: async (data) => {
@@ -115,7 +118,10 @@ export const useAttachFileSubmission = ({
       closeModal?.()
     } catch (error) {
       console.error('❌ Draft save failed:', error)
-      toast.error(`Draft save failed: ${error}`)
+      toast.error(`Draft save failed: ${error}`, {
+        duration: Infinity,
+        closeButton: true,
+      })
     }
   }, [callAttachFileOther, closeModal])
 
@@ -134,8 +140,10 @@ export const useAttachFileSubmission = ({
         console.warn('⚠️ SharePoint send failed (non-blocking):', spError)
         toast.warning('Submit completed but SharePoint upload failed', {
           description: spError instanceof Error ? spError.message : 'Please try again later',
+          duration: Infinity,
+          closeButton: true,
         })
-        setSubmitPhase?.('success')
+        setSubmitPhase?.('sharepoint_error')
         return
       }
 
@@ -146,7 +154,7 @@ export const useAttachFileSubmission = ({
           thfRevisionService.submitRevision({
             lineMaintenanceId,
           });
-          toast.info('ส่งการแก้ไขไปยังแผนกบัญชีเรียบร้อยแล้ว สถานะเปลี่ยนเป็น REVISED พร้อมสำหรับออก Pre-Invoice');
+          toast.info('Revision submitted to Accounting. Status updated to REVISED, ready for Pre-Invoice.');
         }
       }
 
@@ -154,7 +162,10 @@ export const useAttachFileSubmission = ({
       setSubmitPhase?.('success')
     } catch (error) {
       console.error('❌ Submit failed:', error)
-      toast.error(`Submit failed: ${error instanceof Error ? error.message : error}`)
+      toast.error(`Submit failed: ${error instanceof Error ? error.message : error}`, {
+        duration: Infinity,
+        closeButton: true,
+      })
       setSubmitPhase?.('error')
     }
   }, [callAttachFileOther, sendToSharePoint, getUserName, setSubmitPhase, lineMaintenanceId])
@@ -165,6 +176,11 @@ export const useAttachFileSubmission = ({
     onBackStep()
   }, [onBackStep])
 
+  const handleResetAll = useCallback(() => {
+    resetMutation()
+    resetSharePoint()
+  }, [resetMutation, resetSharePoint])
+
   return {
     handleSubmit,
     handleDraft,
@@ -174,7 +190,8 @@ export const useAttachFileSubmission = ({
     isSubmitSuccess,
     isSubmitError,
     submitError,
-    resetMutation,
+    sharePointError: sharePointError ?? null,
+    resetMutation: handleResetAll,
     hasLineMaintenanceId
   }
 }

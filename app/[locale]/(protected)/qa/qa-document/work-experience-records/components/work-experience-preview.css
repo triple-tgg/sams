@@ -74,7 +74,7 @@
     background: #fff;
     width: 210mm; /* A4 width */
     min-height: 297mm; /* A4 height */
-    padding: 15mm 15mm;
+    padding: 15mm 15mm 8mm;
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     position: relative;
     color: #000;
@@ -89,11 +89,12 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
 }
 
 .wep-logo {
-    height: 45px;
+    height: 75px;
+    width: auto;
     object-fit: contain;
 }
 
@@ -130,6 +131,23 @@
     page-break-inside: avoid;
 }
 
+/* Fixed column widths so rows measure the same on every page they're split across */
+.wep-table-fixed {
+    table-layout: fixed;
+}
+.wep-table-fixed td {
+    overflow-wrap: anywhere;
+}
+
+/* Off-screen copy used only to measure heights for A4 pagination */
+.wep-measure {
+    position: fixed;
+    top: 0;
+    left: -10000px;
+    visibility: hidden;
+    pointer-events: none;
+}
+
 .wep-table th, .wep-table td {
     border: 1px solid #000;
     padding: 6px 6px;
@@ -137,12 +155,19 @@
 }
 
 /* Light blue headers based on common form templates */
-.wep-table-header, .wep-table thead th {
+/* Column headers: white background */
+.wep-table thead th {
+    background-color: #fff;
+    font-weight: bold;
+    text-align: center;
+}
+/* Section title rows keep their colour */
+.wep-table .wep-table-header {
     background-color: #d8e4f8; /* Light blue */
     font-weight: bold;
     text-align: center;
 }
-.wep-table thead th.wep-table-header-green {
+.wep-table .wep-table-header-green {
     background-color: #c5e0b4; /* Light green */
     font-weight: bold;
     text-align: center;
@@ -153,12 +178,29 @@
     width: 130px;
 }
 
+/* Shrink a cell to its content; the remaining width goes to the other columns */
+.wep-table td.wep-fit {
+    width: 1%;
+    white-space: nowrap;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
 .wep-footer {
     margin-top: auto;
     font-size: 10px;
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
     color: #000;
+}
+.wep-footer-code {
+    grid-column: 2;
+    text-align: center;
+}
+.wep-footer-page {
+    grid-column: 3;
+    justify-self: end;
 }
 
 .wep-signature-section {
@@ -205,7 +247,8 @@
     .wep-pages-container * {
         visibility: visible;
     }
-    .wep-toolbar {
+    .wep-toolbar,
+    .wep-measure {
         display: none !important;
     }
     .wep-page {
@@ -214,7 +257,7 @@
         min-height: 100vh;
         height: 100vh;
         margin: 0;
-        padding: 15mm;
+        padding: 15mm 15mm 8mm;
         page-break-after: always;
         overflow: hidden;
     }

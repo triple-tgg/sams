@@ -120,6 +120,7 @@ export interface TrainingMonitoringStaffCourse {
   courseId: number;
   courseCode: string;
   courseName: string;
+  courseAssignmentId?: number;
   issueDate: string | null;
   expiryDate: string | null;
   daysLeft: number | null;
@@ -167,5 +168,48 @@ export const getTrainingMonitoring = async (data: TrainingMonitoringRequest): Pr
   } catch (error: any) {
     console.error("Error fetching training monitoring:", error);
     throw new Error(error?.response?.data?.error || error?.response?.data?.message || "Failed to fetch training monitoring");
+  }
+};
+
+export interface UpsertTrainingMonitoringExpiryRequest {
+  staffId: number;
+  courseId: number;
+  courseAssignmentId: number;
+  expiryDate: string;
+}
+
+export interface UpsertTrainingMonitoringExpiryResponse {
+  message: string;
+  responseData: string | { courseAssignmentId?: number } | any;
+  error: string;
+}
+
+export const upsertTrainingMonitoringExpiry = async (
+  data: UpsertTrainingMonitoringExpiryRequest
+): Promise<UpsertTrainingMonitoringExpiryResponse> => {
+  try {
+    // Ensure expiryDate is a local date without a timezone (no 'Z' or offset)
+    let cleanedExpiry = data.expiryDate || "";
+    if (cleanedExpiry.toLowerCase() === "permanent" || cleanedExpiry.toLowerCase() === "never") {
+      cleanedExpiry = "9999-12-31T00:00:00";
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(cleanedExpiry)) {
+      cleanedExpiry = `${cleanedExpiry}T00:00:00`;
+    } else {
+      // Strip any trailing 'Z' or offset like '+07:00' / '-05:00'
+      cleanedExpiry = cleanedExpiry.replace(/Z$/, "").replace(/[+-]\d{2}:\d{2}$/, "");
+    }
+
+    const res = await axiosConfig.post("/training/training-monitoring/expiry/upsert", {
+      ...data,
+      expiryDate: cleanedExpiry,
+    });
+    return res.data as UpsertTrainingMonitoringExpiryResponse;
+  } catch (error: any) {
+    console.error("Error upserting training monitoring expiry:", error);
+    throw new Error(
+      error?.response?.data?.error ||
+      error?.response?.data?.message ||
+      "Failed to update training expiry"
+    );
   }
 };

@@ -1,6 +1,19 @@
 import axios from "@/lib/axios.config";
 import type { AxiosError } from "axios";
 
+export interface FlightServiceListItem {
+  code: string;
+  subTypes: string[];
+}
+
+export interface FlightAircraftTowingItemPayload {
+  id?: string | null;
+  bayForm: string;
+  bayTo: string;
+  aircraftOnDate: string;
+  aircraftOffDate: string;
+}
+
 // Flight Update Data Interface (matches /flight/update-v2 body)
 export interface UpdateFlightData {
   id: number;
@@ -8,28 +21,39 @@ export interface UpdateFlightData {
   stationsCode: string;
   acReg: string;
   acTypeCode: string;
-  aircraftEngineCode?: string;
-  familyCode?: string;
   series?: string;
   engineCode?: string;
   arrivalFlightNo: string;
   arrivalStaDate: string;      // UTC datetime "YYYY-MM-DD HH:mm"
   arrivalAtaDate: string;      // UTC datetime "YYYY-MM-DD HH:mm"
   departureFlightNo: string;
-  departureStdDate: string;    // UTC datetime "YYYY-MM-DD HH:mm"
   departureAtdDate: string;    // UTC datetime "YYYY-MM-DD HH:mm"
+  departureStdDate: string;    // UTC datetime "YYYY-MM-DD HH:mm"
   bayNo: string;
   statusCode: string;
   note: string;
   routeFrom?: string;
   routeTo?: string;
-  userName?: string;
   csIdList?: number[] | null;
   mechIdList?: number[] | null;
   maintenanceStatusId?: number;
   etaDate?: string | null;
-  /** Service group — aircraft checks. Same shape as THF `aircraft.aircraftCheckType`. Pending backend support. */
+  flightServiceLists?: FlightServiceListItem[];
+  flightAircraftTowingsLists?: FlightAircraftTowingItemPayload[];
+
+  // Legacy/optional fields
+  thfNo?: string;
+  userName?: string;
+  aircraftEngineCode?: string;
+  familyCode?: string;
   aircraftCheckType?: FlightAircraftCheckPayload[];
+  isAircraftTowing?: boolean;
+  aircraftTowing?: {
+    onDate?: string;
+    offDate?: string;
+    bayFrom?: string;
+    bayTo?: string;
+  }[];
 }
 
 export interface FlightAircraftCheckPayload {
@@ -59,7 +83,39 @@ export async function updateFlight(
   opts: ReqOpts = {}
 ): Promise<UpdateFlightResponse> {
   try {
-    const res = await axios.post<UpdateFlightResponse>("/flight/update-v2", flightData, {
+    const payload: UpdateFlightData = {
+      id: flightData.id,
+      airlinesCode: flightData.airlinesCode,
+      stationsCode: flightData.stationsCode,
+      acReg: flightData.acReg,
+      acTypeCode: flightData.acTypeCode,
+      series: flightData.series ?? "",
+      engineCode: flightData.engineCode ?? "",
+      arrivalFlightNo: flightData.arrivalFlightNo,
+      arrivalStaDate: flightData.arrivalStaDate,
+      arrivalAtaDate: flightData.arrivalAtaDate ?? "",
+      departureFlightNo: flightData.departureFlightNo,
+      departureAtdDate: flightData.departureAtdDate ?? "",
+      departureStdDate: flightData.departureStdDate ?? "",
+      bayNo: flightData.bayNo ?? "",
+      statusCode: flightData.statusCode ?? "Normal",
+      note: flightData.note ?? "",
+      routeFrom: flightData.routeFrom ?? "",
+      routeTo: flightData.routeTo ?? "",
+      csIdList: flightData.csIdList ?? [],
+      mechIdList: flightData.mechIdList ?? [],
+      maintenanceStatusId: flightData.maintenanceStatusId ?? 0,
+      etaDate: flightData.etaDate ?? "",
+      flightServiceLists: flightData.flightServiceLists ?? [],
+      flightAircraftTowingsLists: flightData.flightAircraftTowingsLists?.map((item) => ({
+        id: item.id ?? null,
+        bayForm: item.bayForm,
+        bayTo: item.bayTo,
+        aircraftOnDate: item.aircraftOnDate,
+        aircraftOffDate: item.aircraftOffDate,
+      })) ?? [],
+    };
+    const res = await axios.post<UpdateFlightResponse>("/flight/update-v2", payload, {
       signal: opts.signal,
       headers: opts.token ? { Authorization: `Bearer ${opts.token}` } : undefined,
     });

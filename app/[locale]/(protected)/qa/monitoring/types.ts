@@ -1,3 +1,5 @@
+import type { TrainingMonitoringStaffCourse } from '@/lib/api/qa/dashboardSummary'
+
 // ─── Course Definitions ─────────────────────────────────────────────────────
 
 export interface CourseRef {
@@ -19,6 +21,7 @@ export interface Employee {
     courseStatuses?: Record<string, StatusType>
     courseDaysLeft?: Record<string, number | null>
     courseIssueDates?: Record<string, string | null>
+    staffCourseData?: Record<string, TrainingMonitoringStaffCourse>
 }
 
 export interface AlertItem {
@@ -38,6 +41,7 @@ export function getStatus(dueStr: string): StatusType {
     if (!dueStr || dueStr === '-') return 'missing'
     if (dueStr === 'na') return 'na'
     if (dueStr === 'Not Assigned') return 'Not Assigned'
+    if (dueStr.toLowerCase() === 'permanent' || dueStr.toLowerCase() === 'never' || dueStr.startsWith('9999')) return 'valid'
     const due = new Date(dueStr)
     if (isNaN(due.getTime())) return 'missing'
     const diff = Math.floor((due.getTime() - Date.now()) / 86400000)
@@ -48,8 +52,46 @@ export function getStatus(dueStr: string): StatusType {
 
 export function getDaysLeft(dueStr: string): number | null {
     if (!dueStr || dueStr === '-' || dueStr === 'na') return null
+    if (dueStr.toLowerCase() === 'permanent' || dueStr.toLowerCase() === 'never' || dueStr.startsWith('9999')) return null
     const due = new Date(dueStr)
+    if (isNaN(due.getTime())) return null
     return Math.floor((due.getTime() - Date.now()) / 86400000)
+}
+
+export function computeStatusAndDaysLeft(validUntil: string | null | undefined): { status: StatusType; daysLeft: number | null } {
+    if (!validUntil || validUntil === '-' || validUntil === 'na') {
+        return { status: 'missing', daysLeft: null }
+    }
+    if (validUntil.toLowerCase() === 'permanent' || validUntil.toLowerCase() === 'never' || validUntil.startsWith('9999')) {
+        return { status: 'valid', daysLeft: null }
+    }
+    const d = new Date(validUntil)
+    if (isNaN(d.getTime())) {
+        return { status: 'missing', daysLeft: null }
+    }
+    const diff = Math.floor((d.getTime() - Date.now()) / 86400000)
+    if (diff < 0) return { status: 'expired', daysLeft: diff }
+    if (diff <= 90) return { status: 'warning', daysLeft: diff }
+    return { status: 'valid', daysLeft: diff }
+}
+
+export function formatDisplayDate(dateStr: string | null | undefined): string {
+    if (!dateStr || dateStr === '-' || dateStr === 'na') return '-'
+    if (dateStr.toLowerCase() === 'permanent' || dateStr.toLowerCase() === 'never' || dateStr.startsWith('9999')) return 'Never'
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return dateStr
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+export function toInputDateFormat(dateStr: string | null | undefined): string {
+    if (!dateStr || dateStr === '-' || dateStr === 'na') return ''
+    if (dateStr.toLowerCase() === 'permanent' || dateStr.toLowerCase() === 'never' || dateStr.startsWith('9999')) return ''
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return ''
+    const yyyy = d.getFullYear()
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    const dd = String(d.getDate()).padStart(2, '0')
+    return `${yyyy}-${mm}-${dd}`
 }
 
 export function getEmployeeCourseStatus(employee: Employee, courseId: string): StatusType {

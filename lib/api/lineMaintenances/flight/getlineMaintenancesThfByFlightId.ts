@@ -86,10 +86,23 @@ export interface FlightServiceListItem {
   subTypes: string[];
 }
 
+/** Towing row stored on the flight info (source of truth for Add/Edit Flight). */
+export interface FlightAircraftTowingsListItem {
+  id: string;                     // server UUID — send back on edit to update this row
+  flightInfoId: number | null;
+  bayForm: string | null;         // NOTE: API spelling ("bayForm" = Bay From)
+  bayTo: string | null;
+  aircraftOnDate: string | null;  // UTC ISO datetime
+  aircraftOffDate: string | null; // UTC ISO datetime
+  createdDate: string | null;
+  createdBy: string | null;
+}
+
 export interface Flight {
   flightsId: number | null;
   flightInfosId: number | null;
   flightServiceLists: FlightServiceListItem[] | null;
+  flightAircraftTowingsLists: FlightAircraftTowingsListItem[] | null;
   airlineObj: AirlineCodeObject;
   stationObj: CodeObject;
   acReg: string | null;

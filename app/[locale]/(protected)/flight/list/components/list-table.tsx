@@ -4,7 +4,8 @@ import {
     getCoreRowModel, getFilteredRowModel, getSortedRowModel, useReactTable,
 } from "@tanstack/react-table"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, ChevronRight, Download, Plus, AlignStartVertical, FileUp, Search, MapPin, Plane, Calendar, Zap, RotateCcw, Loader2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, Download, Plus, AlignStartVertical, FileUp, Search, MapPin, Plane, Calendar, Zap, RotateCcw, Loader2, X, MoreVertical } from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useAircraftSchedMappingTemplate } from "@/hooks/use-aircraft-sched-mapping-template"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -41,6 +42,8 @@ import { RequestUnlockModal } from "./RequestUnlockModal"
 import { useAllThfRevisions } from "@/lib/store/useThfRevisionStore"
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
 import { AlertTriangle } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { useConfig } from "@/hooks/use-config"
 
 interface Option {
     value: string; label: string; image?: string;
@@ -131,6 +134,8 @@ const ListTable = ({
     const [selectedUnlockFlight, setSelectedUnlockFlight] = React.useState<FlightItem | null>(null);
 
     const { getRevisionForFlight } = useAllThfRevisions();
+    const [config] = useConfig();
+    const isSidebarLight = config?.sidebarColor === "light";
 
     // Cancel flight mutation
     const cancelFlightMutation = useCancelFlightMutation();
@@ -297,6 +302,26 @@ const ListTable = ({
         goToPage(1)
     }
 
+    const handleResetFilters = () => {
+        const defaultDateRange = {
+            from: dayjs().subtract(1, "day").toDate(),
+            to: dayjs().toDate(),
+        };
+        setValue("search", "");
+        setValue("stationCode", "all");
+        setValue("airlineId", "all");
+        setValue("dateRange", defaultDateRange);
+
+        onFilterChange({
+            flightNo: "",
+            airlineId: "",
+            stationCode: "",
+            dateStart: dayjs().subtract(1, "day").format("YYYY-MM-DD"),
+            dateEnd: dayjs().format("YYYY-MM-DD"),
+        });
+        goToPage(1);
+    };
+
     const {
         options: stationOptions,
         isLoading: loadingStations,
@@ -358,36 +383,94 @@ const ListTable = ({
                             Manage flight schedules and maintenance service records.
                         </CardDescription>
                     </div>
-                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                        <PermissionActionGuard menuCode="FLIGHT" action="canCreate">
-                            <>
-                                <Button color="primary" onClick={() => setOpen(true)} size="sm" className="h-8 sm:h-9 text-xs sm:text-sm">
-                                    <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5" />
-                                    <span>Add Flight</span>
-                                </Button>
+                    {/* Hidden Excel Import File Input (shared by desktop and mobile) */}
+                    <input
+                        type="file"
+                        ref={excelImport.fileInputRef}
+                        onChange={excelImport.handleFileSelect}
+                        accept=".xlsx,.xls"
+                        className="hidden"
+                    />
 
-                                {/* Import Button with Excel Preview Modal (same as Flight Timeline) */}
-                                <input
-                                    type="file"
-                                    ref={excelImport.fileInputRef}
-                                    onChange={excelImport.handleFileSelect}
-                                    accept=".xlsx,.xls"
-                                    className="hidden"
-                                />
+                    {/* Mobile & Tablet (< lg): [:] Dropdown Button */}
+                    <div className="flex lg:hidden items-center gap-1.5 self-end sm:self-auto">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
                                 <Button
-                                    className="flex-none h-8 sm:h-9 text-xs sm:text-sm"
-                                    color="primary"
                                     variant="outline"
-                                    onClick={excelImport.openFilePicker}
-                                    disabled={excelImport.isParsing}
                                     size="sm"
+                                    className="h-8 sm:h-9 w-8 sm:w-9 p-0 flex items-center justify-center border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 shadow-2xs"
+                                    aria-label="More actions"
                                 >
-                                    <FileUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5" />
-                                    <span>{excelImport.isParsing ? 'Loading...' : 'Import'}</span>
+                                    <MoreVertical className="w-4 h-4" />
                                 </Button>
-                            </>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                                <PermissionActionGuard menuCode="FLIGHT" action="canCreate">
+                                    <DropdownMenuItem
+                                        className="cursor-pointer"
+                                        onClick={() => setOpen(true)}
+                                    >
+                                        <Plus className="w-4 h-4 mr-2 text-primary" />
+                                        <span>Add Flight</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        className="cursor-pointer"
+                                        onClick={excelImport.openFilePicker}
+                                        disabled={excelImport.isParsing}
+                                    >
+                                        <FileUp className="w-4 h-4 mr-2 text-primary" />
+                                        <span>{excelImport.isParsing ? 'Loading...' : 'Import'}</span>
+                                    </DropdownMenuItem>
+                                </PermissionActionGuard>
+
+                                <DropdownMenuItem
+                                    className="cursor-pointer"
+                                    onClick={downloadTemplate}
+                                    disabled={isDownloadingTemplate}
+                                >
+                                    {isDownloadingTemplate ? (
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin text-muted-foreground" />
+                                    ) : (
+                                        <Download className="w-4 h-4 mr-2 text-muted-foreground" />
+                                    )}
+                                    <span>Template</span>
+                                </DropdownMenuItem>
+
+                                <PermissionActionGuard menuCode="FLIGHT_TIMELINE" action="canView">
+                                    <DropdownMenuItem
+                                        className="cursor-pointer"
+                                        onClick={() => window.open(`/${locale}/views-flight-timeline`, '_blank')}
+                                    >
+                                        <AlignStartVertical className="w-4 h-4 mr-2 text-slate-700 dark:text-slate-300" />
+                                        <span>Timeline</span>
+                                    </DropdownMenuItem>
+                                </PermissionActionGuard>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+
+                    {/* Desktop (>= lg): Full Action Buttons Row */}
+                    <div className="hidden lg:flex items-center gap-1.5 sm:gap-2 flex-nowrap shrink-0">
+                        <PermissionActionGuard menuCode="FLIGHT" action="canCreate">
+                            <Button color="primary" onClick={() => setOpen(true)} size="sm" className="h-8 sm:h-9 text-xs sm:text-sm">
+                                <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5" />
+                                <span>Add Flight</span>
+                            </Button>
+
+                            <Button
+                                className="flex-none h-8 sm:h-9 text-xs sm:text-sm"
+                                color="primary"
+                                variant="outline"
+                                onClick={excelImport.openFilePicker}
+                                disabled={excelImport.isParsing}
+                                size="sm"
+                            >
+                                <FileUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5" />
+                                <span>{excelImport.isParsing ? 'Loading...' : 'Import'}</span>
+                            </Button>
                         </PermissionActionGuard>
-                        {/* Download Template Button (same as Flight Timeline) */}
+                        {/* Download Template Button */}
                         <Button
                             className="flex-none h-8 sm:h-9 text-xs sm:text-sm"
                             color="secondary"
@@ -417,30 +500,48 @@ const ListTable = ({
                     <div className="px-3 sm:px-6 pb-4">
                         <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 shadow-sm overflow-hidden">
                             {/* Filter Row */}
-                            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-3 sm:gap-4 p-3 sm:p-4">
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-4 w-full lg:w-auto flex-1">
+                            <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-3 sm:gap-4 p-3 sm:p-4">
+                                {/* Left Section: Flight No, Station, Airline */}
+                                {/* Mobile (<sm): Flight No full width (col-span-2), Station & Airline side-by-side (col-span-1 each) */}
+                                {/* Tablet & Desktop (sm+): 3 equal columns */}
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3.5 w-full xl:w-auto xl:flex-1">
                                     {/* Flight No. */}
-                                    <div className="flex flex-col gap-1 w-full min-w-0">
+                                    <div className="col-span-2 sm:col-span-1 flex flex-col gap-1 w-full min-w-0 sm:min-w-[140px]">
                                         <label className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                                             <Search className="h-3 w-3" />
                                             Flight No.
                                         </label>
-                                        <Input
-                                            className="h-8 sm:h-9 text-xs sm:text-sm bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 w-full"
-                                            type="text"
-                                            placeholder="Search..."
-                                            {...register("search")}
-                                            onKeyDown={(e) => {
-                                                if (e.key === "Enter") {
-                                                    e.preventDefault()
-                                                    handleSubmit(onSubmit)()
-                                                }
-                                            }}
-                                        />
+                                        <div className="relative">
+                                            <Input
+                                                className="h-8 sm:h-9 text-xs sm:text-sm bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 w-full pr-8"
+                                                type="text"
+                                                placeholder="Search flight no..."
+                                                {...register("search")}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                        e.preventDefault();
+                                                        handleSubmit(onSubmit)();
+                                                    }
+                                                }}
+                                            />
+                                            {watch("search") && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setValue("search", "");
+                                                        handleSubmit(onSubmit)();
+                                                    }}
+                                                    aria-label="Clear flight number"
+                                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200"
+                                                >
+                                                    <X className="h-3.5 w-3.5" />
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
 
                                     {/* Station */}
-                                    <div className="flex flex-col gap-1 w-full min-w-0">
+                                    <div className="col-span-1 flex flex-col gap-1 w-full min-w-0 sm:min-w-[140px]">
                                         <label className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                                             <MapPin className="h-3 w-3" />
                                             Station
@@ -453,7 +554,7 @@ const ListTable = ({
                                                     field.onChange(value);
                                                     handleSubmit(onSubmit)();
                                                 }}>
-                                                    <SelectTrigger className="h-8 sm:h-9 text-xs sm:text-sm bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 w-full">
+                                                    <SelectTrigger className="h-8 sm:h-9 text-xs sm:text-sm bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 w-full truncate">
                                                         <SelectValue placeholder="All Stations" />
                                                     </SelectTrigger>
                                                     <SelectContent>
@@ -469,7 +570,7 @@ const ListTable = ({
                                     </div>
 
                                     {/* Airline */}
-                                    <div className="flex flex-col gap-1 w-full min-w-0">
+                                    <div className="col-span-1 flex flex-col gap-1 w-full min-w-0 sm:min-w-[140px]">
                                         <label className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                                             <Plane className="h-3 w-3" />
                                             Airline
@@ -482,7 +583,7 @@ const ListTable = ({
                                                     field.onChange(value);
                                                     handleSubmit(onSubmit)();
                                                 }}>
-                                                    <SelectTrigger className="h-8 sm:h-9 text-xs sm:text-sm bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 w-full">
+                                                    <SelectTrigger className="h-8 sm:h-9 text-xs sm:text-sm bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 w-full truncate">
                                                         <SelectValue placeholder="All Airlines" />
                                                     </SelectTrigger>
                                                     <SelectContent>
@@ -496,33 +597,64 @@ const ListTable = ({
                                             )}
                                         />
                                     </div>
-
                                 </div>
-                                {/* Separator */}
-                                <div className="hidden lg:block w-px h-9 bg-slate-200 dark:bg-slate-600 flex-none self-center" />
 
-                                {/* Date Range */}
-                                <div className="flex flex-col gap-1 w-full lg:w-auto flex-none">
-                                    <label className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                                        <Calendar className="h-3 w-3" />
-                                        Date Range
-                                    </label>
-                                    <Controller
-                                        name="dateRange"
-                                        control={control}
-                                        render={({ field }) => (
-                                            <DateRangeFilter
-                                                value={field.value}
-                                                onChange={(dateRange) => {
-                                                    field.onChange(dateRange);
-                                                    setTimeout(() => {
-                                                        handleSubmit(onSubmit)();
-                                                    }, 100);
-                                                }}
-                                                placeholder="DD/MM/YYYY"
-                                            />
-                                        )}
-                                    />
+                                {/* Separator on XL screens */}
+                                <div className="hidden xl:block w-px h-9 bg-slate-200 dark:bg-slate-600 flex-none self-center" />
+
+                                {/* Right Section: Date Range & Action Buttons */}
+                                <div className="flex flex-col sm:flex-row sm:items-end justify-between xl:justify-start gap-2.5 sm:gap-3 w-full xl:w-auto flex-none">
+                                    {/* Date Range */}
+                                    <div className="flex flex-col gap-1 w-full sm:w-auto flex-1 sm:flex-none">
+                                        <label className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                            <Calendar className="h-3 w-3" />
+                                            Date Range
+                                        </label>
+                                        <Controller
+                                            name="dateRange"
+                                            control={control}
+                                            render={({ field }) => (
+                                                <DateRangeFilter
+                                                    value={field.value}
+                                                    onChange={(dateRange) => {
+                                                        field.onChange(dateRange);
+                                                        setTimeout(() => {
+                                                            handleSubmit(onSubmit)();
+                                                        }, 100);
+                                                    }}
+                                                    placeholder="DD/MM/YYYY"
+                                                />
+                                            )}
+                                        />
+                                    </div>
+
+                                    {/* Search & Reset Buttons */}
+                                    <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto flex-none">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-8 sm:h-9 text-xs sm:text-sm px-3 gap-1.5 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 shadow-2xs justify-center"
+                                            onClick={handleResetFilters}
+                                            disabled={isLoading || isFetching}
+                                        >
+                                            <RotateCcw className="h-3.5 w-3.5" />
+                                            <span>Reset</span>
+                                        </Button>
+                                        <Button
+                                            type="submit"
+                                            size="sm"
+                                            className="h-8 sm:h-9 text-xs sm:text-sm px-4 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 font-medium shadow-xs justify-center"
+                                            disabled={isLoading || isFetching}
+                                        >
+                                            {isFetching ? (
+                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                            ) : (
+                                                <Search className="h-3.5 w-3.5" />
+                                            )}
+                                            <span>{isFetching ? "Searching..." : "Search"}</span>
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -594,13 +726,16 @@ const ListTable = ({
             {!isLoading && !isFetching && (
                 <CardContent className="p-0 overflow-x-auto w-full max-w-full">
                     <Table className="relative">
-                        <TableHeader>
+                        <TableHeader className="bg-primary border-none [&_tr]:border-none">
                             {table.getHeaderGroups().map((hg) => (
-                                <TableRow key={hg.id}>
+                                <TableRow key={hg.id} className="border-none hover:bg-primary">
                                     {hg.headers.map((h) => (
                                         <TableHead 
                                             key={h.id}
-                                            className={h.id === 'actions' ? 'sticky right-0 z-20 bg-default-100 dark:bg-default-100 shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.1)]' : ''}
+                                            className={clsx(
+                                                "bg-primary font-semibold text-xs uppercase border-none text-white",
+                                                h.id === 'actions' ? 'sticky right-0 z-20 bg-primary border-none shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.2)] text-white' : ''
+                                            )}
                                         >
                                             {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
                                         </TableHead>

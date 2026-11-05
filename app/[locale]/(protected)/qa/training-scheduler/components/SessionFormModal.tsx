@@ -377,9 +377,13 @@ export function SessionFormModal({ form, setForm, isEdit, onSave, onClose, onCou
                                 {(() => {
                                     const allowed = ['Draft', 'Open Registration', 'Registration Closed', 'In Progress']
                                     const filtered = statusOptions.filter(s => allowed.includes(s.name))
-                                    return filtered.length > 0
-                                        ? filtered.map(s => <option key={s.id} value={s.name}>{s.name}</option>)
-                                        : allowed.map(s => <option key={s}>{s}</option>)
+                                    const list = filtered.length > 0
+                                        ? filtered.map(s => s.name)
+                                        : [...allowed]
+                                    if (form.status && !list.includes(form.status)) {
+                                        list.unshift(form.status)
+                                    }
+                                    return list.map(name => <option key={name} value={name}>{name}</option>)
                                 })()}
                             </select>
                         </div>

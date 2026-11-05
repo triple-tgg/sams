@@ -54,12 +54,28 @@ interface DialogContentProps
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
->(({ className, children, size, hideClose, ...props }, ref) => (
+>(({ className, children, size, hideClose, onPointerDownOutside, onInteractOutside, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(dialogVariants({ size }), className)}
+      onPointerDownOutside={(e) => {
+        const target = e.target as HTMLElement | null;
+        if (target?.closest?.("[data-sonner-toaster], [data-sonner-toast]")) {
+          e.preventDefault();
+          return;
+        }
+        onPointerDownOutside?.(e);
+      }}
+      onInteractOutside={(e) => {
+        const target = e.target as HTMLElement | null;
+        if (target?.closest?.("[data-sonner-toaster], [data-sonner-toast]")) {
+          e.preventDefault();
+          return;
+        }
+        onInteractOutside?.(e);
+      }}
       {...props}
     >
       {children}

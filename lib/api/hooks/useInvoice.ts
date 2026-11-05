@@ -12,14 +12,15 @@ import {
  */
 export const usePreInvoice = (
     request: InvoiceRequest,
-    enabled: boolean = false
+    enabled: boolean = false,
+    searchTrigger: number = 0
 ): UseQueryResult<PreInvoiceResponse, Error> => {
     return useQuery({
-        queryKey: ["preInvoice", request],
+        queryKey: ["preInvoice", request, searchTrigger],
         queryFn: () => getPreInvoice(request),
         enabled,
-        staleTime: 2 * 60 * 1000,  // 2 minutes
-        gcTime: 10 * 60 * 1000,    // 10 minutes
+        staleTime: 0,
+        gcTime: 0,
         retry: 2,
         retryDelay: 1000,
     });
@@ -30,14 +31,15 @@ export const usePreInvoice = (
  */
 export const useDraftInvoice = (
     request: InvoiceRequest,
-    enabled: boolean = false
+    enabled: boolean = false,
+    searchTrigger: number = 0
 ): UseQueryResult<DraftInvoiceResponse, Error> => {
     return useQuery({
-        queryKey: ["draftInvoice", request],
+        queryKey: ["draftInvoice", request, searchTrigger],
         queryFn: () => getDraftInvoice(request),
         enabled,
-        staleTime: 2 * 60 * 1000,
-        gcTime: 10 * 60 * 1000,
+        staleTime: 0,
+        gcTime: 0,
         retry: 2,
         retryDelay: 1000,
     });

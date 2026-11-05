@@ -60,6 +60,9 @@ export interface QAStaffItem {
     positionObj: PositionObj | null;
     departmentObj: DepartmentObj | null;
     staffstypeObj: StaffTypeObj | null;
+    /** Part-145 Approved Maintenance Organization (AMO) assignment. */
+    isDepartmentAmo145?: boolean | null;
+    staffDepartmentPositionAmo145Id?: number | null;
     jobTitle: string | null;
     profileImagePath: string | null;
     isActive: boolean;
@@ -81,12 +84,12 @@ export interface QAStaffListRequest {
     keyword?: string;
     name: string;
     employeeId: string;
-    /** Position filter (0 = all). Sent as `positionId`. */
-    positionId?: number;
-    /** @deprecated use `positionId` — mapped automatically */
+    /** Position filter (0 = all). Sent as `staffDepartmentPositionId`. */
     staffDepartmentPositionId?: number;
+    /** @deprecated use `staffDepartmentPositionId` — mapped automatically */
+    positionId?: number;
     departmentId: number;
-    /** Only sent when > 0 (not part of the listdata contract). */
+    /** Station filter (0 = all). */
     stationId?: number;
     /**
      * Staff type filter. The API takes an array (e.g. [1, 2, 7]); a single id is wrapped,
@@ -119,27 +122,27 @@ const toStaffTypeIds = (value: number | number[] | undefined): number[] =>
 /**
  * Get QA staff management list data
  * POST /master/staff-management/listdata
- * Body: { keyword, sortBy, sortDirection, name, employeeId, positionId, departmentId,
- *         staffstypeId: number[], isActive, page, perPage }
+ * Body: { keyword, name, employeeId, staffDepartmentPositionId, departmentId, stationId,
+ *         staffstypeId: number[], isActive, sortBy, sortDirection, page, perPage }
  */
 export const getQAStaffList = async (
     params: QAStaffListRequest
 ): Promise<QAStaffListResponse> => {
     try {
-        const body: Record<string, unknown> = {
+        const body = {
             keyword: params.keyword ?? "",
-            sortBy: params.sortBy ?? "",
-            sortDirection: params.sortDirection ?? "",
             name: params.name ?? "",
             employeeId: params.employeeId ?? "",
-            positionId: params.positionId || params.staffDepartmentPositionId || 0,
+            staffDepartmentPositionId: params.staffDepartmentPositionId || params.positionId || 0,
             departmentId: params.departmentId ?? 0,
+            stationId: params.stationId && params.stationId > 0 ? params.stationId : 0,
             staffstypeId: toStaffTypeIds(params.staffstypeId),
             isActive: params.isActive,
+            sortBy: params.sortBy ?? "",
+            sortDirection: params.sortDirection ?? "",
             page: params.page,
             perPage: params.perPage,
         };
-        if (params.stationId && params.stationId > 0) body.stationId = params.stationId;
         const res = await axiosConfig.post("/master/staff-management/listdata", body);
         return res.data as QAStaffListResponse;
     } catch (error: any) {
@@ -217,6 +220,9 @@ export interface UpsertStaffRequest {
     startDate: string;
     endWorkingDate: string | null;
     staffDepartmentPositionId: number;
+    /** Part-145 Approved Maintenance Organization (AMO) assignment. */
+    isDepartmentAmo145?: boolean;
+    staffDepartmentPositionAmo145Id?: number;
     stationId: number | null;
     staffstypeid: number;
     jobTitle: string;
@@ -449,6 +455,9 @@ export interface StaffByIdData {
     /** ISO date-time, e.g. "2026-08-06T00:00:00". */
     endWorkingDate: string | null;
     positionObj: PositionObj | null;
+    /** Part-145 Approved Maintenance Organization (AMO) assignment. */
+    isDepartmentAmo145?: boolean | null;
+    staffDepartmentPositionAmo145Id?: number | null;
     departmentObj: DepartmentObj | null;
     staffstypeObj: StaffTypeObj | null;
     stationId: number | null;
@@ -498,6 +507,8 @@ export const buildStaffUpsertRequest = (
     startDate: data.startDate || "",
     endWorkingDate: data.endWorkingDate || null,
     staffDepartmentPositionId: data.positionObj?.id || 0,
+    isDepartmentAmo145: !!data.isDepartmentAmo145,
+    staffDepartmentPositionAmo145Id: data.staffDepartmentPositionAmo145Id || 0,
     stationId: data.stationId ?? null,
     staffstypeid: data.staffstypeObj?.id || 0,
     jobTitle: data.jobTitle || "",

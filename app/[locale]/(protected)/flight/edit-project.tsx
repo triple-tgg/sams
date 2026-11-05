@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useForm, SubmitHandler, Controller } from "react-hook-form";
+import { useForm, SubmitHandler, Controller, FieldErrors } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { cn } from "@/lib/utils";
@@ -47,7 +47,16 @@ import { useMemo, useEffect, useState } from "react";
 import useUpdateFlight from "@/lib/api/hooks/useUpdateFlight";
 import { useLineMaintenancesQueryThfByFlightId } from "@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId";
 import { PersonnelSection } from "./thf/create/components/CPresonel";
-import { FlightServiceGroup, toAircraftCheckPayload, fromAircraftCheckPayload } from "./thf/create/components/FlightServiceGroup";
+import {
+  FlightServiceGroup,
+  fromAircraftCheckPayload,
+  toFlightServiceLists,
+  AircraftTowingCard,
+  fromAircraftTowingPayload,
+  toFlightAircraftTowingsLists,
+  validateAircraftTowing,
+  isOffTimeBeforeOnTime,
+} from "./thf/create/components/FlightServiceGroup";
 import {
   FlightFormSection,
   INITIAL_FLIGHT_FORM_SECTIONS,
@@ -77,15 +86,15 @@ export const FormSchema = z
     engineCode: z.string().optional().default(''),
 
     flightArrival: z.string().trim().min(2, "Required"),
-    arrivalDate: z.string().regex(/^\d{2}\/\d{2}\/\d{4}$/g, "DD/MMM/YYYY"),
-    sta: z.string().regex(/^\d{2}:\d{2}$/g, "HH:mm"),
-    ata: z.string().regex(/^\d{2}:\d{2}$/g, "HH:mm").optional().or(z.literal("")),
+    arrivalDate: z.string().regex(/^\d{2}\/\d{2}\/\d{4}$/, "DD/MM/YYYY"),
+    sta: z.string().regex(/^\d{2}:\d{2}$/, "HH:mm"),
+    ata: z.string().regex(/^\d{2}:\d{2}$/, "HH:mm").optional().or(z.literal("")),
     routeFrom: z.object({ value: z.string(), label: z.string() }).nullable().optional(),
 
     flightDeparture: z.string().trim().optional().default(""),
-    departureDate: z.string().regex(/^\d{2}\/\d{2}\/\d{4}$/g, "DD/MMM/YYYY").optional().or(z.literal("")),
-    std: z.string().regex(/^\d{2}:\d{2}$/g, "HH:mm").optional().or(z.literal("")),
-    atd: z.string().regex(/^\d{2}:\d{2}$/g, "HH:mm").optional().or(z.literal("")),
+    departureDate: z.string().regex(/^\d{2}\/\d{2}\/\d{4}$/, "DD/MM/YYYY").optional().or(z.literal("")),
+    std: z.string().regex(/^\d{2}:\d{2}$/, "HH:mm").optional().or(z.literal("")),
+    atd: z.string().regex(/^\d{2}:\d{2}$/, "HH:mm").optional().or(z.literal("")),
     routeTo: z.object({ value: z.string(), label: z.string() }).nullable().optional(),
 
     bay: z.string().trim().optional().default(""),
@@ -100,6 +109,20 @@ export const FormSchema = z
     aircraftChecks: z
       .array(z.object({ maintenanceTypes: z.string(), maintenanceSubTypes: z.array(z.string()) }))
       .default([]),
+    aircraftTowing: z.boolean().default(false),
+    aircraftTowingInfo: z
+      .array(
+        z.object({
+          id: z.string().optional(),
+          onDate: z.string().default(""),
+          onTime: z.string().default(""),
+          offDate: z.string().default(""),
+          offTime: z.string().default(""),
+          bayFrom: z.string().default(""),
+          bayTo: z.string().default(""),
+        })
+      )
+      .default([]),
   })
   // ถ้าใส่ departure อย่างใดอย่างหนึ่ง ต้องใส่ให้ครบ (date + std อย่างน้อย)
   .refine(
@@ -109,7 +132,99 @@ export const FormSchema = z
       return depOk;
     },
     { path: ["departureDate"], message: "If departure provided, Date & STD are required" }
-  );
+  )
+  .superRefine((data, ctx) => {
+    if (data.aircraftTowing) {
+      if (!data.aircraftTowingInfo || data.aircraftTowingInfo.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "At least one towing operation is required when enabled",
+          path: ["aircraftTowingInfo"],
+        });
+        return;
+      }
+      data.aircraftTowingInfo.forEach((item, index) => {
+        if (!item.onDate || !item.onDate.trim()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "From date is required",
+            path: ["aircraftTowingInfo", index, "onDate"],
+          });
+        }
+        if (!item.onTime || !item.onTime.trim()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "From time is required",
+            path: ["aircraftTowingInfo", index, "onTime"],
+          });
+        }
+        if (!item.offDate || !item.offDate.trim()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "To date is required",
+            path: ["aircraftTowingInfo", index, "offDate"],
+          });
+        }
+        if (!item.offTime || !item.offTime.trim()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "To time is required",
+            path: ["aircraftTowingInfo", index, "offTime"],
+          });
+        }
+        if (!item.bayFrom || !item.bayFrom.trim()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Bay From is required",
+            path: ["aircraftTowingInfo", index, "bayFrom"],
+          });
+        } else if (item.bayFrom.trim().length > 10) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Bay From must not exceed 10 characters",
+            path: ["aircraftTowingInfo", index, "bayFrom"],
+          });
+        }
+        if (!item.bayTo || !item.bayTo.trim()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Bay To is required",
+            path: ["aircraftTowingInfo", index, "bayTo"],
+          });
+        } else if (item.bayTo.trim().length > 10) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Bay To must not exceed 10 characters",
+            path: ["aircraftTowingInfo", index, "bayTo"],
+          });
+        }
+        if (
+          item.bayFrom &&
+          item.bayTo &&
+          item.bayFrom.trim().toLowerCase() === item.bayTo.trim().toLowerCase()
+        ) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Bay From and Bay To must be different",
+            path: ["aircraftTowingInfo", index, "bayTo"],
+          });
+        }
+        if (
+          item.onDate &&
+          item.onTime &&
+          item.offDate &&
+          item.offTime &&
+          isOffTimeBeforeOnTime(item.onDate, item.onTime, item.offDate, item.offTime)
+        ) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "To time must be after From time",
+            path: ["aircraftTowingInfo", index, "offTime"],
+          });
+        }
+      });
+    }
+  });
 
 export type Inputs = z.infer<typeof FormSchema>;
 
@@ -168,6 +283,8 @@ const createDefaultValues = (flightData: any): Inputs => {
       csIdList: null,
       mechIdList: null,
       aircraftChecks: [],
+      aircraftTowing: false,
+      aircraftTowingInfo: [],
     };
   }
 
@@ -219,7 +336,24 @@ const createDefaultValues = (flightData: any): Inputs => {
     userName: responseData.userName || "",
     csIdList: responseData.csList?.map((item: any) => item.id) || null,
     mechIdList: responseData.mechList?.map((item: any) => item.id) || null,
-    aircraftChecks: fromAircraftCheckPayload(flightData?.responseData?.aircraft?.aircraftCheckType),
+    aircraftChecks: fromAircraftCheckPayload(
+      // Prefer new `flight.flightServiceLists`; fall back to legacy `aircraft.aircraftCheckType`
+      flightData?.responseData?.flight?.flightServiceLists?.length
+        ? flightData.responseData.flight.flightServiceLists
+        : flightData?.responseData?.aircraft?.aircraftCheckType
+    ),
+    ...(() => {
+      // Prefer new `flight.flightAircraftTowingsLists` (has server `id`, needed when updating);
+      // fall back to legacy `aircraft.aircraftTowing` (no id → sent as null = new row)
+      const towingList = flightData?.responseData?.flight?.flightAircraftTowingsLists?.length
+        ? flightData.responseData.flight.flightAircraftTowingsLists
+        : flightData?.responseData?.aircraft?.aircraftTowing ?? [];
+      const towingInfo = fromAircraftTowingPayload(towingList);
+      return {
+        aircraftTowing: towingInfo.length > 0,
+        aircraftTowingInfo: towingInfo,
+      };
+    })(),
   };
 };
 
@@ -237,10 +371,13 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
   const params = useParams<{ locale: string }>();
   const direction = getLangDir(params?.locale ?? "");
 
+  const { mutate: updateFlight, isPending, error: mError, reset: resetMutation } = useUpdateFlight();
 
   const handleOnClose = () => {
-    setOpen(false)
-  }
+    resetMutation();
+    setOpen(false);
+    onClose?.();
+  };
   // const { data: flightData } = useFlightQueryById(flightId);
   const { data: flightInfoData, refetch } = useLineMaintenancesQueryThfByFlightId({ flightInfosId });
 
@@ -249,13 +386,14 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
   const toggleSection = (key: FlightFormSectionKey) => (isOpen: boolean) =>
     setOpenSections((s) => ({ ...s, [key]: isOpen }));
 
-  // Refetch data every time dialog opens
+  // Refetch data every time dialog opens, and clear any previous mutation errors
   useEffect(() => {
+    resetMutation();
     if (open && flightInfosId) {
       refetch();
       setOpenSections(INITIAL_FLIGHT_FORM_SECTIONS);
     }
-  }, [open, flightInfosId, refetch]);
+  }, [open, flightInfosId, refetch, resetMutation]);
   // Use airline options hook
   const {
     options: customerOptions,
@@ -331,9 +469,36 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
   }, [flightInfoData]);
 
 
-  const { mutate: updateFlight, isPending, error: mError } = useUpdateFlight();
+  const mutationErrorMessage = useMemo(() => {
+    if (!mError) return null;
+    const anyErr = mError as any;
+    return anyErr?.response?.data?.error || anyErr?.response?.data?.message || anyErr?.message || "Submit failed";
+  }, [mError]);
+  const onInvalid = (formErrors: FieldErrors<Inputs>) => {
+    console.warn("Edit flight form validation errors:", formErrors);
+    setOpenSections((s) => ({
+      ...s,
+      flightInfo: true,
+      service: Boolean(formErrors.aircraftTowingInfo || formErrors.aircraftChecks || s.service),
+    }));
+    const errorKeys = Object.keys(formErrors);
+    const firstErrorMessage =
+      (formErrors[errorKeys[0] as keyof Inputs] as any)?.message ||
+      "Please fill in all required fields marked with *";
+    toast.error(firstErrorMessage);
+  };
+
   const onSubmit: SubmitHandler<Inputs> = (values) => {
     if (!flightInfosId) return;
+
+    if (values.aircraftTowing) {
+      const towingVal = validateAircraftTowing(values.aircraftTowingInfo);
+      if (!towingVal.isValid) {
+        setOpenSections((s) => ({ ...s, service: true }));
+        toast.error(towingVal.message || "Invalid Aircraft Towing details");
+        return;
+      }
+    }
 
     const payload = {
       id: flightInfosId as number,
@@ -341,41 +506,39 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
       stationsCode: values.station!.value.trim(),
       acReg: (values.acReg ?? "").trim(),
       acTypeCode: values.acType!.value.trim(),
+      series: values.series || '',
+      engineCode: values.engineCode || '',
       arrivalFlightNo: values.flightArrival.trim(),
       arrivalStaDate: combineFormToUtcDatetime(values.arrivalDate, values.sta),
       arrivalAtaDate: values.ata?.trim() ? combineFormToUtcDatetime(values.arrivalDate, values.ata) : "",
       departureFlightNo: (values.flightDeparture ?? "").trim(),
-      departureStdDate: values.departureDate && values.std ? combineFormToUtcDatetime(values.departureDate, values.std) : "",
       departureAtdDate: values.departureDate && values.atd?.trim() ? combineFormToUtcDatetime(values.departureDate, values.atd) : "",
+      departureStdDate: values.departureDate && values.std ? combineFormToUtcDatetime(values.departureDate, values.std) : "",
       bayNo: (values.bay ?? "").trim(),
-      thfNo: (values.thfNumber ?? "").trim(),
       statusCode: values.status?.value ?? "Normal",
-      maintenanceStatusId: values.maintenanceStatus?.id ?? undefined,
       note: (values.note ?? "").trim(),
       routeFrom: values.routeFrom?.value ?? "",
       routeTo: values.routeTo?.value ?? "",
-
-      userName: values.userName.trim() ?? "",
-      csIdList: values.csIdList || null,
-      mechIdList: values.mechIdList || null,
-      aircraftEngineCode: mappedFamilyCode,
-      familyCode: mappedFamilyCode,
-      series: values.series || '',
-      engineCode: values.engineCode || '',
-      aircraftCheckType: toAircraftCheckPayload(values.aircraftChecks),
+      csIdList: values.csIdList || [],
+      mechIdList: values.mechIdList || [],
+      maintenanceStatusId: values.maintenanceStatus?.id ?? 0,
+      etaDate: "",
+      flightServiceLists: toFlightServiceLists(values.aircraftChecks),
+      flightAircraftTowingsLists: values.aircraftTowing ? toFlightAircraftTowingsLists(values.aircraftTowingInfo, true) : [],
     };
 
     updateFlight(
       { payload },
       {
         onSuccess: () => {
-          toast.success("Flight updated successfully.")
+          toast.success("Flight updated successfully.");
           reset();
-          // setOpen(false);
+          resetMutation();
           handleOnClose();
         },
-        onError: (err) => {
-          toast.error(err?.message ?? "Submit failed")
+        onError: (err: any) => {
+          const errMsg = err?.response?.data?.error || err?.response?.data?.message || err?.message || "Submit failed";
+          toast.error(errMsg);
         },
       }
     );
@@ -462,8 +625,13 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
       open={open}
       onOpenChange={(o) => {
         if (!isPending) {
-          setOpen(o)
-        };
+          if (!o) {
+            handleOnClose();
+          } else {
+            resetMutation();
+            setOpen(o);
+          }
+        }
       }}
     >
       <DialogContent
@@ -474,385 +642,51 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <React.Fragment>
-            <DialogHeader>
-              <DialogTitle>Edit Flight Information</DialogTitle>
-            </DialogHeader>
-            <DialogDescription className="hidden" />
-            <Separator className="mb-4" />
+          <DialogHeader>
+            <DialogTitle>Edit Flight Information</DialogTitle>
+          </DialogHeader>
+          <DialogDescription className="hidden" />
+          <Separator className="mb-4" />
 
-            <ScrollArea className="[&>div>div[style]]:block!" dir={direction}>
-              <form
-                id="create-flight-form"
-                onSubmit={handleSubmit(onSubmit, () => setOpenSections((s) => ({ ...s, flightInfo: true })))}
-                className="space-y-6"
+          <ScrollArea className="[&>div>div[style]]:block!" dir={direction}>
+            <form
+              id="create-flight-form"
+              onSubmit={handleSubmit(onSubmit, onInvalid)}
+              className="space-y-6"
+            >
+              <FlightFormSection
+                title="Flight Information"
+                icon={PlaneIcon}
+                open={openSections.flightInfo}
+                onOpenChange={toggleSection("flightInfo")}
               >
-                <FlightFormSection
-                  title="Flight Information"
-                  icon={PlaneIcon}
-                  open={openSections.flightInfo}
-                  onOpenChange={toggleSection("flightInfo")}
-                >
                 <div className="space-y-6">
-                {/* Customer / Station */}
-                <div className="grid lg:grid-cols-2 gap-6">
-                  <div className="space-y-1">
-                    <Label htmlFor="customer">Customer / Airlines</Label>
-                    <Controller
-                      name="customer"
-                      control={control}
-                      render={({ field }) => (
-                        <Select
-                          value={field.value?.value}
-                          onValueChange={(value) => {
-                            const option = customerOptions.find((opt: Option) => opt.value === value);
-                            field.onChange(option || null);
-                          }}
-                          disabled={loadingAirlines || customerOptions.length === 0}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={
-                              loadingAirlines ? "Loading airlines..." :
-                                airlinesError ? "Failed to load airlines" :
-                                  customerOptions.length === 0 ? "No airlines found" :
-                                    "Select customer"
-                            } />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {customerOptions.map((option: Option, idx: number) => (
-                              <SelectItem key={`${option.value}-${idx}`} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                    <FieldError msg={errors.customer?.message as string | undefined} />
-                    {usingFallback && (
-                      <p className="text-sm text-amber-600">
-                        ⚠ Using offline airline data due to API connection issue
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label htmlFor="station">Station</Label>
-                    <Controller
-                      name="station"
-                      control={control}
-                      render={({ field }) => (
-                        <Select
-                          value={field.value?.value}
-                          onValueChange={(value) => {
-                            const option = stationOptions.find((opt: Option) => opt.value === value);
-                            field.onChange(option || null);
-                          }}
-                          disabled={loadingStations || stationOptions.length === 0}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={
-                              loadingStations ? "Loading stations..." :
-                                stationsError ? "Failed to load stations" :
-                                  stationOptions.length === 0 ? "No stations found" :
-                                    "Select station"
-                            } />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {stationOptions.map((option: Option, idx: number) => (
-                              <SelectItem key={`${option.value}-${idx}`} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                    <FieldError msg={errors.station?.message as string | undefined} />
-                    {stationsUsingFallback && (
-                      <p className="text-sm text-amber-600">
-                        ⚠ Using offline station data due to API connection issue
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Route From / Route To */}
-                <div className="grid grid-cols-2 gap-4">
-                  <CreatableRouteSelect
-                    name="routeFrom"
-                    control={control}
-                    label="Route From"
-                    placeholder="Select Route From"
-                    errorMessage={errors.routeFrom?.message as string | undefined}
-                  />
-                  <CreatableRouteSelect
-                    name="routeTo"
-                    control={control}
-                    label="Route To"
-                    placeholder="Select Route To"
-                    errorMessage={errors.routeTo?.message as string | undefined}
-                  />
-                </div>
-
-                {/* A/C Reg / A/C Type */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <Label htmlFor="acReg">A/C Reg</Label>
-                    <Input {...register("acReg")} placeholder="A/C Reg" autoComplete="off" />
-                    <FieldError msg={errors.acReg?.message} />
-                  </div>
-                  <div className="space-y-1">
-                    <SearchableSelectField
-                      name="acType"
-                      control={control}
-                      label="A/C Type"
-                      placeholder="Select A/C Type"
-                      options={familyCodeOptions}
-                      isLoading={isLoadingFamilyCode}
-                      errorMessage={errors.acType?.message}
-                    />
-                  </div>
-                </div>
-
-                {/* Aircraft-Engine Combination */}
-                <div className="space-y-3">
-                  {/* Mode toggle */}
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-medium text-slate-700">Aircraft-Engine :</span>
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={comboMode === 'combination'}
-                        onCheckedChange={(checked) => handleModeChange(checked ? 'combination' : 'manual')}
-                        color="primary"
-                        size="sm"
-                      />
-                      <span className="text-sm text-slate-600">Select Combination</span>
-                    </div>
-                  </div>
-
-                  {comboMode === 'combination' ? (
-                    /* ── Combination mode ── */
-                    <div className="grid grid-cols-5 gap-4">
-                      <div className="col-span-2 space-y-1">
-                        <Label>Combination</Label>
-                        <Select
-                          value={selectedComboId || undefined}
-                          onValueChange={handleComboSelect}
-                          disabled={!selectedAcType?.value}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={selectedAcType?.value ? "Select Combination" : "Select A/C Type first"} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {combinationOptions.map((opt) => (
-                              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Family Code</Label>
-                        <Input value={mappedFamilyCode || ''} readOnly disabled className="bg-slate-50" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Series</Label>
-                        <Input value={selectedSeries || ''} readOnly disabled className="bg-slate-50" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Engine Code</Label>
-                        <Input value={selectedEngineCode || ''} readOnly disabled className="bg-slate-50" />
-                      </div>
-                    </div>
-                  ) : (
-                    /* ── Manual mode ── */
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-1">
-                        <Label>Family Code</Label>
-                        <Input value={mappedFamilyCode || ''} readOnly disabled placeholder="Select A/C Type first" className="bg-slate-50" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label>Series</Label>
-                        <Input
-                          {...register('series')}
-                          placeholder="e.g. NEO"
-                          disabled={!selectedAcType?.value}
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label>Engine Code</Label>
-                        <Input
-                          {...register('engineCode')}
-                          placeholder="e.g. LEAP-1A"
-                          disabled={!selectedAcType?.value}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <Separator className="mb-8 mt-10" />
-
-                {/* ARRIVAL + DEPARTURE */}
-                <div className="grid lg:grid-cols-2 gap-6">
-                  {/* ARRIVAL */}
-                  <div>
-                    <h4 className="text-sm font-medium mb-2">Arrival (Local Time)</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <Label htmlFor="flightArrival">Flight No</Label>
-                        <Input {...register("flightArrival")} placeholder="Flight No" autoComplete="off" />
-                        <FieldError msg={errors.flightArrival?.message} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="arrivalDate">Date</Label>
-                        <Controller
-                          name="arrivalDate"
-                          control={control}
-                          render={({ field }) => (
-                            <CustomDateInput
-                              value={field.value}
-                              onChange={field.onChange}
-                              placeholder="DD-MMM-YYYY"
-                            />
-                          )}
-                        />
-                        <FieldError msg={errors.arrivalDate?.message} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="sta">STA (Local)</Label>
-                        <Controller
-                          name="sta"
-                          control={control}
-                          render={({ field }) => (
-                            <CustomTimeInput
-                              value={field.value}
-                              onChange={field.onChange}
-                              onBlur={field.onBlur}
-                              placeholder="HH:mm"
-                              className={cn(errors.sta && "border-red-500 focus-visible:ring-red-500")}
-                            />
-                          )}
-                        />
-                        <FieldError msg={errors.sta?.message} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="ata">ATA (Local)</Label>
-                        <Controller
-                          name="ata"
-                          control={control}
-                          render={({ field }) => (
-                            <CustomTimeInput
-                              value={field.value}
-                              onChange={field.onChange}
-                              onBlur={field.onBlur}
-                              placeholder="HH:mm"
-                              className={cn(errors.ata && "border-red-500 focus-visible:ring-red-500")}
-                            />
-                          )}
-                        />
-                        <FieldError msg={errors.ata?.message} />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* DEPARTURE */}
-                  <div>
-                    <h4 className="text-sm font-medium mb-2">Departure (Local Time)</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <Label htmlFor="flightDeparture">Flight No</Label>
-                        <Input {...register("flightDeparture")} placeholder="Flight No" autoComplete="off" />
-                        <FieldError msg={errors.flightDeparture?.message} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="departureDate">
-                          Date <span className="text-red-500 font-bold">*</span>
-                        </Label>
-                        <Controller
-                          name="departureDate"
-                          control={control}
-                          render={({ field }) => (
-                            <CustomDateInput
-                              value={field.value}
-                              onChange={field.onChange}
-                              placeholder="DD-MMM-YYYY"
-                            />
-                          )}
-                        />
-                        <FieldError msg={errors.departureDate?.message} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="std">
-                          STD (Local) <span className="text-red-500 font-bold">*</span>
-                        </Label>
-                        <Controller
-                          name="std"
-                          control={control}
-                          render={({ field }) => (
-                            <CustomTimeInput
-                              value={field.value}
-                              onChange={field.onChange}
-                              onBlur={field.onBlur}
-                              placeholder="HH:mm"
-                              className={cn(errors.std && "border-red-500 focus-visible:ring-red-500")}
-                            />
-                          )}
-                        />
-                        <FieldError msg={errors.std?.message} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="atd">ATD (Local)</Label>
-                        <Controller
-                          name="atd"
-                          control={control}
-                          render={({ field }) => (
-                            <CustomTimeInput
-                              value={field.value}
-                              onChange={field.onChange}
-                              onBlur={field.onBlur}
-                              placeholder="HH:mm"
-                              className={cn(errors.atd && "border-red-500 focus-visible:ring-red-500")}
-                            />
-                          )}
-                        />
-                        <FieldError msg={errors.atd?.message} />
-                      </div>
-
-
-                    </div>
-                  </div>
-                </div>
-                <div className="grid lg:grid-cols-2 gap-6">
-                  <div className="space-y-1 ">
+                  {/* Customer / Station */}
+                  <div className="grid lg:grid-cols-2 gap-6">
                     <div className="space-y-1">
-                      <Label htmlFor="bay">Bay</Label>
-                      <Input {...register("bay")} placeholder="Bay" autoComplete="off" />
-                      <FieldError msg={errors.bay?.message} />
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="status">Status</Label>
+                      <Label htmlFor="customer">Customer / Airlines</Label>
                       <Controller
-                        name="status"
+                        name="customer"
                         control={control}
                         render={({ field }) => (
                           <Select
                             value={field.value?.value}
                             onValueChange={(value) => {
-                              const option = statusOptions.find((opt: Option) => opt.value === value);
+                              const option = customerOptions.find((opt: Option) => opt.value === value);
                               field.onChange(option || null);
                             }}
-                            disabled={loadingStatus || statusOptions.length === 0}
+                            disabled={loadingAirlines || customerOptions.length === 0}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder={
-                                loadingStatus ? "Loading status..." :
-                                  statusError ? "Failed to load status" :
-                                    statusOptions.length === 0 ? "No status found" :
-                                      "Select status"
+                                loadingAirlines ? "Loading airlines..." :
+                                  airlinesError ? "Failed to load airlines" :
+                                    customerOptions.length === 0 ? "No airlines found" :
+                                      "Select customer"
                               } />
                             </SelectTrigger>
                             <SelectContent>
-                              {statusOptions.map((option: Option, idx: number) => (
+                              {customerOptions.map((option: Option, idx: number) => (
                                 <SelectItem key={`${option.value}-${idx}`} value={option.value}>
                                   {option.label}
                                 </SelectItem>
@@ -861,70 +695,405 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
                           </Select>
                         )}
                       />
-                      <FieldError msg={errors.status?.message as string | undefined} />
-                      {statusUsingFallback && (
+                      <FieldError msg={errors.customer?.message as string | undefined} />
+                      {usingFallback && (
                         <p className="text-sm text-amber-600">
-                          ⚠ Using offline status data due to API connection issue
+                          ⚠ Using offline airline data due to API connection issue
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label htmlFor="station">Station</Label>
+                      <Controller
+                        name="station"
+                        control={control}
+                        render={({ field }) => (
+                          <Select
+                            value={field.value?.value}
+                            onValueChange={(value) => {
+                              const option = stationOptions.find((opt: Option) => opt.value === value);
+                              field.onChange(option || null);
+                            }}
+                            disabled={loadingStations || stationOptions.length === 0}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder={
+                                loadingStations ? "Loading stations..." :
+                                  stationsError ? "Failed to load stations" :
+                                    stationOptions.length === 0 ? "No stations found" :
+                                      "Select station"
+                              } />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {stationOptions.map((option: Option, idx: number) => (
+                                <SelectItem key={`${option.value}-${idx}`} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                      <FieldError msg={errors.station?.message as string | undefined} />
+                      {stationsUsingFallback && (
+                        <p className="text-sm text-amber-600">
+                          ⚠ Using offline station data due to API connection issue
                         </p>
                       )}
                     </div>
                   </div>
-                  <div className="space-y-1">
+
+                  {/* Route From / Route To */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <CreatableRouteSelect
+                      name="routeFrom"
+                      control={control}
+                      label="Route From"
+                      placeholder="Select Route From"
+                      errorMessage={errors.routeFrom?.message as string | undefined}
+                    />
+                    <CreatableRouteSelect
+                      name="routeTo"
+                      control={control}
+                      label="Route To"
+                      placeholder="Select Route To"
+                      errorMessage={errors.routeTo?.message as string | undefined}
+                    />
+                  </div>
+
+                  {/* A/C Reg / A/C Type */}
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <Label htmlFor="note">Note</Label>
-                      <Textarea {...register("note")} placeholder="Note..." />
-                      <FieldError msg={errors.note?.message} />
+                      <Label htmlFor="acReg">A/C Reg</Label>
+                      <Input {...register("acReg")} placeholder="A/C Reg" autoComplete="off" />
+                      <FieldError msg={errors.acReg?.message} />
+                    </div>
+                    <div className="space-y-1">
+                      <SearchableSelectField
+                        name="acType"
+                        control={control}
+                        label="A/C Type"
+                        placeholder="Select A/C Type"
+                        options={familyCodeOptions}
+                        isLoading={isLoadingFamilyCode}
+                        errorMessage={errors.acType?.message}
+                      />
                     </div>
                   </div>
-                </div>
 
+                  {/* Aircraft-Engine Combination */}
+                  <div className="space-y-3">
+                    {/* Mode toggle */}
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-slate-700">Aircraft-Engine :</span>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={comboMode === 'combination'}
+                          onCheckedChange={(checked) => handleModeChange(checked ? 'combination' : 'manual')}
+                          color="primary"
+                          size="sm"
+                        />
+                        <span className="text-sm text-slate-600">Select Combination</span>
+                      </div>
+                    </div>
 
-                <Separator className="mb-8 mt-10" />
-
-                {/* Maintenance Status */}
-                <div className="space-y-1">
-                  <Label htmlFor="maintenanceStatus">Maintenance Status</Label>
-                  <Controller
-                    name="maintenanceStatus"
-                    control={control}
-                    render={({ field }) => (
-                      <Select
-                        value={field.value?.id != null ? String(field.value.id) : ""}
-                        onValueChange={(val) => {
-                          const option = maintenanceStatusOptions.find((opt: Option & { id: number }) => String(opt.id) === val);
-                          field.onChange(option ? { value: option.value, label: option.label, id: option.id } : null);
-                        }}
-                        disabled={loadingMaintenanceStatus || maintenanceStatusOptions.length === 0}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder={
-                            loadingMaintenanceStatus ? "Loading..." :
-                              maintenanceStatusOptions.length === 0 ? "No status found" :
-                                "Select maintenance status"
-                          } />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {maintenanceStatusOptions.map((option: Option & { id: number }, idx: number) => (
-                            <SelectItem key={`${option.id}-${idx}`} value={String(option.id)}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    {comboMode === 'combination' ? (
+                      /* ── Combination mode ── */
+                      <div className="grid grid-cols-5 gap-4">
+                        <div className="col-span-2 space-y-1">
+                          <Label>Combination</Label>
+                          <Select
+                            value={selectedComboId || undefined}
+                            onValueChange={handleComboSelect}
+                            disabled={!selectedAcType?.value}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder={selectedAcType?.value ? "Select Combination" : "Select A/C Type first"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {combinationOptions.map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Family Code</Label>
+                          <Input value={mappedFamilyCode || ''} readOnly disabled className="bg-slate-50" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Series</Label>
+                          <Input value={selectedSeries || ''} readOnly disabled className="bg-slate-50" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Engine Code</Label>
+                          <Input value={selectedEngineCode || ''} readOnly disabled className="bg-slate-50" />
+                        </div>
+                      </div>
+                    ) : (
+                      /* ── Manual mode ── */
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="space-y-1">
+                          <Label>Family Code</Label>
+                          <Input value={mappedFamilyCode || ''} readOnly disabled placeholder="Select A/C Type first" className="bg-slate-50" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label>Series</Label>
+                          <Input
+                            {...register('series')}
+                            placeholder="e.g. NEO"
+                            disabled={!selectedAcType?.value}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label>Engine Code</Label>
+                          <Input
+                            {...register('engineCode')}
+                            placeholder="e.g. LEAP-1A"
+                            disabled={!selectedAcType?.value}
+                          />
+                        </div>
+                      </div>
                     )}
-                  />
-                </div>
-                </div>
-                </FlightFormSection>
+                  </div>
 
-                <FlightFormSection
-                  title="Service"
-                  icon={WrenchIcon}
-                  iconClassName="bg-emerald-50 text-emerald-600 border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40"
-                  summary={`${(watch("aircraftChecks") ?? []).length} check(s)`}
-                  open={openSections.service}
-                  onOpenChange={toggleSection("service")}
-                >
+                  <Separator className="mb-8 mt-10" />
+
+                  {/* ARRIVAL + DEPARTURE */}
+                  <div className="grid lg:grid-cols-2 gap-6">
+                    {/* ARRIVAL */}
+                    <div>
+                      <h4 className="text-sm font-medium mb-2">Arrival (Local Time)</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <Label htmlFor="flightArrival">Flight No</Label>
+                          <Input {...register("flightArrival")} placeholder="Flight No" autoComplete="off" />
+                          <FieldError msg={errors.flightArrival?.message} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="arrivalDate">Date</Label>
+                          <Controller
+                            name="arrivalDate"
+                            control={control}
+                            render={({ field }) => (
+                              <CustomDateInput
+                                value={field.value}
+                                onChange={field.onChange}
+                                placeholder="DD-MMM-YYYY"
+                              />
+                            )}
+                          />
+                          <FieldError msg={errors.arrivalDate?.message} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="sta">STA (Local)</Label>
+                          <Controller
+                            name="sta"
+                            control={control}
+                            render={({ field }) => (
+                              <CustomTimeInput
+                                value={field.value}
+                                onChange={field.onChange}
+                                onBlur={field.onBlur}
+                                placeholder="HH:mm"
+                                className={cn(errors.sta && "border-red-500 focus-visible:ring-red-500")}
+                              />
+                            )}
+                          />
+                          <FieldError msg={errors.sta?.message} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="ata">ATA (Local)</Label>
+                          <Controller
+                            name="ata"
+                            control={control}
+                            render={({ field }) => (
+                              <CustomTimeInput
+                                value={field.value}
+                                onChange={field.onChange}
+                                onBlur={field.onBlur}
+                                placeholder="HH:mm"
+                                className={cn(errors.ata && "border-red-500 focus-visible:ring-red-500")}
+                              />
+                            )}
+                          />
+                          <FieldError msg={errors.ata?.message} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* DEPARTURE */}
+                    <div>
+                      <h4 className="text-sm font-medium mb-2">Departure (Local Time)</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <Label htmlFor="flightDeparture">Flight No</Label>
+                          <Input {...register("flightDeparture")} placeholder="Flight No" autoComplete="off" />
+                          <FieldError msg={errors.flightDeparture?.message} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="departureDate">
+                            Date <span className="text-red-500 font-bold">*</span>
+                          </Label>
+                          <Controller
+                            name="departureDate"
+                            control={control}
+                            render={({ field }) => (
+                              <CustomDateInput
+                                value={field.value}
+                                onChange={field.onChange}
+                                placeholder="DD-MMM-YYYY"
+                              />
+                            )}
+                          />
+                          <FieldError msg={errors.departureDate?.message} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="std">
+                            STD (Local) <span className="text-red-500 font-bold">*</span>
+                          </Label>
+                          <Controller
+                            name="std"
+                            control={control}
+                            render={({ field }) => (
+                              <CustomTimeInput
+                                value={field.value}
+                                onChange={field.onChange}
+                                onBlur={field.onBlur}
+                                placeholder="HH:mm"
+                                className={cn(errors.std && "border-red-500 focus-visible:ring-red-500")}
+                              />
+                            )}
+                          />
+                          <FieldError msg={errors.std?.message} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="atd">ATD (Local)</Label>
+                          <Controller
+                            name="atd"
+                            control={control}
+                            render={({ field }) => (
+                              <CustomTimeInput
+                                value={field.value}
+                                onChange={field.onChange}
+                                onBlur={field.onBlur}
+                                placeholder="HH:mm"
+                                className={cn(errors.atd && "border-red-500 focus-visible:ring-red-500")}
+                              />
+                            )}
+                          />
+                          <FieldError msg={errors.atd?.message} />
+                        </div>
+
+
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid lg:grid-cols-2 gap-6">
+                    <div className="space-y-1 ">
+                      <div className="space-y-1">
+                        <Label htmlFor="bay">Bay</Label>
+                        <Input {...register("bay")} placeholder="Bay" autoComplete="off" />
+                        <FieldError msg={errors.bay?.message} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="status">Status</Label>
+                        <Controller
+                          name="status"
+                          control={control}
+                          render={({ field }) => (
+                            <Select
+                              value={field.value?.value}
+                              onValueChange={(value) => {
+                                const option = statusOptions.find((opt: Option) => opt.value === value);
+                                field.onChange(option || null);
+                              }}
+                              disabled={loadingStatus || statusOptions.length === 0}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder={
+                                  loadingStatus ? "Loading status..." :
+                                    statusError ? "Failed to load status" :
+                                      statusOptions.length === 0 ? "No status found" :
+                                        "Select status"
+                                } />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {statusOptions.map((option: Option, idx: number) => (
+                                  <SelectItem key={`${option.value}-${idx}`} value={option.value}>
+                                    {option.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                        <FieldError msg={errors.status?.message as string | undefined} />
+                        {statusUsingFallback && (
+                          <p className="text-sm text-amber-600">
+                            ⚠ Using offline status data due to API connection issue
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="space-y-1">
+                        <Label htmlFor="note">Note</Label>
+                        <Textarea {...register("note")} placeholder="Note..." />
+                        <FieldError msg={errors.note?.message} />
+                      </div>
+                    </div>
+                  </div>
+
+
+                  <Separator className="mb-8 mt-10" />
+
+                  {/* Maintenance Status */}
+                  <div className="space-y-1">
+                    <Label htmlFor="maintenanceStatus">Maintenance Status</Label>
+                    <Controller
+                      name="maintenanceStatus"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          value={field.value?.id != null ? String(field.value.id) : ""}
+                          onValueChange={(val) => {
+                            const option = maintenanceStatusOptions.find((opt: Option & { id: number }) => String(opt.id) === val);
+                            field.onChange(option ? { value: option.value, label: option.label, id: option.id } : null);
+                          }}
+                          disabled={loadingMaintenanceStatus || maintenanceStatusOptions.length === 0}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={
+                              loadingMaintenanceStatus ? "Loading..." :
+                                maintenanceStatusOptions.length === 0 ? "No status found" :
+                                  "Select maintenance status"
+                            } />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {maintenanceStatusOptions.map((option: Option & { id: number }, idx: number) => (
+                              <SelectItem key={`${option.id}-${idx}`} value={String(option.id)}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </div>
+                </div>
+              </FlightFormSection>
+
+              <FlightFormSection
+                title="Service"
+                icon={WrenchIcon}
+                iconClassName="bg-emerald-50 text-emerald-600 border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40"
+                summary={`${(watch("aircraftChecks") ?? []).length} check(s)${watch("aircraftTowing") ? ` · ${(watch("aircraftTowingInfo") ?? []).length} towing` : ''}`}
+                open={openSections.service}
+                onOpenChange={toggleSection("service")}
+              >
+                <div className="space-y-4">
                   <Controller
                     name="aircraftChecks"
                     control={control}
@@ -932,45 +1101,60 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
                       <FlightServiceGroup hideHeader value={field.value ?? []} onChange={field.onChange} />
                     )}
                   />
-                </FlightFormSection>
-
-                <FlightFormSection
-                  title="Personnel Assignment"
-                  icon={UsersIcon}
-                  summary={`${(watch("csIdList") ?? []).length} CS · ${(watch("mechIdList") ?? []).length} MECH`}
-                  open={openSections.personnel}
-                  onOpenChange={toggleSection("personnel")}
-                >
-                  <PersonnelSection
-                    hideTitle
-                    control={control}
-                    onCsChange={(ids) => setValue("csIdList", ids)}
-                    onMechChange={(ids) => setValue("mechIdList", ids)}
-                    initialCsList={initialCsList}
-                    initialMechList={initialMechList}
+                  <AircraftTowingCard
+                    enabled={watch("aircraftTowing") ?? false}
+                    onEnabledChange={(val) => setValue("aircraftTowing", val, { shouldDirty: true })}
+                    items={watch("aircraftTowingInfo") ?? []}
+                    onChange={(items) => setValue("aircraftTowingInfo", items, { shouldDirty: true })}
+                    defaultDate={watch("arrivalDate") || watch("departureDate")}
+                    errors={errors.aircraftTowingInfo}
                   />
-                </FlightFormSection>
+                </div>
+              </FlightFormSection>
+
+              <FlightFormSection
+                title="Personnel Assignment"
+                icon={UsersIcon}
+                summary={`${(watch("csIdList") ?? []).length} CS · ${(watch("mechIdList") ?? []).length} MECH`}
+                open={openSections.personnel}
+                onOpenChange={toggleSection("personnel")}
+              >
+                <PersonnelSection
+                  hideTitle
+                  control={control}
+                  onCsChange={(ids) => setValue("csIdList", ids)}
+                  onMechChange={(ids) => setValue("mechIdList", ids)}
+                  initialCsList={initialCsList}
+                  initialMechList={initialMechList}
+                />
+              </FlightFormSection>
 
 
-                {mError && (
-                  <p className="text-sm text-red-600">
-                    {(mError as { error?: string; message?: string })?.error || "Submit failed"}
-                  </p>
-                )}
-              </form>
-            </ScrollArea>
+              {mutationErrorMessage && (
+                <p className="text-sm text-red-600">
+                  {mutationErrorMessage}
+                </p>
+              )}
+            </form>
+          </ScrollArea>
 
-            <Separator className="mb-2 mt-0" />
-            <div className="flex justify-end gap-2 py-2 px-2">
-              <Button
-                type="button" variant="outline" color="primary" onClick={() => handleOnClose()} disabled={isPending}>
-                Cancel
-              </Button>
-              <Button type="submit" color="primary" form="create-flight-form" disabled={isPending}>
-                {isPending ? "Updating..." : "Update"}
-              </Button>
-            </div>
-          </React.Fragment>
+          <Separator className="mb-2 mt-0" />
+          <div className="flex justify-end gap-2 py-2 px-2">
+            <Button
+              type="button" variant="outline" color="primary" onClick={() => handleOnClose()} disabled={isPending}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              color="primary"
+              form="create-flight-form"
+              onClick={handleSubmit(onSubmit, onInvalid)}
+              disabled={isPending}
+            >
+              {isPending ? "Updating..." : "Update"}
+            </Button>
+          </div>
+        </React.Fragment>
       </DialogContent>
     </Dialog>
   );

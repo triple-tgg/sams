@@ -95,6 +95,6 @@ export const BLANK_FORM: SessionFormData = {
     courseId: '', courseName: '', courseCode: '', category: 'Core',
     dateStart: '', dateEnd: '', timeStart: '09:00', timeEnd: '17:00',
     instructor: '', courseInstructorId: 0, venue: '', dept: 'All Departments',
-    maxParticipants: 20, enrolled: 0, status: 'Scheduled', type: 'Initial',
+    maxParticipants: 20, enrolled: 0, status: 'Draft', type: 'Initial',
     note: '', trainingAttendanceTypeId: 1, link: '', linkUrl: '', linkMaterials: '', totalHours: 0
 }

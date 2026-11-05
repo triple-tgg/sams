@@ -36,6 +36,9 @@ function formatSessionDate(startDate: string, endDate: string): string {
     const start = new Date(startDate)
     const end = new Date(endDate)
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return '—'
+    if (start.toDateString() === end.toDateString()) {
+        return formatter.format(start)
+    }
     return `${formatter.format(start)} - ${formatter.format(end)}`
 }
 
@@ -76,11 +79,19 @@ export function CourseEnrollmentModal({
         if (!course) return []
         const now = Date.now()
         const byId = new Map<number, SchedulerSessionData>()
+        const cId = Number(course.id)
+        const cCode = (typeof course.code === 'string' ? course.code : (course.code?.[0] || course.short)).toLowerCase().trim()
+        const cShort = course.short.toLowerCase().trim()
+
         sessionQueries.forEach(query => {
             query.data?.responseData.forEach(session => {
                 const endTimestamp = Date.parse(session.endDate)
+                const sCode = (session.courseCode || '').toLowerCase().trim()
+                const sCourseId = session.courseId
+
+                const isMatch = (cId && sCourseId === cId) || (sCode && (sCode === cCode || sCode === cShort))
                 if (
-                    session.courseId === Number(course.id)
+                    isMatch
                     && !Number.isNaN(endTimestamp)
                     && endTimestamp >= now
                 ) {
@@ -167,20 +178,33 @@ export function CourseEnrollmentModal({
         }
     }
 
+    const courseCode = typeof course.code === 'string' ? course.code : (course.code?.[0] || course.short)
+
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
             <DialogContent size="md" className="max-h-[90vh] max-w-2xl overflow-y-auto bg-card text-foreground">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 text-xl">
-                        <span>Course Enrollment: {course.label}</span>
-                        <Badge color="secondary" className="ml-2 text-xs">{course.short}</Badge>
-                    </DialogTitle>
-                    <DialogDescription>
-                        Select an available training session for <strong>{employee.name}</strong> ({employee.id}).
+                <DialogHeader className="pr-10 space-y-2 text-left">
+                    <div>
+                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                            {courseCode && (
+                                <span className="px-2.5 py-0.5 text-xs font-mono font-bold bg-primary/10 text-primary rounded-md border border-primary/20">
+                                    {courseCode}
+                                </span>
+                            )}
+                            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                Course Enrollment
+                            </span>
+                        </div>
+                        <DialogTitle className="text-lg font-bold text-foreground leading-snug">
+                            {course.label}
+                        </DialogTitle>
+                    </div>
+                    <DialogDescription className="text-xs text-muted-foreground">
+                        Select an available training session for <strong className="text-foreground">{employee.name}</strong> ({employee.id}).
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-4 py-4">
+                <div className="space-y-3.5 py-4">
                     {isLoading ? (
                         <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
                             <Loader2 className="h-5 w-5 animate-spin text-primary" />
@@ -199,58 +223,114 @@ export function CourseEnrollmentModal({
                         const isEnrolled = enrolledSessionId === String(session.id)
                         const isOpenRegistration = session.statusName.trim().toLowerCase() === 'open registration'
                         const isEnrolling = enrollingSessionId === session.id
+                        const seatsLeft = Math.max(0, session.maxParticipants - session.enrolledCount)
+                        const hasVenue = Boolean(session.venueName && session.venueName.trim() !== '' && session.venueName !== '—' && session.venueName !== '-')
+                        const hasInstructor = Boolean(session.instructorName && session.instructorName.trim() !== '' && session.instructorName !== '—' && session.instructorName !== '-')
+                        const sessionTime = formatSessionTime(session.startDate, session.endDate)
+                        const hasTime = Boolean(sessionTime && sessionTime !== '—')
 
                         return (
                             <div
                                 key={session.id}
                                 className={`rounded-xl border p-4 transition-all ${
                                     isEnrolled
-                                        ? 'border-primary bg-primary/5'
+                                        ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/30'
                                         : isFull || !isOpenRegistration
-                                            ? 'border-border bg-muted/30 opacity-70'
-                                            : 'border-border bg-card hover:border-primary/50 hover:shadow-sm'
+                                            ? 'border-border bg-muted/30 opacity-75'
+                                            : 'border-border bg-card hover:border-primary/40 hover:shadow-sm'
                                 }`}
                             >
                                 <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-                                    <div className="flex-1 space-y-2">
-                                        <div className="flex items-center gap-2 font-semibold">
-                                            <CalendarDays className="h-4 w-4 text-primary" />
-                                            {formatSessionDate(session.startDate, session.endDate)}
+                                    <div className="flex-1 space-y-2.5">
+                                        {/* Top row: Date, Status, Department */}
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <div className="flex items-center gap-2 font-semibold text-sm text-foreground">
+                                                <CalendarDays className="h-4 w-4 text-primary" />
+                                                <span>{formatSessionDate(session.startDate, session.endDate)}</span>
+                                            </div>
+                                            {session.statusName && (
+                                                <span className={`px-2 py-0.5 text-[11px] font-semibold rounded-full border ${
+                                                    isOpenRegistration
+                                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                        : 'bg-slate-100 text-slate-600 border-slate-200'
+                                                }`}>
+                                                    {session.statusName}
+                                                </span>
+                                            )}
+                                            {session.targetDepartmentName && (
+                                                <span className="px-2 py-0.5 text-[11px] font-medium bg-blue-50 text-blue-700 rounded-md border border-blue-100">
+                                                    {session.targetDepartmentName}
+                                                </span>
+                                            )}
                                         </div>
-                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
-                                            <span className="flex items-center gap-1.5">
-                                                <Clock className="h-3.5 w-3.5" /> {formatSessionTime(session.startDate, session.endDate)}
-                                            </span>
-                                            <span className="flex items-center gap-1.5">
-                                                <MapPin className="h-3.5 w-3.5" /> {session.venueName || '—'}
-                                            </span>
+
+                                        {/* Time, Venue, Instructor */}
+                                        <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-muted-foreground">
+                                            {hasTime && (
+                                                <span className="flex items-center gap-1.5">
+                                                    <Clock className="h-3.5 w-3.5 text-muted-foreground/70" />
+                                                    <span>{sessionTime}</span>
+                                                </span>
+                                            )}
+                                            {hasVenue && (
+                                                <span className="flex items-center gap-1.5">
+                                                    <MapPin className="h-3.5 w-3.5 text-muted-foreground/70" />
+                                                    <span>{session.venueName}</span>
+                                                </span>
+                                            )}
+                                            {hasInstructor && (
+                                                <span className="flex items-center gap-1.5">
+                                                    <Users className="h-3.5 w-3.5 text-muted-foreground/70" />
+                                                    <span>Instructor: <strong className="text-foreground/80 font-medium">{session.instructorName}</strong></span>
+                                                </span>
+                                            )}
                                         </div>
-                                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                            <Users className="h-3.5 w-3.5" />
-                                            Instructor: {session.instructorName || '—'}
-                                        </div>
+
+                                        {/* Optional note */}
+                                        {session.note && (
+                                            <div className="text-xs text-muted-foreground/90 bg-muted/40 px-2.5 py-1.5 rounded-md border border-border/50">
+                                                <span className="font-medium text-foreground/70">Note: </span>{session.note}
+                                            </div>
+                                        )}
                                     </div>
 
-                                    <div className="flex shrink-0 flex-col items-end gap-2">
-                                        <div className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                                            isFull ? 'bg-destructive/10 text-destructive' : 'bg-success/10 text-success'
+                                    {/* Right: Seats badge & Enroll Button */}
+                                    <div className="flex shrink-0 flex-col items-end gap-2.5 self-stretch sm:self-center justify-between sm:justify-center">
+                                        <div className={`rounded-full px-2.5 py-0.5 text-xs font-semibold border ${
+                                            isFull
+                                                ? 'bg-destructive/10 text-destructive border-destructive/20'
+                                                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                         }`}>
                                             {session.enrolledCount} / {session.maxParticipants} Seats
+                                            {!isFull && session.maxParticipants > session.enrolledCount && (
+                                                <span className="ml-1 text-[10px] font-normal opacity-85">
+                                                    ({seatsLeft} left)
+                                                </span>
+                                            )}
                                         </div>
+
                                         {isEnrolled ? (
-                                            <Button disabled variant="outline" className="w-32 border-primary bg-primary/10 text-primary opacity-100">
-                                                <CheckCircle className="mr-2 h-4 w-4" /> Enrolled
+                                            <Button
+                                                disabled
+                                                variant="outline"
+                                                className="w-32 border-primary bg-primary/10 text-primary opacity-100 font-semibold"
+                                            >
+                                                <CheckCircle className="mr-1.5 h-4 w-4" /> Enrolled
                                             </Button>
                                         ) : (
                                             <Button
                                                 onClick={() => handleEnroll(session)}
                                                 disabled={isFull || !isOpenRegistration || enrollingSessionId !== null}
-                                                variant={isFull || !isOpenRegistration ? 'soft' : 'default'}
-                                                className="w-32"
+                                                color="primary"
+                                                className={`w-32 font-semibold shadow-sm transition-all ${
+                                                    isFull || !isOpenRegistration
+                                                        ? 'bg-slate-200 text-slate-500 hover:bg-slate-200 cursor-not-allowed'
+                                                        : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                                                }`}
                                             >
-                                                {isEnrolling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                                {isEnrolling && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
                                                 {isFull ? 'Class Full' :
-                                                    !isOpenRegistration ? session.statusName :
+                                                    !isOpenRegistration ? (session.statusName?.toLowerCase().includes('close') ? 'Closed' : session.statusName) :
                                                         isEnrolling ? 'Enrolling…' : 'Enroll Now'}
                                             </Button>
                                         )}

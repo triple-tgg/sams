@@ -22,48 +22,56 @@ const ProjectWrapper = ({ children }: { children: React.ReactNode }) => {
                     ไม่สามารถโหลดข้อมูล Dashboard ได้: {dashboardError.message}
                 </div>
             )}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 py-4 md:py-6">
-                <Card className="bg-primary/20">
-                    <CardContent className="p-3 sm:p-4 text-center">
-                        <div className="mx-auto h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center bg-white mb-2 sm:mb-4">
-                            <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-primary" icon="heroicons:calendar-date-range" />
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 py-2 sm:py-3">
+                <Card className="bg-primary/10 border-primary/20 dark:bg-primary/15 dark:border-primary/30 shadow-2xs">
+                    <CardContent className="p-2.5 sm:p-3.5 flex items-center sm:flex-col sm:text-center gap-2.5 sm:gap-0">
+                        <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-full flex items-center justify-center bg-white dark:bg-slate-800 shadow-2xs shrink-0 sm:mb-2">
+                            <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-primary" icon="heroicons:calendar-date-range" />
                         </div>
-                        <div className="block text-xs sm:text-sm text-default-600 font-medium mb-1">Planned</div>
-                        <div className="text-xl sm:text-2xl text-default-900 font-semibold">
-                            {dashboardLoading ? '...' : (dashboard?.planned ?? '0')}
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card className="bg-info/20">
-                    <CardContent className="p-3 sm:p-4 text-center">
-                        <div className="mx-auto h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center bg-white mb-2 sm:mb-4">
-                            <CalendarPlus className="w-5 h-5 sm:w-6 sm:h-6 text-info" />
-                        </div>
-                        <div className="block text-xs sm:text-sm text-default-600 font-medium mb-1">Additional</div>
-                        <div className="text-xl sm:text-2xl text-default-900 font-semibold">
-                            {dashboardLoading ? '...' : (dashboard?.additional ?? '0')}
+                        <div className="min-w-0 flex-1 sm:w-full">
+                            <div className="text-[11px] sm:text-xs text-default-600 font-medium truncate sm:mb-0.5">Planned</div>
+                            <div className="text-base sm:text-xl text-default-900 font-semibold leading-tight">
+                                {dashboardLoading ? '...' : (dashboard?.planned ?? '0')}
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
-                <Card className="bg-success/20">
-                    <CardContent className="p-3 sm:p-4 text-center">
-                        <div className="mx-auto h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center bg-white mb-2 sm:mb-4">
-                            <CalendarCheck className="w-5 h-5 sm:w-6 sm:h-6 text-success" />
+                <Card className="bg-info/10 border-info/20 dark:bg-info/15 dark:border-info/30 shadow-2xs">
+                    <CardContent className="p-2.5 sm:p-3.5 flex items-center sm:flex-col sm:text-center gap-2.5 sm:gap-0">
+                        <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-full flex items-center justify-center bg-white dark:bg-slate-800 shadow-2xs shrink-0 sm:mb-2">
+                            <CalendarPlus className="w-4 h-4 sm:w-5 sm:h-5 text-info" />
                         </div>
-                        <div className="block text-xs sm:text-sm text-default-600 font-medium mb-1">Actual</div>
-                        <div className="text-xl sm:text-2xl text-default-900 font-semibold">
-                            {dashboardLoading ? '...' : (dashboard?.actual ?? '0')}
+                        <div className="min-w-0 flex-1 sm:w-full">
+                            <div className="text-[11px] sm:text-xs text-default-600 font-medium truncate sm:mb-0.5">Additional</div>
+                            <div className="text-base sm:text-xl text-default-900 font-semibold leading-tight">
+                                {dashboardLoading ? '...' : (dashboard?.additional ?? '0')}
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
-                <Card className="bg-warning/20">
-                    <CardContent className="p-3 sm:p-4 text-center">
-                        <div className="mx-auto h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center bg-white mb-2 sm:mb-4">
-                            <CalendarX className="w-5 h-5 sm:w-6 sm:h-6 text-warning" />
+                <Card className="bg-success/10 border-success/20 dark:bg-success/15 dark:border-success/30 shadow-2xs">
+                    <CardContent className="p-2.5 sm:p-3.5 flex items-center sm:flex-col sm:text-center gap-2.5 sm:gap-0">
+                        <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-full flex items-center justify-center bg-white dark:bg-slate-800 shadow-2xs shrink-0 sm:mb-2">
+                            <CalendarCheck className="w-4 h-4 sm:w-5 sm:h-5 text-success" />
                         </div>
-                        <div className="block text-xs sm:text-sm text-default-600 font-medium mb-1">Cancel</div>
-                        <div className="text-xl sm:text-2xl text-default-900 font-semibold">
-                            {dashboardLoading ? '...' : (dashboard?.cancel ?? '0')}
+                        <div className="min-w-0 flex-1 sm:w-full">
+                            <div className="text-[11px] sm:text-xs text-default-600 font-medium truncate sm:mb-0.5">Actual</div>
+                            <div className="text-base sm:text-xl text-default-900 font-semibold leading-tight">
+                                {dashboardLoading ? '...' : (dashboard?.actual ?? '0')}
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card className="bg-warning/10 border-warning/20 dark:bg-warning/15 dark:border-warning/30 shadow-2xs">
+                    <CardContent className="p-2.5 sm:p-3.5 flex items-center sm:flex-col sm:text-center gap-2.5 sm:gap-0">
+                        <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-full flex items-center justify-center bg-white dark:bg-slate-800 shadow-2xs shrink-0 sm:mb-2">
+                            <CalendarX className="w-4 h-4 sm:w-5 sm:h-5 text-warning" />
+                        </div>
+                        <div className="min-w-0 flex-1 sm:w-full">
+                            <div className="text-[11px] sm:text-xs text-default-600 font-medium truncate sm:mb-0.5">Cancel</div>
+                            <div className="text-base sm:text-xl text-default-900 font-semibold leading-tight">
+                                {dashboardLoading ? '...' : (dashboard?.cancel ?? '0')}
+                            </div>
                         </div>
                     </CardContent>
                 </Card>

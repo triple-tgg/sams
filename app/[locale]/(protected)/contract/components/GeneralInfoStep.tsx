@@ -21,6 +21,7 @@ import { useContractStatusOptions } from "@/lib/api/hooks/useContractStatus";
 import { useContractTypesOptions } from "@/lib/api/hooks/useContractTypes";
 import { Checkbox } from "@/components/ui/checkbox";
 import { uploadContractDocument } from "@/lib/api/contract/uploadContractFile";
+import { CURRENCY_OPTIONS, normalizeCurrency } from "@/lib/constants/currency";
 
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => ({
     value: String(i + 1).padStart(2, "0"),
@@ -342,15 +343,18 @@ export const GeneralInfoStep = ({
                 <div className="space-y-2">
                     <Label htmlFor="currency">Currency <span className="text-destructive">*</span></Label>
                     <Select
-                        value={formData.currency}
+                        value={normalizeCurrency(formData.currency)}
                         onValueChange={(value) => onFormChange("currency", value)}
                     >
                         <SelectTrigger className={fieldErrors.currency ? "border-destructive" : ""}>
                             <SelectValue placeholder="Select Currency" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="thb">THB</SelectItem>
-                            <SelectItem value="usd">USD</SelectItem>
+                            {CURRENCY_OPTIONS.map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                </SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                     {fieldErrors.currency && (

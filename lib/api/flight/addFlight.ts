@@ -1,38 +1,62 @@
 import axios from "@/lib/axios.config";
 import type { AxiosError } from "axios";
 
-// ทำ id เป็น optional เผื่อ backend สร้างให้
+export interface FlightServiceListItem {
+  code: string;
+  subTypes: string[];
+}
+
+export interface FlightAircraftTowingItemPayload {
+  id?: string | null;
+  bayForm: string;
+  bayTo: string;
+  aircraftOnDate: string;
+  aircraftOffDate: string;
+}
+
+// ทำ id เป็น optional เผื่อ backend สร้างให้ (0 เมื่อสร้างใหม่)
 export interface FlightData {
   id?: number;
   airlinesCode: string;
   stationsCode: string;
   acReg: string;
   acTypeCode: string;
-  aircraftEngineCode?: string;
-  familyCode?: string;
   series?: string;
   engineCode?: string;
   arrivalFlightNo: string;
   arrivalStaDate: string;      // UTC datetime "YYYY-MM-DD HH:mm"
   arrivalAtaDate: string;      // UTC datetime "YYYY-MM-DD HH:mm"
   departureFlightNo: string;
-  departureStdDate: string;    // UTC datetime "YYYY-MM-DD HH:mm"
   departureAtdDate: string;    // UTC datetime "YYYY-MM-DD HH:mm"
+  departureStdDate: string;    // UTC datetime "YYYY-MM-DD HH:mm"
   bayNo: string;
-  thfNo: string;
   statusCode: string;
   note: string;
-
-  routeForm?: string;          // NOTE: API uses "routeForm" not "routeFrom"
+  routeFrom?: string;
   routeTo?: string;
+  csIdList?: number[] | null;
+  mechIdList?: number[] | null;
+  maintenanceStatusId?: number;
+  etaDate?: string;
+  flightServiceLists?: FlightServiceListItem[];
+  flightAircraftTowingsLists?: FlightAircraftTowingItemPayload[];
 
-  userName: string;
-  csId?: number | null;          // Single CS staff ID
-  mechId?: number | null;        // Single MECH staff ID
-  csIdList?: number[] | null;    // Array of CS staff IDs
-  mechIdList?: number[] | null;  // Array of MECH staff IDs
-  /** Service group — aircraft checks. Same shape as THF `aircraft.aircraftCheckType`. Pending backend support. */
+  // Legacy/optional fields
+  thfNo?: string;
+  routeForm?: string;
+  userName?: string;
+  csId?: number | null;
+  mechId?: number | null;
+  aircraftEngineCode?: string;
+  familyCode?: string;
   aircraftCheckType?: { checkType: string; checkSubType: string[] }[];
+  isAircraftTowing?: boolean;
+  aircraftTowing?: {
+    onDate?: string;
+    offDate?: string;
+    bayFrom?: string;
+    bayTo?: string;
+  }[];
 }
 
 // ถ้า API ห่อ response เป็น envelope อื่น ปรับให้ตรงได้

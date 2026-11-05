@@ -131,6 +131,10 @@ export function useUpdateSchedulerStatus(scheduleId: number) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: schedulerKeys.detail(scheduleId) });
       qc.invalidateQueries({ queryKey: schedulerKeys.all });
+      qc.invalidateQueries({ queryKey: ["scheduler-list"] });
+      qc.invalidateQueries({ queryKey: ["scheduler-calendar"] });
+      qc.invalidateQueries({ queryKey: ["scheduler-dashboard-calendar"] });
+      qc.invalidateQueries({ queryKey: ["scheduler-session-detail", scheduleId] });
     },
   });
 }

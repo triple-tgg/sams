@@ -155,6 +155,12 @@ export async function getMonitoringCrsList(data: MonitoringCrsListRequest): Prom
   return response.data;
 }
 
+/** POST /authorization/monitoring-crs/v2/listdata — used by QA > Authorization Monitoring > Monitoring CRS. */
+export async function getMonitoringCrsListV2(data: MonitoringCrsListRequest): Promise<MonitoringCrsListResponse> {
+  const response = await axiosConfig.post<MonitoringCrsListResponse>("/authorization/monitoring-crs/v2/listdata", data);
+  return response.data;
+}
+
 export async function getMonitoringCrsDetail(staffId: number, expiryWarningDays = 90): Promise<MonitoringCrsDetailResponse> {
   const response = await axiosConfig.get<MonitoringCrsDetailResponse>(`/authorization/monitoring-crs/byid/${staffId}`, {
     params: { expiryWarningDays },

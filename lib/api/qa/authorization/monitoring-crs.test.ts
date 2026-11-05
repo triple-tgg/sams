@@ -10,6 +10,7 @@ vi.mock("@/lib/axios.config", () => ({ default: axiosMock }));
 import {
   getMonitoringCrsDetail,
   getMonitoringCrsList,
+  getMonitoringCrsListV2,
   getMonitoringCrsSummary,
   type MonitoringCrsListRequest,
 } from "./monitoring-crs";
@@ -33,6 +34,24 @@ describe("monitoring CRS API", () => {
 
     await expect(getMonitoringCrsList(request)).resolves.toBe(response);
     expect(axiosMock.post).toHaveBeenCalledWith("/authorization/monitoring-crs/listdata", request);
+  });
+
+  it("posts the matrix filters to the v2 monitoring route", async () => {
+    const request: MonitoringCrsListRequest = {
+      searchKeyword: "",
+      coverageStatus: "",
+      samsStatus: "",
+      airlineId: null,
+      hasIssues: false,
+      expiryWarningDays: 90,
+      page: 1,
+      perPage: 20,
+    };
+    const response = { message: "success", responseData: {}, page: 1, perPage: 20, total: 0, totalAll: 0, error: "" };
+    axiosMock.post.mockResolvedValueOnce({ data: response });
+
+    await expect(getMonitoringCrsListV2(request)).resolves.toBe(response);
+    expect(axiosMock.post).toHaveBeenCalledWith("/authorization/monitoring-crs/v2/listdata", request);
   });
 
   it("gets staff detail with the warning window", async () => {

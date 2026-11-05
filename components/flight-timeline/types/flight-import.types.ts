@@ -150,10 +150,22 @@ export interface FlightServiceListItem {
 }
 
 /**
+ * Towing item in flight validation/import
+ */
+export interface FlightAircraftTowingValidateItem {
+    id?: string | null;
+    bayForm: string;
+    bayTo: string;
+    aircraftOnDate: string;
+    aircraftOffDate: string;
+}
+
+/**
  * API validate request item
  */
 export interface FlightValidateRequestItem {
     flightServiceLists: FlightServiceListItem[];
+    flightAircraftTowingsLists?: FlightAircraftTowingValidateItem[];
     rowId: number;
     airlinesId: number;
     stationId: number;
@@ -191,6 +203,7 @@ export type FlightImportRequestItem = Omit<FlightValidateRequestItem, 'aircraftE
 export function toFlightImportRequestItem(item: FlightValidateRequestItem): FlightImportRequestItem {
     return {
         flightServiceLists: item.flightServiceLists,
+        flightAircraftTowingsLists: item.flightAircraftTowingsLists ?? [],
         rowId: item.rowId,
         airlinesId: item.airlinesId,
         stationId: item.stationId,

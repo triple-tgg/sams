@@ -39,8 +39,8 @@ const staffDatabase: Record<number, StaffData> = {
             { course: 'Fuel Tank Safety', type: 'R2Y', dateFrom: '2023-12-15', dateTo: '2025-12-15', validUntil: '2025-12-15', status: 'Expired' },
             { course: 'SMS / Safety Management', type: 'R2Y', dateFrom: '2025-01-20', dateTo: '2027-01-20', validUntil: '2027-01-20', status: 'Valid' },
             { course: 'Dangerous Goods', type: 'R2Y', dateFrom: '2024-06-10', dateTo: '2026-06-10', validUntil: '2026-06-10', status: 'Valid' },
-            { course: 'B737-800 Type Training', type: 'INI', dateFrom: '2019-06-01', dateTo: '-', validUntil: '-', status: 'Permanent' },
-            { course: 'A320 Type Training', type: 'INI', dateFrom: '2022-09-15', dateTo: '-', validUntil: '-', status: 'Permanent' },
+            { course: 'B737-800 Type Training', type: 'INI', dateFrom: '2019-06-01', dateTo: '-', validUntil: '-', status: 'Never' },
+            { course: 'A320 Type Training', type: 'INI', dateFrom: '2022-09-15', dateTo: '-', validUntil: '-', status: 'Never' },
         ],
         experience: [
             { title: 'B1 Engineer', company: 'SAMS Engineering Maintenance', period: 'May 2021 – Present', description: 'Perform line maintenance on B737 and A320 fleet. Lead shift team for daily aircraft checks.' },

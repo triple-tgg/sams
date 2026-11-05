@@ -11,10 +11,12 @@ dayjs.extend(buddhistEra);
 
 // dayjs.locale('th');
 
-// ─── Timezone Strategy ──────────────────────────────────────────────────────
+// ─── Timezone Strategy (Project Standard) ──────────────────────────────────
 // Display  → ใช้ local timezone ของ browser (dayjs default)
-// API Send → แปลงเป็น UTC ก่อนส่ง
+// API Send → แปลงเป็น ISO 8601 UTC (YYYY-MM-DDTHH:mm:ssZ) ก่อนส่งทุกครั้ง
 // ไม่ set default timezone เพื่อให้ dayjs ใช้ local timezone ของ user
+
+export const UTC_ISO_FORMAT = 'YYYY-MM-DDTHH:mm:ss[Z]'
 
 // ─── Utility Functions ──────────────────────────────────────────────────────
 export const dateTimeUtils = {
@@ -33,9 +35,15 @@ export const dateTimeUtils = {
   /** แสดง datetime ใน local timezone */
   displayDateTime: (dateTime: string | Date) => dayjs(dateTime).format('YYYY-MM-DD HH:mm'),
 
-  // ─── API Submission (UTC) ──────────────────────────────────────
-  /** แปลง local date/time → UTC ISO string สำหรับส่ง API */
-  toUtcIso: (date: string | Date) => dayjs(date).utc().format(),
+  // ─── API Submission (ISO 8601 UTC: YYYY-MM-DDTHH:mm:ssZ) ────────
+  /** แปลง local date/time → ISO 8601 UTC (YYYY-MM-DDTHH:mm:ssZ) สำหรับส่ง API */
+  toUtcIso: (date: string | Date) => dayjs(date).utc().format(UTC_ISO_FORMAT),
+  /** แปลง local start of day → ISO 8601 UTC (เช่น "2026-11-01T17:00:00Z") สำหรับ filter dateStart / startDate */
+  toUtcStartOfDay: (date: string | Date) =>
+    date ? dayjs(date).startOf('day').utc().format(UTC_ISO_FORMAT) : '',
+  /** แปลง local end of day → ISO 8601 UTC (เช่น "2026-11-04T16:59:59Z") สำหรับ filter dateEnd / endDate */
+  toUtcEndOfDay: (date: string | Date) =>
+    date ? dayjs(date).endOf('day').utc().format(UTC_ISO_FORMAT) : '',
   /** แปลง local date → UTC date (YYYY-MM-DD) */
   toUtcDate: (date: string | Date) => dayjs(date).utc().format('YYYY-MM-DD'),
 

@@ -219,25 +219,44 @@ const PreviewStep: React.FC<PreviewStepProps> = ({ flightInfosId }) => {
             </div>
             <div>
               <SubHeader icon={Truck}>Aircraft Towing</SubHeader>
-              {aircraftData?.aircraftTowing?.length ? (
-                <div className="overflow-x-auto rounded-lg border">
-                  <table className="w-full text-left">
-                    <thead className="bg-slate-50"><tr><Th>Bay From</Th><Th>Bay To</Th><Th>From</Th><Th>To</Th></tr></thead>
-                    <tbody className="divide-y">
-                      {aircraftData.aircraftTowing.map((tow, idx) => (
-                        <tr key={idx} className="hover:bg-muted/30">
-                          <Td>{tow.bayFrom}</Td>
-                          <Td>{tow.bayTo}</Td>
-                          <Td>{tow.onDate?.includes('T') ? formatUtcToLocalDisplay(tow.onDate) : `${tow.onDate || ''} ${tow.onTime || ''}`.trim()}</Td>
-                          <Td>{tow.offDate?.includes('T') ? formatUtcToLocalDisplay(tow.offDate) : `${tow.offDate || ''} ${tow.offTime || ''}`.trim()}</Td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <BoolChip value={lineMaintenanceData?.isAircraftTowing} trueLabel="Enabled" falseLabel="Disabled" />
-              )}
+              {(() => {
+                const previewTowings = aircraftData?.aircraftTowing?.length
+                  ? aircraftData.aircraftTowing
+                  : (flightData?.flightAircraftTowingsLists?.length
+                    ? flightData.flightAircraftTowingsLists.map((t: any) => ({
+                        bayFrom: t.bayForm || t.bayFrom || '',
+                        bayTo: t.bayTo || '',
+                        onDate: t.aircraftOnDate || t.onDate || '',
+                        offDate: t.aircraftOffDate || t.offDate || '',
+                        onTime: '',
+                        offTime: '',
+                      }))
+                    : []);
+
+                if (previewTowings.length > 0) {
+                  return (
+                    <div className="overflow-x-auto rounded-lg border">
+                      <table className="w-full text-left">
+                        <thead className="bg-slate-50"><tr><Th>Bay From</Th><Th>Bay To</Th><Th>From</Th><Th>To</Th></tr></thead>
+                        <tbody className="divide-y">
+                          {previewTowings.map((tow, idx) => (
+                            <tr key={idx} className="hover:bg-muted/30">
+                              <Td>{tow.bayFrom}</Td>
+                              <Td>{tow.bayTo}</Td>
+                              <Td>{tow.onDate?.includes('T') ? formatUtcToLocalDisplay(tow.onDate) : `${tow.onDate || ''} ${(tow as any).onTime || ''}`.trim()}</Td>
+                              <Td>{tow.offDate?.includes('T') ? formatUtcToLocalDisplay(tow.offDate) : `${tow.offDate || ''} ${(tow as any).offTime || ''}`.trim()}</Td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                }
+
+                return (
+                  <BoolChip value={lineMaintenanceData?.isAircraftTowing} trueLabel="Enabled" falseLabel="Disabled" />
+                );
+              })()}
             </div>
           </div>
 

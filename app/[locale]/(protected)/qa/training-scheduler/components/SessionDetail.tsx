@@ -1,12 +1,14 @@
 'use client'
 
-import { Calendar, Clock, MapPin, User, Tag, Building2, Pencil, Trash2, X, Video, Link as LinkIcon, BookOpen } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Calendar, Clock, MapPin, User, Tag, Building2, Pencil, Trash2, X, Video, Link as LinkIcon, BookOpen, ChevronDown, ChevronUp } from 'lucide-react'
 import { Session, STATUS_CONFIG, CAT_COLOR, formatDate, sessionDays } from '../types'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
 import { useQuery } from '@tanstack/react-query'
 import { getSchedulerById } from '@/lib/api/qa/scheduler'
+import { useTrainingDataStatuses } from '@/lib/api/master/trainingDataStatuses.hooks'
 
 interface SessionDetailProps {
     session: Session
@@ -24,6 +26,8 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
     })
 
     const detail = detailResp?.responseData
+    const { data: trainingStatusesResp } = useTrainingDataStatuses()
+    const trainingStatuses = trainingStatusesResp?.responseData ?? []
 
     // Merge API data over session prop
     const enrolled = detail?.enrolledCount ?? s.enrolled
@@ -38,7 +42,10 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
     const note = detail?.note ?? null
     const isOnline = attendanceTypeName.toLowerCase().includes('online')
 
-    const cfg = STATUS_CONFIG[s.status] || STATUS_CONFIG.Scheduled
+    const statusName = (detail?.trainingDataStatusesId
+        ? trainingStatuses.find((st) => st.id === detail.trainingDataStatusesId)?.name
+        : undefined) || s.status
+    const cfg = STATUS_CONFIG[statusName] || STATUS_CONFIG.Scheduled
     const cc = CAT_COLOR[s.category] || { bar: '#94a3b8', light: '#f8fafc', text: '#475569' }
     const pct = maxParticipants > 0 ? Math.round((enrolled / maxParticipants) * 100) : 0
     const days = sessionDays(s)
@@ -63,6 +70,44 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
     ]
 
     const targetDepts: string[] = detail?.requiredFor?.length ? detail.requiredFor : []
+    const [showAllDepts, setShowAllDepts] = useState(false)
+    const [hiddenDeptCount, setHiddenDeptCount] = useState(0)
+    const [deptsEl, setDeptsEl] = useState<HTMLDivElement | null>(null)
+
+    useEffect(() => {
+        if (!deptsEl || targetDepts.length === 0) {
+            setHiddenDeptCount(0)
+            return
+        }
+        const measure = () => {
+            const children = Array.from(deptsEl.children) as HTMLElement[]
+            if (children.length === 0) {
+                setHiddenDeptCount(0)
+                return
+            }
+            const rowTops: number[] = []
+            let hidden = 0
+            for (const child of children) {
+                const top = child.offsetTop
+                if (!rowTops.some((t) => Math.abs(t - top) <= 4)) {
+                    rowTops.push(top)
+                }
+                if (rowTops.length > 2) {
+                    hidden++
+                }
+            }
+            setHiddenDeptCount(hidden)
+        }
+        const rafId = requestAnimationFrame(measure)
+        const ro = new ResizeObserver(measure)
+        ro.observe(deptsEl)
+        return () => {
+            cancelAnimationFrame(rafId)
+            ro.disconnect()
+        }
+    }, [deptsEl, targetDepts.length])
+
+    const canToggleDepts = hiddenDeptCount > 0 || targetDepts.length > 4 || showAllDepts
 
     return (
         <Dialog open onOpenChange={(open) => { if (!open) onClose() }} >
@@ -77,7 +122,7 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
                                         style={{ background: cc.light, color: cc.text }}>{s.courseCode}</span>
                                     <span className={`text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full border font-medium flex items-center ${cfg.bg} ${cfg.text} ${cfg.border}`}>
                                         <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 ${cfg.dot}`} />
-                                        {s.status}
+                                        {statusName}
                                     </span>
                                 </div>
                             </div>
@@ -191,24 +236,68 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
                             </div>
 
                             {/* Target Dept. */}
-                            <div>
-                                <div className="flex items-center gap-2 mb-2">
-                                    <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center shrink-0">
-                                        <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
-                                    </div>
-                                    <p className="text-xs text-muted-foreground">Target Dept.</p>
+                            <div className="flex min-w-0 items-start gap-2.5">
+                                <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center shrink-0 mt-0.5">
+                                    <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
                                 </div>
-                                {targetDepts.length > 0 ? (
-                                    <div className="flex flex-wrap gap-1.5 ml-8">
-                                        {targetDepts.map((dept) => (
-                                            <span key={dept} className="text-[11px] px-2 py-0.5 rounded-md bg-primary/10 text-primary font-medium border border-primary/20">
-                                                {dept}
-                                            </span>
-                                        ))}
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                                        <p className="text-xs text-muted-foreground">
+                                            Target Dept. {targetDepts.length > 0 && <span className="text-muted-foreground/80">({targetDepts.length})</span>}
+                                        </p>
+                                        {canToggleDepts && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowAllDepts((prev) => !prev)}
+                                                className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-primary hover:underline cursor-pointer bg-transparent border-none p-0"
+                                            >
+                                                {showAllDepts ? (
+                                                    <>
+                                                        Show less <ChevronUp className="w-3.5 h-3.5" />
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        Show all <ChevronDown className="w-3.5 h-3.5" />
+                                                    </>
+                                                )}
+                                            </button>
+                                        )}
                                     </div>
-                                ) : (
-                                    <p className="text-sm text-muted-foreground italic ml-8">— Not Required</p>
-                                )}
+                                    {targetDepts.length > 0 ? (
+                                        <div>
+                                            <div
+                                                ref={setDeptsEl}
+                                                style={!showAllDepts ? { maxHeight: '52px', overflow: 'hidden' } : undefined}
+                                                className="relative flex flex-wrap gap-1.5 transition-all"
+                                            >
+                                                {targetDepts.map((dept) => (
+                                                    <span key={dept} className="text-[11px] px-2 py-0.5 rounded-md bg-primary/10 text-primary font-medium border border-primary/20">
+                                                        {dept}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                            {canToggleDepts && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowAllDepts((prev) => !prev)}
+                                                    className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-0.5 rounded-md bg-muted hover:bg-muted/80 text-foreground transition-colors cursor-pointer border border-border"
+                                                >
+                                                    {showAllDepts ? (
+                                                        <>
+                                                            Show less <ChevronUp className="w-3 h-3" />
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            {hiddenDeptCount > 0 ? `+${hiddenDeptCount} more (Show all)` : `Show all (${targetDepts.length})`} <ChevronDown className="w-3 h-3" />
+                                                        </>
+                                                    )}
+                                                </button>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground italic">— Not Required</p>
+                                    )}
+                                </div>
                             </div>
 
 
@@ -242,10 +331,10 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
                     </div>
                 </div>
 
-                <DialogFooter className="shrink-0 gap-2 justify-end px-4 pb-4 pt-3 sm:px-5 sm:pb-5 border-t border-border flex flex-col">
+                <DialogFooter className="w-full shrink-0 gap-2 px-4 pb-4 pt-3 sm:px-5 sm:pb-5 border-t border-border flex flex-col sm:flex-col">
                     {/* Actions */}
                     {/* Enrollment bar */}
-                    <div className="flex justify-between items-center gap-3 sm:gap-8">
+                    <div className="flex w-full justify-between items-center gap-3 sm:gap-8">
                         <div className="min-w-0 flex-1">
                             <div className="flex items-center justify-between mb-2">
                                 <p className="text-xs text-muted-foreground font-medium">Enrollment</p>

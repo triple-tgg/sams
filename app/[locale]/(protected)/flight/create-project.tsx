@@ -60,6 +60,13 @@ import {
   FlightServiceGroup,
   toAircraftCheckPayload,
   type FlightAircraftCheck,
+  toFlightServiceLists,
+  AircraftTowingCard,
+  type FlightAircraftTowingItem,
+  toFlightAircraftTowingsLists,
+  AircraftTowingPreviewCell,
+  validateAircraftTowing,
+  isOffTimeBeforeOnTime,
 } from "./thf/create/components/FlightServiceGroup";
 import { AircraftChecksPreviewCell } from "./thf/create/components/FlightServiceGroup/AircraftChecksPreviewCell";
 import {
@@ -123,6 +130,8 @@ export interface GeneratedRecurringFlight {
   mechIdList: number[] | null;
   mechNames: string;
   aircraftChecks: FlightAircraftCheck[];
+  aircraftTowing?: boolean;
+  aircraftTowingInfo?: FlightAircraftTowingItem[];
   mappedFamilyCode?: string;
   series?: string;
   engineCode?: string;
@@ -217,6 +226,111 @@ const FormSchema = z.object({
   aircraftChecks: z
     .array(z.object({ maintenanceTypes: z.string(), maintenanceSubTypes: z.array(z.string()) }))
     .default([]),
+  aircraftTowing: z.boolean().default(false),
+  aircraftTowingInfo: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        onDate: z.string().default(""),
+        onTime: z.string().default(""),
+        offDate: z.string().default(""),
+        offTime: z.string().default(""),
+        bayFrom: z.string().default(""),
+        bayTo: z.string().default(""),
+      })
+    )
+    .default([]),
+}).superRefine((data, ctx) => {
+  if (data.aircraftTowing) {
+    if (!data.aircraftTowingInfo || data.aircraftTowingInfo.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "At least one towing operation is required when enabled",
+        path: ["aircraftTowingInfo"],
+      });
+      return;
+    }
+    data.aircraftTowingInfo.forEach((item, index) => {
+      if (!item.onDate || !item.onDate.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "From date is required",
+          path: ["aircraftTowingInfo", index, "onDate"],
+        });
+      }
+      if (!item.onTime || !item.onTime.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "From time is required",
+          path: ["aircraftTowingInfo", index, "onTime"],
+        });
+      }
+      if (!item.offDate || !item.offDate.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "To date is required",
+          path: ["aircraftTowingInfo", index, "offDate"],
+        });
+      }
+      if (!item.offTime || !item.offTime.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "To time is required",
+          path: ["aircraftTowingInfo", index, "offTime"],
+        });
+      }
+      if (!item.bayFrom || !item.bayFrom.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Bay From is required",
+          path: ["aircraftTowingInfo", index, "bayFrom"],
+        });
+      } else if (item.bayFrom.trim().length > 10) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Bay From must not exceed 10 characters",
+          path: ["aircraftTowingInfo", index, "bayFrom"],
+        });
+      }
+      if (!item.bayTo || !item.bayTo.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Bay To is required",
+          path: ["aircraftTowingInfo", index, "bayTo"],
+        });
+      } else if (item.bayTo.trim().length > 10) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Bay To must not exceed 10 characters",
+          path: ["aircraftTowingInfo", index, "bayTo"],
+        });
+      }
+      if (
+        item.bayFrom &&
+        item.bayTo &&
+        item.bayFrom.trim().toLowerCase() === item.bayTo.trim().toLowerCase()
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Bay From and Bay To must be different",
+          path: ["aircraftTowingInfo", index, "bayTo"],
+        });
+      }
+      if (
+        item.onDate &&
+        item.onTime &&
+        item.offDate &&
+        item.offTime &&
+        isOffTimeBeforeOnTime(item.onDate, item.onTime, item.offDate, item.offTime)
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "To time must be after From time",
+          path: ["aircraftTowingInfo", index, "offTime"],
+        });
+      }
+    });
+  }
 });
 
 export type Inputs = z.infer<typeof FormSchema>;
@@ -247,6 +361,8 @@ const DEFAULT_FORM_VALUES: Inputs = {
   csIdList: null,
   mechIdList: null,
   aircraftChecks: [],
+  aircraftTowing: false,
+  aircraftTowingInfo: [],
 };
 
 // ------------------------------------------------------
@@ -286,6 +402,13 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
   const [rowEditData, setRowEditData] = useState<Partial<GeneratedRecurringFlight>>({});
   const [isValidatingRecurring, setIsValidatingRecurring] = useState<boolean>(false);
   const [validationResultMap, setValidationResultMap] = useState<Record<number, { isValid: boolean; statusText?: string }> | null>(null);
+
+  const isValidationPassed = useMemo(() => {
+    if (!validationResultMap || generatedFlights.length === 0) return false;
+    const results = Object.values(validationResultMap);
+    if (results.length !== generatedFlights.length) return false;
+    return results.every((v) => v.isValid);
+  }, [validationResultMap, generatedFlights.length]);
 
   // Fetch staff list to resolve staff display names
   const { data: allStaffData } = useStaff({ code: "", name: "", id: "" }, true);
@@ -428,7 +551,11 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
   // Runs when form has invalid fields upon submit
   const onInvalid = (_formErrors: FieldErrors<Inputs>) => {
     // Required fields live in Flight Information — make sure errors are visible
-    setOpenSections((s) => ({ ...s, flightInfo: true }));
+    setOpenSections((s) => ({
+      ...s,
+      flightInfo: true,
+      service: Boolean(_formErrors.aircraftTowingInfo || _formErrors.aircraftChecks || s.service),
+    }));
     if (flightMode === "recurring") {
       validateRecurrence();
     } else {
@@ -441,6 +568,15 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
   };
 
   const onSubmit: SubmitHandler<Inputs> = async (values) => {
+    if (values.aircraftTowing) {
+      const towingValidation = validateAircraftTowing(values.aircraftTowingInfo);
+      if (!towingValidation.isValid) {
+        setOpenSections((s) => ({ ...s, service: true }));
+        toast.error(towingValidation.message || "Invalid Aircraft Towing details");
+        return;
+      }
+    }
+
     if (flightMode === "one-time") {
       // Validate single flight dates
       if (!values.arrivalDate || !/^\d{2}\/\d{2}\/\d{4}$/.test(values.arrivalDate)) {
@@ -468,19 +604,24 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
         arrivalStaDate: combineFormToUtcDatetime(values.arrivalDate, values.sta),
         arrivalAtaDate: values.ata?.trim() ? combineFormToUtcDatetime(values.arrivalDate, values.ata) : "",
         departureFlightNo: (values.flightDeparture ?? "").trim(),
-        departureStdDate: values.departureDate && values.std ? combineFormToUtcDatetime(values.departureDate, values.std) : "",
         departureAtdDate: values.departureDate && values.atd?.trim() ? combineFormToUtcDatetime(values.departureDate, values.atd) : "",
+        departureStdDate: values.departureDate && values.std ? combineFormToUtcDatetime(values.departureDate, values.std) : "",
         bayNo: (values.bay ?? "").trim(),
-        thfNo: (values.thfNumber ?? "").trim(),
         statusCode: values.status?.value ?? "Normal",
         note: (values.note ?? "").trim(),
-
-        routeForm: values.routeFrom?.value ?? "",
+        routeFrom: values.routeFrom?.value ?? "",
         routeTo: values.routeTo?.value ?? "",
+        csIdList: values.csIdList || [],
+        mechIdList: values.mechIdList || [],
+        maintenanceStatusId: values.maintenanceStatus?.id ?? 0,
+        etaDate: "",
+        flightServiceLists: toFlightServiceLists(values.aircraftChecks),
+        flightAircraftTowingsLists: values.aircraftTowing ? toFlightAircraftTowingsLists(values.aircraftTowingInfo, false) : [],
 
+        // Legacy/compatibility fields
+        thfNo: (values.thfNumber ?? "").trim(),
+        routeForm: values.routeFrom?.value ?? "",
         userName: values.userName.trim() ?? "",
-        csIdList: values.csIdList || null,
-        mechIdList: values.mechIdList || null,
         aircraftEngineCode: mappedFamilyCode,
         familyCode: mappedFamilyCode,
         series: values.series || "",
@@ -593,6 +734,18 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
           maintenanceTypes: c.maintenanceTypes,
           maintenanceSubTypes: [...(c.maintenanceSubTypes ?? [])],
         })),
+        aircraftTowing: values.aircraftTowing,
+        aircraftTowingInfo: values.aircraftTowing
+          ? (values.aircraftTowingInfo ?? []).map((t) => ({
+              id: t.id,
+              onDate: item.arrivalDate,
+              onTime: t.onTime,
+              offDate: item.departureDate || item.arrivalDate,
+              offTime: t.offTime,
+              bayFrom: t.bayFrom,
+              bayTo: t.bayTo,
+            }))
+          : [],
         mappedFamilyCode: mappedFamilyCode,
         series: values.series || "",
         engineCode: values.engineCode || "",
@@ -649,8 +802,13 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
           subTypes: c.maintenanceSubTypes ?? [],
         }));
 
+      const flightAircraftTowingsLists = item.aircraftTowing && item.aircraftTowingInfo
+        ? toFlightAircraftTowingsLists(item.aircraftTowingInfo, { defaultNullId: true })
+        : [];
+
       const baseItem: FlightValidateRequestItem = {
         flightServiceLists,
+        flightAircraftTowingsLists,
         rowId: idx + 1,
         airlinesId: item.airlinesId ?? 0,
         stationId: item.stationId ?? 0,
@@ -720,6 +878,7 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
       }
     } catch (err: any) {
       console.error("Validate recurring error:", err);
+      setValidationResultMap(null);
       const errorMessage =
         err.response?.data?.error ||
         err.response?.data?.message ||
@@ -737,6 +896,11 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
   const handleFinalSubmitRecurring = async () => {
     if (generatedFlights.length === 0) {
       toast.error("No flights to submit. Please generate flights first.");
+      return;
+    }
+
+    if (!isValidationPassed) {
+      toast.error("Please validate all flights successfully before adding.");
       return;
     }
 
@@ -1789,17 +1953,27 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                   title="Service"
                   icon={WrenchIcon}
                   iconClassName="bg-emerald-50 text-emerald-600 border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40"
-                  summary={`${(watch("aircraftChecks") ?? []).length} check(s)`}
+                  summary={`${(watch("aircraftChecks") ?? []).length} check(s)${watch("aircraftTowing") ? ` · ${(watch("aircraftTowingInfo") ?? []).length} towing` : ''}`}
                   open={openSections.service}
                   onOpenChange={toggleSection("service")}
                 >
-                  <Controller
-                    name="aircraftChecks"
-                    control={control}
-                    render={({ field }) => (
-                      <FlightServiceGroup hideHeader value={field.value ?? []} onChange={field.onChange} />
-                    )}
-                  />
+                  <div className="space-y-4">
+                    <Controller
+                      name="aircraftChecks"
+                      control={control}
+                      render={({ field }) => (
+                        <FlightServiceGroup hideHeader value={field.value ?? []} onChange={field.onChange} />
+                      )}
+                    />
+                    <AircraftTowingCard
+                      enabled={watch("aircraftTowing") ?? false}
+                      onEnabledChange={(val) => setValue("aircraftTowing", val, { shouldDirty: true })}
+                      items={watch("aircraftTowingInfo") ?? []}
+                      onChange={(items) => setValue("aircraftTowingInfo", items, { shouldDirty: true })}
+                      defaultDate={watch("arrivalDate") || watch("departureDate")}
+                      errors={errors.aircraftTowingInfo}
+                    />
+                  </div>
                 </FlightFormSection>
 
                 <FlightFormSection
@@ -1909,6 +2083,19 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                     Checks:
                     <AircraftChecksPreviewCell checks={watch("aircraftChecks")} maxInline={3} />
                   </span>
+                  {watch("aircraftTowing") && (
+                    <>
+                      <span className="text-slate-400">•</span>
+                      <span className="inline-flex items-center gap-1.5">
+                        Towing:
+                        <AircraftTowingPreviewCell
+                          enabled={watch("aircraftTowing")}
+                          items={watch("aircraftTowingInfo")}
+                          maxInline={2}
+                        />
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -1933,7 +2120,7 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                     {generatedFlights.length}
                   </strong>
                 </span>
-                {validationResultMap && (
+                {validationResultMap ? (
                   <>
                     <span>•</span>
                     {Object.values(validationResultMap).some((v) => !v.isValid) ? (
@@ -1947,6 +2134,13 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                         All Valid
                       </span>
                     )}
+                  </>
+                ) : (
+                  <>
+                    <span>•</span>
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-900">
+                      Not Validated
+                    </span>
                   </>
                 )}
               </div>
@@ -1996,6 +2190,7 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                       <th className="py-2 px-2 min-w-[60px]">Bay</th>
                       <th className="py-2 px-2 min-w-[85px]">Status</th>
                       <th className="py-2 px-2 min-w-[150px]">Aircraft Checks</th>
+                      <th className="py-2 px-2 min-w-[140px]">Aircraft Towing</th>
                       <th className="py-2 px-2 min-w-[120px]">CS</th>
                       <th className="py-2 px-2 min-w-[120px]">MECH</th>
                       <th className="py-2 px-2 text-center min-w-[80px] sticky right-0 bg-slate-100 dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700">
@@ -2164,6 +2359,10 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                             <td className="py-1.5 px-2">
                               <AircraftChecksPreviewCell checks={row.aircraftChecks} />
                             </td>
+                            {/* Aircraft Towing (read-only; edit in Service step) */}
+                            <td className="py-1.5 px-2">
+                              <AircraftTowingPreviewCell enabled={row.aircraftTowing} items={row.aircraftTowingInfo} />
+                            </td>
                             {/* CS */}
                             <td className="py-1.5 px-2 text-slate-500 text-[11px] truncate max-w-[120px]">
                               {row.csNames || "-"}
@@ -2301,6 +2500,10 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                           <td className="py-2 px-2">
                             <AircraftChecksPreviewCell checks={row.aircraftChecks} />
                           </td>
+                          {/* Aircraft Towing */}
+                          <td className="py-2 px-2">
+                            <AircraftTowingPreviewCell enabled={row.aircraftTowing} items={row.aircraftTowingInfo} />
+                          </td>
                           {/* CS */}
                           <td
                             className="py-2.5 px-2 text-[11px] text-slate-600 dark:text-slate-400 truncate max-w-[120px]"
@@ -2393,8 +2596,9 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
                   type="button"
                   color="secondary"
                   onClick={handleFinalSubmitRecurring}
-                  disabled={isSubmittingRecurring || isValidatingRecurring || generatedFlights.length === 0}
-                  className="bg-purple-600 hover:bg-purple-700 text-white font-semibold shadow-xs"
+                  disabled={!isValidationPassed || isSubmittingRecurring || isValidatingRecurring || generatedFlights.length === 0}
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-semibold shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={!isValidationPassed ? "Please validate all flights before adding" : undefined}
                 >
                   {isSubmittingRecurring ? (
                     <>

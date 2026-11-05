@@ -18,6 +18,7 @@ type Props = {
     onClose: () => void;
     onSubmit?: (data: {
         code: string;
+        carrierCode: string;
         name: string;
         description: string;
         colorForeground: string;
@@ -35,6 +36,7 @@ const AirlineFormDialog = ({
     onSubmit
 }: Props) => {
     const [code, setCode] = useState('');
+    const [carrierCode, setCarrierCode] = useState('');
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [colorForeground, setColorForeground] = useState('#FFFFFF');
@@ -48,6 +50,7 @@ const AirlineFormDialog = ({
     useEffect(() => {
         if (airline) {
             setCode(airline.code || '');
+            setCarrierCode(airline.carrierCode || '');
             setName(airline.name || '');
             setDescription(airline.description || '');
             setColorForeground(airline.colorForeground || '#FFFFFF');
@@ -62,6 +65,7 @@ const AirlineFormDialog = ({
         if (onSubmit) {
             onSubmit({
                 code: code.trim(),
+                carrierCode: carrierCode.trim(),
                 name: name.trim(),
                 description: description.trim(),
                 colorForeground,
@@ -85,7 +89,8 @@ const AirlineFormDialog = ({
 
             <form onSubmit={handleSubmit} className="mt-6 flex flex-col flex-1 min-h-0">
                 <div className="flex-1 overflow-y-scroll pr-1 space-y-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-border transition-colors">
-                    {/* Code */}
+                    {/* Code & Carrier Code */}
+                    <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="airline-code">Code *</Label>
                         <Input
@@ -97,6 +102,21 @@ const AirlineFormDialog = ({
                             maxLength={10}
                             required={!isViewMode}
                         />
+                    </div>
+
+                    {/* Carrier Code */}
+                    <div className="space-y-2">
+                        <Label htmlFor="airline-carrier-code">Carrier Code *</Label>
+                        <Input
+                            id="airline-carrier-code"
+                            placeholder="e.g. AB"
+                            value={carrierCode}
+                            onChange={(e) => setCarrierCode(e.target.value.toUpperCase())}
+                            disabled={isViewMode || isPending}
+                            maxLength={10}
+                            required={!isViewMode}
+                        />
+                    </div>
                     </div>
 
                     {/* Name */}
@@ -286,7 +306,7 @@ const AirlineFormDialog = ({
                         {isViewMode ? 'Close' : 'Cancel'}
                     </Button>
                     {!isViewMode && (
-                        <Button type="submit" disabled={isPending || !code.trim() || !name.trim()}>
+                        <Button type="submit" disabled={isPending || !code.trim() || !carrierCode.trim() || !name.trim()}>
                             {isPending ? (
                                 <>
                                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />

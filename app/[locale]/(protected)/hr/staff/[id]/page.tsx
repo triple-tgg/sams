@@ -77,7 +77,7 @@ function mapApiToStaffData(api: StaffByIdData, trainingApi?: TrainingDashboardRe
             type: 'Training', // API doesn't provide type directly in records
             dateFrom: t.dateFrom ? formatDate(t.dateFrom) : '-',
             dateTo: t.dateTo ? formatDate(t.dateTo) : '-',
-            validUntil: t.validUntil === 'Permanent' ? 'Permanent' : (t.validUntil ? formatDate(t.validUntil) : '-'),
+            validUntil: (!t.validUntil || t.validUntil === '-' || t.validUntil.toLowerCase() === 'permanent' || t.validUntil.toLowerCase() === 'never' || t.validUntil.startsWith('9999')) ? 'Never' : formatDate(t.validUntil),
             status: t.status || 'Completed',
         })),
         experience: (api.workExperiences || [])
@@ -159,7 +159,7 @@ function mapApiToStaffData(api: StaffByIdData, trainingApi?: TrainingDashboardRe
         currentTraining: (trainingApi?.records || []).map(t => ({
             dateFrom: t.dateFrom ? formatDate(t.dateFrom) : '-',
             dateTo: t.dateTo ? formatDate(t.dateTo) : '-',
-            validUntil: t.validUntil === 'Permanent' ? 'Permanent' : (t.validUntil ? formatDate(t.validUntil) : '-'),
+            validUntil: (!t.validUntil || t.validUntil === '-' || t.validUntil.toLowerCase() === 'permanent' || t.validUntil.toLowerCase() === 'never' || t.validUntil.startsWith('9999')) ? 'Never' : formatDate(t.validUntil),
             course: t.courseName || '-',
             provider: t.providedBy || '-',
         })),

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useMapContractsV2 } from "@/lib/api/contract/mappingContractsV2.hooks";
 import { thfRevisionService } from "@/lib/store/useThfRevisionStore";
+import { CURRENCY_OPTIONS, CurrencyType } from "@/lib/constants/currency";
 
 interface PreInvoiceModalProps {
     open: boolean;
@@ -16,7 +17,7 @@ interface PreInvoiceModalProps {
 }
 
 export function PreInvoiceModal({ open, onOpenChange, lineMaintenanceIds }: PreInvoiceModalProps) {
-    const [currencyType, setCurrencyType] = useState("THB");
+    const [currencyType, setCurrencyType] = useState<string>(CurrencyType.THB);
     const [currencyRate, setCurrencyRate] = useState("35");
 
     const mapContractsMutation = useMapContractsV2();
@@ -59,7 +60,11 @@ export function PreInvoiceModal({ open, onOpenChange, lineMaintenanceIds }: PreI
                                     <SelectValue placeholder="Select currency" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="THB">THB</SelectItem>
+                                    {CURRENCY_OPTIONS.map((opt) => (
+                                        <SelectItem key={opt.value} value={opt.value}>
+                                            {opt.label}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>

@@ -264,14 +264,49 @@ export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse |
   })) || [];
 
 
-  const aircraftTowingInfo = aircraft?.aircraftTowing?.map(towing => ({
-    onDate: towing.onDate ? utcDatetimeToFormDate(towing.onDate) : "",
-    offDate: towing.offDate ? utcDatetimeToFormDate(towing.offDate) : "",
-    onTime: towing.onDate ? utcDatetimeToFormTime(towing.onDate) : "",
-    offTime: towing.offDate ? utcDatetimeToFormTime(towing.offDate) : "",
-    bayFrom: towing.bayFrom || "", // API field is bayFrom, mapping to bayFrom
-    bayTo: towing.bayTo || "", // Add bay to field
-  })) || [];
+  // Map Aircraft Towing — saved THF towing first, otherwise default from the flight's towing operations
+  const savedTowing = (aircraft?.aircraftTowing ?? []).map((towing: any) => {
+    const rawOn = towing.aircraftOnDate || towing.onDate;
+    const rawOff = towing.aircraftOffDate || towing.offDate;
+    return {
+      onDate: rawOn ? utcDatetimeToFormDate(rawOn) : "",
+      offDate: rawOff ? utcDatetimeToFormDate(rawOff) : "",
+      onTime: rawOn ? utcDatetimeToFormTime(rawOn) : "",
+      offTime: rawOff ? utcDatetimeToFormTime(rawOff) : "",
+      bayFrom: towing.bayForm || towing.bayFrom || "",
+      bayTo: towing.bayTo || "",
+    };
+  });
+
+  const flightTowing = (flight?.flightAircraftTowingsLists ?? []).map((towing: any) => {
+    const rawOn = towing.aircraftOnDate || towing.onDate;
+    const rawOff = towing.aircraftOffDate || towing.offDate;
+    return {
+      onDate: rawOn ? utcDatetimeToFormDate(rawOn) : "",
+      offDate: rawOff ? utcDatetimeToFormDate(rawOff) : "",
+      onTime: rawOn ? utcDatetimeToFormTime(rawOn) : "",
+      offTime: rawOff ? utcDatetimeToFormTime(rawOff) : "",
+      bayFrom: towing.bayForm || towing.bayFrom || "",
+      bayTo: towing.bayTo || "",
+    };
+  });
+
+  const hasSavedTowing = Boolean(lineMaintenance?.isAircraftTowing && savedTowing.length > 0);
+  const hasFlightTowing = flightTowing.length > 0;
+
+  const isTowingActive = hasSavedTowing
+    ? true
+    : savedTowing.length > 0
+    ? true
+    : hasFlightTowing
+    ? true
+    : Boolean(lineMaintenance?.isAircraftTowing);
+
+  const resolvedTowingInfo = hasSavedTowing || savedTowing.length > 0
+    ? savedTowing
+    : hasFlightTowing
+    ? flightTowing
+    : (lineMaintenance?.isAircraftTowing ? savedTowing : []);
 
   return {
     aircraftChecks,
@@ -283,7 +318,7 @@ export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse |
     personnel: lineMaintenance?.isPersonnels ? personnel : [],
     flightDeck: lineMaintenance?.isFlightdeck || false,
     // flightDeckInfo: lineMaintenance?.isFlightdeck ? flightDeckInfo : [],
-    aircraftTowing: lineMaintenance?.isAircraftTowing || false,
-    aircraftTowingInfo: lineMaintenance?.isAircraftTowing ? aircraftTowingInfo : [],
+    aircraftTowing: isTowingActive && resolvedTowingInfo.length > 0,
+    aircraftTowingInfo: isTowingActive ? resolvedTowingInfo : [],
   };
 };

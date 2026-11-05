@@ -1,6 +1,7 @@
 export interface AirlineItem {
   id: number;
   code: string;
+  carrierCode?: string;
   name?: string;
   description?: string;
   isdelete?: boolean;
@@ -25,6 +26,7 @@ export interface AirlineListRequest {
   page: number;
   perPage: number;
   code?: string;
+  carrierCode?: string;
   name?: string;
   description?: string;
   emailTo?: string;
@@ -45,6 +47,7 @@ export interface AirlineListResponse {
 export interface AirlineUpsertRequest {
   id: number; // 0 for new, existing id for update
   code: string;
+  carrierCode?: string;
   name: string;
   description: string;
   isdelete: boolean;

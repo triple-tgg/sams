@@ -26,7 +26,7 @@ const badgeVariants = cva(
     },
 
     defaultVariants: {
-      color: "default",
+      color: "primary",
       rounded: "md",
     },
   }
