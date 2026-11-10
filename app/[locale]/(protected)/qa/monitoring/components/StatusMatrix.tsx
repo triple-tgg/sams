@@ -15,44 +15,49 @@ interface StatusMatrixProps {
     onEnroll?: (empId: string, courseId: string) => void
     enrollments?: Record<string, string>
     onCellClick?: (emp: Employee, course: CourseRef) => void
+    /** Course column header shows the course code (default) or the course name */
+    courseHeaderMode?: 'code' | 'name'
 }
 
-export function StatusMatrix({ employees, courses, selectedId, onSelect, sortField, sortDir, onSort, SortIcon, onEnroll, enrollments, onCellClick }: StatusMatrixProps) {
+export function StatusMatrix({ employees, courses, selectedId, onSelect, sortField, sortDir, onSort, SortIcon, onEnroll, enrollments, onCellClick, courseHeaderMode = 'code' }: StatusMatrixProps) {
     return (
         <TooltipProvider>
-            <div className="overflow-x-auto">
+            {/* Own scroll area so the header can stick to the top while rows scroll */}
+            <div className="overflow-auto max-h-[calc(100vh-220px)]">
                 <table className="w-full border-collapse text-xs">
                     <thead>
                         <tr className="bg-muted/50 border-b-2 border-border">
                             <th
-                                className="px-3 py-2 text-left text-muted-foreground font-bold whitespace-nowrap cursor-pointer hover:text-foreground transition-colors select-none sticky left-0 z-20 bg-slate-100 dark:bg-slate-900 shadow-[1px_0_0_0_var(--border)]"
+                                className="px-3 py-2 text-left text-muted-foreground font-bold whitespace-nowrap cursor-pointer hover:text-foreground transition-colors select-none sticky top-0 left-0 z-30 bg-slate-100 dark:bg-slate-900 shadow-[1px_0_0_0_var(--border),inset_0_-2px_0_0_var(--border)]"
                                 style={{ minWidth: 180 }}
                                 onClick={() => onSort('name')}
                             >
                                 <span className="inline-flex items-center gap-1">Staff <SortIcon field="name" /></span>
                             </th>
                             <th
-                                className="px-3 py-2 text-left text-muted-foreground font-bold whitespace-nowrap cursor-pointer hover:text-foreground transition-colors select-none"
+                                className="px-3 py-2 text-left text-muted-foreground font-bold whitespace-nowrap cursor-pointer hover:text-foreground transition-colors select-none sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 shadow-[inset_0_-2px_0_0_var(--border)]"
                                 style={{ minWidth: 60 }}
                                 onClick={() => onSort('id')}
                             >
                                 <span className="inline-flex items-center gap-1">ID <SortIcon field="id" /></span>
                             </th>
                             <th
-                                className="px-3 py-2 text-left text-muted-foreground font-bold whitespace-nowrap cursor-pointer hover:text-foreground transition-colors select-none"
+                                className="px-3 py-2 text-left text-muted-foreground font-bold whitespace-nowrap cursor-pointer hover:text-foreground transition-colors select-none sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 shadow-[inset_0_-2px_0_0_var(--border)]"
                                 style={{ minWidth: 160 }}
                                 onClick={() => onSort('pos')}
                             >
                                 <span className="inline-flex items-center gap-1">Position <SortIcon field="pos" /></span>
                             </th>
                             {courses.map(c => (
-                                <th key={c.id} title={c.label} className="px-1 py-2 text-center text-muted-foreground font-bold border-l border-border" style={{ minWidth: 100 }}>
-                                    <div className="text-[10px] leading-snug">{c.short}</div>
+                                <th key={c.id} title={courseHeaderMode === 'name' ? c.short : c.label} className="px-1 py-2 text-center text-muted-foreground font-bold border-l border-border sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 shadow-[inset_0_-2px_0_0_var(--border)]" style={{ minWidth: 100, maxWidth: courseHeaderMode === 'name' ? 140 : undefined }}>
+                                    {courseHeaderMode === 'name'
+                                        ? <div className="text-[10px] leading-snug line-clamp-3 break-words">{c.label || c.short}</div>
+                                        : <div className="text-[10px] leading-snug">{c.short}</div>}
                                     <div className="text-[9px] text-muted-foreground/60 font-medium">{c.interval}m</div>
                                 </th>
                             ))}
                             <th
-                                className="px-3 py-2 text-center text-muted-foreground font-bold border-l-2 border-border cursor-pointer hover:text-foreground transition-colors select-none md:sticky right-0 md:z-20 bg-slate-100 dark:bg-slate-900 shadow-[-1px_0_0_0_var(--border)]"
+                                className="px-3 py-2 text-center text-muted-foreground font-bold border-l-2 border-border cursor-pointer hover:text-foreground transition-colors select-none sticky top-0 z-20 md:right-0 md:z-30 bg-slate-100 dark:bg-slate-900 shadow-[-1px_0_0_0_var(--border),inset_0_-2px_0_0_var(--border)]"
                                 style={{ minWidth: 90 }}
                                 onClick={() => onSort('expiry')}
                             >
@@ -158,14 +163,8 @@ export function StatusMatrix({ employees, courses, selectedId, onSelect, sortFie
                                                                         <div className="w-full flex-1 flex flex-col items-center justify-center text-[11px] font-extrabold px-1.5 py-0.5 rounded-sm text-white bg-primary border border-primary/30 hover:opacity-80 transition-opacity">
                                                                             ENROLLED
                                                                         </div>
-                                                                    ) : s === 'warning' && d !== null ? (
-                                                                        <div className="w-full flex-1 flex flex-col items-center justify-center font-extrabold px-1.5 py-0.5 rounded-sm text-white hover:opacity-80 transition-opacity" style={{ background: m.dot }}>
-                                                                            <div className='text-[14px] leading-none'>{d}</div>
-                                                                            <div className='text-[8px] mt-0.5'>DAYS LEFT</div>
-                                                                        </div>
-                                                                    ) : s === 'expired' ? (
-                                                                        <div className="w-full flex-1 flex flex-col items-center justify-center text-md font-extrabold px-1.5 py-0.5 rounded-sm text-white hover:opacity-80 transition-opacity" style={{ background: m.dot }}>EXP</div>
                                                                     ) : (
+                                                                        // Valid / Warning / Expired share one layout; color comes from STATUS_META
                                                                         <>
                                                                             <div className="text-[10px] font-medium text-muted-foreground bg-black/5 px-1.5 rounded">{lastTrainingStr}</div>
                                                                             <div className="text-[10px] font-bold" style={{ color: m.text }}>{dueDateStr}</div>

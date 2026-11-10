@@ -38,6 +38,7 @@ import {
   useUpsertAuthorityLicense,
 } from "@/lib/api/qa/authorization/authority-auth.hooks"
 import { useAuthorityAll } from "@/lib/api/qa/authorization.hooks"
+import { useAuthorityMasterList } from "@/lib/api/master/authority-master.hooks"
 import type {
   AuthorityAuthListRequest,
   AuthorityColumnHeader,
@@ -362,7 +363,8 @@ function MatrixView() {
     const map: Record<string, { code: string; name: string; color: string }> = {}
     apiAuthorities.forEach((a: any) => {
       const fallbackColor = AUTHORITIES[a.code as keyof typeof AUTHORITIES]?.color || '#333'
-      map[a.code] = {
+      // Keyed by _key (authority ID), not code: codes can repeat (e.g. DGCA India / DGCA Indonesia).
+      map[String(a._key)] = {
         code: a.code,
         name: a.name || AUTHORITIES[a.code as keyof typeof AUTHORITIES]?.name || a.code,
         color: a.colorCode || a.color || fallbackColor
@@ -370,6 +372,16 @@ function MatrixView() {
     })
     return map
   }, [apiAuthorities])
+
+  // Country per authority, joined from the authority master list (the matrix header has no country).
+  const { data: authorityMasterResp } = useAuthorityMasterList()
+  const countryByAuthorityId = useMemo(() => {
+    const map = new Map<number, { countryCode?: string; country?: string }>()
+    ;(authorityMasterResp?.responseData || []).forEach(item => {
+      map.set(item.id, { countryCode: item.countryCode || undefined, country: item.country?.trim() || undefined })
+    })
+    return map
+  }, [authorityMasterResp])
 
   // Authority IDs are the identity because the API can return duplicate codes (for example DGCA).
   const AUTHORITY_KEYS = useMemo(() => {
@@ -654,7 +666,11 @@ function MatrixView() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-0.5 max-h-[240px] overflow-y-auto">
                 {apiAuthorities.map((authority, idx) => {
-                  const localAuth = MAPPED_AUTHORITIES[authority.code] || { color: '#333', name: authority.name || authority.code }
+                  const localAuth = MAPPED_AUTHORITIES[String(authority._key)] || { color: '#333', name: authority.name || authority.code }
+                  const { countryCode, country } = countryByAuthorityId.get(
+                    Number(authority.authorizationAuthorityMasterId || authority.aviationAuthorityId || authority.id),
+                  ) || {}
+                  const countryLabel = country || localAuth.name
                   return (
                     <button
                       key={authority._key}
@@ -679,8 +695,10 @@ function MatrixView() {
                         )}
                       </div>
                       <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: localAuth.color }} />
-                      <span className="truncate" title={localAuth.name}>
-                        {authority.code} {localAuth.name && <span className="text-[9px] font-normal opacity-70">- {localAuth.name}</span>}
+                      <span className="truncate" title={`${authority.code}${countryCode ? ` (${countryCode})` : ''} - ${countryLabel}`}>
+                        {authority.code}
+                        {countryCode && <span className="font-normal text-muted-foreground"> ({countryCode})</span>}{' '}
+                        {countryLabel && <span className="text-[9px] font-normal opacity-70">- {countryLabel}</span>}
                       </span>
                     </button>
                   )
@@ -754,7 +772,10 @@ function MatrixView() {
                 </th>
               <TooltipProvider>
                 {visibleAuthoritys.map((authority, idx) => {
-                  const localAuth = MAPPED_AUTHORITIES[authority.code] || { color: '#333', name: authority.name || authority.code }
+                  const localAuth = MAPPED_AUTHORITIES[String(authority._key)] || { color: '#333', name: authority.name || authority.code }
+                  const { countryCode, country } = countryByAuthorityId.get(
+                    Number(authority.authorizationAuthorityMasterId || authority.aviationAuthorityId || authority.id),
+                  ) || {}
                   return (
                     <Tooltip key={authority._key}>
                       <TooltipTrigger asChild>
@@ -763,11 +784,11 @@ function MatrixView() {
                           style={{ minWidth: 90 }}
                         >
                           <div className="text-[10px] leading-snug font-bold" style={{ color: localAuth.color }}>{authority.code}</div>
-                          <div className="text-[9px] text-muted-foreground/60 font-medium">License</div>
+                          <div className="text-[9px] text-muted-foreground/60 font-medium">{countryCode ? `(${countryCode})` : '—'}</div>
                         </th>
                       </TooltipTrigger>
                       <TooltipContent side="top" className="text-xs font-semibold bg-white border border-border text-foreground px-2.5 py-1.5 shadow-md">
-                        {localAuth.name}
+                        {country || localAuth.name}
                       </TooltipContent>
                     </Tooltip>
                   )
@@ -867,12 +888,12 @@ function MatrixView() {
                           className="text-center border-l border-border/50 cursor-pointer transition-all duration-150 group/cell hover:bg-muted/60"
                           style={{ padding: '6px 4px', minWidth: 45, position: 'relative' }}
                           onMouseEnter={(e) => {
-                            const localAuth = MAPPED_AUTHORITIES[authority.code] || { color: '#333', name: authority.name || authority.code }
+                            const localAuth = MAPPED_AUTHORITIES[String(authority._key)] || { color: '#333', name: authority.name || authority.code }
                             handleCellEnter(e, s, authority.code, localAuth.name, localAuth.color, val, licenseItem)
                           }}
                           onMouseLeave={handleCellLeave}
                           onClick={() => {
-                            const localAuth = MAPPED_AUTHORITIES[authority.code] || { color: '#333', name: authority.name || authority.code }
+                            const localAuth = MAPPED_AUTHORITIES[String(authority._key)] || { color: '#333', name: authority.name || authority.code }
                             const masterId = typeof authority._key === 'number' ? authority._key : parseInt(String(authority._key).split('-')[1] || '0')
                             handleCellClick(s, authority.code, localAuth.name, authority.authorizationAuthorityMasterId || authority.aviationAuthorityId || authority.id || masterId, val, licenseItem)
                           }}

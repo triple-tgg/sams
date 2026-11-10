@@ -775,9 +775,9 @@ export default function ScheduleDetailPage() {
                                 {/* Course Objective */}
                                 <div className="pt-2">
                                     <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Course Objective</h4>
-                                    <div className="bg-blue-50/50 rounded-xl p-3 text-xs text-slate-600 leading-relaxed border border-blue-100">
+                                    <div className="bg-blue-50/50 rounded-xl p-3 text-xs text-slate-600 leading-relaxed border border-blue-100 min-w-0 wrap-anywhere">
                                         {session.objective ? (
-                                            <p>{session.objective}</p>
+                                            <p className="whitespace-pre-line">{session.objective}</p>
                                         ) : (
                                             <p className="text-muted-foreground italic">No course objective specified</p>
                                         )}
@@ -787,7 +787,7 @@ export default function ScheduleDetailPage() {
                                 {/* Additional Note */}
                                 <div className="pt-2">
                                     <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Additional Note <span className="normal-case font-normal text-muted-foreground">(optional)</span></h4>
-                                    <div className="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 leading-relaxed border border-slate-100 [&_ul]:list-disc [&_ul]:ml-4 [&_ol]:list-decimal [&_ol]:ml-4">
+                                    <div className="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 leading-relaxed border border-slate-100 [&_ul]:list-disc [&_ul]:ml-4 [&_ol]:list-decimal [&_ol]:ml-4 min-w-0 overflow-hidden wrap-anywhere **:max-w-full [&_pre]:whitespace-pre-wrap [&_img]:h-auto [&_table]:block [&_table]:overflow-x-auto">
                                         {session.note ? (
                                             <div dangerouslySetInnerHTML={{ __html: session.note }} />
                                         ) : (
@@ -1255,6 +1255,10 @@ export default function ScheduleDetailPage() {
                 isOpen={showPrintModal}
                 onClose={() => setShowPrintModal(false)}
                 scheduleId={sessionId}
+                dateStart={session?.dateStart}
+                dateEnd={session?.dateEnd}
+                timeStart={session?.timeStart}
+                timeEnd={session?.timeEnd}
             />
             <EvidenceUploadModal
                 isOpen={showEvidenceModal}

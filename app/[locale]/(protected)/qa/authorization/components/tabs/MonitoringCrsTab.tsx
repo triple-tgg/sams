@@ -15,7 +15,7 @@ import {
     getAuthStatus,
     isCrsEligible,
 } from '../../types'
-import { AuthMatrix } from '../AuthMatrix'
+import { AuthMatrix, CrsInfoTooltip } from '../AuthMatrix'
 import { useStaffAuthorizationAirlineStatuses } from '@/lib/api/master/staff-authorization/staff-authorization-airline-statuses.hooks'
 import type { StaffAuthorizationAirlineStatus } from '@/lib/api/master/staff-authorization/staff-authorization-airline-statuses'
 import { mapCustomerAuthStatus } from '@/lib/api/qa/authorization/customer-auth.utils'
@@ -154,7 +154,7 @@ export function MonitoringCrsTab() {
                     </div>
                     <div className="text-[10px] text-muted-foreground text-left sm:text-right border-t sm:border-t-0 pt-2 sm:pt-0 border-border/60 shrink-0">
                         <AlertTriangle className="w-3 h-3 inline mr-1 text-amber-500 shrink-0" />
-                        CRS requires <strong>both</strong> active SAMS + ≥1 Customer authorization
+                        CRS <CrsInfoTooltip className="align-middle mx-0.5" /> requires <strong>both</strong> active SAMS + ≥1 Customer authorization
                     </div>
                 </div>
             </div>

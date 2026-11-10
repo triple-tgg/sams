@@ -223,6 +223,8 @@ export const useStaffListForImport = (enabled: boolean = true) => {
 
     return {
         allStaff,
+        /** Unmapped rows from the API (includes email, employeeId, title, …) */
+        rawStaff: query.data ?? [],
         csStaffOptions,
         mechStaffOptions,
         findStaffByName,

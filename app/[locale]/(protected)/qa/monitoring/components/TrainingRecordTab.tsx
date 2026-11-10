@@ -83,6 +83,7 @@ export function TrainingRecordTab() {
     const [enrollments, setEnrollments] = useState<Record<string, string>>({})
     const [sortField, setSortField] = useState<SortField>('no')
     const [sortDir, setSortDir] = useState<SortDir>('asc')
+    const [courseHeaderMode, setCourseHeaderMode] = useState<'code' | 'name'>('code')
     const tabsContainerRef = useRef<HTMLDivElement>(null)
     const tabsMeasureRef = useRef<HTMLDivElement>(null)
     const [visibleTabCount, setVisibleTabCount] = useState(AVAILABLE_TABS.length)
@@ -383,8 +384,9 @@ export function TrainingRecordTab() {
                     </div>
                 </div>
                 <div>
-                    {/* Tabs */}
-                    <div ref={tabsContainerRef} className="flex min-w-0 gap-0.5 relative z-10">
+                    {/* Tabs + course header display toggle */}
+                    <div className="flex items-end gap-2">
+                    <div ref={tabsContainerRef} className="flex flex-1 min-w-0 gap-0.5 relative z-10">
                         {visibleTabs.map(t => (
                             <button key={t.key} onClick={() => setTab(t.key)}
                                 className={`min-w-0 truncate px-3 sm:px-5 py-2 rounded-t-xl text-xs font-bold border cursor-pointer transition-all ${tab === t.key
@@ -426,6 +428,26 @@ export function TrainingRecordTab() {
                             ))}
                         </div>
                     </div>
+                    <div className="flex items-center gap-1.5 shrink-0 pb-1.5">
+                        <span className="hidden sm:inline text-[11px] font-semibold text-muted-foreground">Show course as</span>
+                        <div role="group" aria-label="Course header display" className="inline-flex rounded-lg border border-border bg-card p-0.5">
+                            {(['code', 'name'] as const).map(mode => (
+                                <button
+                                    key={mode}
+                                    type="button"
+                                    aria-pressed={courseHeaderMode === mode}
+                                    onClick={() => setCourseHeaderMode(mode)}
+                                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${courseHeaderMode === mode
+                                        ? 'bg-primary text-white'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                        }`}
+                                >
+                                    {mode === 'code' ? 'Code' : 'Name'}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    </div>
 
                     {/* Matrix */}
                     <div className="bg-card rounded-b-xl rounded-tr-xl border border-border overflow-hidden -mt-[1px] relative z-[1]">
@@ -452,6 +474,7 @@ export function TrainingRecordTab() {
                             <StatusMatrix
                                 employees={sorted}
                                 courses={courses}
+                                courseHeaderMode={courseHeaderMode}
                                 enrollments={enrollments}
                                 selectedId={selectedId}
                                 onSelect={setSelectedId}

@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { Filter, X, ChevronLeft, ChevronRight, UserRound } from 'lucide-react'
+import { Filter, X, ChevronLeft, ChevronRight, UserRound, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Tooltip, TooltipArrow, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
     StaffAuthorization, CustomerAirline, AuthStatus,
     getAuthStatus, getDaysUntilExpiry, isCrsEligible,
@@ -63,6 +64,35 @@ function AuthCell({ status, days }: { status: AuthStatus; days: number | null })
                 <div className="text-[9px] font-bold mt-0.5 leading-none" style={{ color: m.text }}>SUS</div>
             )}
         </td>
+    )
+}
+
+export function CrsInfoTooltip({ className }: { className?: string }) {
+    return (
+        <TooltipProvider delayDuration={150}>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <span
+                        role="button"
+                        tabIndex={0}
+                        aria-label="What is CRS?"
+                        onClick={event => event.stopPropagation()}
+                        className={cn('inline-flex items-center text-muted-foreground/70 hover:text-primary cursor-help', className)}
+                    >
+                        <Info className="w-3 h-3" />
+                    </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs text-left normal-case font-normal">
+                    <p className="text-xs font-bold mb-1">CRS — Certificate of Release to Service</p>
+                    <p className="text-[11px] leading-relaxed">
+                        The certificate a certifying staff member signs to confirm that maintenance has been completed
+                        properly and the aircraft is fit to return to service. Requires an active SAMS authorization and
+                        at least one valid customer (airline) authorization.
+                    </p>
+                    <TooltipArrow />
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
     )
 }
 
@@ -352,7 +382,7 @@ export function AuthMatrix({ staff, customers, pagination }: AuthMatrixProps) {
                             </th>
                             {/* CRS */}
                             <th className="px-3 py-2 text-center text-muted-foreground font-bold border-l-2 border-border cursor-pointer hover:text-foreground transition-colors select-none" style={{ minWidth: 70 }} onClick={() => handleSort('crs')}>
-                                <span className="inline-flex items-center gap-1">CRS <SortIcon field="crs" /></span>
+                                <span className="inline-flex items-center gap-1">CRS <CrsInfoTooltip /> <SortIcon field="crs" /></span>
                             </th>
                         </tr>
                     </thead>

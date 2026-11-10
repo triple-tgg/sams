@@ -19,9 +19,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, UserPlus, Upload, X, Image as ImageIcon } from "lucide-react";
-import { uploadStaffFile } from "@/lib/api/qa/staff-management";
+import { Loader2, UserPlus, Upload, X, Image as ImageIcon, Check, ChevronsUpDown, FileText, ExternalLink } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { uploadStaffFile, type QAStaffItem } from "@/lib/api/qa/staff-management";
+import { useStaffListForImport } from "@/lib/api/hooks/useStaffListForImport";
+import { useInstructorList } from "@/lib/api/qa/instructor.hooks";
 import { convertFileToBase64, getFileExtension } from "@/lib/api/uploadFile/fileUpload";
+import { cn } from "@/lib/utils";
 
 export interface InstructorFormData {
   id: number;
@@ -31,7 +43,16 @@ export interface InstructorFormData {
   description: string;
   licenseLink: string;
   email: string;
+  /** true = Internal (linked to a staff record), false = External */
+  flagInternal: boolean;
+  /** Linked staff id when Internal; 0 otherwise */
+  staffId: number;
+  /** Kept from the loaded record so saving doesn't wipe it */
+  approvalLetterLink: string;
 }
+
+const staffDisplayName = (s: QAStaffItem) =>
+  s.fullNameEn?.trim() || s.name?.trim() || s.code || `Staff #${s.id}`;
 
 interface InstructorFormModalProps {
   isOpen: boolean;
@@ -52,6 +73,9 @@ const initialForm: InstructorFormData = {
   description: "",
   licenseLink: "",
   email: "",
+  flagInternal: false,
+  staffId: 0,
+  approvalLetterLink: "",
 };
 
 export function InstructorFormModal({
@@ -66,6 +90,33 @@ export function InstructorFormModal({
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isEditMode = !!instructor && instructor.id > 0;
+  const [staffPickerOpen, setStaffPickerOpen] = useState(false);
+
+  // Instructor Authorization / Approval Letter document
+  const approvalInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingApproval, setIsUploadingApproval] = useState(false);
+  const [approvalFileName, setApprovalFileName] = useState("");
+  const [approvalError, setApprovalError] = useState("");
+
+  // Staff list is only needed for Internal instructors (cached 5 min by the hook)
+  const { rawStaff, isLoading: isStaffLoading } = useStaffListForImport(isOpen && form.flagInternal);
+  const selectedStaff = rawStaff.find((s) => s.id === form.staffId);
+
+  // Staff already linked to another Internal instructor can't be picked again.
+  // The instructor being edited is excluded so its own linked staff stays selectable.
+  const { data: instructors = [] } = useInstructorList();
+  const availableStaff = React.useMemo(() => {
+    const takenStaffIds = new Set(
+      instructors
+        .filter((inst) => inst.flagInternal && inst.staffId && inst.id !== form.id && !inst.isDelete)
+        .map((inst) => inst.staffId)
+    );
+    return rawStaff.filter((s) => !takenStaffIds.has(s.id));
+  }, [instructors, rawStaff, form.id]);
+  // Internal instructors take Title / Full Name / Email from the linked staff record.
+  const lockStaffFields = form.flagInternal;
+  // Email stays editable if the linked staff has none on file (it's a required field).
+  const lockEmail = lockStaffFields && !!(selectedStaff ? selectedStaff.email?.trim() : form.email.trim());
 
   useEffect(() => {
     if (instructor) {
@@ -77,12 +128,17 @@ export function InstructorFormModal({
         description: instructor.description || "",
         licenseLink: instructor.licenseLink || "",
         email: instructor.email || "",
+        flagInternal: !!instructor.flagInternal,
+        staffId: instructor.staffId || 0,
+        approvalLetterLink: instructor.approvalLetterLink || "",
       });
       setSignaturePreview(instructor.licenseLink || null);
     } else {
       setForm(initialForm);
       setSignaturePreview(null);
     }
+    setApprovalFileName("");
+    setApprovalError("");
   }, [instructor, isOpen]);
 
   const handleChange = (
@@ -90,6 +146,25 @@ export function InstructorFormModal({
     value: string
   ) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleTypeChange = (internal: boolean) => {
+    // Switching to External drops the staff link; the typed name/email stay editable.
+    setForm((prev) => ({ ...prev, flagInternal: internal, staffId: internal ? prev.staffId : 0 }));
+  };
+
+  /** Link a staff record and prefill the instructor fields from it (all remain editable). */
+  const handleSelectStaff = (staff: QAStaffItem) => {
+    const staffTitle = staff.title?.trim();
+    setForm((prev) => ({
+      ...prev,
+      staffId: staff.id,
+      name: staffDisplayName(staff),
+      email: staff.email?.trim() || prev.email,
+      title: staffTitle && TITLE_OPTIONS.includes(staffTitle) ? staffTitle : prev.title,
+      // Instructor Code is the instructor's own code — never derived from the staff ID.
+    }));
+    setStaffPickerOpen(false);
   };
 
   const handleSignatureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -148,6 +223,61 @@ export function InstructorFormModal({
     }
   };
 
+  const APPROVAL_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/jpg", "image/webp"];
+  const APPROVAL_MAX_BYTES = 5 * 1024 * 1024;
+
+  const handleApprovalUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (approvalInputRef.current) approvalInputRef.current.value = ""; // allow re-selecting the same file
+    if (!file) return;
+
+    if (!APPROVAL_TYPES.includes(file.type)) {
+      setApprovalError("Only PDF, PNG, JPG or WebP files are allowed.");
+      return;
+    }
+    if (file.size > APPROVAL_MAX_BYTES) {
+      setApprovalError("File is larger than 5MB.");
+      return;
+    }
+
+    setApprovalError("");
+    setIsUploadingApproval(true);
+    try {
+      const res = await uploadStaffFile({
+        FileBase64: await convertFileToBase64(file),
+        FileType: "instructors_approval_letter",
+        ExtensionFile: getFileExtension(file.name),
+        FileName: file.name.replace(/\.[^.]+$/, ""),
+      });
+      const uploadedPath = res.responseData?.[0]?.filePath ?? "";
+      if (!uploadedPath) throw new Error("No file path returned");
+      setForm((prev) => ({ ...prev, approvalLetterLink: uploadedPath }));
+      setApprovalFileName(file.name);
+    } catch (err) {
+      console.error("Approval letter upload failed:", err);
+      setApprovalError("Upload failed. Please try again.");
+    } finally {
+      setIsUploadingApproval(false);
+    }
+  };
+
+  const handleRemoveApproval = () => {
+    setForm((prev) => ({ ...prev, approvalLetterLink: "" }));
+    setApprovalFileName("");
+    setApprovalError("");
+  };
+
+  /** Display name for an uploaded document: the original name if just uploaded, else the URL's last segment. */
+  const approvalDisplayName =
+    approvalFileName ||
+    (() => {
+      try {
+        return decodeURIComponent(form.approvalLetterLink.split("?")[0].split("/").pop() || "") || "Approval letter";
+      } catch {
+        return "Approval letter";
+      }
+    })();
+
   const handleRemoveSignature = () => {
     setSignaturePreview(null);
     handleChange("licenseLink", "");
@@ -169,16 +299,19 @@ export function InstructorFormModal({
   };
 
   const canSubmit =
+    (!form.flagInternal || form.staffId > 0) &&
     form.code.trim() !== "" &&
     form.name.trim() !== "" &&
     form.email.trim() !== "" &&
     !isPending &&
-    !isUploading;
+    !isUploading &&
+    !isUploadingApproval;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[520px]">
-        <DialogHeader>
+      {/* Header and action footer stay fixed; only the fields scroll */}
+      <DialogContent className="sm:max-w-130 max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
+        <DialogHeader className="shrink-0 px-6 pt-6 pb-4 border-b border-border">
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="w-5 h-5 text-primary" />
             {isEditMode ? "Edit Instructor" : "Add Instructor"}
@@ -190,7 +323,114 @@ export function InstructorFormModal({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-4">
+          {/* Instructor Type — first field */}
+          <div className="space-y-2">
+            <Label id="instructor-type-label">Instructor Type *</Label>
+            <div
+              role="radiogroup"
+              aria-labelledby="instructor-type-label"
+              className="grid grid-cols-2 gap-2"
+            >
+              {([
+                { internal: true, label: "Internal", hint: "SAMS staff member" },
+                { internal: false, label: "External", hint: "Outside instructor" },
+              ] as const).map((opt) => {
+                const active = form.flagInternal === opt.internal;
+                return (
+                  <button
+                    key={opt.label}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => handleTypeChange(opt.internal)}
+                    disabled={isPending}
+                    className={cn(
+                      "flex flex-col items-start rounded-lg border px-3 py-2 text-left transition-colors",
+                      active
+                        ? "border-primary bg-primary/5 ring-1 ring-primary"
+                        : "border-border hover:border-primary/40"
+                    )}
+                  >
+                    <span className={cn("text-sm font-semibold", active ? "text-primary" : "text-foreground")}>
+                      {opt.label}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">{opt.hint}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Staff link — only for Internal */}
+          {form.flagInternal && (
+            <div className="space-y-2">
+              <Label htmlFor="instructor-staff">Staff *</Label>
+              <Popover open={staffPickerOpen} onOpenChange={setStaffPickerOpen} modal>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="instructor-staff"
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={staffPickerOpen}
+                    disabled={isPending}
+                    className="h-9 w-full justify-between font-normal"
+                  >
+                    <span className={cn("truncate", !selectedStaff && "text-muted-foreground")}>
+                      {selectedStaff
+                        ? `${selectedStaff.employeeId || selectedStaff.code} · ${staffDisplayName(selectedStaff)}`
+                        : form.staffId > 0
+                          ? isStaffLoading ? "Loading staff…" : `Staff #${form.staffId}`
+                          : "Select a staff member"}
+                    </span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search by name or staff ID…" />
+                    <CommandList>
+                      {isStaffLoading ? (
+                        <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">
+                          <Loader2 className="h-4 w-4 animate-spin" /> Loading staff…
+                        </div>
+                      ) : (
+                        <>
+                          <CommandEmpty>No staff found.</CommandEmpty>
+                          <CommandGroup>
+                            {availableStaff.map((staff) => (
+                              <CommandItem
+                                key={staff.id}
+                                value={`${staff.employeeId ?? ""} ${staff.code ?? ""} ${staffDisplayName(staff)} ${staff.id}`}
+                                onSelect={() => handleSelectStaff(staff)}
+                              >
+                                <Check
+                                  className={cn("mr-2 h-4 w-4", form.staffId === staff.id ? "opacity-100" : "opacity-0")}
+                                />
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm">{staffDisplayName(staff)}</p>
+                                  <p className="truncate text-[11px] text-muted-foreground">
+                                    {staff.employeeId || staff.code}
+                                    {staff.positionObj?.name ? ` · ${staff.positionObj.name}` : ""}
+                                  </p>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </>
+                      )}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              <p className="text-[11px] text-muted-foreground">
+                Title, full name and email are taken from the selected staff record.
+              </p>
+            </div>
+          )}
+
           {/* Title + Code row */}
           <div className="grid grid-cols-[140px_1fr] gap-3">
             <div className="space-y-2">
@@ -198,6 +438,7 @@ export function InstructorFormModal({
               <Select
                 value={form.title}
                 onValueChange={(v) => handleChange("title", v)}
+                disabled={isPending || lockStaffFields}
               >
                 <SelectTrigger id="instructor-title" className="h-9">
                   <SelectValue placeholder="Select" />
@@ -212,7 +453,7 @@ export function InstructorFormModal({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="instructor-code">Code *</Label>
+              <Label htmlFor="instructor-code">Instructor Code *</Label>
               <Input
                 id="instructor-code"
                 placeholder="e.g. INS001"
@@ -232,7 +473,7 @@ export function InstructorFormModal({
               placeholder="e.g. John Doe"
               value={form.name}
               onChange={(e) => handleChange("name", e.target.value)}
-              disabled={isPending}
+              disabled={isPending || lockStaffFields}
               className="h-9"
             />
           </div>
@@ -246,7 +487,7 @@ export function InstructorFormModal({
               placeholder="e.g. instructor@sams.aero"
               value={form.email}
               onChange={(e) => handleChange("email", e.target.value)}
-              disabled={isPending}
+              disabled={isPending || lockEmail}
               className="h-9"
             />
           </div>
@@ -323,6 +564,83 @@ export function InstructorFormModal({
             )}
           </div>
 
+          {/* Instructor Authorization / Approval Letter */}
+          <div className="space-y-2">
+            <Label htmlFor="approval-upload">Instructor Authorization / Approval Letter</Label>
+            <input
+              ref={approvalInputRef}
+              id="approval-upload"
+              type="file"
+              accept="application/pdf,image/png,image/jpeg,image/jpg,image/webp"
+              onChange={handleApprovalUpload}
+              className="hidden"
+            />
+
+            {form.approvalLetterLink ? (
+              <div className="relative flex items-center gap-3 rounded-lg border border-border bg-muted/30 p-3">
+                <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                  <FileText className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-foreground truncate" title={approvalDisplayName}>
+                    {approvalDisplayName}
+                  </p>
+                  <a
+                    href={form.approvalLetterLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline mt-0.5"
+                  >
+                    <ExternalLink className="w-3 h-3" /> View document
+                  </a>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => approvalInputRef.current?.click()}
+                  disabled={isPending || isUploadingApproval}
+                  className="px-2 py-1 rounded-md text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                  Replace
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRemoveApproval}
+                  disabled={isPending || isUploadingApproval}
+                  className="p-1.5 rounded-md text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors"
+                  title="Remove document"
+                  aria-label="Remove approval letter"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                {isUploadingApproval && (
+                  <div className="absolute inset-0 bg-white/70 rounded-lg flex items-center justify-center">
+                    <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => approvalInputRef.current?.click()}
+                disabled={isPending || isUploadingApproval}
+                className="w-full flex items-center justify-center gap-3 py-4 rounded-lg border-2 border-dashed border-border hover:border-primary/40 hover:bg-primary/5 transition-all"
+              >
+                {isUploadingApproval ? (
+                  <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                ) : (
+                  <Upload className="w-5 h-5 text-primary" />
+                )}
+                <div className="text-left">
+                  <p className="text-xs font-medium text-foreground">
+                    {isUploadingApproval ? "Uploading..." : "Click to upload document"}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">PDF, PNG, JPG or WebP (max 5MB)</p>
+                </div>
+              </button>
+            )}
+            {approvalError && <p className="text-[11px] text-red-600">{approvalError}</p>}
+          </div>
+
           {/* Description */}
           <div className="space-y-2">
             <Label htmlFor="instructor-desc">Description</Label>
@@ -337,8 +655,11 @@ export function InstructorFormModal({
             />
           </div>
 
-          {/* Actions */}
-          <div className="flex justify-end gap-2 pt-2">
+          </div>
+
+          {/* Actions — fixed footer */}
+          <div className="shrink-0 flex justify-end gap-2 px-6 py-4 border-t border-border bg-card">
+
             <Button
               type="button"
               variant="outline"
