@@ -9,7 +9,8 @@ interface ProfileAvatarProps {
     initials: string
     avatarBg: string
     profileImage?: string
-    onUpload: (file: File) => Promise<string>
+    /** Omit to make the avatar read-only (e.g. no edit permission) */
+    onUpload?: (file: File) => Promise<string>
 }
 
 export function ProfileAvatar({ initials, avatarBg, profileImage, onUpload }: ProfileAvatarProps) {
@@ -23,7 +24,7 @@ export function ProfileAvatar({ initials, avatarBg, profileImage, onUpload }: Pr
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
-        if (!file) return
+        if (!file || !onUpload) return
 
         // Validate file type
         if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
@@ -78,7 +79,7 @@ export function ProfileAvatar({ initials, avatarBg, profileImage, onUpload }: Pr
             </div>
 
             {/* Hover Overlay with Camera Icon */}
-            <button
+            {onUpload && (<button
                 type="button"
                 onClick={() => !isUploading && fileInputRef.current?.click()}
                 disabled={isUploading}
@@ -91,7 +92,7 @@ export function ProfileAvatar({ initials, avatarBg, profileImage, onUpload }: Pr
                 ) : (
                     <Camera className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 drop-shadow-md" />
                 )}
-            </button>
+            </button>)}
 
             {/* Hidden File Input */}
             <input

@@ -22,6 +22,7 @@ import { useContractList, defaultContractListRequest } from "@/lib/api/hooks/use
 import { useDeleteContract } from "@/lib/api/hooks/useContractOperations";
 import { ContractListItem } from "@/lib/api/contract/getContractList";
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard";
+import { MENU } from "@/lib/permission-codes";
 
 // Transform API data to table display format
 const transformContractData = (apiData: ContractListItem[]): Contract[] => {
@@ -234,7 +235,7 @@ const ContractPage = () => {
             Manage airline maintenance service contracts and agreements.
           </CardDescription>
           <div className="flex items-center gap-2 ml-auto">
-            <PermissionActionGuard menuCode="CONTRACT" action="canCreate">
+            <PermissionActionGuard menuCode={MENU.CONTRACT} action="canCreate">
               <Button onClick={handleAddNew} color="primary">
                 <Plus className="h-4 w-4 mr-2" />
                 New Contract

@@ -1,5 +1,10 @@
 import axiosConfig from "@/lib/axios.config";
 import { getCourseList, type CourseData } from "@/lib/api/qa/course";
+import {
+  parseContentDispositionFilename,
+  readBlobErrorMessage,
+  type TemplateDownload,
+} from "@/lib/api/lineMaintenances/aircraftSchedMappingTemplate";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -170,6 +175,35 @@ export const importCourses = async (
       error?.response?.data?.error ||
         error?.response?.data?.message ||
         "Failed to import courses"
+    );
+  }
+};
+
+/** Used when the server's filename isn't readable (Content-Disposition is not CORS-exposed). */
+export const COURSES_TEMPLATE_FILENAME = "Courses Template.xlsx";
+
+/** GET /migration/courses-template — the Excel template for POST /migration/import-courses. */
+export const getCoursesTemplate = async (): Promise<TemplateDownload> => {
+  try {
+    const response = await axiosConfig.get("/migration/courses-template", {
+      responseType: "blob",
+      timeout: 60000, // file download
+    });
+    return {
+      blob: response.data as Blob,
+      fileName: parseContentDispositionFilename(
+        response.headers?.["content-disposition"],
+        COURSES_TEMPLATE_FILENAME
+      ),
+    };
+  } catch (error: any) {
+    console.error("Error downloading courses template:", error);
+    const fromBlob = await readBlobErrorMessage(error?.response?.data);
+    throw new Error(
+      fromBlob ||
+        error?.response?.data?.error ||
+        error?.response?.data?.message ||
+        "Failed to download the template"
     );
   }
 };

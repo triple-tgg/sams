@@ -36,6 +36,8 @@ import { useAllThfRevisions } from "@/lib/store/useThfRevisionStore";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { ReviewUnlockModal } from "./ReviewUnlockModal";
+import { MENU } from "@/lib/permission-codes";
+import { useMenuPermission } from "@/hooks/use-menu-permission";
 
 const STATUS_DESCRIPTIONS: Record<ThfMappingStatus, string> = {
     MAPPED: "จับคู่ THF กับ contract แล้ว ยังแก้ไขข้อมูลและดำเนินการออก Pre-Invoice ได้",
@@ -56,6 +58,7 @@ export const ThfDocumentTable = ({
     hasSearched,
     searchTrigger = 0,
 }: ThfDocumentTableProps) => {
+    const invoicePerm = useMenuPermission(MENU.INVOICE);
     const [page, setPage] = useState(1);
     const perPage = 50;
 
@@ -171,8 +174,8 @@ export const ThfDocumentTable = ({
             acTypeField: "familyCode",
             airlineHeader: "Airline",
             showAirlineFullName: true,
-            onRequestRevision: handleRequestRevision,
-            onReviewUnlock: handleReviewUnlock,
+            onRequestRevision: invoicePerm.canEdit ? handleRequestRevision : undefined,
+            onReviewUnlock: invoicePerm.canEdit ? handleReviewUnlock : undefined,
             getRevisionRecord: (flight) => getRevisionForFlight(flight.flightInfosId, flight.lineMaintenancesId, flight.thfNumber),
             onPreviewTHF: (flight) => {
                 if (flight.flightInfosId) {
@@ -181,7 +184,7 @@ export const ThfDocumentTable = ({
                 }
             },
             isPreInvoiceLoading: isPreInvoiceProcessing,
-            onPreInvoice: (flight) => {
+            onPreInvoice: !invoicePerm.canCreate ? undefined : (flight) => {
                 if (flight.lineMaintenancesId) {
                     handleCreatePreInvoice([flight.lineMaintenancesId]);
                 }
@@ -259,7 +262,8 @@ export const ThfDocumentTable = ({
                                     <TooltipTrigger asChild>
                                         <button
                                             type="button"
-                                            onClick={() => handleReviewUnlock(flight)}
+                                            onClick={() => invoicePerm.canEdit && handleReviewUnlock(flight)}
+                                            disabled={!invoicePerm.canEdit}
                                             className="inline-flex items-center gap-1 rounded bg-blue-100 hover:bg-blue-200 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-blue-700 border border-blue-300 animate-pulse cursor-pointer transition-colors"
                                         >
                                             <LockKeyhole className="h-3 w-3 text-blue-600" />
@@ -272,7 +276,7 @@ export const ThfDocumentTable = ({
                                         <p className="text-[10px] text-slate-400 mt-0.5">
                                             By: {rev?.requestedBy || "Engineer"} ({rev?.unlockRequestedAt ? new Date(rev.unlockRequestedAt).toLocaleTimeString() : "-"})
                                         </p>
-                                        <p className="text-[10px] text-blue-400 font-semibold mt-1">Click to Review / Approve</p>
+                                        {invoicePerm.canEdit && <p className="text-[10px] text-blue-400 font-semibold mt-1">Click to Review / Approve</p>}
                                     </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
@@ -387,7 +391,7 @@ export const ThfDocumentTable = ({
             },
             ...baseColumns
         ];
-    }, [getRevisionForFlight, handleRequestRevision, handleReviewUnlock, handleCreatePreInvoice, isPreInvoiceProcessing]);
+    }, [getRevisionForFlight, handleRequestRevision, handleReviewUnlock, handleCreatePreInvoice, isPreInvoiceProcessing, invoicePerm.canEdit, invoicePerm.canCreate]);
 
     const table = useReactTable({
         data: rows,
@@ -578,7 +582,7 @@ export const ThfDocumentTable = ({
                     )}
 
                     {/* Row Selection on Mobile */}
-                    {Object.keys(rowSelection).length > 0 && (
+                    {invoicePerm.canCreate && Object.keys(rowSelection).length > 0 && (
                         <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200">
                             <span className="text-xs font-medium text-slate-700">
                                 {Object.keys(rowSelection).length} selected
@@ -703,7 +707,7 @@ export const ThfDocumentTable = ({
                         )}
                     </div>
 
-                    {Object.keys(rowSelection).length > 0 && (
+                    {invoicePerm.canCreate && Object.keys(rowSelection).length > 0 && (
                         <div className="flex items-center gap-3 ml-auto">
                             <span className="text-xs font-medium text-slate-700">
                                 {Object.keys(rowSelection).length} selected

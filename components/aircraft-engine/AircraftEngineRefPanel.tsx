@@ -28,8 +28,9 @@ import {
   useSystemConfigs,
 } from "@/lib/api/master/aircraft-engine/aircraftEngine.hooks";
 import type { CompletenessStatus } from "@/lib/api/master/aircraft-engine/aircraftEngine.types";
+import { MENU } from "@/lib/permission-codes";
 
-const AE_MENU = "MASTER_DATA_AIRCRAFT_ENGINE";
+const AE_MENU = MENU.MASTER_DATA_AIRCRAFT_ENGINE;
 
 export type RefPanelContext = "authorization" | "training";
 

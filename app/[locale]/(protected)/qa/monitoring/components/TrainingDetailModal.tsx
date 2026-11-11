@@ -16,6 +16,8 @@ import {
 import { CourseRef, Employee, fmtDate, formatDisplayDate, getStatus, StatusType, toInputDateFormat } from '../types'
 import { useStaffTrainingDashboard } from '@/lib/api/hooks/useQAStaffManagement'
 import { toast } from 'sonner'
+import { MENU } from "@/lib/permission-codes";
+import { useMenuPermission } from "@/hooks/use-menu-permission";
 
 export interface EditedTrainingData {
     dateFrom: string
@@ -73,6 +75,7 @@ export function TrainingDetailModal({
     onSave,
     onEnroll,
 }: TrainingDetailModalProps) {
+    const perm = useMenuPermission(MENU.QA_TRAINING_MONITORING);
     const [isEditing, setIsEditing] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
 
@@ -438,7 +441,7 @@ export function TrainingDetailModal({
                     ) : (
                         <>
                             <div>
-                                {onEnroll && (displayStatus.toLowerCase().includes('expir') || displayStatus.toLowerCase().includes('warn')) && (
+                                {onEnroll && perm.canEdit && (displayStatus.toLowerCase().includes('expir') || displayStatus.toLowerCase().includes('warn')) && (
                                     <button
                                         type="button"
                                         onClick={() => onEnroll(employee.id, course.id)}
@@ -450,14 +453,14 @@ export function TrainingDetailModal({
                                 )}
                             </div>
                             <div className="flex items-center gap-2">
-                                <button
+                                {perm.canEdit && (<button
                                     type="button"
                                     onClick={() => setIsEditing(true)}
                                     className="px-4 py-2 text-xs font-semibold text-white bg-primary rounded-lg hover:bg-primary/90 transition-all cursor-pointer shadow-sm flex items-center gap-1.5 border-none"
                                 >
                                     <Pencil className="w-3.5 h-3.5" />
                                     Edit
-                                </button>
+                                </button>)}
                                 <button
                                     type="button"
                                     onClick={onClose}

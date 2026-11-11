@@ -3,57 +3,34 @@
 import { useMemo } from "react";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/store/rootReducer";
-import type { MenuPermissionItem } from "@/lib/api/permission/menuPermissions.interface";
+import type { MenuCodeRef } from "@/lib/permission-codes";
+import {
+    buildPermissionIndex,
+    getPermissionFlags,
+    type PermissionFlags,
+    type PermissionIndex,
+} from "@/lib/permission-utils";
 
-/**
- * Recursively find a permission item by its menuCode.
- */
-function findPermissionByCode(
-    items: MenuPermissionItem[],
-    code: string
-): MenuPermissionItem | null {
-    const norm = (s?: string) => s?.trim().replace(/\s+/g, "_").toUpperCase();
-    const targetNorm = norm(code);
-    for (const item of items) {
-        if (item.menuCode === code || norm(item.menuCode) === targetNorm) return item;
-        if (item.children && item.children.length > 0) {
-            const found = findPermissionByCode(item.children, code);
-            if (found) return found;
-        }
-    }
-    return null;
+/** Normalized code → permission item, rebuilt only when the store changes. */
+export function usePermissionIndex(): PermissionIndex {
+    const permMenus = useSelector((s: RootState) => s.permission.menus);
+    return useMemo(() => buildPermissionIndex(permMenus), [permMenus]);
 }
 
 /**
- * Hook to retrieve granular permissions (canCreate, canEdit, canDelete, etc.)
- * for a specific menu code from the Redux store.
- * 
- * If the menu code is not found, all permissions default to false.
- * 
- * @param menuCode The permission code (e.g., "QA_STAFF", "MASTER_DATA_ROLE")
+ * Granular permissions (canView, canCreate, canEdit, canDelete, canExport)
+ * for a menu code — or an ordered list of codes, where the first code that
+ * exists in the DB decides (see `MenuCodeRef`).
+ *
+ * Unknown code → everything false.
+ *
+ * @example const perm = useMenuPermission(MENU.HR_STAFF);
+ *          {perm.canEdit && <Button>Edit</Button>}
  */
-export function useMenuPermission(menuCode: string) {
-    const permMenus = useSelector((s: RootState) => s.permission.menus);
-
-    return useMemo(() => {
-        if (!permMenus || permMenus.length === 0) {
-            return {
-                canView: false,
-                canCreate: false,
-                canEdit: false,
-                canDelete: false,
-                canExport: false,
-            };
-        }
-
-        const perm = findPermissionByCode(permMenus, menuCode);
-
-        return {
-            canView: perm?.canView ?? false,
-            canCreate: perm?.canCreate ?? false,
-            canEdit: perm?.canEdit ?? false,
-            canDelete: perm?.canDelete ?? false,
-            canExport: perm?.canExport ?? false,
-        };
-    }, [permMenus, menuCode]);
+export function useMenuPermission(ref: MenuCodeRef): PermissionFlags {
+    const index = usePermissionIndex();
+    // Arrays from MENU_REF are stable, but an inline array literal is not — key on its contents.
+    const key = typeof ref === "string" ? ref : ref.join("|");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return useMemo(() => getPermissionFlags(index, ref), [index, key]);
 }

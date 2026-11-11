@@ -13,6 +13,7 @@ import type { UserItem } from "@/lib/api/master/users/users.interface";
 import { useRolesOptions } from "@/lib/api/hooks/useRoles";
 import { useRolePermissions } from "@/lib/api/hooks/useRoleOperations";
 import type { MenuPermission } from "@/lib/api/master/roles/roles.interface";
+import { recalcParents } from "@/lib/permission-tree";
 
 type FlatPerm = MenuPermission & {
     _depth: number;
@@ -44,31 +45,6 @@ function flattenPerms(items: any[], depth = 0, parentId: string | null = null): 
     }
     return result;
 }
-
-/** Recalculate parent permission values from their children */
-function recalcParents(perms: FlatPerm[]): FlatPerm[] {
-    const parentIds = new Set(perms.filter((p) => p._isParent).map((p) => p.menuId));
-    if (parentIds.size === 0) return perms;
-
-    const fields: (keyof Omit<MenuPermission, "menuId" | "menuName" | "menuKey">)[] = [
-        "canView",
-        "canCreate",
-        "canEdit",
-        "canDelete",
-        "canExport",
-    ];
-
-    return perms.map((p) => {
-        if (!p._isParent) return p;
-        const children = perms.filter((c) => c._parentId === p.menuId);
-        const updated = { ...p };
-        for (const field of fields) {
-            updated[field] = children.some((c) => c[field] === true);
-        }
-        return updated;
-    });
-}
-
 
 // ─── Default menu list (fallback when server has no permission data) ───────────
 const DEFAULT_MENUS: Omit<MenuPermission, "canView" | "canCreate" | "canEdit" | "canDelete" | "canExport">[] = [

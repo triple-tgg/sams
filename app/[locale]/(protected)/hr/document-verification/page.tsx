@@ -59,6 +59,8 @@ import { cn } from "@/lib/utils";
 import type { color } from "@/lib/type";
 import { toast } from "sonner";
 import "../staff/hr-staff.css";
+import { MENU } from "@/lib/permission-codes";
+import { useMenuPermission } from "@/hooks/use-menu-permission";
 
 // ─── Status helpers ───
 function getStatusColor(statusName: string | null): color {
@@ -75,6 +77,7 @@ function getStatusColor(statusName: string | null): color {
 const PER_PAGE = 20;
 
 const DocumentVerificationPage = () => {
+  const perm = useMenuPermission(MENU.HR_DOCUMENT_VERIFICATION);
   // ─── Master data dropdowns ───
   const { data: docTypesResp } = useStaffDocumentTypes();
   const documentTypes = useMemo(() => {
@@ -421,7 +424,7 @@ const DocumentVerificationPage = () => {
                               <Eye className="h-4 w-4 mr-2" />
                               View Details
                             </DropdownMenuItem>
-                            {doc.statusName?.toLowerCase() === "pending" && (
+                            {doc.statusName?.toLowerCase() === "pending" && perm.canEdit && (
                               <>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
@@ -577,7 +580,7 @@ const DocumentVerificationPage = () => {
                 )}
 
                 {/* Action buttons for pending docs */}
-                {previewDoc.statusName?.toLowerCase() === "pending" && (
+                {previewDoc.statusName?.toLowerCase() === "pending" && perm.canEdit && (
                   <div className="flex items-center gap-2">
                     <Button
                       className="flex-1"

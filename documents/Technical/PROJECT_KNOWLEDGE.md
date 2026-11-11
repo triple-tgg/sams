@@ -162,7 +162,7 @@ All normal URLs have a locale prefix, normally `/en` or `/ar`.
 | Production Planner | `/production-planner/*` | Dashboard uses bundled sample data; other pages are placeholders |
 | QA Training | `/qa/monitoring`, `/qa/course-management`, `/qa/training-scheduler`, `/qa/training-scheduler/[id]` | API-backed core mixed with local fallback/mock data |
 | QA Authorization | `/qa/authorization` | Mixed: SAMS Auth and Customer Auth use APIs; several overview/authority/CRS views use mock data |
-| QA Documents | `/qa/qa-document/*`, `/qa/document-generation` | History/logbook previews; document-generation page is placeholder |
+| QA Documents | `/qa/qa-document/*` | History/logbook previews |
 | HR | `/hr/staff`, `/hr/staff/new`, `/hr/staff/[id]`, `/hr/employee-income`, `/hr/document-verification` | Mostly API-backed; some profile editing/display paths remain local/mock/TODO |
 | Master Data | `/master-data/staff`, `/department`, `/manager-mapping`, `/aircraft-engine`, `/customer-airline`, `/station`, `/user-login`, `/role` | CRUD APIs; aircraft/engine uses its dedicated REST API, except Aircraft Family CRUD is not provided |
 
@@ -171,9 +171,6 @@ Redirect pages:
 - `/flight` -> `/flight/list`
 - `/qa` -> `/qa/monitoring`
 - `/master-data/set-permission` -> `/master-data/role`
-
-Production Planner also contains `/service-category-rules`, but it is not in the
-sidebar or route permission map.
 
 ## 8. Authentication lifecycle
 
@@ -425,8 +422,7 @@ mappings must be aligned before successful payloads or writes can be verified.
 
 The revenue comparison dashboard is a self-contained Chart.js module using
 bundled sample data and localStorage comments. Its date picker is cosmetic unless
-an `onPeriodsChange` callback is wired. Production plan, revenue plan, monthly
-frequency, flight import, and service-category-rules pages are placeholders.
+an `onPeriodsChange` callback is wired. Production plan and revenue plan pages are placeholders.
 
 ## 13. Date, time, locale, and direction
 
@@ -511,8 +507,7 @@ These are observations, not automatically authorized fixes:
    auth pages. `/confirm-attendance` is described and implemented as public but
    an unauthenticated visitor is also redirected toward login.
 2. **Permission map is allow-by-default for unknown routes.** New or forgotten
-   routes can be reached by any authenticated user. `service-category-rules` is
-   a current example.
+   routes can be reached by any authenticated user.
 3. **Locale mismatch.** `ar` is configured without `messages/ar.json`; `th` is
    not configured.
 4. **Mixed live/mock UI.** Production Planner, parts of QA

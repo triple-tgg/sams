@@ -46,6 +46,7 @@ import type { SamsAuthItem, SamsAuthDetail } from "@/lib/api/qa/sams-auth"
 import { useDebounce } from "@/hooks/useDebounce"
 import { toast } from "sonner"
 import { useCombinations } from "@/lib/api/master/aircraft-engine/aircraftEngine.hooks"
+import { MENU } from "@/lib/permission-codes";
 
 type FilterStatus = string
 
@@ -326,7 +327,7 @@ export function SamsAuthTab() {
                     <td className={`px-3 py-2.5 text-center sticky right-0 shadow-[-1px_0_0_0_#f1f5f9] transition-colors ${
                       ri % 2 === 0 ? 'bg-white group-hover:bg-blue-50' : 'bg-slate-50 group-hover:bg-blue-50'
                     }`}>
-                      <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
+                      <PermissionActionGuard menuCode={MENU.QA_AUTHORIZATION} action="canEdit">
                         <button
                           onClick={() => handleEditClick(s)}
                           className="text-muted-foreground hover:text-primary transition-colors p-1.5 rounded-md hover:bg-slate-200 mx-auto block"
@@ -554,7 +555,7 @@ export function SamsAuthTab() {
                 <Button variant="outline" onClick={handleCloseEdit} className="font-bold">
                   Cancel
                 </Button>
-                <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
+                <PermissionActionGuard menuCode={MENU.QA_AUTHORIZATION} action="canEdit">
                   <Button 
                     onClick={handleSave}
                     disabled={upsertMutation.isPending}

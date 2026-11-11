@@ -57,10 +57,13 @@ import { toast } from "sonner";
 
 import RuleFormDialog from "./components/RuleFormDialog";
 import CalculationPreview from "./components/CalculationPreview";
+import { MENU } from "@/lib/permission-codes";
+import { useMenuPermission } from "@/hooks/use-menu-permission";
 
 type DialogMode = "closed" | "add" | "view" | "edit";
 
 export default function StaffIncomePage() {
+    const perm = useMenuPermission(MENU.HR_STAFF_INCOME);
     const t = useTranslations("Menu");
 
     const [dialogMode, setDialogMode] = useState<DialogMode>("closed");
@@ -202,10 +205,10 @@ export default function StaffIncomePage() {
                                 />
                                 Refresh
                             </Button>
-                            <Button size="sm" onClick={openAdd}>
+                            {perm.canCreate && (<Button size="sm" onClick={openAdd}>
                                 <Plus className="h-4 w-4 mr-1" />
                                 Add Rule
-                            </Button>
+                            </Button>)}
                         </div>
                     </div>
                 </CardHeader>
@@ -328,19 +331,19 @@ export default function StaffIncomePage() {
                                                                     <Eye className="mr-2 h-4 w-4" />
                                                                     View
                                                                 </DropdownMenuItem>
-                                                                <DropdownMenuItem
+                                                                {perm.canEdit && (<DropdownMenuItem
                                                                     onClick={() => openEdit(rule)}
                                                                 >
                                                                     <Pencil className="mr-2 h-4 w-4" />
                                                                     Edit
-                                                                </DropdownMenuItem>
-                                                                <DropdownMenuItem
+                                                                </DropdownMenuItem>)}
+                                                                {perm.canDelete && (<DropdownMenuItem
                                                                     onClick={() => openDelete(rule)}
                                                                     className="text-destructive focus:text-destructive"
                                                                 >
                                                                     <Trash2 className="mr-2 h-4 w-4" />
                                                                     Delete
-                                                                </DropdownMenuItem>
+                                                                </DropdownMenuItem>)}
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
                                                     </TableCell>

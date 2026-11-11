@@ -2,14 +2,14 @@
 
 import React from "react";
 import { useMenuPermission } from "@/hooks/use-menu-permission";
-
-type PermissionAction = "canView" | "canCreate" | "canEdit" | "canDelete" | "canExport";
+import type { MenuCodeRef } from "@/lib/permission-codes";
+import type { PermissionAction } from "@/lib/permission-utils";
 
 interface PermissionActionGuardProps {
-    /** The permission code (e.g., "QA_STAFF", "MASTER_DATA_ROLE") */
-    menuCode: string;
-    /** The required permission action */
-    action: PermissionAction;
+    /** Menu code, or ordered fallback list (e.g. MENU.HR_STAFF, ["NEW_CODE", "OLD_CODE"]) */
+    menuCode: MenuCodeRef;
+    /** Required action; a list means "any of them" */
+    action: PermissionAction | readonly PermissionAction[];
     /** Content to render if permission is granted */
     children: React.ReactNode;
     /** Optional content to render if permission is denied (defaults to null) */
@@ -17,12 +17,11 @@ interface PermissionActionGuardProps {
 }
 
 /**
- * A wrapper component that conditionally renders its children based on the user's
- * granular permissions for a specific menu code.
- * 
- * Example usage:
- * <PermissionActionGuard menuCode="QA_STAFF" action="canEdit">
- *   <Button>Edit User</Button>
+ * Renders its children only if the user has the required permission.
+ *
+ * @example
+ * <PermissionActionGuard menuCode={MENU.HR_STAFF} action="canEdit">
+ *   <Button>Edit</Button>
  * </PermissionActionGuard>
  */
 export function PermissionActionGuard({
@@ -32,8 +31,9 @@ export function PermissionActionGuard({
     fallback = null,
 }: PermissionActionGuardProps) {
     const permissions = useMenuPermission(menuCode);
+    const actions = typeof action === "string" ? [action] : action;
 
-    if (permissions[action]) {
+    if (actions.some((a) => permissions[a])) {
         return <>{children}</>;
     }
 

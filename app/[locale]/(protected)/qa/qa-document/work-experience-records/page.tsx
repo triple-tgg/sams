@@ -5,9 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Search, Filter, FileText, FileBadge, RotateCw, MoreVertical, User, ChevronDown, SlidersHorizontal } from 'lucide-react'
+import { Search, Filter, FileText, FileBadge, RotateCw, MoreVertical, User, SlidersHorizontal } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +15,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useQAStaffList } from '@/lib/api/hooks/useQAStaffManagement'
 import { useStaffDepartments, useStaffDepartmentPositions } from '@/lib/api/master/organization.hooks'
-import { useStaffsTypesAll } from '@/lib/api/hooks/useStaffsTypes'
 import { QAStaffItem } from '@/lib/api/qa/staff-management'
 import { CertifyingStaffPreview } from './components/CertifyingStaffPreview'
 import { WorkExperiencePreview } from './components/WorkExperiencePreview'
@@ -24,8 +22,6 @@ import { useDebounce } from '@/hooks/useDebounce'
 import { toast } from 'sonner'
 import { Pagination } from '../employee-history-training/components/Pagination'
 
-/** Staff types available in this filter, in display order. "All" = every one of these. */
-const ALLOWED_STAFF_TYPE_CODES = ['CS', 'MECH', 'CS&MECH']
 const normalizeTypeCode = (code?: string | null) => (code || '').replace(/\s+/g, '').toUpperCase()
 /** Same colours as the HR staff list. */
 const STAFF_TYPE_COLORS: Record<string, string> = { 'CS': '#2563eb', 'MECH': '#7c3aed', 'CS&MECH': '#0284c7' }
@@ -36,8 +32,6 @@ export default function WorkExperienceRecordsPage() {
 
   const [departmentId, setDepartmentId] = useState('all')
   const [positionId, setPositionId] = useState('all')
-  /** null = All (every allowed staff type). */
-  const [selectedStaffTypeIds, setSelectedStaffTypeIds] = useState<number[] | null>(null)
   const [previewStaffId, setPreviewStaffId] = useState<number | null>(null)
   const [previewType, setPreviewType] = useState<'Certifying Staff' | 'Work Experience' | null>(null)
 
@@ -47,35 +41,6 @@ export default function WorkExperienceRecordsPage() {
   // Fetch dropdown options
   const { data: deptRes, isLoading: deptLoading } = useStaffDepartments()
   const { data: posRes, isLoading: posLoading } = useStaffDepartmentPositions()
-  const { staffTypes, isLoading: staffTypesLoading } = useStaffsTypesAll()
-
-  // Only CS, MECH and CS&MECH are offered
-  const staffTypeOptions = useMemo(() => {
-    return ALLOWED_STAFF_TYPE_CODES
-      .map(code => staffTypes.find(t => normalizeTypeCode(t.code) === normalizeTypeCode(code)))
-      .filter((t): t is NonNullable<typeof t> => !!t)
-  }, [staffTypes])
-  const allStaffTypeIds = useMemo(() => staffTypeOptions.map(t => t.id), [staffTypeOptions])
-
-  const isAllStaffTypes = selectedStaffTypeIds === null || selectedStaffTypeIds.length === allStaffTypeIds.length
-  const effectiveStaffTypeIds = isAllStaffTypes ? allStaffTypeIds : selectedStaffTypeIds!
-
-  const toggleAllStaffTypes = () => {
-    setSelectedStaffTypeIds(null)
-    setPage(1)
-  }
-
-  const toggleStaffType = (id: number) => {
-    const current = selectedStaffTypeIds ?? allStaffTypeIds
-    const next = current.includes(id) ? current.filter(x => x !== id) : [...current, id]
-    // Unchecking the last one (or checking every one) falls back to All
-    setSelectedStaffTypeIds(next.length === 0 || next.length === allStaffTypeIds.length ? null : next)
-    setPage(1)
-  }
-
-  const staffTypeLabel = isAllStaffTypes
-    ? 'All Staff Types'
-    : staffTypeOptions.filter(t => effectiveStaffTypeIds.includes(t.id)).map(t => t.code).join(', ')
 
   const departments = deptRes?.responseData || []
   const positions = posRes?.responseData || []
@@ -92,13 +57,15 @@ export default function WorkExperienceRecordsPage() {
     employeeId: '',
     positionId: positionId === 'all' ? 0 : Number(positionId),
     departmentId: departmentId === 'all' ? 0 : Number(departmentId),
-    staffstypeId: effectiveStaffTypeIds,
+    staffstypeId: [],
     sortBy: '',
     sortDirection: '',
     isActive: true,
+    // Staff Records only lists staff in AMO 145 departments
+    isDepartmentAmo145: true,
     page,
     perPage
-  }, allStaffTypeIds.length > 0)
+  })
 
   const staffList = listRes?.responseData || []
   const totalItems = listRes?.total || 0
@@ -107,13 +74,12 @@ export default function WorkExperienceRecordsPage() {
   // ── Filter helpers ──
   const [filtersOpen, setFiltersOpen] = useState(false)
   const activeFilterCount =
-    (departmentId !== 'all' ? 1 : 0) + (positionId !== 'all' ? 1 : 0) + (isAllStaffTypes ? 0 : 1)
+    (departmentId !== 'all' ? 1 : 0) + (positionId !== 'all' ? 1 : 0)
   const hasAnyFilter = searchTerm !== '' || activeFilterCount > 0
 
   const resetDropdownFilters = () => {
     setDepartmentId('all')
     setPositionId('all')
-    setSelectedStaffTypeIds(null)
     setPage(1)
   }
 
@@ -156,25 +122,6 @@ export default function WorkExperienceRecordsPage() {
         ))}
       </SelectContent>
     </Select>
-  )
-
-  const renderStaffTypeOptions = () => (
-    <>
-      <label className="flex items-center gap-2.5 rounded-sm px-2 py-1.5 text-sm cursor-pointer hover:bg-slate-100">
-        <Checkbox checked={isAllStaffTypes} onCheckedChange={toggleAllStaffTypes} />
-        <span>All Staff Types</span>
-      </label>
-      <div className="my-1 h-px bg-slate-100" />
-      {staffTypeOptions.map(t => (
-        <label key={t.id} className="flex items-center gap-2.5 rounded-sm px-2 py-1.5 text-sm cursor-pointer hover:bg-slate-100">
-          <Checkbox
-            checked={effectiveStaffTypeIds.includes(t.id)}
-            onCheckedChange={() => toggleStaffType(t.id)}
-          />
-          <span>{t.code}</span>
-        </label>
-      ))}
-    </>
   )
 
   const handleDocumentAction = (staff: QAStaffItem, docType: string) => {
@@ -221,22 +168,6 @@ export default function WorkExperienceRecordsPage() {
               <div className="hidden xl:flex items-center gap-2">
                 <div className="w-[200px]">{renderDepartmentSelect()}</div>
                 <div className="w-[200px]">{renderPositionSelect()}</div>
-                <div className="w-[200px]">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <button type="button" className={filterTriggerCls}>
-                        <span className="flex items-center gap-2 min-w-0">
-                          <Filter className="h-3.5 w-3.5 shrink-0" />
-                          <span className="truncate">{staffTypesLoading ? 'Loading...' : staffTypeLabel}</span>
-                        </span>
-                        <ChevronDown className="h-4 w-4 shrink-0 text-slate-600" />
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] min-w-[200px] p-1">
-                      {renderStaffTypeOptions()}
-                    </PopoverContent>
-                  </Popover>
-                </div>
               </div>
 
               {/* Compact (< xl): Filters button opens a dropdown panel */}
@@ -283,12 +214,6 @@ export default function WorkExperienceRecordsPage() {
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-slate-500">Position</label>
                       {renderPositionSelect()}
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-slate-500">Staff Type</label>
-                      <div className="rounded-md border border-input p-1">
-                        {renderStaffTypeOptions()}
-                      </div>
                     </div>
                   </div>
                   <div className="flex justify-end px-4 py-3 border-t border-slate-100 bg-slate-50/60">

@@ -16,6 +16,9 @@ import { LogbookTab } from './components/LogbookTab'
 import { useStaffById, useStaffTrainingDashboard, useUploadStaffFile, useUpsertStaff } from '@/lib/api/hooks/useQAStaffManagement'
 import { buildStaffUpsertRequest, type StaffByIdData, type TrainingDashboardResponseData } from '@/lib/api/qa/staff-management'
 import { toast } from 'sonner'
+import { MENU } from "@/lib/permission-codes";
+import { useMenuPermission } from "@/hooks/use-menu-permission";
+import { useLocale } from "next-intl";
 
 // ── Tab Configuration ──
 const TABS: { name: TabName; icon: React.ReactNode }[] = [
@@ -168,6 +171,8 @@ function mapApiToStaffData(api: StaffByIdData, trainingApi?: TrainingDashboardRe
 
 // ── Main Page ──
 export default function StaffProfilePage() {
+    const locale = useLocale();
+    const perm = useMenuPermission(MENU.HR_STAFF);
     const router = useRouter()
     const params = useParams()
     const staffId = Number(params.id)
@@ -277,7 +282,7 @@ export default function StaffProfilePage() {
                         <p className="text-sm font-semibold text-slate-700">Failed to load staff profile</p>
                         <p className="text-xs text-slate-400 max-w-xs">{error?.message || 'An unexpected error occurred'}</p>
                         <button
-                            onClick={() => router.push('/en/hr/staff')}
+                            onClick={() => router.push(`/${locale}/hr/staff`)}
                             className="mt-2 px-4 py-2 text-sm font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
                         >
                             Back to Staff List
@@ -296,7 +301,7 @@ export default function StaffProfilePage() {
                     <div className="flex items-center gap-3">
                         <button
                             className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] border border-slate-200 bg-white text-slate-600 cursor-pointer transition-all duration-200 shrink-0 hover:border-slate-400 hover:text-slate-800 hover:shadow-sm"
-                            onClick={() => router.push('/en/hr/staff')}
+                            onClick={() => router.push(`/${locale}/hr/staff`)}
                         >
                             <ArrowLeft className="h-4 w-4" />
                         </button>
@@ -306,19 +311,19 @@ export default function StaffProfilePage() {
                         {/* ── Profile Header Card ── */}
                         <div className="bg-white border border-[#e8ecf1] rounded-t-[14px] py-7 px-8 mb-0 flex items-center gap-6 relative max-md:flex-col max-md:items-start max-md:gap-4 max-md:p-5">
                             <div className="absolute top-3 right-3 sm:top-5 sm:right-6 flex items-center gap-2 z-10">
-                                <button
+                                {perm.canExport && (<button
                                     className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] border border-slate-200 bg-white text-slate-500 cursor-pointer transition-all duration-200 hover:border-slate-400 hover:text-slate-800 hover:shadow-sm"
                                     onClick={() => setShowPrintPreview(true)}
                                     title="Print"
                                 >
                                     <Printer className="h-4 w-4" />
-                                </button>
+                                </button>)}
                             </div>
                             <ProfileAvatar
                                 initials={staff.initials}
                                 avatarBg={staff.avatarBg}
                                 profileImage={staff.profileImage}
-                                onUpload={handleProfileImageUpload}
+                                onUpload={perm.canEdit ? handleProfileImageUpload : undefined}
                             />
                             <div className="flex-1 min-w-0">
                                 <div className="text-lg sm:text-xl font-bold text-slate-800 mb-0.5 break-words">{staff.nameEn}</div>

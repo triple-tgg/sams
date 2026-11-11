@@ -1,4 +1,9 @@
 import axiosConfig from "@/lib/axios.config";
+import {
+    parseContentDispositionFilename,
+    readBlobErrorMessage,
+    type TemplateDownload,
+} from "@/lib/api/lineMaintenances/aircraftSchedMappingTemplate";
 import { getQAStaffList } from "@/lib/api/qa/staff-management";
 import {
     parseAndSplitAircraftLicense,
@@ -1155,3 +1160,32 @@ export async function fetchKnownStaffIndex(
 
     return byId;
 }
+
+/** Used when the server's filename isn't readable (Content-Disposition is not CORS-exposed). */
+export const STAFFS_TEMPLATE_FILENAME = "Staffs Template.xlsx";
+
+/** GET /migration/staffs-template — the Excel template for staff import. */
+export const getStaffsTemplate = async (): Promise<TemplateDownload> => {
+    try {
+        const response = await axiosConfig.get("/migration/staffs-template", {
+            responseType: "blob",
+            timeout: 60000, // file download
+        });
+        return {
+            blob: response.data as Blob,
+            fileName: parseContentDispositionFilename(
+                response.headers?.["content-disposition"],
+                STAFFS_TEMPLATE_FILENAME
+            ),
+        };
+    } catch (error: any) {
+        console.error("Error downloading staffs template:", error);
+        const fromBlob = await readBlobErrorMessage(error?.response?.data);
+        throw new Error(
+            fromBlob ||
+                error?.response?.data?.error ||
+                error?.response?.data?.message ||
+                "Failed to download the template"
+        );
+    }
+};

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Check } from 'lucide-react'
 import { CATEGORY_DOT } from '../types'
 import { COURSES } from '../data'
@@ -11,13 +11,52 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getCourseMatrix, upsertCourseMatrixRequirements } from '@/lib/api/qa/course'
 import { toast } from 'sonner'
 import { useReduxAuth } from '@/lib/api/hooks/useReduxAuth'
+import { MENU } from "@/lib/permission-codes";
+import { useMenuPermission } from "@/hooks/use-menu-permission";
+
+const HEADER_MODE_KEY = 'qa-course-matrix-header-mode'
+const HEADER_MODES = [
+    { value: 'code', label: 'Code' },
+    { value: 'name', label: 'Name' },
+] as const
 
 export function TrainingNeedsMatrix() {
+    const perm = useMenuPermission(MENU.QA_COURSE_MANAGEMENT);
     const [hoveredRow, setHoveredRow] = useState<number | null>(null)
     const [hoveredCol, setHoveredCol] = useState<number | null>(null)
     const [editingCell, setEditingCell] = useState<{ courseId: number, courseName: string, roleIndex: number, currentVal: number, roleId: number } | null>(null)
     const queryClient = useQueryClient()
     const { user } = useReduxAuth()
+
+    // Column header label: short role code (default) or full role name (rotated).
+    const [headerMode, setHeaderMode] = useState<'code' | 'name'>('code')
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem(HEADER_MODE_KEY)
+            if (saved === 'code' || saved === 'name') setHeaderMode(saved)
+        } catch { /* storage unavailable */ }
+    }, [])
+    const changeHeaderMode = (mode: 'code' | 'name') => {
+        setHeaderMode(mode)
+        try { localStorage.setItem(HEADER_MODE_KEY, mode) } catch { /* storage unavailable */ }
+    }
+
+    // Sticky header: the header row lives in its own strip that sticks below the
+    // app navbar on page scroll, and mirrors the body's horizontal scroll.
+    const headScrollRef = useRef<HTMLDivElement>(null)
+    const [stickyTop, setStickyTop] = useState(0)
+    useEffect(() => {
+        const navbar = document.querySelector('header')
+        if (!navbar) return
+        const update = () => {
+            const top = parseFloat(getComputedStyle(navbar).top) || 0
+            setStickyTop(navbar.getBoundingClientRect().height + top)
+        }
+        update()
+        const ro = new ResizeObserver(update)
+        ro.observe(navbar)
+        return () => ro.disconnect()
+    }, [])
 
     // Fetch API Data
     const { data: matrixResp, isLoading } = useQuery({
@@ -82,16 +121,48 @@ export function TrainingNeedsMatrix() {
         }])
     }
 
+    // Both tables share a fixed layout + colgroup so header and body columns line up.
+    const COURSE_COL_W = 256
+    const ROLE_COL_W = 42
+    const tableStyle: React.CSSProperties = {
+        tableLayout: 'fixed',
+        width: '100%',
+        minWidth: Math.max(900, COURSE_COL_W + ROLE_COL_W * apiRoles.length),
+    }
+    const colGroup = (
+        <colgroup>
+            <col style={{ width: COURSE_COL_W }} />
+            {apiRoles.map((_, i) => <col key={i} style={{ width: ROLE_COL_W }} />)}
+        </colgroup>
+    )
+
     return (
         <TooltipProvider delayDuration={200}>
-            <div className="bg-card rounded-xl border border-border overflow-hidden">
+            <div className="bg-card rounded-xl border border-border overflow-clip">
             {/* Header */}
             <div className="px-5 py-4 border-b border-border flex items-center justify-between">
                 <div>
                     <h2 className="text-sm font-semibold text-foreground">Training Requirements Matrix</h2>
                     <p className="text-xs text-muted-foreground mt-0.5">SAMS-FM-CM-014 Rev.03 — Required training per role</p>
                 </div>
-                <div className="flex gap-3 text-xs text-muted-foreground">
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <div role="radiogroup" aria-label="Column header label" className="inline-flex rounded-lg border border-border bg-card p-0.5">
+                        {HEADER_MODES.map(opt => (
+                            <button
+                                key={opt.value}
+                                type="button"
+                                role="radio"
+                                aria-checked={headerMode === opt.value}
+                                onClick={() => changeHeaderMode(opt.value)}
+                                className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer ${headerMode === opt.value
+                                    ? 'bg-primary text-white'
+                                    : 'text-muted-foreground hover:text-foreground'
+                                    }`}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
                     <span className="flex items-center gap-1.5">
                         <span className="w-4 h-4 rounded flex items-center justify-center bg-primary">
                             <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
@@ -108,30 +179,52 @@ export function TrainingNeedsMatrix() {
             </div>
 
             {/* Table */}
-            <div className="overflow-x-auto">
-                <table className="text-xs border-collapse" style={{ minWidth: 900 }}>
+            <div
+                className="sticky z-30 bg-primary text-white overflow-hidden"
+                style={{ top: stickyTop }}
+                ref={headScrollRef}
+            >
+                <table className="text-xs border-collapse" style={tableStyle}>
+                    {colGroup}
                     <thead>
                         <tr>
-                            <th className="sticky left-0 z-20 bg-card border-r border-b border-border px-4 py-3 text-left text-muted-foreground w-64 min-w-[256px] font-medium">
+                            <th className="sticky left-0 z-20 bg-primary border-r border-white/20 px-4 py-3 align-bottom text-left text-white w-64 min-w-[256px] font-medium">
                                 Training Course
                             </th>
                             {apiRoles.map((role, i) => (
                                 <th
                                     key={i}
-                                    className={`border-b border-border px-1 py-2 font-medium transition-colors ${
-                                        hoveredCol === i ? 'bg-primary/5' : ''
+                                    title={`${role.departmentSubCode} - ${role.departmentSubName}`}
+                                    className={`px-1 py-2 font-medium align-bottom transition-colors ${
+                                        hoveredCol === i ? 'bg-white/15' : ''
                                     }`}
                                     style={{ minWidth: 42, width: 42 }}
                                     onMouseEnter={() => setHoveredCol(i)}
                                     onMouseLeave={() => setHoveredCol(null)}
                                 >
                                     <div className="flex flex-col items-center gap-1">
-                                        <span className="text-foreground font-semibold">{role.departmentSubCode}</span>
+                                        {headerMode === 'code' ? (
+                                            <span className="text-white font-semibold">{role.departmentSubCode}</span>
+                                        ) : (
+                                            <span className="text-white font-semibold [writing-mode:vertical-rl] rotate-180 whitespace-nowrap overflow-hidden text-ellipsis max-h-44 leading-tight">
+                                                {role.departmentSubName}
+                                            </span>
+                                        )}
                                     </div>
                                 </th>
                             ))}
                         </tr>
                     </thead>
+                </table>
+            </div>
+            <div
+                className="overflow-x-auto"
+                onScroll={(e) => {
+                    if (headScrollRef.current) headScrollRef.current.scrollLeft = e.currentTarget.scrollLeft
+                }}
+            >
+                <table className="text-xs border-collapse" style={tableStyle}>
+                    {colGroup}
                     <tbody>
                         {isLoading ? (
                             <tr>
@@ -215,7 +308,7 @@ export function TrainingNeedsMatrix() {
                                             }`}
                                             onMouseEnter={() => setHoveredCol(colIdx)}
                                             onMouseLeave={() => setHoveredCol(null)}
-                                            onClick={() => setEditingCell({
+                                            onClick={() => perm.canEdit && setEditingCell({
                                                 courseId: mc.courseId,
                                                 courseName: mc.courseName,
                                                 roleIndex: colIdx,

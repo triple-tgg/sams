@@ -33,6 +33,7 @@ import type { AirlineItem } from "@/lib/api/master/airlines/airlines.interface";
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard";
 import AirlineFormDialog from "./components/AirlineFormDialog";
 import ConfirmCredentialsDialog from "./components/ConfirmCredentialsDialog";
+import { MENU } from "@/lib/permission-codes";
 
 type DialogMode = 'closed' | 'add' | 'view' | 'edit' | 'confirm-delete';
 
@@ -269,7 +270,7 @@ const CustomerAirlinePage = () => {
                             <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
                             Refresh
                         </Button>
-                        <PermissionActionGuard menuCode="MASTER_DATA_CUSTOMER_AIRLINE" action="canCreate">
+                        <PermissionActionGuard menuCode={MENU.MASTER_DATA_CUSTOMER_AIRLINE} action="canCreate">
                             <Button size="sm" onClick={openAddDialog}>
                                 <Plus className="h-4 w-4 mr-2" />
                                 Add Airline
@@ -426,13 +427,13 @@ const CustomerAirlinePage = () => {
                                                                 <Eye className="h-4 w-4 mr-2" />
                                                                 View
                                                             </DropdownMenuItem>
-                                                            <PermissionActionGuard menuCode="MASTER_DATA_CUSTOMER_AIRLINE" action="canEdit">
+                                                            <PermissionActionGuard menuCode={MENU.MASTER_DATA_CUSTOMER_AIRLINE} action="canEdit">
                                                                 <DropdownMenuItem onClick={() => openEditDialog(airline)}>
                                                                     <Pencil className="h-4 w-4 mr-2" />
                                                                     Edit
                                                                 </DropdownMenuItem>
                                                             </PermissionActionGuard>
-                                                            <PermissionActionGuard menuCode="MASTER_DATA_CUSTOMER_AIRLINE" action="canDelete">
+                                                            <PermissionActionGuard menuCode={MENU.MASTER_DATA_CUSTOMER_AIRLINE} action="canDelete">
                                                                 <DropdownMenuItem
                                                                     onClick={() => openDeleteDialog(airline)}
                                                                     className="text-destructive focus:text-destructive"

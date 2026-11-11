@@ -1,6 +1,7 @@
 'use client'
 
-import { Employee, CourseRef, getEmployeeCourseDaysLeft, getEmployeeCourseStatus, STATUS_META, SortField, SortDir } from '../types'
+import { useEffect, useRef, useState } from 'react'
+import { Employee, CourseRef, getEmployeeCourseDaysLeft, getEmployeeCourseStatus, STATUS_META, SortField, SortDir, courseCycleLabel, courseCycleText } from '../types'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
 
 interface StatusMatrixProps {
@@ -17,54 +18,108 @@ interface StatusMatrixProps {
     onCellClick?: (emp: Employee, course: CourseRef) => void
     /** Course column header shows the course code (default) or the course name */
     courseHeaderMode?: 'code' | 'name'
+    /** Course header text (code or name) runs horizontally (default) or rotated vertically */
+    courseHeaderOrientation?: 'horizontal' | 'vertical'
 }
 
-export function StatusMatrix({ employees, courses, selectedId, onSelect, sortField, sortDir, onSort, SortIcon, onEnroll, enrollments, onCellClick, courseHeaderMode = 'code' }: StatusMatrixProps) {
+export function StatusMatrix({ employees, courses, selectedId, onSelect, sortField, sortDir, onSort, SortIcon, onEnroll, enrollments, onCellClick, courseHeaderMode = 'code', courseHeaderOrientation = 'horizontal' }: StatusMatrixProps) {
+    const verticalHeader = courseHeaderOrientation === 'vertical'
+    // Sticky header: the header row lives in its own strip that sticks below the
+    // app navbar on page scroll, and mirrors the body's horizontal scroll.
+    const headScrollRef = useRef<HTMLDivElement>(null)
+    const [stickyTop, setStickyTop] = useState(0)
+    useEffect(() => {
+        const navbar = document.querySelector('header')
+        if (!navbar) return
+        const update = () => {
+            const top = parseFloat(getComputedStyle(navbar).top) || 0
+            setStickyTop(navbar.getBoundingClientRect().height + top)
+        }
+        update()
+        const ro = new ResizeObserver(update)
+        ro.observe(navbar)
+        return () => ro.disconnect()
+    }, [])
+
+    // Header and body are separate tables, so both use a fixed layout + shared colgroup to keep columns aligned.
+    const STAFF_W = 180, ID_W = 70, POS_W = 160, EXPIRY_W = 100
+    const COURSE_W = verticalHeader ? 80 : courseHeaderMode === 'name' ? 120 : 100
+    const tableStyle: React.CSSProperties = {
+        tableLayout: 'fixed',
+        width: '100%',
+        minWidth: STAFF_W + ID_W + POS_W + EXPIRY_W + COURSE_W * courses.length,
+    }
+    const colGroup = (
+        <colgroup>
+            <col style={{ width: STAFF_W }} />
+            <col style={{ width: ID_W }} />
+            <col style={{ width: POS_W }} />
+            {courses.map(c => <col key={c.id} style={{ width: COURSE_W }} />)}
+            <col style={{ width: EXPIRY_W }} />
+        </colgroup>
+    )
+
     return (
         <TooltipProvider>
-            {/* Own scroll area so the header can stick to the top while rows scroll */}
-            <div className="overflow-auto max-h-[calc(100vh-220px)]">
-                <table className="w-full border-collapse text-xs">
+            <div
+                ref={headScrollRef}
+                className="sticky z-30 overflow-hidden bg-primary"
+                style={{ top: stickyTop }}
+            >
+                <table className="border-collapse text-xs" style={tableStyle}>
+                    {colGroup}
                     <thead>
-                        <tr className="bg-muted/50 border-b-2 border-border">
+                        <tr className={verticalHeader ? '[&>th]:align-bottom' : undefined}>
                             <th
-                                className="px-3 py-2 text-left text-muted-foreground font-bold whitespace-nowrap cursor-pointer hover:text-foreground transition-colors select-none sticky top-0 left-0 z-30 bg-slate-100 dark:bg-slate-900 shadow-[1px_0_0_0_var(--border),inset_0_-2px_0_0_var(--border)]"
-                                style={{ minWidth: 180 }}
+                                className="px-3 py-2 text-left text-primary-foreground font-bold whitespace-nowrap cursor-pointer hover:text-primary-foreground/80 transition-colors select-none sticky left-0 z-30 bg-primary shadow-[1px_0_0_0_rgb(255_255_255/0.2),inset_0_-2px_0_0_rgb(255_255_255/0.2)]"
                                 onClick={() => onSort('name')}
                             >
                                 <span className="inline-flex items-center gap-1">Staff <SortIcon field="name" /></span>
                             </th>
                             <th
-                                className="px-3 py-2 text-left text-muted-foreground font-bold whitespace-nowrap cursor-pointer hover:text-foreground transition-colors select-none sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 shadow-[inset_0_-2px_0_0_var(--border)]"
-                                style={{ minWidth: 60 }}
+                                className="px-3 py-2 text-left text-primary-foreground font-bold whitespace-nowrap cursor-pointer hover:text-primary-foreground/80 transition-colors select-none bg-primary shadow-[inset_0_-2px_0_0_rgb(255_255_255/0.2)]"
                                 onClick={() => onSort('id')}
                             >
                                 <span className="inline-flex items-center gap-1">ID <SortIcon field="id" /></span>
                             </th>
                             <th
-                                className="px-3 py-2 text-left text-muted-foreground font-bold whitespace-nowrap cursor-pointer hover:text-foreground transition-colors select-none sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 shadow-[inset_0_-2px_0_0_var(--border)]"
-                                style={{ minWidth: 160 }}
+                                className="px-3 py-2 text-left text-primary-foreground font-bold whitespace-nowrap cursor-pointer hover:text-primary-foreground/80 transition-colors select-none bg-primary shadow-[inset_0_-2px_0_0_rgb(255_255_255/0.2)]"
                                 onClick={() => onSort('pos')}
                             >
                                 <span className="inline-flex items-center gap-1">Position <SortIcon field="pos" /></span>
                             </th>
                             {courses.map(c => (
-                                <th key={c.id} title={courseHeaderMode === 'name' ? c.short : c.label} className="px-1 py-2 text-center text-muted-foreground font-bold border-l border-border sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 shadow-[inset_0_-2px_0_0_var(--border)]" style={{ minWidth: 100, maxWidth: courseHeaderMode === 'name' ? 140 : undefined }}>
-                                    {courseHeaderMode === 'name'
-                                        ? <div className="text-[10px] leading-snug line-clamp-3 break-words">{c.label || c.short}</div>
-                                        : <div className="text-[10px] leading-snug">{c.short}</div>}
-                                    <div className="text-[9px] text-muted-foreground/60 font-medium">{c.interval}m</div>
+                                <th key={c.id} title={courseHeaderMode === 'name' ? c.short : c.label} className={`relative px-1 ${verticalHeader ? 'pt-1' : 'pt-2'} pb-4 text-center ${verticalHeader ? 'align-bottom' : 'align-top'} text-primary-foreground font-bold border-l border-white/20 bg-primary shadow-[inset_0_-2px_0_0_rgb(255_255_255/0.2)]`}>
+                                    {verticalHeader
+                                        // Rotated text (reads bottom-to-top). Fixed 120px text height keeps the header ≤ 150px;
+                                        // text that doesn't fit wraps onto extra (vertical) lines.
+                                        ? <span className="inline-block h-[120px] max-w-full text-[10px] leading-[1.15] text-left [writing-mode:vertical-rl] rotate-180 whitespace-normal [overflow-wrap:anywhere] overflow-hidden">{courseHeaderMode === 'code' ? c.short : (c.label || c.short)}</span>
+                                        : courseHeaderMode === 'name'
+                                            // Full name wraps horizontally and is always shown in full (header grows to fit)
+                                            ? <div className="text-[10px] leading-snug [overflow-wrap:anywhere]">{c.label || c.short}</div>
+                                            : <div className="text-[10px] leading-snug [overflow-wrap:anywhere]">{c.short}</div>}
+                                    {/* Pinned to the cell's bottom edge so the labels line up across columns */}
+                                    <div className="absolute inset-x-0 bottom-1 text-[9px] text-primary-foreground/70 font-medium">{courseCycleLabel(c)}</div>
                                 </th>
                             ))}
                             <th
-                                className="px-3 py-2 text-center text-muted-foreground font-bold border-l-2 border-border cursor-pointer hover:text-foreground transition-colors select-none sticky top-0 z-20 md:right-0 md:z-30 bg-slate-100 dark:bg-slate-900 shadow-[-1px_0_0_0_var(--border),inset_0_-2px_0_0_var(--border)]"
-                                style={{ minWidth: 90 }}
+                                className="px-3 py-2 text-center text-primary-foreground font-bold border-l-2 border-white/20 cursor-pointer hover:text-primary-foreground/80 transition-colors select-none md:sticky md:right-0 md:z-30 bg-primary shadow-[-1px_0_0_0_rgb(255_255_255/0.2),inset_0_-2px_0_0_rgb(255_255_255/0.2)]"
                                 onClick={() => onSort('expiry')}
                             >
                                 <span className="inline-flex items-center gap-1">Next Expiry <SortIcon field="expiry" /></span>
                             </th>
                         </tr>
                     </thead>
+                </table>
+            </div>
+            <div
+                className="overflow-x-auto"
+                onScroll={(e) => {
+                    if (headScrollRef.current) headScrollRef.current.scrollLeft = e.currentTarget.scrollLeft
+                }}
+            >
+                <table className="border-collapse text-xs" style={tableStyle}>
+                    {colGroup}
                     <tbody>
                         {employees.map((emp, ri) => {
                             const statuses = courses.map(c => getEmployeeCourseStatus(emp, c.id))
@@ -90,9 +145,9 @@ export function StatusMatrix({ employees, courses, selectedId, onSelect, sortFie
                                         hasIssue ? (ri % 2 === 0 ? 'bg-amber-100' : 'bg-amber-50') :
                                             ri % 2 === 0 ? 'bg-card' : 'bg-slate-50'
                                         } hover:!bg-slate-100`}>
-                                    <td className="px-3 py-1.5 font-semibold text-foreground whitespace-nowrap max-w-[140px] sm:max-w-none truncate sticky left-0 z-10 bg-inherit shadow-[1px_0_0_0_var(--border)]">{emp.name}</td>
+                                    <td className="px-3 py-1.5 font-semibold text-foreground whitespace-nowrap truncate sticky left-0 z-10 bg-inherit shadow-[1px_0_0_0_var(--border)]">{emp.name}</td>
                                     <td className="px-3 py-1.5 text-primary font-bold text-[11px] whitespace-nowrap">{emp.id}</td>
-                                    <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap text-[11px]">{emp.pos}</td>
+                                    <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap truncate text-[11px]" title={emp.pos}>{emp.pos}</td>
                                     {courses.map(c => {
                                         const due = emp.courses[c.id]
                                         const s = getEmployeeCourseStatus(emp, c.id)
@@ -112,7 +167,7 @@ export function StatusMatrix({ employees, courses, selectedId, onSelect, sortFie
                                                 lastTrainingStr = '-'
                                             } else {
                                                 const dueDate = new Date(due)
-                                                if (!isNaN(dueDate.getTime())) {
+                                                if (!isNaN(dueDate.getTime()) && c.interval > 0) {
                                                     const lastTraining = new Date(dueDate)
                                                     lastTraining.setMonth(lastTraining.getMonth() - c.interval)
                                                     lastTrainingStr = lastTraining.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })
@@ -132,7 +187,7 @@ export function StatusMatrix({ employees, courses, selectedId, onSelect, sortFie
 
                                         const tooltipLines = [
                                             `📘 ${c.label}`,
-                                            `Interval: ${c.interval} months`,
+                                            courseCycleText(c),
                                             `Status: ${m.label}`,
                                             ...(s !== 'na' && s !== 'missing' ? [
                                                 `Last Training: ${lastTrainingStr}`,
@@ -146,7 +201,7 @@ export function StatusMatrix({ employees, courses, selectedId, onSelect, sortFie
                                         return (
                                             <td key={c.id}
                                                 className="text-center border-l border-border/50 transition-all cursor-pointer hover:ring-2 hover:ring-primary/40 hover:z-10 relative select-none"
-                                                style={{ background: m.bg, padding: '6px 2px', minWidth: 100 }}
+                                                style={{ background: m.bg, padding: '6px 2px' }}
                                                 onClick={(e) => {
                                                     e.stopPropagation()
                                                     onCellClick?.(emp, c)
@@ -182,7 +237,7 @@ export function StatusMatrix({ employees, courses, selectedId, onSelect, sortFie
                                                                     <div>{c.code}</div>
                                                                 </div>
                                                             )}
-                                                            <div className="text-muted-foreground">Interval: {c.interval} months</div>
+                                                            <div className="text-muted-foreground">{courseCycleText(c)}</div>
                                                             <div className="flex items-center justify-start gap-1.5">
                                                                 <span className="w-2 h-2 rounded-full shrink-0" style={{ background: m.dot }} />
                                                                 <span className="font-semibold">{m.label}</span>

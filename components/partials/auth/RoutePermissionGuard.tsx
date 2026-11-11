@@ -4,30 +4,9 @@ import React from "react";
 import { useSelector } from "react-redux";
 import { usePathname, useRouter } from "next/navigation";
 import type { RootState } from "@/store/rootReducer";
-import type { MenuPermissionItem } from "@/lib/api/permission/menuPermissions.interface";
-import { findRoutePermission } from "@/lib/route-permissions";
+import { canAccessRoute } from "@/lib/route-permissions";
+import { usePermissionIndex } from "@/hooks/use-menu-permission";
 import { Icon } from "@iconify/react";
-
-/**
- * Flatten the nested MenuPermissionItem tree into a flat map: menuCode → canView.
- */
-function buildCanViewMap(items: MenuPermissionItem[]): Map<string, boolean> {
-    const map = new Map<string, boolean>();
-    const walk = (list: MenuPermissionItem[]) => {
-        for (const item of list) {
-            if (item.menuCode) {
-                map.set(item.menuCode, item.canView);
-                map.set(item.menuCode.replace(/\s+/g, "_"), item.canView);
-                map.set(item.menuCode.replace(/_/g, " "), item.canView);
-            }
-            if (item.children && item.children.length > 0) {
-                walk(item.children);
-            }
-        }
-    };
-    walk(items);
-    return map;
-}
 
 /**
  * Strip the locale prefix from the pathname.
@@ -45,8 +24,8 @@ function stripLocale(pathname: string): string {
 /**
  * RoutePermissionGuard
  *
- * Checks if the current route requires a specific menuCode permission.
- * If the user doesn't have canView for the required menuCode, shows
+ * Checks the current route against ROUTE_PERMISSION_MAP (menu code + action,
+ * canView by default). If the user lacks it, shows
  * an "Access Denied" screen instead of the page content.
  *
  * Must be placed INSIDE PermissionGuard (which loads permissions first).
@@ -54,7 +33,7 @@ function stripLocale(pathname: string): string {
 export default function RoutePermissionGuard({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
-    const permMenus = useSelector((s: RootState) => s.permission.menus);
+    const permIndex = usePermissionIndex();
     const isPermLoaded = useSelector((s: RootState) => s.permission.isLoaded);
 
     // Don't check until permissions are loaded (PermissionGuard handles the loading state)
@@ -62,24 +41,8 @@ export default function RoutePermissionGuard({ children }: { children: React.Rea
         return <>{children}</>;
     }
 
-    // Strip locale to get the clean path for matching
-    const cleanPath = stripLocale(pathname);
-
-    // Find if the current route has a permission requirement
-    const routePerm = findRoutePermission(cleanPath);
-
-    // No matching route → no restriction, allow access
-    if (!routePerm) {
-        return <>{children}</>;
-    }
-
-    // Build canView map from permissions
-    const canViewMap = buildCanViewMap(permMenus);
-
-    // Check if user has canView for at least ONE of the required menuCodes
-    const hasAccess = routePerm.menuCodes.some(
-        (code) => canViewMap.get(code) === true
-    );
+    // Strip locale, then check the route's required menu code + action
+    const hasAccess = canAccessRoute(permIndex, stripLocale(pathname));
 
     if (hasAccess) {
         return <>{children}</>;

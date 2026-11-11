@@ -55,6 +55,16 @@ export function TrainingRecordTab() {
     })
     const monitoringData = monitoringResp?.responseData
 
+    // Course type + recurrence interval come from the course list API (the monitoring API doesn't carry them)
+    const courseMetaById = useMemo(() => {
+        const map = new Map<number, { courseType: string; interval: number }>()
+        apiCourses.forEach(c => map.set(c.id, {
+            courseType: c.courseType,
+            interval: c.recurrenceIntervalYears ? c.recurrenceIntervalYears * 12 : 0,
+        }))
+        return map
+    }, [apiCourses])
+
     // Build tabs from API courseCategories
     const AVAILABLE_TABS = useMemo(() => {
         if (monitoringData?.courseCategories?.length) {
@@ -65,14 +75,15 @@ export function TrainingRecordTab() {
                     id: c.courseId.toString(),
                     short: c.courseCode,
                     label: c.courseName,
-                    interval: 24,
+                    interval: courseMetaById.get(c.courseId)?.interval ?? 0,
+                    courseType: courseMetaById.get(c.courseId)?.courseType,
                     code: c.courseCode,
                 } as CourseRef)),
                 staffList: cat.staffList,
             }))
         }
         return []
-    }, [monitoringData])
+    }, [monitoringData, courseMetaById])
 
     const queryClient = useQueryClient()
     const [tab, setTab] = useState('')
@@ -84,6 +95,7 @@ export function TrainingRecordTab() {
     const [sortField, setSortField] = useState<SortField>('no')
     const [sortDir, setSortDir] = useState<SortDir>('asc')
     const [courseHeaderMode, setCourseHeaderMode] = useState<'code' | 'name'>('code')
+    const [courseHeaderOrientation, setCourseHeaderOrientation] = useState<'horizontal' | 'vertical'>('horizontal')
     const tabsContainerRef = useRef<HTMLDivElement>(null)
     const tabsMeasureRef = useRef<HTMLDivElement>(null)
     const [visibleTabCount, setVisibleTabCount] = useState(AVAILABLE_TABS.length)
@@ -156,6 +168,7 @@ export function TrainingRecordTab() {
                 short: selectedApi.courseCode,
                 label: selectedApi.courseName,
                 interval: selectedApi.recurrenceIntervalYears ? selectedApi.recurrenceIntervalYears * 12 : 0,
+                courseType: selectedApi.courseType,
                 code: selectedApi.courseCode,
             }]
         }
@@ -193,17 +206,21 @@ export function TrainingRecordTab() {
                             status: comp.status === 'valid' ? 'Valid' : comp.status === 'warning' ? 'Expiring Soon' : comp.status === 'expired' ? 'Expired' : comp.status,
                         }
                     } else {
-                        coursesMap[cId] = c.expiryDate || c.status || '-'
                         const normalizedStatus = c.status.trim().toLowerCase()
+                        // Trained (issue date) but no expiry and no status from the API → never expires
+                        const neverExpires = !normalizedStatus && !!c.issueDate && !c.expiryDate
+                        coursesMap[cId] = neverExpires ? 'Never' : c.expiryDate || c.status || '-'
                         courseStatuses[cId] =
-                            normalizedStatus === 'valid' || normalizedStatus === 'permanent' || normalizedStatus === 'never' ? 'valid'
+                            neverExpires ? 'valid'
+                            : normalizedStatus === 'valid' || normalizedStatus === 'permanent' || normalizedStatus === 'never' ? 'valid'
                                 : normalizedStatus === 'warning' || normalizedStatus === 'expiring' ? 'warning'
                                     : normalizedStatus === 'expired' ? 'expired'
                                         : normalizedStatus === 'not assigned' ? 'Not Assigned'
                                             : 'missing'
                         courseDaysLeft[cId] = c.daysLeft
                         courseIssueDates[cId] = c.issueDate
-                        staffCourseDataMap[cId] = c
+                        // expiryDate stays null so the detail modal falls back to the cell value ('Never')
+                        staffCourseDataMap[cId] = neverExpires ? { ...c, status: 'Never' } : c
                     }
                 })
                 return {
@@ -302,10 +319,10 @@ export function TrainingRecordTab() {
     }
 
     const SortIcon = ({ field }: { field: SortField }) => {
-        if (sortField !== field) return <ChevronsUpDown className="w-3 h-3 text-muted-foreground/40" />
+        if (sortField !== field) return <ChevronsUpDown className="w-3 h-3 opacity-50" />
         return sortDir === 'asc'
-            ? <ChevronUp className="w-3 h-3 text-primary" />
-            : <ChevronDown className="w-3 h-3 text-primary" />
+            ? <ChevronUp className="w-3 h-3" />
+            : <ChevronDown className="w-3 h-3" />
     }
 
     return (
@@ -446,11 +463,27 @@ export function TrainingRecordTab() {
                                 </button>
                             ))}
                         </div>
+                        <div role="group" aria-label="Course header orientation" className="inline-flex rounded-lg border border-border bg-card p-0.5">
+                            {(['horizontal', 'vertical'] as const).map(o => (
+                                <button
+                                    key={o}
+                                    type="button"
+                                    aria-pressed={courseHeaderOrientation === o}
+                                    onClick={() => setCourseHeaderOrientation(o)}
+                                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${courseHeaderOrientation === o
+                                        ? 'bg-primary text-white'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                        }`}
+                                >
+                                    {o === 'horizontal' ? 'Horizontal' : 'Vertical'}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                     </div>
 
                     {/* Matrix */}
-                    <div className="bg-card rounded-b-xl rounded-tr-xl border border-border overflow-hidden -mt-[1px] relative z-[1]">
+                    <div className="bg-card rounded-b-xl rounded-tr-xl border border-border overflow-clip -mt-[1px] relative z-[1]">
                         {isLoadingMonitoring ? (
                             <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
                                 Loading training monitoring data…
@@ -475,6 +508,7 @@ export function TrainingRecordTab() {
                                 employees={sorted}
                                 courses={courses}
                                 courseHeaderMode={courseHeaderMode}
+                                courseHeaderOrientation={courseHeaderOrientation}
                                 enrollments={enrollments}
                                 selectedId={selectedId}
                                 onSelect={setSelectedId}
@@ -495,11 +529,17 @@ export function TrainingRecordTab() {
 
                 {/* Legend */}
                 <div className="flex items-center gap-x-4 gap-y-1.5 flex-wrap">
-                    {Object.entries(STATUS_META).map(([k, m]) => (
+                    {/* Only statuses the matrix can actually render, labelled by what the cell shows */}
+                    {([
+                        ['valid', 'Valid (>90 days or Never)'],
+                        ['warning', 'Warning (≤90 days)'],
+                        ['expired', 'Expired'],
+                        ['Not Assigned', 'Not assigned (–)'],
+                        ['missing', 'No record'],
+                    ] as const).map(([k, label]) => (
                         <div key={k} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: m.dot }} />
-                            {k === 'valid' ? 'Valid (>90 days)' : k === 'warning' ? 'Warning (≤90 days)' :
-                                k === 'expired' ? 'Expired' : k === 'na' ? 'N/A' : 'No data'}
+                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: STATUS_META[k].dot }} />
+                            {label}
                         </div>
                     ))}
                     <span className="w-full sm:w-auto sm:ml-auto text-[10px] text-muted-foreground">

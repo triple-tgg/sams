@@ -22,6 +22,8 @@ import {
   useStaffDepartmentById,
   useStaffDepartmentPositionById,
 } from "@/lib/api/master/organization.hooks";
+import { MENU } from "@/lib/permission-codes";
+import { useMenuPermission } from "@/hooks/use-menu-permission";
 
 interface Props {
   selectedNode: SelectedNode | null;
@@ -59,6 +61,7 @@ const NodeDetailPanel = ({
   onDelete,
   onAddChild,
 }: Props) => {
+  const perm = useMenuPermission(MENU.MASTER_DATA_DEPARTMENT);
   const deptId =
     selectedNode?.type === "department" ? Number(selectedNode.id) : null;
   const posId =
@@ -129,10 +132,10 @@ const NodeDetailPanel = ({
             </div>
           </div>
           <div className="flex items-center gap-1.5">
-            <Button variant="outline" size="icon" color="primary" onClick={onEdit}>
+            {perm.canEdit && (<Button variant="outline" size="icon" color="primary" onClick={onEdit}>
               <Pencil className="h-3.5 w-3.5" />
-            </Button>
-            <Button
+            </Button>)}
+            {perm.canDelete && (<Button
               variant="outline"
               size="icon"
               color="destructive"
@@ -140,7 +143,7 @@ const NodeDetailPanel = ({
               onClick={onDelete}
             >
               <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+            </Button>)}
           </div>
         </div>
 
@@ -178,7 +181,7 @@ const NodeDetailPanel = ({
             <h4 className="text-sm font-medium">
               Positions ({childPositions.length})
             </h4>
-            <Button
+            {perm.canCreate && (<Button
               variant="outline"
               size="sm"
               className="h-7 text-xs"
@@ -186,7 +189,7 @@ const NodeDetailPanel = ({
             >
               <Plus className="h-3 w-3 mr-1" />
               Add Position
-            </Button>
+            </Button>)}
           </div>
           {childPositions.length === 0 ? (
             <p className="text-xs text-muted-foreground py-2">
@@ -237,11 +240,11 @@ const NodeDetailPanel = ({
             </div>
           </div>
           <div className="flex items-center gap-1.5">
-            <Button variant="outline" size="sm" onClick={onEdit}>
+            {perm.canEdit && (<Button variant="outline" size="sm" onClick={onEdit}>
               <Pencil className="h-3.5 w-3.5 mr-1.5" />
               Edit
-            </Button>
-            <Button
+            </Button>)}
+            {perm.canDelete && (<Button
               variant="outline"
               size="sm"
               className="text-destructive hover:text-destructive"
@@ -249,7 +252,7 @@ const NodeDetailPanel = ({
             >
               <Trash2 className="h-3.5 w-3.5 mr-1.5" />
               Delete
-            </Button>
+            </Button>)}
           </div>
         </div>
 

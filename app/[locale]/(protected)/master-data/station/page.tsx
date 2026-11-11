@@ -32,6 +32,7 @@ import type { StationItem } from "@/lib/api/master/stations/stations.interface";
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard";
 import StationFormDialog from "./components/StationFormDialog";
 import ConfirmCredentialsDialog from "./components/ConfirmCredentialsDialog";
+import { MENU } from "@/lib/permission-codes";
 
 type DialogMode = 'closed' | 'add' | 'view' | 'edit' | 'confirm-delete';
 
@@ -238,7 +239,7 @@ const StationPage = () => {
                             <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
                             Refresh
                         </Button>
-                        <PermissionActionGuard menuCode="MASTER_DATA_STATION" action="canCreate">
+                        <PermissionActionGuard menuCode={MENU.MASTER_DATA_STATION} action="canCreate">
                             <Button size="sm" onClick={openAddDialog}>
                                 <Plus className="h-4 w-4 mr-2" />
                                 Add Station
@@ -351,13 +352,13 @@ const StationPage = () => {
                                                                 <Eye className="h-4 w-4 mr-2" />
                                                                 View
                                                             </DropdownMenuItem>
-                                                            <PermissionActionGuard menuCode="MASTER_DATA_STATION" action="canEdit">
+                                                            <PermissionActionGuard menuCode={MENU.MASTER_DATA_STATION} action="canEdit">
                                                                 <DropdownMenuItem onClick={() => openEditDialog(station)}>
                                                                     <Pencil className="h-4 w-4 mr-2" />
                                                                     Edit
                                                                 </DropdownMenuItem>
                                                             </PermissionActionGuard>
-                                                            <PermissionActionGuard menuCode="MASTER_DATA_STATION" action="canDelete">
+                                                            <PermissionActionGuard menuCode={MENU.MASTER_DATA_STATION} action="canDelete">
                                                                 <DropdownMenuItem
                                                                     onClick={() => openDeleteDialog(station)}
                                                                     className="text-destructive focus:text-destructive"

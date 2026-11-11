@@ -25,6 +25,8 @@ import DepartmentFormDialog from "../department/components/DepartmentFormDialog"
 import PositionFormDialog from "../department/components/PositionFormDialog";
 import ConfirmDeleteDialog from "../department/components/ConfirmDeleteDialog";
 import NodeDetailPanel from "./components/NodeDetailPanel";
+import { MENU } from "@/lib/permission-codes";
+import { useMenuPermission } from "@/hooks/use-menu-permission";
 
 // Dialog state union
 type DialogState =
@@ -36,6 +38,7 @@ type DialogState =
   | { type: "delete"; nodeType: OrgNodeType; nodeId: string };
 
 const DepartmentAmo145Page = () => {
+  const perm = useMenuPermission(MENU.MASTER_DATA_DEPARTMENT_AMO145);
   // ── API Data ──────────────────────────────────────────────
   const {
     data: deptResp,
@@ -357,14 +360,14 @@ const DepartmentAmo145Page = () => {
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
             </Button>
-            <Button
+            {perm.canCreate && (<Button
               size="sm"
               color="primary"
               onClick={() => setDialog({ type: "add-department" })}
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Department
-            </Button>
+            </Button>)}
           </div>
         </CardHeader>
         <CardContent>

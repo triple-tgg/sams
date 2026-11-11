@@ -10,6 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { formatUtcToLocalDisplay } from "@/lib/utils/flightDatetime";
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard";
 import type { ThfRevisionRecord } from "@/lib/store/useThfRevisionStore";
+import { MENU } from "@/lib/permission-codes";
 
 const getDatasourceColor = (datasource?: string | null) => {
   const ds = datasource?.trim().toLowerCase();
@@ -236,16 +237,29 @@ export function getFlightColumns({
             {!hideStatusActions && isRevisionRequired && (
               <TooltipProvider>
                 <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      onClick={() => onCreateTHF?.(flight)}
-                      className="inline-flex items-center gap-1 rounded bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-xs font-semibold text-amber-600 hover:bg-amber-500/25 transition-colors cursor-pointer animate-pulse"
-                    >
-                      <AlertTriangle className="h-3.5 w-3.5" />
-                      <span>Revision Required</span>
-                    </button>
-                  </TooltipTrigger>
+                  <PermissionActionGuard
+                    menuCode={MENU.THF}
+                    action="canEdit"
+                    fallback={
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex items-center gap-1 rounded bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-xs font-semibold text-amber-600 cursor-default">
+                          <AlertTriangle className="h-3.5 w-3.5" />
+                          <span>Revision Required</span>
+                        </span>
+                      </TooltipTrigger>
+                    }
+                  >
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => onCreateTHF?.(flight)}
+                        className="inline-flex items-center gap-1 rounded bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-xs font-semibold text-amber-600 hover:bg-amber-500/25 transition-colors cursor-pointer animate-pulse"
+                      >
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        <span>Revision Required</span>
+                      </button>
+                    </TooltipTrigger>
+                  </PermissionActionGuard>
                   <TooltipContent className="max-w-xs text-xs">
                     <p className="font-semibold text-amber-500">Revision Requested by {flight.revisionRequestedBy || revRecord?.requestedBy || 'Accounting'}:</p>
                     <p className="text-slate-100 mt-0.5">{flight.revisionReason || revRecord?.reason || 'Please review and update this THF.'}</p>
@@ -276,6 +290,7 @@ export function getFlightColumns({
             )}
 
             {!hideStatusActions && (flight.state === "save" || flight.state === "submitted") && !isRevisionRequired && !isPendingUnlock && (
+              <PermissionActionGuard menuCode={MENU.FLIGHT_LIST} action="canEdit">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -304,6 +319,7 @@ export function getFlightColumns({
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
+              </PermissionActionGuard>
             )}
 
             {!hideStatusActions && flight.state !== "plan" && !isRevisionRequired && !isPendingUnlock && (
@@ -360,7 +376,7 @@ export function getFlightColumns({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 {onEditFlight && (
-                  <PermissionActionGuard menuCode="FLIGHT" action="canEdit">
+                  <PermissionActionGuard menuCode={MENU.FLIGHT_LIST} action="canEdit">
                     <DropdownMenuItem
                       className="cursor-pointer"
                       disabled={flight.statusObj?.code === "Cancel"}
@@ -374,7 +390,7 @@ export function getFlightColumns({
 
                 {/* Create / Edit THF */}
                 {onCreateTHF && !isLockedFromEdit && (
-                  <PermissionActionGuard menuCode="THF" action={flight.state === "plan" ? "canCreate" : "canEdit"}>
+                  <PermissionActionGuard menuCode={MENU.THF} action={flight.state === "plan" ? "canCreate" : "canEdit"}>
                     <DropdownMenuItem
                       className={clsx(
                         "cursor-pointer",
@@ -406,7 +422,7 @@ export function getFlightColumns({
 
                 {/* Engineer Request Edit (only when THF is locked by an issued Pre-Invoice) */}
                 {!hideStatusActions && isLockedFromEdit && onRequestUnlock && (
-                  <PermissionActionGuard menuCode="THF" action="canEdit">
+                  <PermissionActionGuard menuCode={MENU.THF} action="canEdit">
                     <DropdownMenuItem
                       className="cursor-pointer text-blue-600 focus:text-blue-600"
                       disabled={flight.statusObj?.code === "Cancel"}
@@ -447,7 +463,7 @@ export function getFlightColumns({
 
 
                 {onPreviewTHF && flight.state !== "plan" && (
-                  <PermissionActionGuard menuCode="THF" action="canView">
+                  <PermissionActionGuard menuCode={MENU.THF} action="canView">
                     <DropdownMenuItem
                       className="cursor-pointer"
                       disabled={flight.statusObj?.code === "Cancel"}
@@ -478,7 +494,7 @@ export function getFlightColumns({
                   </DropdownMenuItem>
                 )}
                 {onCancel && (
-                  <PermissionActionGuard menuCode="FLIGHT" action="canDelete">
+                  <PermissionActionGuard menuCode={MENU.FLIGHT_LIST} action="canDelete">
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="cursor-pointer text-destructive focus:text-destructive"
@@ -491,7 +507,7 @@ export function getFlightColumns({
                   </PermissionActionGuard>
                 )}
                 {onDelete && (
-                  <PermissionActionGuard menuCode="FLIGHT" action="canDelete">
+                  <PermissionActionGuard menuCode={MENU.FLIGHT_LIST} action="canDelete">
                     {!onCancel && <DropdownMenuSeparator />}
                     <DropdownMenuItem
                       className="cursor-pointer text-destructive focus:text-destructive"

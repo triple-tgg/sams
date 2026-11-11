@@ -6,8 +6,24 @@ export interface CourseRef {
     id: string
     short: string
     label: string
-    interval: number // months
+    interval: number // months (recurrenceIntervalYears × 12; 0 when not recurrent)
     code?: string | string[]
+    /** From the course list API: 'Initial' (one-time) or 'Recurrent' */
+    courseType?: string
+}
+
+/** Short header label: "2yr" for recurrent courses, "Initial" otherwise. */
+export function courseCycleLabel(c: CourseRef): string {
+    return c.courseType === 'Recurrent' && c.interval > 0 ? `${c.interval / 12}yr` : 'Initial'
+}
+
+/** Long tooltip label: "Recurrent — every 2 years" or "Initial training". */
+export function courseCycleText(c: CourseRef): string {
+    if (c.courseType === 'Recurrent' && c.interval > 0) {
+        const years = c.interval / 12
+        return `Recurrent — every ${years} year${years === 1 ? '' : 's'}`
+    }
+    return 'Initial training'
 }
 
 export interface Employee {

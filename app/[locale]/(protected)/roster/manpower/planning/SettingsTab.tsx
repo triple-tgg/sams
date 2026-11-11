@@ -5,6 +5,8 @@ import { CheckCircle2, Plus, RotateCcw, Save } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { DEFAULT_MANPOWER_PARAMS, reliefFactor, staffPerPosition, type ManpowerParams } from '@/lib/roster/manpower';
+import { MENU } from "@/lib/permission-codes";
+import { useMenuPermission } from "@/hooks/use-menu-permission";
 
 // ── Settings rules (beyond ManpowerParams) ──────────────────────────────────
 
@@ -161,6 +163,7 @@ export function SettingsTab({
     rules: SettingsRules;
     onRulesChange: (next: SettingsRules) => void;
 }) {
+    const perm = useMenuPermission(MENU.MANPOWER_ANALYSIS);
     const [savedAlert, setSavedAlert] = useState(false);
     const [newJobName, setNewJobName] = useState('');
 
@@ -206,22 +209,22 @@ export function SettingsTab({
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button
+                    {perm.canEdit && (<button
                         type="button"
                         onClick={handleReset}
                         className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     >
                         <RotateCcw className="h-3.5 w-3.5" />
                         คืนค่าเริ่มต้น (Reset Defaults)
-                    </button>
-                    <button
+                    </button>)}
+                    {perm.canEdit && (<button
                         type="button"
                         onClick={handleSave}
                         className="inline-flex h-9 items-center gap-1.5 rounded-md bg-[#075CA2] px-4 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-[#064B85]"
                     >
                         <Save className="h-3.5 w-3.5" />
                         บันทึกการตั้งค่า
-                    </button>
+                    </button>)}
                 </div>
             </Card>
 
@@ -232,6 +235,14 @@ export function SettingsTab({
                 </div>
             )}
 
+            {!perm.canEdit && (
+                <div className="rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                    Read-only — you don&apos;t have permission to change these settings.
+                </div>
+            )}
+
+            {/* Disabled fieldset makes every input / add / delete control read-only without edit permission */}
+            <fieldset disabled={!perm.canEdit} className="m-0 min-w-0 border-0 p-0">
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
                 {/* ── Level 1: working time & shifts ── */}
                 <Section level={1} title="เวลาทำงานและกะ">
@@ -440,6 +451,7 @@ export function SettingsTab({
                     </div>
                 </Section>
             </div>
+            </fieldset>
         </div>
     );
 }

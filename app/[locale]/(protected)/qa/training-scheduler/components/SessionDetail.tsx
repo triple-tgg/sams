@@ -9,6 +9,7 @@ import { PermissionActionGuard } from "@/components/partials/auth/PermissionActi
 import { useQuery } from '@tanstack/react-query'
 import { getSchedulerById } from '@/lib/api/qa/scheduler'
 import { useTrainingDataStatuses } from '@/lib/api/master/trainingDataStatuses.hooks'
+import { MENU } from "@/lib/permission-codes";
 
 interface SessionDetailProps {
     session: Session
@@ -129,13 +130,13 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
                         </DialogDescription>
                     </div>
                     <div className="flex shrink-0 gap-1 justify-end items-start pt-0.5 sm:pt-0">
-                        <PermissionActionGuard menuCode="QA_MONITORING" action="canEdit">
+                        <PermissionActionGuard menuCode={MENU.QA_TRAINING_SCHEDULER} action="canEdit">
                             <button onClick={onEdit}
                                 className="w-7 h-7 sm:w-10 sm:h-auto sm:py-2 text-sm rounded-md sm:rounded-lg border border-border text-foreground hover:bg-muted transition-colors flex items-center justify-center gap-1.5 cursor-pointer bg-transparent">
                                 <Pencil className="w-3.5 h-3.5" />
                             </button>
                         </PermissionActionGuard>
-                        <PermissionActionGuard menuCode="QA_MONITORING" action="canDelete">
+                        <PermissionActionGuard menuCode={MENU.QA_TRAINING_SCHEDULER} action="canDelete">
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <button
@@ -351,7 +352,7 @@ export function SessionDetail({ session: s, onClose, onEdit, onDelete }: Session
                         </div>
                         <div className="shrink-0">
                             {/* Manage Enrollment button */}
-                            <PermissionActionGuard menuCode="QA_MONITORING" action="canEdit">
+                            <PermissionActionGuard menuCode={MENU.QA_TRAINING_SCHEDULER} action="canEdit">
                                 <button onClick={() => window.location.href = `/en/qa/training-scheduler/${s.id}`}
                                     className="px-3 sm:w-30 sm:px-0 py-2 text-sm whitespace-nowrap rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors flex items-center justify-center gap-1.5 cursor-pointer font-medium border-none">
                                     <User className="w-4 h-4" />

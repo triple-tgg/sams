@@ -55,10 +55,13 @@ import {
   useDeleteAuthorityMaster,
 } from "@/lib/api/master/authority-master.hooks";
 import type { AuthorityMasterItem } from "@/lib/api/master/authority-master";
+import { MENU } from "@/lib/permission-codes";
+import { useMenuPermission } from "@/hooks/use-menu-permission";
 
 type DialogMode = "closed" | "add" | "edit" | "confirm-delete";
 
 const AuthorityMasterPage = () => {
+  const perm = useMenuPermission(MENU.MASTER_DATA_AUTHORITY);
   // Filter
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -200,7 +203,7 @@ const AuthorityMasterPage = () => {
           </CardTitle>
           <div className="flex items-center gap-2">
             <PermissionActionGuard
-              menuCode="MASTER_DATA_AUTHORITY"
+              menuCode={MENU.MASTER_DATA_AUTHORITY}
               action="canCreate"
             >
               <Button color="primary" onClick={openAdd}>
@@ -315,6 +318,7 @@ const AuthorityMasterPage = () => {
                           </TableCell>
                           <TableCell className="text-muted-foreground">{item.authorityType ?? "—"}</TableCell>
                           <TableCell className="text-right">
+                            {(perm.canEdit || perm.canDelete) && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button
@@ -326,21 +330,22 @@ const AuthorityMasterPage = () => {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem
+                                {perm.canEdit && (<DropdownMenuItem
                                   onClick={() => openEdit(item)}
                                 >
                                   <Pencil className="h-4 w-4 mr-2" />
                                   Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
+                                </DropdownMenuItem>)}
+                                {perm.canDelete && (<DropdownMenuItem
                                   onClick={() => openDelete(item)}
                                   className="text-destructive focus:text-destructive"
                                 >
                                   <Trash2 className="h-4 w-4 mr-2" />
                                   Delete
-                                </DropdownMenuItem>
+                                </DropdownMenuItem>)}
                               </DropdownMenuContent>
                             </DropdownMenu>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))

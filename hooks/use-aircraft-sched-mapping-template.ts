@@ -1,8 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { toast } from "sonner";
 import { getAircraftSchedMappingTemplate } from "@/lib/api/lineMaintenances/aircraftSchedMappingTemplate";
+import { useApiTemplateDownload } from "./use-api-template-download";
 
 /**
  * Downloads the Aircraft Sched-Mapping import template from the API.
@@ -13,31 +12,5 @@ import { getAircraftSchedMappingTemplate } from "@/lib/api/lineMaintenances/airc
  * the server each time.
  */
 export function useAircraftSchedMappingTemplate() {
-    const [isDownloading, setIsDownloading] = useState(false);
-
-    const downloadTemplate = useCallback(async () => {
-        if (isDownloading) return;
-        setIsDownloading(true);
-
-        let objectUrl: string | null = null;
-        try {
-            const { blob, fileName } = await getAircraftSchedMappingTemplate();
-
-            objectUrl = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = objectUrl;
-            link.download = fileName;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        } catch (error: any) {
-            toast.error(error?.message || "Failed to download the template");
-        } finally {
-            // Give the browser a moment to start the save before releasing the URL.
-            if (objectUrl) setTimeout(() => URL.revokeObjectURL(objectUrl!), 1000);
-            setIsDownloading(false);
-        }
-    }, [isDownloading]);
-
-    return { downloadTemplate, isDownloading };
+    return useApiTemplateDownload(getAircraftSchedMappingTemplate);
 }

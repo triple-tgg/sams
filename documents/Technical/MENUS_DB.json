@@ -1,0 +1,425 @@
+[
+  {
+    "id": 1,
+    "menuCode": "FLIGHT",
+    "name": "Flight",
+    "icon": "heroicons-outline:document-text",
+    "route": "/flight",
+    "parentId": null,
+    "sortOrder": 100
+  },
+  {
+    "id": 2,
+    "menuCode": "Flight_List",
+    "name": "Flight List",
+    "icon": "heroicons-outline:document-text",
+    "route": "/flight",
+    "parentId": 1,
+    "sortOrder": 110
+  },
+  {
+    "id": 3,
+    "menuCode": "FLIGHT_TIMELINE",
+    "name": "Flight Timeline",
+    "icon": null,
+    "route": "/views-flight-timeline",
+    "parentId": 1,
+    "sortOrder": 120
+  },
+  {
+    "id": 4,
+    "menuCode": "THF",
+    "name": "THF",
+    "icon": null,
+    "route": null,
+    "parentId": 1,
+    "sortOrder": 130
+  },
+  {
+    "id": 5,
+    "menuCode": "CONTRACT",
+    "name": "Contract",
+    "icon": "heroicons-outline:folder-open",
+    "route": "/contract",
+    "parentId": null,
+    "sortOrder": 200
+  },
+  {
+    "id": 6,
+    "menuCode": "INVOICE",
+    "name": "Invoice",
+    "icon": "heroicons-outline:document-chart-bar",
+    "route": "/invoice",
+    "parentId": null,
+    "sortOrder": 300
+  },
+  {
+    "id": 7,
+    "menuCode": "REPORT",
+    "name": "Report",
+    "icon": "heroicons-outline:chart-pie",
+    "route": "/report",
+    "parentId": null,
+    "sortOrder": 400
+  },
+  {
+    "id": 8,
+    "menuCode": "PRODUCTION_PLANNER",
+    "name": "Production Planner",
+    "icon": "heroicons-outline:presentation-chart-line",
+    "route": "/production-planner/",
+    "parentId": null,
+    "sortOrder": 500
+  },
+  {
+    "id": 9,
+    "menuCode": "PRODUCTION_DASHBOARD",
+    "name": "Dashboard",
+    "icon": "heroicons-outline:squares-2x2",
+    "route": "/production-planner/dashboard",
+    "parentId": 8,
+    "sortOrder": 501
+  },
+  {
+    "id": 10,
+    "menuCode": "PRODUCTION_PLAN",
+    "name": "Production Plan",
+    "icon": "heroicons-outline:paper-airplane",
+    "route": "/production-planner/production-plan",
+    "parentId": 8,
+    "sortOrder": 502
+  },
+  {
+    "id": 11,
+    "menuCode": "REVENUE_PLAN",
+    "name": "Revenue Plan",
+    "icon": "heroicons-outline:currency-dollar",
+    "route": "/production-planner/revenue-plan",
+    "parentId": 8,
+    "sortOrder": 503
+  },
+  {
+    "id": 12,
+    "menuCode": "CUSTOMER_SERVICE_TYPE",
+    "name": "Customer Service",
+    "icon": "heroicons-outline:clipboard-document-list",
+    "route": "/production-planner/customer-service-type",
+    "parentId": 8,
+    "sortOrder": 504
+  },
+  {
+    "id": 13,
+    "menuCode": "QA",
+    "name": "QA",
+    "icon": "heroicons-outline:clipboard-document-check",
+    "route": "/qa/monitoring",
+    "parentId": null,
+    "sortOrder": 600
+  },
+  {
+    "id": 14,
+    "menuCode": "QA_TRAINING",
+    "name": "Training",
+    "icon": null,
+    "route": "/qa/monitoring",
+    "parentId": 13,
+    "sortOrder": 610
+  },
+  {
+    "id": 15,
+    "menuCode": "QA_TRAINING_MONITORING",
+    "name": "Monitoring",
+    "icon": "heroicons-outline:academic-cap",
+    "route": "/qa/monitoring",
+    "parentId": 14,
+    "sortOrder": 611
+  },
+  {
+    "id": 16,
+    "menuCode": "QA_COURSE_MANAGEMENT",
+    "name": "Course Management",
+    "icon": null,
+    "route": "/qa/course-management",
+    "parentId": 14,
+    "sortOrder": 613
+  },
+  {
+    "id": 17,
+    "menuCode": "QA_TRAINING_SCHEDULER",
+    "name": "Training Scheduler",
+    "icon": null,
+    "route": "/qa/training-scheduler",
+    "parentId": 14,
+    "sortOrder": 614
+  },
+  {
+    "id": 18,
+    "menuCode": "QA_INSTRUCTOR",
+    "name": "Instructor",
+    "icon": null,
+    "route": "/qa/instructor",
+    "parentId": 14,
+    "sortOrder": 615
+  },
+  {
+    "id": 19,
+    "menuCode": "QA_AUTHORIZATION",
+    "name": "Authorization",
+    "icon": "heroicons-outline:shield-check",
+    "route": "/qa/authorization",
+    "parentId": 13,
+    "sortOrder": 620
+  },
+  {
+    "id": 20,
+    "menuCode": "QA_DOC",
+    "name": "QA Document",
+    "icon": null,
+    "route": "/qa/qa-document/work-experience-records",
+    "parentId": 13,
+    "sortOrder": 630
+  },
+  {
+    "id": 21,
+    "menuCode": "QA_DOC_WORK_EXPERIENCE",
+    "name": "Staff Records",
+    "icon": null,
+    "route": "/qa/qa-document/work-experience-records",
+    "parentId": 20,
+    "sortOrder": 631
+  },
+  {
+    "id": 22,
+    "menuCode": "QA_DOC_EMPLOYEE_HISTORY",
+    "name": "Logbook Records",
+    "icon": null,
+    "route": "/qa/qa-document/employee-history-training",
+    "parentId": 20,
+    "sortOrder": 632
+  },
+  {
+    "id": 23,
+    "menuCode": "HR",
+    "name": "HR",
+    "icon": "heroicons-outline:user-group",
+    "route": "/hr/staff",
+    "parentId": null,
+    "sortOrder": 700
+  },
+  {
+    "id": 24,
+    "menuCode": "HR_STAFF",
+    "name": "Staff List",
+    "icon": "heroicons-outline:users",
+    "route": "/hr/staff",
+    "parentId": 23,
+    "sortOrder": 701
+  },
+  {
+    "id": 25,
+    "menuCode": "HR_STAFF_INCOME",
+    "name": "Staff Income",
+    "icon": "heroicons-outline:banknotes",
+    "route": "/hr/employee-income",
+    "parentId": 23,
+    "sortOrder": 702
+  },
+  {
+    "id": 26,
+    "menuCode": "HR_DOCUMENT_VERIFICATION",
+    "name": "Document Verification",
+    "icon": "heroicons-outline:document-check",
+    "route": "/hr/document-verification",
+    "parentId": 23,
+    "sortOrder": 703
+  },
+  {
+    "id": 27,
+    "menuCode": "HR_WORKLOAD",
+    "name": "Workload",
+    "icon": "heroicons-outline:chart-bar",
+    "route": "/hr/workload",
+    "parentId": 23,
+    "sortOrder": 704
+  },
+  {
+    "id": 28,
+    "menuCode": "ROSTER",
+    "name": "Roster",
+    "icon": "heroicons-outline:calendar-days",
+    "route": "/roster/flight-roster",
+    "parentId": null,
+    "sortOrder": 800
+  },
+  {
+    "id": 29,
+    "menuCode": "FLIGHT_ROSTER",
+    "name": "Flight Roster",
+    "icon": "heroicons-outline:calendar",
+    "route": "/roster/flight-roster",
+    "parentId": 28,
+    "sortOrder": 801
+  },
+  {
+    "id": 30,
+    "menuCode": "CERTIFYING_STAFF",
+    "name": "Certifying Staff",
+    "icon": "heroicons-outline:identification",
+    "route": "/roster/certifying-staff",
+    "parentId": 28,
+    "sortOrder": 802
+  },
+  {
+    "id": 31,
+    "menuCode": "MECH_STAFF",
+    "name": "Mech Staff",
+    "icon": "heroicons-outline:wrench-screwdriver",
+    "route": "/roster/mech-staff",
+    "parentId": 28,
+    "sortOrder": 803
+  },
+  {
+    "id": 32,
+    "menuCode": "AIRCRAFT_TYPE_SUMMARY",
+    "name": "Engine Summary",
+    "icon": "mdi:engine-outline",
+    "route": "/roster/aircraft-type-summary",
+    "parentId": 28,
+    "sortOrder": 804
+  },
+  {
+    "id": 33,
+    "menuCode": "MANPOWER_ANALYSIS",
+    "name": "Manpower",
+    "icon": "heroicons-outline:user-group",
+    "route": "/roster/manpower/planning",
+    "parentId": 28,
+    "sortOrder": 805
+  },
+  {
+    "id": 34,
+    "menuCode": "MASTER_DATA",
+    "name": "Master Data",
+    "icon": "heroicons-outline:cog-6-tooth",
+    "route": "/master-data/customer-airline",
+    "parentId": null,
+    "sortOrder": 900
+  },
+  {
+    "id": 35,
+    "menuCode": "MASTER_ORGANIZATION",
+    "name": "Organization",
+    "icon": null,
+    "route": null,
+    "parentId": 34,
+    "sortOrder": 910
+  },
+  {
+    "id": 36,
+    "menuCode": "MASTER_DATA_DEPARTMENT",
+    "name": "Department",
+    "icon": null,
+    "route": "/master-data/department",
+    "parentId": 35,
+    "sortOrder": 911
+  },
+  {
+    "id": 37,
+    "menuCode": "MASTER_DATA_DEPARTMENT_AMO145",
+    "name": "Department (AMO145)",
+    "icon": null,
+    "route": "/master-data/department-amo145",
+    "parentId": 35,
+    "sortOrder": 912
+  },
+  {
+    "id": 38,
+    "menuCode": "MASTER_DATA_MANAGER_MAPPING",
+    "name": "Manager Mapping",
+    "icon": null,
+    "route": "/master-data/manager-mapping",
+    "parentId": 35,
+    "sortOrder": 913
+  },
+  {
+    "id": 39,
+    "menuCode": "MASTER_AIRCRAFT_CONFIG",
+    "name": "Aircraft",
+    "icon": null,
+    "route": null,
+    "parentId": 34,
+    "sortOrder": 920
+  },
+  {
+    "id": 40,
+    "menuCode": "MASTER_DATA_AIRCRAFT_ENGINE",
+    "name": "Aircraft & Engine",
+    "icon": null,
+    "route": "/master-data/aircraft-engine",
+    "parentId": 39,
+    "sortOrder": 921
+  },
+  {
+    "id": 41,
+    "menuCode": "MASTER_AIRLINE_AUTHORITY",
+    "name": "Airline & Authority",
+    "icon": null,
+    "route": null,
+    "parentId": 34,
+    "sortOrder": 930
+  },
+  {
+    "id": 42,
+    "menuCode": "MASTER_DATA_CUSTOMER_AIRLINE",
+    "name": "Airline",
+    "icon": null,
+    "route": "/master-data/customer-airline",
+    "parentId": 41,
+    "sortOrder": 931
+  },
+  {
+    "id": 43,
+    "menuCode": "MASTER_DATA_AUTHORITY",
+    "name": "Authority",
+    "icon": null,
+    "route": "/master-data/customer-airline/authority",
+    "parentId": 41,
+    "sortOrder": 932
+  },
+  {
+    "id": 44,
+    "menuCode": "MASTER_SYSTEM",
+    "name": "System Function",
+    "icon": null,
+    "route": null,
+    "parentId": 34,
+    "sortOrder": 940
+  },
+  {
+    "id": 45,
+    "menuCode": "MASTER_DATA_STATION",
+    "name": "Station",
+    "icon": null,
+    "route": "/master-data/station",
+    "parentId": 44,
+    "sortOrder": 941
+  },
+  {
+    "id": 46,
+    "menuCode": "MASTER_DATA_USER_LOGIN",
+    "name": "User",
+    "icon": null,
+    "route": "/master-data/user-login",
+    "parentId": 44,
+    "sortOrder": 942
+  },
+  {
+    "id": 47,
+    "menuCode": "MASTER_DATA_ROLE",
+    "name": "Role",
+    "icon": "heroicons-outline:shield-check",
+    "route": "/master-data/role",
+    "parentId": 44,
+    "sortOrder": 943
+  }
+]

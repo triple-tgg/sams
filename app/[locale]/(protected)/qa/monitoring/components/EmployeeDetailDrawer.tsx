@@ -102,7 +102,7 @@ export function EmployeeDetailDrawer({ employee: emp, courses, onClose }: Employ
                             const m = STATUS_META[s]
                             
                             let lastTrainingStr = '-'
-                            let dueDateStr = s === 'na' ? 'N/A' : s === 'missing' ? '—' : s === 'expired' ? 'Expired' : fmtDate(due)
+                            let dueDateStr = s === 'na' ? 'N/A' : s === 'missing' ? '—' : s === 'expired' ? 'Expired' : due === 'Never' ? 'Never' : fmtDate(due)
 
                             if (s !== 'na' && s !== 'missing') {
                                 const issueDate = emp.courseIssueDates?.[c.id]
@@ -110,7 +110,7 @@ export function EmployeeDetailDrawer({ employee: emp, courses, onClose }: Employ
                                 const dDate = new Date(due)
                                 if (issueDateValue && !isNaN(issueDateValue.getTime())) {
                                     lastTrainingStr = issueDateValue.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-                                } else if (!isNaN(dDate.getTime())) {
+                                } else if (!isNaN(dDate.getTime()) && c.interval > 0) {
                                     const lastTraining = new Date(dDate)
                                     lastTraining.setMonth(lastTraining.getMonth() - c.interval)
                                     lastTrainingStr = lastTraining.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })

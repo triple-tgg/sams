@@ -94,6 +94,10 @@ export interface PlanGridProps {
     closed: number;
     /** Version is editable and no other row is being edited. */
     canEdit: boolean;
+    /** Add airline / type group (version editable + permission). Defaults to canEdit. */
+    canCreate?: boolean;
+    /** Delete station / airline / type group. Defaults to canEdit. */
+    canDelete?: boolean;
     /** The airline row currently being keyed in (one at a time). */
     editingLineId: string | null;
     /** The one series (Budget / Plan / Actual) open for key-in on that row. */
@@ -129,6 +133,8 @@ export function PlanGrid({
     onToggle,
     closed,
     canEdit,
+    canCreate = canEdit,
+    canDelete = canEdit,
     editingLineId,
     editingSeries,
     onStartEdit,
@@ -177,6 +183,8 @@ export function PlanGrid({
     const [airlineEdit, setAirlineEdit] = useState<{ key: string; al: string; airline: string } | null>(null);
     // Row editing waits while an airline is being renamed
     const canEditRows = canEdit && !airlineEdit;
+    const canCreateRows = canCreate && !airlineEdit;
+    const canDeleteRows = canDelete && !airlineEdit;
 
     const stations = STATIONS.filter((st) => (stationFilter === 'ALL' || st === stationFilter) && lines.some((l) => l.station === st));
 
@@ -433,7 +441,7 @@ export function PlanGrid({
                             )}
                         </span>
                         <span className="ml-auto flex shrink-0 items-center gap-2">
-                            {canEditRows && (
+                            {canCreateRows && (
                                 <button
                                     type="button"
                                     onClick={() => onAddAirline(st)}
@@ -443,7 +451,7 @@ export function PlanGrid({
                                     <Plus className="h-3 w-3" /> Airline
                                 </button>
                             )}
-                            {canEditRows && (
+                            {canDeleteRows && (
                                 <button
                                     type="button"
                                     onClick={() => onDeleteStation(st)}
@@ -527,7 +535,7 @@ export function PlanGrid({
                                                 )}
                                             </span>
                                             <span className="ml-auto flex shrink-0 items-center gap-2">
-                                                {canEditRows && (
+                                                {canCreateRows && (
                                                     <DropdownMenu modal={false}>
                                                         <DropdownMenuTrigger asChild>
                                                             <button
@@ -548,7 +556,7 @@ export function PlanGrid({
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>
                                                 )}
-                                                {canEditRows && (
+                                                {canDeleteRows && (
                                                     <button
                                                         type="button"
                                                         onClick={() => onDeleteAirline(head)}
@@ -586,7 +594,7 @@ export function PlanGrid({
                                                             </button>
                                                         </span>
                                                         <span className="ml-auto flex shrink-0 items-center">
-                                                            {canEditRows && (
+                                                            {canDeleteRows && (
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => onDeleteTypeGroup(head, g.name)}

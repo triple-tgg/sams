@@ -52,6 +52,8 @@ import { useBatchUpsertPermissions } from "@/lib/api/hooks/useBatchUpsertPermiss
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard";
 import type { RoleItem } from "@/lib/api/master/roles/roles.interface";
 import type { MenuPermissionItem } from "@/lib/api/permission/menuPermissions.interface";
+import { recalcParents } from "@/lib/permission-tree";
+import { MENU } from "@/lib/permission-codes";
 
 type DialogMode = "closed" | "add" | "edit" | "confirm-delete";
 
@@ -196,24 +198,6 @@ function flattenPerms(items: MenuPermissionItem[], depth = 0, parentId: number |
     return result;
 }
 
-/** Recalculate parent permission values from their children */
-function recalcParents(perms: FlatPerm[]): FlatPerm[] {
-    // Collect parent menuIds
-    const parentIds = new Set(perms.filter((p) => p._isParent).map((p) => p.menuId));
-    if (parentIds.size === 0) return perms;
-
-    // For each parent, compute each field from its children
-    return perms.map((p) => {
-        if (!p._isParent) return p;
-        const children = perms.filter((c) => c._parentId === p.menuId);
-        const updated = { ...p };
-        for (const field of PERM_FIELDS) {
-            updated[field] = children.some((c) => c[field] === true);
-        }
-        return updated;
-    });
-}
-
 // ──────────────────────────────────────────────
 // Permission Panel — uses /permission/menus/{roleId}
 // ──────────────────────────────────────────────
@@ -328,7 +312,7 @@ function PermissionPanel({ role }: { role: RoleItem }) {
                     </Badge>
                 </div>
 
-                <PermissionActionGuard menuCode="MASTER_DATA_ROLE" action="canEdit">
+                <PermissionActionGuard menuCode={MENU.MASTER_DATA_ROLE} action="canEdit">
                     <Button size="sm" onClick={handleSave} disabled={isSaving}>
                         {isSaving ? "Saving..." : "Save Permissions"}
                     </Button>
@@ -550,7 +534,7 @@ const RolePermissionPage = () => {
                             >
                                 <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
                             </Button>
-                            <PermissionActionGuard menuCode="MASTER_DATA_ROLE" action="canCreate">
+                            <PermissionActionGuard menuCode={MENU.MASTER_DATA_ROLE} action="canCreate">
                                 <Button
                                     size="sm"
                                     className="h-7 text-xs px-2"
@@ -610,7 +594,7 @@ const RolePermissionPage = () => {
                                                     : "opacity-0 group-hover:opacity-100"
                                                     }`}
                                             >
-                                                <PermissionActionGuard menuCode="MASTER_DATA_ROLE" action="canEdit">
+                                                <PermissionActionGuard menuCode={MENU.MASTER_DATA_ROLE} action="canEdit">
                                                     <button
                                                         type="button"
                                                         onClick={(e) => {
@@ -627,7 +611,7 @@ const RolePermissionPage = () => {
                                                         <Pencil className="h-3.5 w-3.5" />
                                                     </button>
                                                 </PermissionActionGuard>
-                                                <PermissionActionGuard menuCode="MASTER_DATA_ROLE" action="canDelete">
+                                                <PermissionActionGuard menuCode={MENU.MASTER_DATA_ROLE} action="canDelete">
                                                     <button
                                                         type="button"
                                                         onClick={(e) => {

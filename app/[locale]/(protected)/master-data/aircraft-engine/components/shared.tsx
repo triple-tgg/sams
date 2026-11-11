@@ -5,6 +5,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import { cn } from "@/lib/utils";
+import { MENU } from "@/lib/permission-codes";
 import { dateTimeUtils } from "@/lib/dayjs";
 import { Badge } from "@/components/ui/badge";
 import type { CompletenessStatus, ReviewStatus } from "@/lib/api/master/aircraft-engine/aircraftEngine.types";
@@ -15,7 +16,7 @@ dayjs.extend(timezone);
 const APP_TZ = process.env.NEXT_PUBLIC_APP_TIMEZONE || "Asia/Bangkok";
 
 /** Menu code for permission gating across every tab. */
-export const AE_MENU = "MASTER_DATA_AIRCRAFT_ENGINE";
+export const AE_MENU = MENU.MASTER_DATA_AIRCRAFT_ENGINE;
 
 /**
  * UTC / LOCAL clock pill, mirroring the SAMS header design.

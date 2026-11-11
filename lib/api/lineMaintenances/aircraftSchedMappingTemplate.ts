@@ -44,7 +44,7 @@ export function parseContentDispositionFilename(
 }
 
 /** Turn an error body that came back as a Blob into a readable message. */
-async function readBlobErrorMessage(data: unknown): Promise<string | null> {
+export async function readBlobErrorMessage(data: unknown): Promise<string | null> {
     if (!(data instanceof Blob)) return null;
     try {
         const text = await data.text();

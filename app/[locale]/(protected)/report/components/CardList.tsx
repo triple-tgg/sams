@@ -4,6 +4,8 @@ import { FileDown, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ReportDownloadButton from '@/components/report/ReportDownloadButton';
 import { ReportType } from '../data';
+import { MENU } from "@/lib/permission-codes";
+import { useMenuPermission } from "@/hooks/use-menu-permission";
 
 type Props = {
   values: Array<{
@@ -17,6 +19,7 @@ type Props = {
   isError?: boolean
 }
 const CardList = (props: Props) => {
+  const perm = useMenuPermission(MENU.REPORT);
   return (
     <div className="space-y-3">
       {/* Status indicator */}
@@ -49,7 +52,7 @@ const CardList = (props: Props) => {
                 {props.date?.dateStart} - {props.date?.dateEnd}
               </div>
             </div>
-            <ReportDownloadButton
+            {perm.canExport && (<ReportDownloadButton
               reportType={item.reportType}
               airlineId={props.airlineId}
               dateRange={{
@@ -58,7 +61,7 @@ const CardList = (props: Props) => {
               }}
               disabled={props.isError}
               className="ml-auto"
-            />
+            />)}
           </li>
         ))}
       </ul>

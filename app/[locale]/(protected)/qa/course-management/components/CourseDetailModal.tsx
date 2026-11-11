@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
 import { AircraftEngineRefPanel } from "@/components/aircraft-engine/AircraftEngineRefPanel"
+import { MENU } from "@/lib/permission-codes";
 
 // CR-6 embed (M-02): for aircraft-family courses, show the systems config of the
 // family being trained. A real integration passes the course's aircraft ICAO;
@@ -149,7 +150,7 @@ export function CourseDetailPanel({ course, onClose, onEdit, onDelete }: CourseD
 
             {/* Actions */}
             <div className="flex gap-2 mt-auto pt-3 border-t border-border">
-                <PermissionActionGuard menuCode="QA_MONITORING" action="canEdit">
+                <PermissionActionGuard menuCode={MENU.QA_COURSE_MANAGEMENT} action="canEdit">
                     <button 
                         onClick={onEdit}
                         className="flex-1 text-sm py-2 rounded-lg border border-border text-foreground hover:bg-muted transition-colors cursor-pointer"
@@ -157,7 +158,7 @@ export function CourseDetailPanel({ course, onClose, onEdit, onDelete }: CourseD
                         Edit
                     </button>
                 </PermissionActionGuard>
-                <PermissionActionGuard menuCode="QA_MONITORING" action="canDelete">
+                <PermissionActionGuard menuCode={MENU.QA_COURSE_MANAGEMENT} action="canDelete">
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
                             <button

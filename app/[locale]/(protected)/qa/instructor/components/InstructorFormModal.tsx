@@ -49,6 +49,9 @@ export interface InstructorFormData {
   staffId: number;
   /** Kept from the loaded record so saving doesn't wipe it */
   approvalLetterLink: string;
+  /** Validity period as "YYYY-MM-DD"; "" when not set */
+  validFrom: string;
+  validTo: string;
 }
 
 const staffDisplayName = (s: QAStaffItem) =>
@@ -76,6 +79,8 @@ const initialForm: InstructorFormData = {
   flagInternal: false,
   staffId: 0,
   approvalLetterLink: "",
+  validFrom: "",
+  validTo: "",
 };
 
 export function InstructorFormModal({
@@ -131,6 +136,8 @@ export function InstructorFormModal({
         flagInternal: !!instructor.flagInternal,
         staffId: instructor.staffId || 0,
         approvalLetterLink: instructor.approvalLetterLink || "",
+        validFrom: instructor.validFrom || "",
+        validTo: instructor.validTo || "",
       });
       setSignaturePreview(instructor.licenseLink || null);
     } else {
@@ -298,7 +305,14 @@ export function InstructorFormModal({
     });
   };
 
+  // "YYYY-MM-DD" strings compare correctly as text
+  const validRangeError =
+    form.validFrom && form.validTo && form.validTo < form.validFrom
+      ? "Valid To must be on or after Valid From."
+      : "";
+
   const canSubmit =
+    !validRangeError &&
     (!form.flagInternal || form.staffId > 0) &&
     form.code.trim() !== "" &&
     form.name.trim() !== "" &&
@@ -490,6 +504,38 @@ export function InstructorFormModal({
               disabled={isPending || lockEmail}
               className="h-9"
             />
+          </div>
+
+          {/* Validity period */}
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="instructor-valid-from">Valid From</Label>
+                <Input
+                  id="instructor-valid-from"
+                  type="date"
+                  value={form.validFrom}
+                  max={form.validTo || undefined}
+                  onChange={(e) => handleChange("validFrom", e.target.value)}
+                  disabled={isPending}
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="instructor-valid-to">Valid To</Label>
+                <Input
+                  id="instructor-valid-to"
+                  type="date"
+                  value={form.validTo}
+                  min={form.validFrom || undefined}
+                  onChange={(e) => handleChange("validTo", e.target.value)}
+                  disabled={isPending}
+                  aria-invalid={!!validRangeError}
+                  className="h-9"
+                />
+              </div>
+            </div>
+            {validRangeError && <p className="text-[11px] text-red-600">{validRangeError}</p>}
           </div>
 
           {/* Upload Signature */}

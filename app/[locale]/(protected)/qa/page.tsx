@@ -1,7 +1,7 @@
 import { redirect } from '@/components/navigation'
 
 const QaPage = () => {
-    redirect({ href: '/qa/training', locale: 'en' })
+    redirect({ href: '/qa/monitoring', locale: 'en' })
     return null
 }
 

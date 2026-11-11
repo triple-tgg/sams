@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useRef } from 'react'
-import { Plus, Building2, Briefcase, Wrench, ShieldCheck, Upload, SlidersHorizontal, ChevronDown } from 'lucide-react'
+import { Plus, Building2, Briefcase, Wrench, ShieldCheck, Upload, Download, Loader2, SlidersHorizontal, ChevronDown } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -20,11 +20,14 @@ import { TrainingNeedsMatrix } from './components/TrainingNeedsMatrix'
 import { CourseDetailPanel } from './components/CourseDetailModal'
 import { AddCourseModal } from './components/AddCourseModal'
 import { ImportCourseModal } from './components/ImportCourseModal'
+import { getCoursesTemplate } from '@/lib/api/qa/import-courses'
+import { useApiTemplateDownload } from '@/hooks/use-api-template-download'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getCourseList, getCourseCategories, getCourseDepartments, getCourseSummary, deleteCourse, DeleteCourseRequest, DeleteCourseResponse, CourseDepartmentItem, CourseData, CourseCategory } from '@/lib/api/qa/course'
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
 import { useReduxAuth } from '@/lib/api/hooks/useReduxAuth'
 import { toast } from 'sonner'
+import { MENU } from "@/lib/permission-codes";
 
 export default function CourseManagementPage() {
     const [activeTab, setActiveTab] = useState<'courses' | 'matrix'>('courses')
@@ -39,6 +42,7 @@ export default function CourseManagementPage() {
     const [expandedDept, setExpandedDept] = useState<string | null>(null)
     const [showMobileFilters, setShowMobileFilters] = useState(false)
     const [importFile, setImportFile] = useState<File | null>(null)
+    const { downloadTemplate, isDownloading: downloadingTemplate } = useApiTemplateDownload(getCoursesTemplate)
     const importFileInputRef = useRef<HTMLInputElement>(null)
 
     const { getUserName } = useReduxAuth()
@@ -157,7 +161,7 @@ export default function CourseManagementPage() {
                             Manage training courses and requirements
                         </CardDescription>
                         <div className="grid grid-cols-2 gap-2 pt-1 sm:flex sm:items-center sm:ml-auto sm:pt-0">
-                            <PermissionActionGuard menuCode="QA_MONITORING" action="canCreate">
+                            <PermissionActionGuard menuCode={MENU.QA_COURSE_MANAGEMENT} action="canCreate">
                                 <input
                                     ref={importFileInputRef}
                                     type="file"
@@ -169,6 +173,12 @@ export default function CourseManagementPage() {
                                         e.target.value = ''
                                     }}
                                 />
+                                <Button variant="outline" size="sm" className="sm:h-10 sm:px-4" onClick={downloadTemplate} disabled={downloadingTemplate}>
+                                    {downloadingTemplate
+                                        ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        : <Download className="h-4 w-4 mr-2" />}
+                                    Template
+                                </Button>
                                 <Button variant="outline" size="sm" className="sm:h-10 sm:px-4" onClick={() => importFileInputRef.current?.click()}>
                                     <Upload className="h-4 w-4 mr-2" />
                                     Import
@@ -183,7 +193,7 @@ export default function CourseManagementPage() {
                     <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0 min-w-0">
                         <div className="flex flex-col gap-4 lg:flex-row lg:gap-6">
                             {/* ── Sidebar ── */}
-                            <aside className="w-full min-w-0 space-y-3 lg:w-52 lg:shrink-0 lg:space-y-4">
+                            <aside className="w-full min-w-0 space-y-3 lg:w-52 lg:shrink-0 lg:space-y-4 lg:sticky lg:top-19 lg:self-start lg:max-h-[calc(100vh-5.75rem)] lg:overflow-y-auto">
                                 {/* Tab Toggle */}
                                 <div className="flex gap-1 bg-muted p-1 rounded-lg">
                                     {(['courses', 'matrix'] as const).map(tab => (

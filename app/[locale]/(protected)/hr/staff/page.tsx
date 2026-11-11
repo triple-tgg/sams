@@ -27,7 +27,7 @@ import {
     PopoverTrigger,
 } from '@/components/ui/popover'
 import {
-    ChevronLeft, ChevronRight, Plus, MoreHorizontal, Eye, Search, Users, RefreshCw, AlertCircle, User, FileUp,
+    ChevronLeft, ChevronRight, Plus, MoreHorizontal, Eye, Search, Users, RefreshCw, AlertCircle, User, FileUp, Download, Loader2,
     ArrowUpDown, ArrowUp, ArrowDown, SlidersHorizontal, Filter, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -37,7 +37,11 @@ import { useStaffDepartments, useStaffDepartmentPositions } from '@/lib/api/mast
 import { useStaffsTypesAll } from '@/lib/api/hooks/useStaffsTypes'
 import { PermissionActionGuard } from '@/components/partials/auth/PermissionActionGuard'
 import { StaffExcelImportModal } from './components/StaffExcelImportModal'
+import { getStaffsTemplate } from '@/lib/api/migration/importStaff'
+import { useApiTemplateDownload } from '@/hooks/use-api-template-download'
 import './hr-staff.css'
+import { MENU } from "@/lib/permission-codes";
+import { useLocale } from "next-intl";
 
 const staffTypeColors: Record<string, string> = {
     'CS': '#2563eb',
@@ -51,6 +55,7 @@ const staffTypeColors: Record<string, string> = {
 }
 
 export default function HRStaffListPage() {
+    const locale = useLocale();
     const router = useRouter()
     const [searchQuery, setSearchQuery] = useState('')
     const [page, setPage] = useState(1)
@@ -63,6 +68,7 @@ export default function HRStaffListPage() {
     const [showImportModal, setShowImportModal] = useState(false)
     const [selectedImportFile, setSelectedImportFile] = useState<File | null>(null)
     const importFileInputRef = useRef<HTMLInputElement>(null)
+    const { downloadTemplate, isDownloading: isDownloadingTemplate } = useApiTemplateDownload(getStaffsTemplate)
 
     const handleImportClick = () => {
         importFileInputRef.current?.click()
@@ -179,6 +185,19 @@ export default function HRStaffListPage() {
                             className="hidden"
                             onChange={handleImportFileSelect}
                         />
+                        <PermissionActionGuard menuCode={MENU.HR_STAFF} action="canCreate">
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            className="hr-btn-import"
+                            onClick={downloadTemplate}
+                            disabled={isDownloadingTemplate}
+                        >
+                            {isDownloadingTemplate
+                                ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                                : <Download className="h-4 w-4 mr-1.5" />}
+                            Template
+                        </Button>
                         <Button
                             size="sm"
                             variant="outline"
@@ -188,11 +207,12 @@ export default function HRStaffListPage() {
                             <FileUp className="h-4 w-4 mr-1.5" />
                             Import Excel
                         </Button>
-                        <PermissionActionGuard menuCode="HR_STAFF" action="canCreate">
+                        </PermissionActionGuard>
+                        <PermissionActionGuard menuCode={MENU.HR_STAFF} action="canCreate">
                             <Button
                                 size="sm"
                                 className="hr-btn-add"
-                                onClick={() => router.push('/en/hr/staff/new')}
+                                onClick={() => router.push(`/${locale}/hr/staff/new`)}
                             >
                                 <Plus className="h-4 w-4 mr-1.5" />
                                 New Staff
@@ -658,7 +678,7 @@ export default function HRStaffListPage() {
                                                 <TableRow
                                                     key={staff.id}
                                                     className="cursor-pointer hover:bg-blue-50/50 transition-colors"
-                                                    onClick={() => router.push(`/en/hr/staff/${staff.id}`)}
+                                                    onClick={() => router.push(`/${locale}/hr/staff/${staff.id}`)}
                                                 >
                                                     {/* Employee Name + Code */}
                                                     <TableCell>
@@ -750,7 +770,7 @@ export default function HRStaffListPage() {
                                                                 </Button>
                                                             </DropdownMenuTrigger>
                                                             <DropdownMenuContent align="end">
-                                                                <DropdownMenuItem onClick={() => router.push(`/en/hr/staff/${staff.id}`)}>
+                                                                <DropdownMenuItem onClick={() => router.push(`/${locale}/hr/staff/${staff.id}`)}>
                                                                     <Eye className="h-4 w-4 mr-2" />
                                                                     View Profile
                                                                 </DropdownMenuItem>

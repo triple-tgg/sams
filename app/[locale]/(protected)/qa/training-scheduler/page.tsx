@@ -28,6 +28,7 @@ import { PermissionActionGuard } from "@/components/partials/auth/PermissionActi
 import { useSelector } from 'react-redux'
 import { RootState } from '@/store/rootReducer'
 import { toast } from 'sonner'
+import { MENU } from "@/lib/permission-codes";
 
 const VIEW_OPTIONS = [
     { id: 'calendar', label: 'Calendar', icon: Calendar },
@@ -341,7 +342,7 @@ export default function TrainingSchedulerPage() {
                                     </button>
                                 ))}
                             </div>
-                            <PermissionActionGuard menuCode="QA_MONITORING" action="canCreate">
+                            <PermissionActionGuard menuCode={MENU.QA_TRAINING_SCHEDULER} action="canCreate">
                                 <Button onClick={openAdd} color="primary" size="sm" className="shrink-0 px-2.5 sm:h-10 sm:px-4" aria-label="New Session">
                                     <Plus className="h-4 w-4 sm:mr-2" />
                                     <span className="hidden sm:inline">New Session</span>

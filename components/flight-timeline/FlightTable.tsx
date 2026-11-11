@@ -32,6 +32,8 @@ import { updateFlight } from '@/lib/api/flight/updateFlight';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { PermissionActionGuard } from '@/components/partials/auth/PermissionActionGuard';
+import { MENU } from "@/lib/permission-codes";
+import { useMenuPermission } from "@/hooks/use-menu-permission";
 
 // Type guard to check if item is a StaffItem object (not just a number ID)
 const isStaffItem = (item: number | StaffItem): item is StaffItem => {
@@ -70,6 +72,7 @@ interface FlightTableProps {
 }
 
 export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: FlightTableProps) {
+    const perm = useMenuPermission(MENU.FLIGHT_TIMELINE);
     const [openEditFlight, setOpenEditFlight] = useState<boolean>(false);
     const [editFlightId, setEditFlightId] = useState<number | null>(null);
     const [currentTime, setCurrentTime] = useState<Date>(new Date());
@@ -126,6 +129,8 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
     });
 
     const handleCheckCellClick = (flight: FlightItem) => {
+        // Inline cell edits need edit permission
+        if (!perm.canEdit) return;
         setCheckModalFlight(flight);
         setSelectedStatusId(flight.maintenanceStatusObj?.id ?? null);
         setCheckModalOpen(true);
@@ -191,6 +196,8 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
 
     // Time Edit Modal handlers
     const handleTimeEditCellClick = (flight: FlightItem, field: 'sta' | 'std' | 'eta') => {
+        // Inline cell edits need edit permission
+        if (!perm.canEdit) return;
         setTimeEditFlight(flight);
         setTimeEditField(field);
 
@@ -288,6 +295,8 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
 
     // Staff Edit Modal handlers
     const handleStaffCellClick = (flight: FlightItem, type: 'cs' | 'mech') => {
+        // Inline cell edits need edit permission
+        if (!perm.canEdit) return;
         setStaffModalFlight(flight);
         setStaffModalType(type);
         setStaffSearch('');
@@ -378,6 +387,8 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
 
     // Remarks Edit Modal handlers
     const handleRemarksCellClick = (flight: FlightItem) => {
+        // Inline cell edits need edit permission
+        if (!perm.canEdit) return;
         setRemarksModalFlight(flight);
         setRemarksText(flight.note || '');
         setRemarksModalOpen(true);
@@ -752,7 +763,7 @@ export function FlightTable({ flights, isLoading, isFullscreen, isAlarm }: Fligh
                                                 </Tooltip>
                                             )}
                                             <div className="flex items-center justify-center">
-                                                <PermissionActionGuard menuCode="FLIGHT_TIMELINE" action="canEdit">
+                                                <PermissionActionGuard menuCode={MENU.FLIGHT_TIMELINE} action="canEdit">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild >
                                                         <Button

@@ -2,6 +2,7 @@ import { Loader2, Pencil, Search, Trash2 } from 'lucide-react'
 import { PermissionActionGuard } from '@/components/partials/auth/PermissionActionGuard'
 import { Course, CATEGORY_COLORS } from '../types'
 import { Button } from '@/components/ui/button'
+import { MENU } from "@/lib/permission-codes";
 
 interface CourseTableProps {
     courses: Course[]
@@ -107,7 +108,7 @@ export function CourseTable({
                                     </td>
                                     <td className="px-3 py-3 align-top">
                                         <div className="flex items-center justify-center gap-1.5">
-                                            <PermissionActionGuard menuCode="QA_MONITORING" action="canEdit">
+                                            <PermissionActionGuard menuCode={MENU.QA_COURSE_MANAGEMENT} action="canEdit">
                                                 <Button
                                                     size="icon"
                                                     variant="soft"
@@ -124,7 +125,7 @@ export function CourseTable({
                                                     <Pencil className="h-3.5 w-3.5" />
                                                 </Button>
                                             </PermissionActionGuard>
-                                            <PermissionActionGuard menuCode="QA_MONITORING" action="canDelete">
+                                            <PermissionActionGuard menuCode={MENU.QA_COURSE_MANAGEMENT} action="canDelete">
                                                 <Button
                                                     size="icon"
                                                     variant="soft"

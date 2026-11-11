@@ -16,6 +16,7 @@ import { groupCombinationDisplayLabels } from '@/lib/utils/aircraftEngineDisplay
 import { useStaffsTypesAll } from '@/lib/api/hooks/useStaffsTypes'
 import { useStations } from '@/lib/api/hooks/useStations'
 import { useAmelCategories } from '@/lib/api/master/amel-categories.hooks'
+import { useLocale } from "next-intl";
 
 // ── Form State ──
 interface StaffForm {
@@ -201,6 +202,7 @@ const REQUIRED_FIELDS: (keyof StaffForm)[] = [
 
 // ── Main Page ──
 export default function NewStaffPage() {
+    const locale = useLocale();
     const router = useRouter()
     const [form, setForm] = useState<StaffForm>(INITIAL_FORM)
     const [profileImage, setProfileImage] = useState<string | null>(null)
@@ -596,9 +598,9 @@ export default function NewStaffPage() {
                 const staffId = response.responseData?.[0]?.staffId
                 toast.success('Staff registered successfully!')
                 if (staffId) {
-                    router.push(`/en/hr/staff/${staffId}`)
+                    router.push(`/${locale}/hr/staff/${staffId}`)
                 } else {
-                    router.push('/en/hr/staff')
+                    router.push(`/${locale}/hr/staff`)
                 }
             },
             onError: (error) => {

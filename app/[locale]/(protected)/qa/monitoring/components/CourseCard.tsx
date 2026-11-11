@@ -1,6 +1,6 @@
 'use client'
 
-import { CourseRef, StatusType, STATUS_META } from '../types'
+import { CourseRef, StatusType, STATUS_META, courseCycleText } from '../types'
 
 interface CourseSummary extends CourseRef {
     valid: number
@@ -27,7 +27,7 @@ export function CourseCard({ course: c, onClick }: CourseCardProps) {
         >
             <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">{c.short}</span>
-                <span className="text-xs text-muted-foreground">{c.interval}m cycle</span>
+                <span className="text-xs text-muted-foreground">{courseCycleText(c)}</span>
             </div>
             <p className="text-sm font-medium text-foreground mb-3">{c.label}</p>
             <div className="flex items-center gap-3 text-xs">

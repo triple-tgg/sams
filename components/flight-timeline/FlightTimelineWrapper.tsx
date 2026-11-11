@@ -29,6 +29,7 @@ import Tooltip from "../ui/c-tooltip";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Check, ChevronDown } from "lucide-react";
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard";
+import { MENU } from "@/lib/permission-codes";
 
 
 
@@ -327,7 +328,7 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                 <div className="flex flex-wrap items-center gap-4">
 
                     <div className="flex items-center gap-2">
-                        <PermissionActionGuard menuCode="FLIGHT_TIMELINE" action="canCreate">
+                        <PermissionActionGuard menuCode={MENU.FLIGHT_TIMELINE} action="canCreate">
                         <Button
                             className="flex-none"
                             color="primary"
@@ -358,7 +359,7 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                         </Button>
                         </PermissionActionGuard>
 
-                        <PermissionActionGuard menuCode="FLIGHT_TIMELINE" action="canExport">
+                        <PermissionActionGuard menuCode={MENU.FLIGHT_TIMELINE} action="canExport">
                         <Button
                             className="flex-none"
                             color="secondary"

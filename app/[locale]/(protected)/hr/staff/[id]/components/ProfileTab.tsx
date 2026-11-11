@@ -24,6 +24,8 @@ import type { StaffDocumentType } from '@/lib/api/master/staff/staffDocumentType
 import { useStaffDocumentStatuses } from '@/lib/api/master/staff/staffDocumentStatuses.hooks'
 import type { StaffDocumentStatus } from '@/lib/api/master/staff/staffDocumentStatuses'
 import { useAmelCategories } from '@/lib/api/master/amel-categories.hooks'
+import { MENU } from "@/lib/permission-codes";
+import { useMenuPermission } from "@/hooks/use-menu-permission";
 
 // ── Constants ──
 const AIRCRAFT_TYPE_LICENSES = [
@@ -102,7 +104,7 @@ function Section({
                     {title}
                 </div>
                 {onEdit && (
-                    <PermissionActionGuard menuCode="QA_STAFF" action="canEdit">
+                    <PermissionActionGuard menuCode={MENU.HR_STAFF} action="canEdit">
                         <button
                             className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 cursor-pointer transition-all duration-200 hover:border-blue-400 hover:text-blue-600 hover:shadow-sm"
                             onClick={onEdit}
@@ -161,6 +163,7 @@ function buildDocSlots(
 
 // ── Profile Tab ──
 export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: StaffByIdData }) {
+    const perm = useMenuPermission(MENU.HR_STAFF);
     const [showEditPersonal, setShowEditPersonal] = useState(false)
     const [showEditContact, setShowEditContact] = useState(false)
     const [showEditEmployment, setShowEditEmployment] = useState(false)
@@ -666,7 +669,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                                     Done
                                 </button>
                             ) : (
-                                <PermissionActionGuard menuCode="QA_STAFF" action="canEdit">
+                                <PermissionActionGuard menuCode={MENU.HR_STAFF} action="canEdit">
                                     <button
                                         className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 cursor-pointer transition-all duration-200 hover:border-blue-400 hover:text-blue-600 hover:shadow-sm"
                                         onClick={() => setEditDocMode(true)}
@@ -756,13 +759,13 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                                                         <Upload className="h-3 w-3 inline mr-0.5" />
                                                         Replace
                                                     </button>
-                                                    <button
+                                                    {perm.canDelete && (<button
                                                         type="button"
                                                         onClick={() => setConfirmDeleteDoc(slot.key)}
                                                         className="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 cursor-pointer transition-colors border-none bg-transparent shrink-0"
                                                     >
                                                         <X className="h-3.5 w-3.5" />
-                                                    </button>
+                                                    </button>)}
                                                 </div>
                                             ) : !slot.uploading ? (
                                                 <button
@@ -828,13 +831,13 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                                 </div>
                                 <p className="text-sm font-semibold text-slate-500 mb-1">No Documents</p>
                                 <p className="text-xs text-slate-400 mb-4">No documents have been uploaded yet.</p>
-                                <button
+                                {perm.canEdit && (<button
                                     onClick={() => setEditDocMode(true)}
                                     className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-blue-500 rounded-lg cursor-pointer hover:bg-blue-600 transition-colors border-none"
                                 >
                                     <Upload className="h-3.5 w-3.5" />
                                     Upload Documents
-                                </button>
+                                </button>)}
                             </div>
                         )}
                     </div>
@@ -850,13 +853,13 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                                 AMEL License
                             </div>
                             {amelLicense && (
-                                <button
+                                (perm.canEdit && (<button
                                     onClick={() => setShowEditLicense(true)}
                                     className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 cursor-pointer transition-all duration-200 border-none bg-transparent"
                                     title="Edit License"
                                 >
                                     <Pencil className="h-4 w-4" />
-                                </button>
+                                </button>))
                             )}
                         </div>
 
@@ -929,13 +932,13 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                                             </span>
                                             <ExternalLink className="h-3.5 w-3.5 text-slate-400 group-hover:text-blue-500 shrink-0" />
                                         </a>
-                                        <button
+                                        {perm.canDelete && (<button
                                             type="button"
                                             onClick={() => setConfirmDeleteAmelDoc(true)}
                                             className="w-10 h-10 rounded-lg flex items-center justify-center border border-slate-200 bg-white text-slate-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 cursor-pointer transition-all duration-200 shrink-0"
                                         >
                                             <X className="h-4 w-4" />
-                                        </button>
+                                        </button>)}
                                     </div>
                                 ) : (
                                     <div>
@@ -966,13 +969,13 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                                 </div>
                                 <p className="text-sm font-semibold text-slate-500 mb-1">No License Data</p>
                                 <p className="text-xs text-slate-400 mb-5">AMEL License information has not been added yet.</p>
-                                <button
+                                {perm.canEdit && (<button
                                     onClick={() => setShowEditLicense(true)}
                                     className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-lg cursor-pointer transition-all duration-200 hover:bg-blue-700 border-none"
                                 >
                                     <Award className="h-4 w-4" />
                                     Add License
-                                </button>
+                                </button>)}
                             </div>
                         )}
                     </div>
@@ -988,7 +991,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                                     <span className="text-xs font-semibold text-slate-400 shrink-0">({aircraftLicenses.length})</span>
                                 )}
                             </div>
-                            <PermissionActionGuard menuCode="QA_STAFF" action="canEdit">
+                            <PermissionActionGuard menuCode={MENU.HR_STAFF} action="canEdit">
                                 <button
                                     className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 cursor-pointer transition-all duration-200 hover:border-blue-400 hover:text-blue-600 hover:shadow-sm shrink-0"
                                     onClick={() => setShowEditAircraft(true)}
@@ -1018,7 +1021,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                                 </div>
                                 <p className="text-sm font-semibold text-slate-500 mb-1">No Aircraft License</p>
                                 <p className="text-xs text-slate-400 mb-4">No aircraft type license has been assigned.</p>
-                                <PermissionActionGuard menuCode="QA_STAFF" action="canCreate">
+                                <PermissionActionGuard menuCode={MENU.HR_STAFF} action="canCreate">
                                     <button
                                         onClick={() => setShowEditAircraft(true)}
                                         className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-green-600 rounded-lg cursor-pointer hover:bg-green-700 transition-colors border-none"

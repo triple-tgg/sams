@@ -41,6 +41,8 @@ import {
     type RosterStaff,
 } from '@/lib/roster/manpower';
 import { EmptyBlock, LoadingBlock, Pill, RosterHeader, StatTile, StationSelect, WeekNav, td, th } from '../../components/RosterUi';
+import { MENU } from "@/lib/permission-codes";
+import { useMenuPermission } from "@/hooks/use-menu-permission";
 
 type TabKey = 'duty' | 'frms';
 type ShiftType = 'D' | 'N' | 'O' | 'L' | 'T';
@@ -132,6 +134,7 @@ interface FrmsViolation {
 }
 
 export default function ManpowerSchedulingPage() {
+    const perm = useMenuPermission(MENU.MANPOWER_ANALYSIS);
     const [stationCode, setStationCode] = useState(DEFAULT_ROSTER_STATION);
     const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
     const [activeTab, setActiveTab] = useState<TabKey>('duty');
@@ -180,6 +183,7 @@ export default function ManpowerSchedulingPage() {
     }, [stationStaff]);
 
     const handleCycleShift = (staffId: number, dayIndex: number) => {
+        if (!perm.canEdit) return;
         setShiftsByStaff((prev) => {
             const currentList = prev[staffId] || ['O', 'O', 'O', 'O', 'O', 'O', 'O'];
             const currentShift = currentList[dayIndex] || 'O';
@@ -191,6 +195,7 @@ export default function ManpowerSchedulingPage() {
     };
 
     const handleAutoGenerate = (patternType: '3-3' | '4-2') => {
+        if (!perm.canEdit) return;
         const next: Record<number, ShiftType[]> = {};
         stationStaff.forEach((s, idx) => {
             const pattern: ShiftType[] = [];
@@ -214,6 +219,7 @@ export default function ManpowerSchedulingPage() {
     };
 
     const handleResetAllOff = () => {
+        if (!perm.canEdit) return;
         const next: Record<number, ShiftType[]> = {};
         stationStaff.forEach((s) => {
             next[s.staffId] = ['O', 'O', 'O', 'O', 'O', 'O', 'O'];
@@ -465,6 +471,7 @@ export default function ManpowerSchedulingPage() {
                             </div>
 
                             {/* Actions */}
+                            {perm.canEdit && (
                             <div className="flex flex-wrap items-center gap-2">
                                 <button
                                     type="button"
@@ -483,6 +490,7 @@ export default function ManpowerSchedulingPage() {
                                     ล้างเวรทั้งหมด
                                 </button>
                             </div>
+                            )}
                         </div>
                     </Card>
 

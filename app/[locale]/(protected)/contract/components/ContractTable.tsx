@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Contract } from "./types";
 import { getContractExpiryWarning } from "@/lib/utils/contractExpiry";
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard";
+import { MENU } from "@/lib/permission-codes";
 
 interface ContractTableProps {
     contracts: Contract[];
@@ -147,7 +148,7 @@ export const ContractTable = ({
                                                     <Eye className="h-4 w-4 mr-2" />
                                                     View
                                                 </DropdownMenuItem>
-                                                <PermissionActionGuard menuCode="CONTRACT" action="canEdit">
+                                                <PermissionActionGuard menuCode={MENU.CONTRACT} action="canEdit">
                                                     <DropdownMenuItem
                                                         className="cursor-pointer"
                                                         onClick={() => onEdit?.(contract)}
@@ -156,7 +157,7 @@ export const ContractTable = ({
                                                         Edit
                                                     </DropdownMenuItem>
                                                 </PermissionActionGuard>
-                                                <PermissionActionGuard menuCode="CONTRACT" action="canDelete">
+                                                <PermissionActionGuard menuCode={MENU.CONTRACT} action="canDelete">
                                                     <DropdownMenuItem
                                                         className="cursor-pointer text-destructive focus:text-destructive"
                                                         onClick={() => onDelete?.(contract)}

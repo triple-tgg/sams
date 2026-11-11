@@ -33,6 +33,7 @@ import type { UserItem } from "@/lib/api/master/users/users.interface";
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard";
 import UserFormDialog from "./components/UserFormDialog";
 import ConfirmCredentialsDialog from "./components/ConfirmCredentialsDialog";
+import { MENU } from "@/lib/permission-codes";
 
 type DialogMode = 'closed' | 'add' | 'view' | 'edit' | 'confirm-delete';
 
@@ -252,7 +253,7 @@ const UserLoginPage = () => {
                             <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
                             Refresh
                         </Button>
-                        <PermissionActionGuard menuCode="MASTER_DATA_USER_LOGIN" action="canCreate">
+                        <PermissionActionGuard menuCode={MENU.MASTER_DATA_USER_LOGIN} action="canCreate">
                             <Button size="sm" onClick={openAddDialog}>
                                 <Plus className="h-4 w-4 mr-2" />
                                 Add User
@@ -387,13 +388,13 @@ const UserLoginPage = () => {
                                                                 <Eye className="h-4 w-4 mr-2" />
                                                                 View
                                                             </DropdownMenuItem>
-                                                            <PermissionActionGuard menuCode="MASTER_DATA_USER_LOGIN" action="canEdit">
+                                                            <PermissionActionGuard menuCode={MENU.MASTER_DATA_USER_LOGIN} action="canEdit">
                                                                 <DropdownMenuItem onClick={() => openEditDialog(user)}>
                                                                     <Pencil className="h-4 w-4 mr-2" />
                                                                     Edit
                                                                 </DropdownMenuItem>
                                                             </PermissionActionGuard>
-                                                            <PermissionActionGuard menuCode="MASTER_DATA_USER_LOGIN" action="canDelete">
+                                                            <PermissionActionGuard menuCode={MENU.MASTER_DATA_USER_LOGIN} action="canDelete">
                                                                 <DropdownMenuItem
                                                                     onClick={() => openDeleteDialog(user)}
                                                                     className="text-destructive focus:text-destructive"

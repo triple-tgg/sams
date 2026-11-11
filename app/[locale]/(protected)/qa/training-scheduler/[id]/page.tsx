@@ -25,6 +25,8 @@ import type { StaffForEnrollmentItem } from '@/lib/api/qa/enrollment'
 import { toast } from 'sonner'
 import { groupAircraftEngineDisplayLabels } from '@/lib/utils/aircraftEngineDisplay'
 import type { StaffAircraftLicenseItem } from '@/lib/api/qa/staff-management'
+import { MENU } from "@/lib/permission-codes";
+import { useMenuPermission } from "@/hooks/use-menu-permission";
 
 // Staff item shape used by this page
 interface StaffItem {
@@ -42,6 +44,7 @@ interface StaffItem {
 }
 
 export default function ScheduleDetailPage() {
+    const perm = useMenuPermission(MENU.QA_TRAINING_SCHEDULER);
     const params = useParams()
     const router = useRouter()
     const sessionId = Number(params?.id)
@@ -174,6 +177,7 @@ export default function ScheduleDetailPage() {
     const { data: instructorEmailLogs, isLoading: isLoadingInstructorEmailLogs } = useEmailLogInstructorList(sessionId, showInstructorReport)
 
     const handleManagerReport = async () => {
+        if (!perm.canEdit) return
         try {
             const html = await previewDeptMutation.mutateAsync(sessionId)
             if (html) {
@@ -188,6 +192,7 @@ export default function ScheduleDetailPage() {
     }
 
     const handleSendManagerReport = async () => {
+        if (!perm.canEdit) return
         try {
             const res = await sendDeptMutation.mutateAsync({
                 scheduleId: sessionId,
@@ -210,6 +215,7 @@ export default function ScheduleDetailPage() {
     }
 
     const handleInstructorReport = async () => {
+        if (!perm.canEdit) return
         try {
             const html = await previewInstructorMutation.mutateAsync(sessionId)
             if (html) {
@@ -224,6 +230,7 @@ export default function ScheduleDetailPage() {
     }
 
     const handleSendInstructorReport = async () => {
+        if (!perm.canEdit) return
         try {
             const res = await sendInstructorMutation.mutateAsync({
                 scheduleId: sessionId,
@@ -246,6 +253,7 @@ export default function ScheduleDetailPage() {
     }
 
     const handleStatusChange = async (status: any) => {
+        if (!perm.canEdit) return
         if (status === 'Completed') {
             const ungradedStaff = enrolledStaff.filter(s => {
                 const r = (s.result ?? '').toLowerCase()
@@ -293,6 +301,7 @@ export default function ScheduleDetailPage() {
     }
 
     const openCertificateModal = (staff?: StaffItem) => {
+        if (!perm.canExport) return
         if (staff?.enrollmentId) {
             setCertEnrollmentId(staff.enrollmentId)
             setShowCertModal(true)
@@ -338,6 +347,7 @@ export default function ScheduleDetailPage() {
     const [enrollingId, setEnrollingId] = useState<string | null>(null)
 
     const handleEnroll = async (staff: StaffItem) => {
+        if (!perm.canEdit) return
         if (isFull || sessionStatus !== 'Open Registration' || enrollingId) return;
         setEnrollingId(staff.id)
 
@@ -363,11 +373,13 @@ export default function ScheduleDetailPage() {
     const [confirmRemoveStaff, setConfirmRemoveStaff] = useState<StaffItem | null>(null)
 
     const handleRemove = (staff: any) => {
+        if (!perm.canEdit) return
         if (sessionStatus === 'Completed' || sessionStatus === 'Grading') return;
         setConfirmRemoveStaff(staff)
     }
 
     const confirmUnenroll = async () => {
+        if (!perm.canEdit) return
         const staff = confirmRemoveStaff
         if (!staff) return
         setConfirmRemoveStaff(null)
@@ -395,6 +407,7 @@ export default function ScheduleDetailPage() {
     }
 
     const handleSubmitScore = async (staffId: string) => {
+        if (!perm.canEdit) return
         const staff = enrolledStaff.find(s => s.id === staffId)
         if (!staff?.enrollmentId) return
 
@@ -434,6 +447,7 @@ export default function ScheduleDetailPage() {
     }
 
     const handleSendAll = async () => {
+        if (!perm.canEdit) return
         if (selectedEnrolledIds.size === 0) return
         const staffIdList = Array.from(selectedEnrolledIds).map(Number)
 
@@ -549,18 +563,19 @@ export default function ScheduleDetailPage() {
                         </div>
                         <div className="flex w-full items-center gap-2 sm:w-auto sm:ml-auto">
                             {sessionStatus === 'Completed' && (
-                                <button
+                                (perm.canExport && (<button
                                     onClick={() => openCertificateModal()}
                                     className="flex shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold text-primary border border-primary hover:bg-primary/5 transition-colors cursor-pointer bg-white"
                                 >
                                     <Award className="w-3.5 h-3.5" />
                                     Issue Certificates
-                                </button>
+                                </button>))
                             )}
                             <div className="relative min-w-0 flex-1 sm:flex-none">
                                 <select
                                     value={sessionStatus}
                                     onChange={(e) => handleStatusChange(e.target.value)}
+                                    disabled={!perm.canEdit}
                                     className="w-full appearance-none pl-3 pr-8 py-1.5 rounded-lg text-xs font-semibold border border-border bg-white text-foreground transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20"
                                 >
                                     {(() => {
@@ -653,13 +668,13 @@ export default function ScheduleDetailPage() {
                                                     <TooltipProvider>
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
-                                                                <button
+                                                                {perm.canEdit && (<button
                                                                     onClick={handleInstructorReport}
                                                                     disabled={previewInstructorMutation.isPending}
                                                                     className="p-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors border-none cursor-pointer flex items-center justify-center"
                                                                 >
                                                                     {previewInstructorMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
-                                                                </button>
+                                                                </button>)}
                                                             </TooltipTrigger>
                                                             <TooltipContent><p>Preview & Send Email to Instructor</p></TooltipContent>
                                                         </Tooltip>
@@ -893,7 +908,7 @@ export default function ScheduleDetailPage() {
                                                                 {/* <span className="truncate">{staff.dept}</span> */}
                                                             </div>
                                                         </div>
-                                                        <button
+                                                        {perm.canEdit && (<button
                                                             onClick={() => handleEnroll(staff)}
                                                             disabled={enrollingId === staff.id}
                                                             className={`shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${enrollingId === staff.id ? 'bg-muted text-muted-foreground cursor-wait' : 'bg-primary/10 text-primary hover:bg-primary hover:text-white'}`}
@@ -904,7 +919,7 @@ export default function ScheduleDetailPage() {
                                                                 <UserPlus className="w-3 h-3" />
                                                             )}
                                                             {enrollingId === staff.id ? 'Enrolling...' : 'Enroll'}
-                                                        </button>
+                                                        </button>)}
                                                     </div>
                                                 ))
                                             )}
@@ -954,12 +969,12 @@ export default function ScheduleDetailPage() {
                                             <TooltipProvider>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
-                                                        <Button size="icon" className="relative" onClick={handleSendAll} disabled={sendEmailMutation.isPending}>
+                                                        {perm.canEdit && (<Button size="icon" className="relative" onClick={handleSendAll} disabled={sendEmailMutation.isPending}>
                                                             {sendEmailMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserRoundCog className="w-4 h-4" />}
                                                             <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm border border-white">
                                                                 {selectedEnrolledIds.size}
                                                             </span>
-                                                        </Button>
+                                                        </Button>)}
                                                     </TooltipTrigger>
                                                     <TooltipContent>
                                                         <p>Send Registration Reminder</p>
@@ -970,14 +985,14 @@ export default function ScheduleDetailPage() {
                                         <TooltipProvider>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                    <Button size="icon" color="primary" onClick={handleManagerReport} disabled={previewDeptMutation.isPending} className="cursor-pointer">
+                                                    {perm.canEdit && (<Button size="icon" color="primary" onClick={handleManagerReport} disabled={previewDeptMutation.isPending} className="cursor-pointer">
                                                         {previewDeptMutation.isPending ? (
                                                             <Loader2 className="w-4 h-4 animate-spin" />
                                                         ) : (
                                                             <Mail className="w-4 h-4" />
                                                         )}
                                                         {/* Managers Report */}
-                                                    </Button>
+                                                    </Button>)}
                                                 </TooltipTrigger>
                                                 <TooltipContent>
                                                     <p>Send Report to Managers</p>
@@ -987,9 +1002,9 @@ export default function ScheduleDetailPage() {
                                         <TooltipProvider>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                    <Button size="icon" color="secondary" onClick={() => setShowPrintModal(true)} className='cursor-pointer transition-all duration-200 hover:scale-120'>
+                                                    {perm.canExport && (<Button size="icon" color="secondary" onClick={() => setShowPrintModal(true)} className='cursor-pointer transition-all duration-200 hover:scale-120'>
                                                         <Printer className="w-4 h-4" />
-                                                    </Button>
+                                                    </Button>)}
                                                 </TooltipTrigger>
                                                 <TooltipContent>
                                                     <p>Print Attendance Form</p>
@@ -1153,14 +1168,14 @@ export default function ScheduleDetailPage() {
                                                                         disabled={gradingId !== null}
                                                                         className={`w-[60px] px-1.5 py-1 text-[11px] font-semibold text-center rounded-md border border-border bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${gradingId !== null ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                                     />
-                                                                    <button
+                                                                    {perm.canEdit && (<button
                                                                         onClick={() => handleSubmitScore(staff.id)}
                                                                         disabled={gradingId !== null || !scoreInputs[staff.id]}
                                                                         className={`p-1 rounded-md transition-colors border-none cursor-pointer ${gradingId !== null || !scoreInputs[staff.id] ? 'text-slate-300 bg-transparent cursor-not-allowed' : 'text-emerald-600 hover:bg-emerald-50 bg-transparent'}`}
                                                                         title="Submit Score"
                                                                     >
                                                                         <CheckCircle className="w-4 h-4" />
-                                                                    </button>
+                                                                    </button>)}
                                                                 </div>
                                                             ) : (
                                                                 <span className={`px-2 py-1 text-[10px] font-bold rounded-md ${staff.result === 'Pass' || staff.result === 'Passed' ? 'bg-emerald-100 text-emerald-700' : staff.result === 'Fail' || staff.result === 'Failed' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
@@ -1180,15 +1195,15 @@ export default function ScheduleDetailPage() {
                                                     <td className="px-2 py-3 align-middle">
                                                         <div className="flex items-center justify-center gap-1">
                                                             {sessionStatus === 'Completed' && (staff.result === 'Pass' || staff.result === 'Passed') && (
-                                                                <button
+                                                                (perm.canExport && (<button
                                                                     onClick={() => openCertificateModal(staff)}
                                                                     className="p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors cursor-pointer border-none bg-transparent"
                                                                     title="Issue Certificate"
                                                                 >
                                                                     <Award className="w-4 h-4" />
-                                                                </button>
+                                                                </button>))
                                                             )}
-                                                            <button
+                                                            {perm.canEdit && (<button
                                                                 className="relative p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer border-none bg-transparent"
                                                                 title="Send Email"
                                                                 onClick={() => {
@@ -1201,15 +1216,15 @@ export default function ScheduleDetailPage() {
                                                                         {staff.emailCount}
                                                                     </Badge>
                                                                 )}
-                                                            </button>
-                                                            <button
+                                                            </button>)}
+                                                            {perm.canEdit && (<button
                                                                 onClick={() => handleRemove(staff)}
                                                                 disabled={staff.status !== 'Draft' || removingId === staff.id}
                                                                 className={`p-1.5 rounded-lg transition-colors border-none bg-transparent ${staff.status !== 'Draft' || removingId === staff.id ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-red-600 hover:bg-red-50 cursor-pointer'}`}
                                                                 title={staff.status !== 'Draft' ? 'Can only remove staff with Draft status' : 'Remove Staff'}
                                                             >
                                                                 {removingId === staff.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                                                            </button>
+                                                            </button>)}
                                                         </div>
                                                     </td>
                                                 </tr>

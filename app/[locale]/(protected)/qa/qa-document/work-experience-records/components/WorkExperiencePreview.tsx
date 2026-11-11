@@ -9,6 +9,8 @@ import html2canvas from 'html2canvas'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import './work-experience-preview.css'
+import { MENU } from "@/lib/permission-codes";
+import { useMenuPermission } from "@/hooks/use-menu-permission";
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -131,6 +133,7 @@ function paginateTraining(m: TrainingMeasurements): TrainingPage[] {
 }
 
 export function WorkExperiencePreview({ isOpen, onClose, staffId }: WorkExperiencePreviewProps) {
+    const perm = useMenuPermission(MENU.QA_DOC_WORK_EXPERIENCE);
     const { data: previewData } = useWorkExperiencePreview(staffId, isOpen)
     const [isDownloading, setIsDownloading] = useState(false)
     const measureRef = useRef<HTMLDivElement>(null)
@@ -389,10 +392,10 @@ export function WorkExperiencePreview({ isOpen, onClose, staffId }: WorkExperien
             <div className="wep-toolbar">
                 <span className="wep-toolbar-title">Employee Profile and Training Record (Preview)</span>
                 <div className="wep-toolbar-actions">
-                    <button className="wep-btn wep-btn-primary" onClick={() => window.print()}>
+                    {perm.canExport && (<button className="wep-btn wep-btn-primary" onClick={() => window.print()}>
                         <Printer className="h-4 w-4" />
                         Print
-                    </button>
+                    </button>)}
                     <button className="wep-btn wep-btn-close" onClick={onClose}>
                         <X className="h-4 w-4" />
                     </button>

@@ -97,6 +97,11 @@ export interface QAStaffListRequest {
      */
     staffstypeId: number | number[];
     isActive: boolean;
+    /**
+     * Limit to staff in AMO 145 departments (true) or non-AMO 145 (false).
+     * Leave undefined to not filter — the field is then omitted from the body.
+     */
+    isDepartmentAmo145?: boolean;
     sortBy: string;
     sortDirection: string;
     page: number;
@@ -123,7 +128,7 @@ const toStaffTypeIds = (value: number | number[] | undefined): number[] =>
  * Get QA staff management list data
  * POST /master/staff-management/listdata
  * Body: { keyword, name, employeeId, staffDepartmentPositionId, departmentId, stationId,
- *         staffstypeId: number[], isActive, sortBy, sortDirection, page, perPage }
+ *         staffstypeId: number[], isActive, isDepartmentAmo145, sortBy, sortDirection, page, perPage }
  */
 export const getQAStaffList = async (
     params: QAStaffListRequest
@@ -138,6 +143,7 @@ export const getQAStaffList = async (
             stationId: params.stationId && params.stationId > 0 ? params.stationId : 0,
             staffstypeId: toStaffTypeIds(params.staffstypeId),
             isActive: params.isActive,
+            ...(params.isDepartmentAmo145 !== undefined && { isDepartmentAmo145: params.isDepartmentAmo145 }),
             sortBy: params.sortBy ?? "",
             sortDirection: params.sortDirection ?? "",
             page: params.page,

@@ -44,6 +44,7 @@ import { PermissionActionGuard } from "@/components/partials/auth/PermissionActi
 import { AlertTriangle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useConfig } from "@/hooks/use-config"
+import { MENU } from "@/lib/permission-codes";
 
 interface Option {
     value: string; label: string; image?: string;
@@ -141,7 +142,7 @@ const ListTable = ({
     const cancelFlightMutation = useCancelFlightMutation();
 
     // Delete flight(s) — POST /flight/delete-flightinfos, gated by FLIGHT › canDelete
-    const { canDelete: canDeleteFlight } = useMenuPermission("FLIGHT");
+    const { canDelete: canDeleteFlight } = useMenuPermission(MENU.FLIGHT_LIST);
     const deleteFlightsMutation = useDeleteFlightInfosMutation();
     const [deleteTargets, setDeleteTargets] = React.useState<FlightItem[] | null>(null);
     // Flights with an issued Pre-Invoice (isMapping) can't be deleted
@@ -406,7 +407,7 @@ const ListTable = ({
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
-                                <PermissionActionGuard menuCode="FLIGHT" action="canCreate">
+                                <PermissionActionGuard menuCode={MENU.FLIGHT_LIST} action="canCreate">
                                     <DropdownMenuItem
                                         className="cursor-pointer"
                                         onClick={() => setOpen(true)}
@@ -424,6 +425,7 @@ const ListTable = ({
                                     </DropdownMenuItem>
                                 </PermissionActionGuard>
 
+                                <PermissionActionGuard menuCode={MENU.FLIGHT_LIST} action={["canCreate", "canExport"]}>
                                 <DropdownMenuItem
                                     className="cursor-pointer"
                                     onClick={downloadTemplate}
@@ -436,8 +438,9 @@ const ListTable = ({
                                     )}
                                     <span>Template</span>
                                 </DropdownMenuItem>
+                                </PermissionActionGuard>
 
-                                <PermissionActionGuard menuCode="FLIGHT_TIMELINE" action="canView">
+                                <PermissionActionGuard menuCode={MENU.FLIGHT_TIMELINE} action="canView">
                                     <DropdownMenuItem
                                         className="cursor-pointer"
                                         onClick={() => window.open(`/${locale}/views-flight-timeline`, '_blank')}
@@ -452,7 +455,7 @@ const ListTable = ({
 
                     {/* Desktop (>= lg): Full Action Buttons Row */}
                     <div className="hidden lg:flex items-center gap-1.5 sm:gap-2 flex-nowrap shrink-0">
-                        <PermissionActionGuard menuCode="FLIGHT" action="canCreate">
+                        <PermissionActionGuard menuCode={MENU.FLIGHT_LIST} action="canCreate">
                             <Button color="primary" onClick={() => setOpen(true)} size="sm" className="h-8 sm:h-9 text-xs sm:text-sm">
                                 <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5" />
                                 <span>Add Flight</span>
@@ -471,6 +474,7 @@ const ListTable = ({
                             </Button>
                         </PermissionActionGuard>
                         {/* Download Template Button */}
+                        <PermissionActionGuard menuCode={MENU.FLIGHT_LIST} action={["canCreate", "canExport"]}>
                         <Button
                             className="flex-none h-8 sm:h-9 text-xs sm:text-sm"
                             color="secondary"
@@ -484,7 +488,8 @@ const ListTable = ({
                                 : <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5" />}
                             <span>Template</span>
                         </Button>
-                        <PermissionActionGuard menuCode="FLIGHT_TIMELINE" action="canView">
+                        </PermissionActionGuard>
+                        <PermissionActionGuard menuCode={MENU.FLIGHT_TIMELINE} action="canView">
                             <Button color="default" onClick={() => window.open(`/${locale}/views-flight-timeline`, '_blank')} size="sm" className="h-8 sm:h-9 text-xs sm:text-sm">
                                 <AlignStartVertical className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5" />
                                 <span>Timeline</span>
@@ -669,7 +674,7 @@ const ListTable = ({
                                         flights
                                     </span>
                                     {selectedFlights.length > 0 && (
-                                        <PermissionActionGuard menuCode="FLIGHT" action="canDelete">
+                                        <PermissionActionGuard menuCode={MENU.FLIGHT_LIST} action="canDelete">
                                             <span className="text-xs font-medium text-slate-500">· {selectedFlights.length} selected</span>
                                             <Button
                                                 type="button"

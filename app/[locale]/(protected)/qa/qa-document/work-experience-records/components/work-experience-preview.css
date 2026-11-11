@@ -246,6 +246,10 @@
     }
     .wep-pages-container * {
         visibility: visible;
+        /* Force table header fills to print even when the browser's
+           "Background graphics" option is off (Chrome/Edge on Windows default). */
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
     }
     .wep-toolbar,
     .wep-measure {

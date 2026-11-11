@@ -10,6 +10,8 @@ import { GlobalHeader } from './layout/GlobalHeader';
 import { OverviewTab } from './tabs/OverviewTab';
 import { CompareTab } from './tabs/CompareTab';
 import { CategoryTab } from './tabs/CategoryTab';
+import { MENU } from "@/lib/permission-codes";
+import { useMenuPermission } from "@/hooks/use-menu-permission";
 
 type MainTabId = 'overview' | 'compare' | 'category';
 
@@ -17,6 +19,7 @@ type MainTabId = 'overview' | 'compare' | 'category';
  * Revenue Comparison Dashboard — drop-in Next.js module.
  */
 export function RevenueComparisonDashboard({ data, onPeriodsChange, className = '' }: RevenueComparisonDashboardProps) {
+  const perm = useMenuPermission(MENU.PRODUCTION_DASHBOARD);
   const dashboardData = data ?? mockRevenueDashboardData;
   const [activeTab, setActiveTab] = useState<MainTabId>('overview');
 
@@ -46,7 +49,7 @@ export function RevenueComparisonDashboard({ data, onPeriodsChange, className = 
             title={dashboardData.title}
             periods={dashboardData.periods}
             onPeriodsChange={onPeriodsChange}
-            onDownload={handleDownload}
+            onDownload={perm.canExport ? handleDownload : undefined}
           />
 
           {/* Tabs — bottom-border style matching Invoice page */}

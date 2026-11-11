@@ -48,6 +48,7 @@ import { useStaffAuthorizationAirlineStatuses } from '@/lib/api/master/staff-aut
 import type { StaffAuthorizationAirlineStatus } from '@/lib/api/master/staff-authorization/staff-authorization-airline-statuses'
 import { buildCustomerAuthRecordMap, formatCustomerAuthDate, getCustomerAuthCellData, getCustomerAuthCellKey, getCustomerAuthDateValue, getCustomerAuthPageItems, mapCustomerAuthStatus, resolveCustomerAuthAircrafts, resolveCustomerAuthCell, shouldShowCustomerAuthDates } from '@/lib/api/qa/authorization/customer-auth.utils'
 import { groupCombinationDisplayLabels } from '@/lib/utils/aircraftEngineDisplay'
+import { MENU } from "@/lib/permission-codes";
 
 // ─── Date Formatting Helper ─────────────────────────────────────────────────
 
@@ -1091,7 +1092,7 @@ function MatrixView() {
                 <div className="flex items-center justify-between w-full">
                   {/* Left: Not Approved action — only for Pending & Expired */}
                   {(selectedCell.status === 'pending' || selectedCell.status === 'suspended') ? (
-                    <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
+                    <PermissionActionGuard menuCode={MENU.QA_AUTHORIZATION} action="canEdit">
                       <Button
                         color="destructive"
                         disabled={updateAuthMutation.isPending || authRecordsLoading}
@@ -1135,7 +1136,7 @@ function MatrixView() {
                     <Button variant="outline" onClick={() => setSelectedCell(null)} className="font-bold" disabled={updateAuthMutation.isPending}>
                       Cancel
                     </Button>
-                    <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
+                    <PermissionActionGuard menuCode={MENU.QA_AUTHORIZATION} action="canEdit">
                       <Button
                         disabled={updateAuthMutation.isPending || authRecordsLoading}
                         onClick={async () => {

@@ -24,8 +24,8 @@ const menu = (
     ...over,
 });
 
-const FLIGHT = menu({ menuCode: "FLIGHT", route: "/flight", sortOrder: 1 });
-const INVOICE = menu({ menuCode: "INVOICE", route: "/invoice", sortOrder: 2 });
+const FLIGHT = menu({ menuId: 1, menuCode: "FLIGHT_LIST", route: "/flight", sortOrder: 1 });
+const INVOICE = menu({ menuId: 2, menuCode: "INVOICE", route: "/invoice", sortOrder: 2 });
 
 describe("stripLocale / getLocaleFromPathname", () => {
     it("strips a locale prefix and normalises the bare locale to /", () => {

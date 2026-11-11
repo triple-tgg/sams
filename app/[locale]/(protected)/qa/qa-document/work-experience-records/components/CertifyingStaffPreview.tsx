@@ -9,6 +9,8 @@ import { useStaffPrintPreview } from '@/lib/api/hooks/useQAStaffManagement'
 import { formatDate } from '@/app/[locale]/(protected)/hr/staff/[id]/utils'
 import { groupCombinationDisplayLabels } from '@/lib/utils/aircraftEngineDisplay'
 import './certifying-staff-preview.css'
+import { MENU } from "@/lib/permission-codes";
+import { useMenuPermission } from "@/hooks/use-menu-permission";
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -57,6 +59,7 @@ async function waitForPrintableAssets(container: HTMLElement) {
 }
 
 export function CertifyingStaffPreview({ isOpen, onClose, staffId }: CertifyingStaffPreviewProps) {
+    const perm = useMenuPermission(MENU.QA_DOC_WORK_EXPERIENCE);
     const pagesRef = useRef<HTMLDivElement>(null)
     const [isDownloading, setIsDownloading] = useState(false)
     const [isPrinting, setIsPrinting] = useState(false)
@@ -172,14 +175,14 @@ export function CertifyingStaffPreview({ isOpen, onClose, staffId }: CertifyingS
             <div className="csp-toolbar">
                 <span className="csp-toolbar-title">Certifying Staff Maintenance Experience Summary Form (Preview)</span>
                 <div className="csp-toolbar-actions">
-                    <button
+                    {perm.canExport && (<button
                         className="csp-btn csp-btn-primary"
                         onClick={handlePrint}
                         disabled={!isPreviewReady || isBusy}
                     >
                         {isPrinting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
                         {isPrinting ? 'Preparing...' : 'Print'}
-                    </button>
+                    </button>)}
                     <button className="csp-btn csp-btn-close" onClick={onClose}>
                         <X className="h-4 w-4" />
                     </button>

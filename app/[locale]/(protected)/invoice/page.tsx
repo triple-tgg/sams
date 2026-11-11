@@ -23,8 +23,11 @@ import type { InvoiceRequest } from "@/lib/api/contract/invoiceApi";
 import { CURRENCY_VALUES, CurrencyType } from "@/lib/constants/currency";
 
 import { dateTimeUtils } from "@/lib/dayjs";
+import { MENU } from "@/lib/permission-codes";
+import { useMenuPermission } from "@/hooks/use-menu-permission";
 
 const InvoicePage = () => {
+    const perm = useMenuPermission(MENU.INVOICE);
     const t = useTranslations("Menu");
 
     // Today's date in YYYY-MM-DD format (user's local timezone)
@@ -217,13 +220,13 @@ const InvoicePage = () => {
                         Manage pre-invoices and draft invoices for airline maintenance services.
                     </CardDescription>
                     <div className="flex items-center gap-2 ml-auto">
-                        {hasSearched && activeTab === "pre-invoice" && (
+                        {perm.canExport && hasSearched && activeTab === "pre-invoice" && (
                             <Button variant="outline" color="primary" onClick={handleExport} disabled={preInvoices.length === 0}>
                                 <Download className="h-4 w-4 mr-2" />
                                 Export
                             </Button>
                         )}
-                        {hasSearched && activeTab === "draft-invoice" && (
+                        {perm.canExport && hasSearched && activeTab === "draft-invoice" && (
                             <Button variant="outline" color="info" onClick={handleOpenPrintPreview} disabled={draftInvoices.length === 0}>
                                 <Printer className="h-4 w-4 mr-2" />
                                 Print

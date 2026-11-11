@@ -25,6 +25,8 @@ import type { FlightItem } from '@/lib/api/flight/filghtlist.interface';
 import { useStations } from '@/lib/api/hooks/useStations';
 import { DEFAULT_ROSTER_STATION, useRosterFlights } from '@/lib/roster/useRosterData';
 import { EmptyBlock, LoadingBlock, Pill, RosterHeader, StatTile, StationSelect, WeekNav, td, th } from '../components/RosterUi';
+import { MENU } from "@/lib/permission-codes";
+import { useMenuPermission } from "@/hooks/use-menu-permission";
 
 /** Same 3 views as views-flight-timeline: week timeline, day timeline, table */
 type View = 'week' | 'day' | 'table';
@@ -189,6 +191,7 @@ function ChipRow({
 }
 
 export default function FlightRosterPage() {
+    const perm = useMenuPermission(MENU.FLIGHT_ROSTER);
     const [stationCode, setStationCode] = useState(DEFAULT_ROSTER_STATION);
     const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
     const [view, setView] = useState<View>('week');
@@ -332,14 +335,14 @@ export default function FlightRosterPage() {
                             ))}
                         </div>
                     </div>
-                    <button
+                    {perm.canCreate && (<button
                         type="button"
                         onClick={() => setOpenAddFlight(true)}
                         className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg bg-[#075CA2] px-3.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-[#075CA2]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075CA2]/50"
                     >
                         <Plus className="h-4 w-4" />
                         <span>Add Flight</span>
-                    </button>
+                    </button>)}
                 </RosterHeader>
 
                 <div className="grid grid-cols-2 gap-3 px-5 py-4 md:grid-cols-4">
@@ -594,7 +597,7 @@ export default function FlightRosterPage() {
                                                 <Pill tone={cancelled ? 'default' : f.statusObj?.code === 'Planning' ? 'info' : 'success'}>{statusOf(f)}</Pill>
                                             </td>
                                             <td className={cn(td, 'text-center whitespace-nowrap')}>
-                                                <button
+                                                {perm.canEdit && (<button
                                                     type="button"
                                                     title="แก้ไขข้อมูล Flight"
                                                     aria-label="Edit Flight"
@@ -611,7 +614,7 @@ export default function FlightRosterPage() {
                                                     )}
                                                 >
                                                     <SquarePen className="h-3.5 w-3.5" />
-                                                </button>
+                                                </button>)}
                                             </td>
                                         </tr>
                                     );

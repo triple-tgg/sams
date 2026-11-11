@@ -10,8 +10,9 @@ import { btnOutline, btnPrimary } from '../_plan/dialogs';
 import { nowLabel } from '../_plan/data';
 import { CS_DOT, CS_SEED, CS_SHEET_HEADER, CS_TYPES, ST_ORDER, isHold, sortByName, usedStations, type CustomerService, type ServiceType } from './data';
 import { CsImportDialog, CustomerDialog } from './dialogs';
+import { MENU } from '@/lib/permission-codes';
 
-const PERM = 'CUSTOMER_SERVICE_TYPE';
+const PERM = MENU.CUSTOMER_SERVICE_TYPE;
 
 type View = 'matrix' | 'list';
 const VIEWS: { key: View; label: string; icon: typeof List }[] = [

@@ -282,6 +282,9 @@
     .pp-overlay,
     .pp-overlay * {
         visibility: visible !important;
+        /* Print background fills even when "Background graphics" is off. */
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
     }
 
     .pp-overlay {

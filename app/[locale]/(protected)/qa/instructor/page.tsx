@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Search, Plus, Users, GraduationCap, Loader2, Edit3, Trash2, ExternalLink, ChevronUp, ChevronDown, ChevronsUpDown, UserX, MoreVertical, UserRound, PenTool, FileText } from 'lucide-react'
+import { Search, Plus, Users, GraduationCap, Loader2, Edit3, Trash2, ExternalLink, ChevronUp, ChevronDown, ChevronsUpDown, UserX, MoreVertical, UserRound, PenTool, FileText, AlertTriangle } from 'lucide-react'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -35,8 +35,31 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { isInstructorActive, type InstructorItem, type InstructorUpsertRequest } from '@/lib/api/qa/instructor'
+import { isInstructorActive, fromDateInputValue, toDateInputValue, getValidityStatus, VALIDITY_WARN_DAYS, type InstructorItem, type InstructorUpsertRequest, type ValidityStatus } from '@/lib/api/qa/instructor'
 import { Switch } from '@/components/ui/switch'
+import { MENU } from "@/lib/permission-codes";
+import { useMenuPermission } from "@/hooks/use-menu-permission";
+
+/** Badge under the Valid To date: expired / expiring soon. */
+function ValidityBadge({ status }: { status: ValidityStatus }) {
+    if (status.state === 'expired') {
+        return (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-red-200 bg-red-50 text-[10px] font-semibold text-red-700">
+                <AlertTriangle className="w-3 h-3" />
+                Expired{status.daysAgo > 0 ? ` ${status.daysAgo}d ago` : ''}
+            </span>
+        )
+    }
+    if (status.state === 'expiring') {
+        return (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-amber-200 bg-amber-50 text-[10px] font-semibold text-amber-700">
+                <AlertTriangle className="w-3 h-3" />
+                {status.daysLeft === 0 ? 'Expires today' : `Expires in ${status.daysLeft}d`}
+            </span>
+        )
+    }
+    return null
+}
 
 type TypeFilter = 'all' | 'internal' | 'external'
 const TYPE_FILTERS: { value: TypeFilter; label: string }[] = [
@@ -46,6 +69,7 @@ const TYPE_FILTERS: { value: TypeFilter; label: string }[] = [
 ]
 
 export default function InstructorPage() {
+    const perm = useMenuPermission(MENU.QA_INSTRUCTOR);
     const [search, setSearch] = useState('')
     const [showAddModal, setShowAddModal] = useState(false)
     const [editingInstructor, setEditingInstructor] = useState<InstructorFormData | null>(null)
@@ -53,6 +77,8 @@ export default function InstructorPage() {
     // Code column sort: asc → desc → none (API order)
     const [codeSort, setCodeSort] = useState<'asc' | 'desc' | null>(null)
     const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
+    // Show only active instructors whose validity is expired or expiring soon
+    const [attentionOnly, setAttentionOnly] = useState(false)
     const [profileStaffId, setProfileStaffId] = useState<number | null>(null)
     const toggleCodeSort = () => setCodeSort(s => (s === null ? 'asc' : s === 'asc' ? 'desc' : null))
 
@@ -67,8 +93,18 @@ export default function InstructorPage() {
         external: instructors.filter(i => !i.flagInternal).length,
     }
 
+    // Active instructors whose validity needs attention (inactive ones aren't scheduled, so not flagged)
+    const needsAttention = (inst: InstructorItem) => {
+        const s = getValidityStatus(inst.validTo).state
+        return isInstructorActive(inst) && (s === 'expired' || s === 'expiring')
+    }
+    const expiredList = instructors.filter(i => isInstructorActive(i) && getValidityStatus(i.validTo).state === 'expired')
+    const expiringList = instructors.filter(i => isInstructorActive(i) && getValidityStatus(i.validTo).state === 'expiring')
+    const showAttentionOnly = attentionOnly && expiredList.length + expiringList.length > 0
+
     // Filter by type and search, then sort by code when requested
     const searched = instructors.filter((inst) => {
+        if (showAttentionOnly && !needsAttention(inst)) return false
         if (typeFilter === 'internal' && !inst.flagInternal) return false
         if (typeFilter === 'external' && inst.flagInternal) return false
         if (!search) return true
@@ -102,6 +138,8 @@ export default function InstructorPage() {
         flagInternal: !!inst.flagInternal,
         staffId: inst.flagInternal && inst.staffId ? inst.staffId : null,
         isActive: isInstructorActive(inst),
+        validFrom: fromDateInputValue(toDateInputValue(inst.validFrom)),
+        validTo: fromDateInputValue(toDateInputValue(inst.validTo)),
     })
 
     const [togglingId, setTogglingId] = useState<number | null>(null)
@@ -133,6 +171,8 @@ export default function InstructorPage() {
                 flagInternal: data.flagInternal,
                 staffId: data.flagInternal ? data.staffId : null, // External → no staff link
                 approvalLetterLink: data.approvalLetterLink,
+                validFrom: fromDateInputValue(data.validFrom),
+                validTo: fromDateInputValue(data.validTo),
             })
             toast.success(data.id ? 'Instructor updated successfully' : 'Instructor added successfully')
             setShowAddModal(false)
@@ -154,6 +194,8 @@ export default function InstructorPage() {
             flagInternal: !!inst.flagInternal,
             staffId: inst.staffId ?? 0,
             approvalLetterLink: inst.approvalLetterLink ?? '',
+            validFrom: toDateInputValue(inst.validFrom),
+            validTo: toDateInputValue(inst.validTo),
         })
     }
 
@@ -168,17 +210,13 @@ export default function InstructorPage() {
         }
     }
 
-    const formatDate = (dateStr: string) => {
-        if (!dateStr) return '-'
-        try {
-            return new Date(dateStr).toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric',
-            })
-        } catch {
-            return dateStr
-        }
+
+    /** Validity dates are calendar days: format the date part only, so no timezone shift. */
+    const formatDateOnly = (value?: string | null) => {
+        const v = toDateInputValue(value)
+        if (!v) return '-'
+        const [y, m, d] = v.split('-').map(Number)
+        return new Date(y, m - 1, d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
     }
 
     return (
@@ -191,10 +229,10 @@ export default function InstructorPage() {
                         Manage training instructors and their qualifications
                     </p>
                 </div>
-                <Button color='primary' className="gap-2" onClick={() => setShowAddModal(true)}>
+                {perm.canCreate && (<Button color='primary' className="gap-2" onClick={() => setShowAddModal(true)}>
                     <Plus className="w-4 h-4" />
                     Add Instructor
-                </Button>
+                </Button>)}
             </div>
 
             {/* Stats Cards */}
@@ -240,6 +278,40 @@ export default function InstructorPage() {
                 </Card>
             </div>
 
+            {/* Validity warning */}
+            {!isLoading && expiredList.length + expiringList.length > 0 && (
+                <div
+                    role="alert"
+                    className={`flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between ${expiredList.length > 0
+                        ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200'
+                        : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200'
+                        }`}
+                >
+                    <div className="flex items-start gap-3 min-w-0">
+                        <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+                        <div className="min-w-0 text-sm">
+                            <p className="font-semibold">
+                                {[
+                                    expiredList.length > 0 && `${expiredList.length} instructor${expiredList.length > 1 ? 's have' : ' has'} expired`,
+                                    expiringList.length > 0 && `${expiringList.length} expiring within ${VALIDITY_WARN_DAYS} days`,
+                                ].filter(Boolean).join(' · ')}
+                            </p>
+                            <p className="text-xs opacity-80 mt-0.5 line-clamp-2">
+                                {[...expiredList, ...expiringList].map(i => `${i.title} ${i.name}`.trim()).join(', ')}
+                            </p>
+                        </div>
+                    </div>
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0 bg-white/70 dark:bg-transparent"
+                        onClick={() => setAttentionOnly(v => !v)}
+                    >
+                        {showAttentionOnly ? 'Show all' : 'Show these only'}
+                    </Button>
+                </div>
+            )}
+
             {/* Table Card */}
             <Card>
                 <CardHeader className="pb-4">
@@ -283,8 +355,8 @@ export default function InstructorPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
+                    <Table wrapperClassName="max-h-[calc(100vh-280px)] min-h-80">
+                        <TableHeader className="sticky top-0 z-30 bg-card shadow-[0_1px_0_0_var(--border)]">
                             <TableRow>
                                 <TableHead className="w-[50px]">#</TableHead>
                                 <TableHead className="sticky left-0 z-20 min-w-55 bg-card shadow-[1px_0_0_0_var(--border)]">Instructor Name</TableHead>
@@ -307,15 +379,16 @@ export default function InstructorPage() {
                                 </TableHead>
                                 <TableHead>Type</TableHead>
                                 <TableHead>Email</TableHead>
+                                <TableHead>Valid From</TableHead>
+                                <TableHead>Valid To</TableHead>
                                 <TableHead className="text-center">Active</TableHead>
-                                <TableHead>Updated</TableHead>
                                 <TableHead className="w-20 text-center sticky right-0 z-20 bg-card shadow-[-1px_0_0_0_var(--border)]">Action</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
                                 <TableRow>
-                                    <TableCell colSpan={8} className="h-40 text-center">
+                                    <TableCell colSpan={9} className="h-40 text-center">
                                         <div className="flex flex-col items-center gap-3">
                                             <Loader2 className="w-6 h-6 text-primary animate-spin" />
                                             <p className="text-xs text-muted-foreground">Loading instructors...</p>
@@ -324,13 +397,13 @@ export default function InstructorPage() {
                                 </TableRow>
                             ) : filtered.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={8} className="h-40 text-center">
+                                    <TableCell colSpan={9} className="h-40 text-center">
                                         <div className="flex flex-col items-center gap-3 text-muted-foreground">
                                             <Users className="w-10 h-10 opacity-30" />
                                             <div>
                                                 <p className="text-sm font-medium">No instructors found</p>
                                                 <p className="text-xs">
-                                                    {search || typeFilter !== 'all'
+                                                    {search || typeFilter !== 'all' || showAttentionOnly
                                                         ? 'Try a different search term or type filter'
                                                         : 'Click "Add Instructor" to get started'}
                                                 </p>
@@ -366,18 +439,31 @@ export default function InstructorPage() {
                                             </span>
                                         </TableCell>
                                         <TableCell className="text-xs text-muted-foreground">{inst.email || '-'}</TableCell>
+                                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{formatDateOnly(inst.validFrom)}</TableCell>
+                                        <TableCell className="text-xs whitespace-nowrap">
+                                            {(() => {
+                                                const status = getValidityStatus(inst.validTo)
+                                                return (
+                                                    <div className="flex flex-col items-start gap-1">
+                                                        <span className={status.state === 'expired' ? 'font-semibold text-red-700' : status.state === 'expiring' ? 'font-semibold text-amber-700' : 'text-muted-foreground'}>
+                                                            {formatDateOnly(inst.validTo)}
+                                                        </span>
+                                                        <ValidityBadge status={status} />
+                                                    </div>
+                                                )
+                                            })()}
+                                        </TableCell>
                                         <TableCell className="text-center">
                                             <div className="inline-flex items-center gap-2">
                                                 <Switch
                                                     checked={isInstructorActive(inst)}
                                                     onCheckedChange={(checked) => handleToggleActive(inst, checked)}
-                                                    disabled={togglingId !== null}
+                                                    disabled={togglingId !== null || !perm.canEdit}
                                                     aria-label={`${inst.name} active`}
                                                 />
                                                 {togglingId === inst.id && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
                                             </div>
                                         </TableCell>
-                                        <TableCell className="text-xs text-muted-foreground">{formatDate(inst.updatedDate)}</TableCell>
                                         <TableCell className="sticky right-0 z-10 bg-inherit shadow-[-1px_0_0_0_var(--border)]">
                                             <div className="flex items-center justify-center">
                                                 <DropdownMenu modal={false}>
@@ -396,9 +482,9 @@ export default function InstructorPage() {
                                                                 <UserRound className="w-4 h-4" /> View Profile
                                                             </DropdownMenuItem>
                                                         )}
-                                                        <DropdownMenuItem onSelect={() => handleEdit(inst)} className="gap-2 cursor-pointer">
+                                                        {perm.canEdit && (<DropdownMenuItem onSelect={() => handleEdit(inst)} className="gap-2 cursor-pointer">
                                                             <Edit3 className="w-4 h-4" /> Edit Instructor
-                                                        </DropdownMenuItem>
+                                                        </DropdownMenuItem>)}
                                                         {inst.licenseLink && (
                                                             <DropdownMenuItem asChild className="gap-2 cursor-pointer">
                                                                 <a href={inst.licenseLink} target="_blank" rel="noopener noreferrer">
@@ -415,13 +501,13 @@ export default function InstructorPage() {
                                                                 </a>
                                                             </DropdownMenuItem>
                                                         )}
-                                                        <DropdownMenuSeparator />
-                                                        <DropdownMenuItem
+                                                        {perm.canDelete && <DropdownMenuSeparator />}
+                                                        {perm.canDelete && (<DropdownMenuItem
                                                             onSelect={() => setDeletingId(inst.id)}
                                                             className="gap-2 cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
                                                         >
                                                             <Trash2 className="w-4 h-4" /> Delete Instructor
-                                                        </DropdownMenuItem>
+                                                        </DropdownMenuItem>)}
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </div>

@@ -44,8 +44,11 @@ import { useQAStaffList } from "@/lib/api/hooks/useQAStaffManagement";
 import { useStaffById } from "@/lib/api/hooks/useQAStaffManagement";
 
 import StaffPickerDialog from "./components/StaffPickerDialog";
+import { MENU } from "@/lib/permission-codes";
+import { useMenuPermission } from "@/hooks/use-menu-permission";
 
 const ManagerMappingPage = () => {
+  const perm = useMenuPermission(MENU.MASTER_DATA_MANAGER_MAPPING);
   // Data — departments from API
   const { data: deptResp, isLoading: isLoadingDepts } = useStaffDepartments();
   const departments: DepartmentItem[] = useMemo(() => {
@@ -344,14 +347,14 @@ const ManagerMappingPage = () => {
                     has a manager assigned (Staff ID: {currentMapping.staffId}) but the staff record could not be loaded.
                   </p>
                   <div className="flex items-center gap-2">
-                    <Button variant="outline" color="primary" onClick={() => setShowPicker(true)}>
+                    {(perm.canCreate || perm.canEdit) && (<Button variant="outline" color="primary" onClick={() => setShowPicker(true)}>
                       <Pencil className="h-4 w-4 mr-1.5" />
                       Change
-                    </Button>
-                    <Button variant="outline" color="destructive" onClick={() => setShowDeleteConfirm(true)}>
+                    </Button>)}
+                    {perm.canDelete && (<Button variant="outline" color="destructive" onClick={() => setShowDeleteConfirm(true)}>
                       <Trash2 className="h-4 w-4 mr-1.5" />
                       Remove
-                    </Button>
+                    </Button>)}
                   </div>
                 </div>
               ) : !currentStaff ? (
@@ -370,10 +373,10 @@ const ManagerMappingPage = () => {
                     </span>{" "}
                     does not have a manager assigned yet.
                   </p>
-                  <Button color="primary" onClick={() => setShowPicker(true)}>
+                  {(perm.canCreate || perm.canEdit) && (<Button color="primary" onClick={() => setShowPicker(true)}>
                     <UserPlus className="h-4 w-4 mr-2" />
                     Assign Manager
-                  </Button>
+                  </Button>)}
                 </div>
               ) : (
                 /* Manager info display */
@@ -389,7 +392,7 @@ const ManagerMappingPage = () => {
                       </p>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <Button
+                      {(perm.canCreate || perm.canEdit) && (<Button
                         variant="outline"
                         size="sm"
                         color="primary"
@@ -397,8 +400,8 @@ const ManagerMappingPage = () => {
                       >
                         <Pencil className="h-3.5 w-3.5 mr-1.5" />
                         Change
-                      </Button>
-                      <Button
+                      </Button>)}
+                      {perm.canDelete && (<Button
                         variant="outline"
                         size="sm"
                         color="destructive"
@@ -406,7 +409,7 @@ const ManagerMappingPage = () => {
                       >
                         <Trash2 className="h-3.5 w-3.5 mr-1.5" />
                         Remove
-                      </Button>
+                      </Button>)}
                     </div>
                   </div>
 

@@ -59,6 +59,7 @@ import {
   mapAuthorityApiStatus,
   resolveAuthorityLicenseCell,
 } from '@/lib/api/qa/authorization/authority-auth.status'
+import { MENU } from "@/lib/permission-codes";
 
 // ─── Date Formatting Helper ─────────────────────────────────────────────────
 
@@ -846,7 +847,7 @@ function MatrixView() {
                           <div className="relative flex items-center justify-center w-full min-h-[20px]">
                             <span>{samsAuth.authorizationNo || '—'}</span>
                             <div className="absolute right-0 flex items-center">
-                              <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
+                              <PermissionActionGuard menuCode={MENU.QA_AUTHORIZATION} action="canEdit">
                                 <button
                                   onClick={() => handleSamsEditClick(s.staffId)}
                                   className="inline-flex items-center justify-center w-5 h-5 rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
@@ -861,7 +862,7 @@ function MatrixView() {
                       </>
                     ) : (
                       <td colSpan={4} className="px-2 py-1.5 text-center border-l border-r border-border/50">
-                        <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
+                        <PermissionActionGuard menuCode={MENU.QA_AUTHORIZATION} action="canEdit">
                           <button
                             onClick={() => handleSamsAddClick(s)}
                             className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[10px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
@@ -1161,7 +1162,7 @@ function MatrixView() {
                 <div className="flex items-center justify-between w-full">
                   {/* Left: Not Approved action — only for Pending & Expired */}
                   {(selectedCell.status === 'pending' || selectedCell.status === 'suspended') ? (
-                    <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
+                    <PermissionActionGuard menuCode={MENU.QA_AUTHORIZATION} action="canEdit">
                       <Button
                         color="destructive"
                         disabled={upsertMutation.isPending || detailQuery.isFetching}
@@ -1205,7 +1206,7 @@ function MatrixView() {
                     <Button variant="outline" onClick={() => setSelectedCell(null)} className="font-bold" disabled={upsertMutation.isPending}>
                       Cancel
                     </Button>
-                    <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
+                    <PermissionActionGuard menuCode={MENU.QA_AUTHORIZATION} action="canEdit">
                       <Button
                         disabled={upsertMutation.isPending || detailQuery.isFetching}
                         onClick={async () => {
@@ -1328,7 +1329,7 @@ function MatrixView() {
                 <Button variant="outline" size="sm" onClick={handleSamsEditClose} className="text-xs font-bold">
                   Cancel
                 </Button>
-                <PermissionActionGuard menuCode="QA_AUTHORIZATION" action="canEdit">
+                <PermissionActionGuard menuCode={MENU.QA_AUTHORIZATION} action="canEdit">
                   <Button
                     size="sm"
                     onClick={handleSamsEditSave}

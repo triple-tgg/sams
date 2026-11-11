@@ -60,12 +60,15 @@ import {
     type ImportKind,
     type NewVersionDraft,
 } from './dialogs';
+import { MENU } from "@/lib/permission-codes";
+import { useMenuPermission } from "@/hooks/use-menu-permission";
 
 const SERIES_CHIP: Record<Series, string> = { b: '#5b6778', p: '#1f5fbf', a: 'hsl(206, 92%, 35%)' };
 
 const selectCls = 'h-9 rounded-md border border-border bg-card px-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/20';
 
 export function PlanWorkspace({ mode }: { mode: Mode }) {
+    const perm = useMenuPermission(mode === 'rev' ? MENU.REVENUE_PLAN : MENU.PRODUCTION_PLAN);
     const isRev = mode === 'rev';
     const store = usePlanStore();
     const userName = useSelector((s: RootState) => s.auth.users?.fullName || s.auth.users?.username) || 'Unknown user';
@@ -101,7 +104,9 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
 
     const yearVersions = store.versions.filter((v) => v.year === year);
     const version: PlanVersion | undefined = yearVersions.find((v) => v.id === versionId) ?? yearVersions[0];
-    const editable = !!version && isVersionEditable(store.versions, version.id);
+    // Version lock (only the latest versions are editable) AND the role's permission
+    const versionEditable = !!version && isVersionEditable(store.versions, version.id);
+    const editable = versionEditable && perm.canEdit;
     const editing = edit !== null;
     const snap = edit?.snapshot ?? version?.snapshot;
     const closed = closedMonths(year);
@@ -329,7 +334,7 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
             setVersionId(created.id);
             toast.success(`Plan imported from ${fileName} — created version ${label}`);
         } else {
-            const target = editable && version ? version : store.versions[0];
+            const target = versionEditable && version ? version : store.versions[0];
             updatePlanStore((s) => ({
                 ...s,
                 budgetImportedAt: kind === 'budget' ? label : s.budgetImportedAt,
@@ -521,15 +526,19 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
                     </label>
                     {!editable && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400">
-                            <Lock className="h-3 w-3" /> Read-only (only the latest {EDITABLE_VERSION_COUNT} versions are editable)
+                            <Lock className="h-3 w-3" />{' '}
+                            {versionEditable ? 'Read-only (no edit permission)' : `Read-only (only the latest ${EDITABLE_VERSION_COUNT} versions are editable)`}
                         </span>
                     )}
 
                     <div className="flex-1" />
 
+                    {perm.canCreate && (
                     <button type="button" className={btnPrimary} onClick={() => setImportOpen(true)} disabled={editing}>
                         <Upload className="h-4 w-4" /> Import
                     </button>
+                    )}
+                    {perm.canExport && (
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <button type="button" className={btnOutline}>
@@ -545,6 +554,7 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
+                    )}
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <button type="button" className={cn(btnOutline, 'w-9 px-0')} aria-label="More options">
@@ -555,7 +565,7 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
                             {/* Dialogs open after the menu closes, so Radix doesn't leave pointer-events locked */}
                             <DropdownMenuItem
                                 id="plan-create-version"
-                                disabled={editing}
+                                disabled={editing || !perm.canCreate}
                                 onSelect={() => setTimeout(() => setCreateOpen(true))}
                                 className="flex-col items-start gap-0.5 py-2"
                             >
@@ -565,7 +575,7 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
                                 <span className="pl-6 text-xs text-muted-foreground">Define Station / Airline / A/C type · monthly figures to key in</span>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onSelect={downloadTemplate} className="flex-col items-start gap-0.5 py-2">
+                            <DropdownMenuItem onSelect={downloadTemplate} disabled={!perm.canExport} className="flex-col items-start gap-0.5 py-2">
                                 <span className="flex items-center gap-2 font-medium">
                                     <FileSpreadsheet className="h-4 w-4" /> Download Template
                                 </span>
@@ -625,9 +635,9 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
                     <button
                         type="button"
                         className={cn(btnOutline, 'h-8 px-3 text-xs text-[hsl(206_92%_35%)] dark:text-sky-300')}
-                        disabled={!editable || editing || !freeStations.length}
+                        disabled={!versionEditable || !perm.canCreate || editing || !freeStations.length}
                         onClick={() => setNewStationOpen(true)}
-                        title={!editable ? `Only the latest ${EDITABLE_VERSION_COUNT} versions are editable` : !freeStations.length ? 'All stations already added' : 'Add Station'}
+                        title={!perm.canCreate ? 'No permission to add stations' : !versionEditable ? `Only the latest ${EDITABLE_VERSION_COUNT} versions are editable` : !freeStations.length ? 'All stations already added' : 'Add Station'}
                     >
                         <Plus className="h-3.5 w-3.5" /> Station
                     </button>
@@ -656,6 +666,8 @@ export function PlanWorkspace({ mode }: { mode: Mode }) {
                     onToggle={(k) => setCollapsed((c) => ({ ...c, [k]: !c[k] }))}
                     closed={closed}
                     canEdit={editable && !editing}
+                    canCreate={versionEditable && perm.canCreate && !editing}
+                    canDelete={versionEditable && perm.canDelete && !editing}
                     editingLineId={edit?.lineId ?? null}
                     editingSeries={edit?.series ?? null}
                     onStartEdit={startRowEdit}
