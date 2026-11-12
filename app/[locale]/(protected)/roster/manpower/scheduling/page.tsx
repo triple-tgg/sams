@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import '@/lib/dayjs';
 import {
@@ -162,11 +162,13 @@ export default function ManpowerSchedulingPage() {
     );
 
     // Initialize shift roster with a balanced default pattern (3-on/3-off staggered)
-    useMemo(() => {
+    useEffect(() => {
         setShiftsByStaff((prev) => {
+            let changed = false;
             const next: Record<number, ShiftType[]> = { ...prev };
             stationStaff.forEach((s, idx) => {
                 if (!next[s.staffId]) {
+                    changed = true;
                     // Stagger shift pattern based on staff index
                     const pattern: ShiftType[] = [];
                     for (let day = 0; day < 7; day++) {
@@ -178,7 +180,7 @@ export default function ManpowerSchedulingPage() {
                     next[s.staffId] = pattern;
                 }
             });
-            return next;
+            return changed ? next : prev;
         });
     }, [stationStaff]);
 
