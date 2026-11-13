@@ -152,6 +152,9 @@
 | Detail: Section edit (Personal / Contact / Employment), Docs edit, Aircraft edit, License edit | `P/hr/staff/[id]/components/ProfileTab.tsx` | HR_STAFF canEdit | ✅ |
 | Detail: Add aircraft | ProfileTab.tsx | HR_STAFF canCreate | ✅ |
 | Detail: Delete doc / Delete AMEL doc | ProfileTab.tsx | HR_STAFF canDelete | ✅ |
+| Detail › User Account tab: view account details | `P/hr/staff/[id]/components/UserAccountTab.tsx` | MASTER_DATA_USER_LOGIN canView (or own account) | ✅ |
+| Detail › User Account tab: Create User Account | UserAccountTab.tsx | MASTER_DATA_USER_LOGIN canCreate | ✅ |
+| Detail › User Account tab: Change Password | UserAccountTab.tsx | MASTER_DATA_USER_LOGIN canEdit (or own account) | ✅ |
 | Detail: Experience / Education add / edit / delete | `ExperienceTab.tsx` | canCreate / canEdit / canDelete | ✅ |
 | Detail: Previous Training add / edit / delete | `TrainingTab.tsx` | canCreate / canEdit / canDelete | ✅ |
 | Detail: Logbook Record / Skip | `LogbookTab.tsx` | canCreate / canEdit | ✅ |
@@ -273,3 +276,4 @@
 | 2026-11-11 | Claude (ตามคำขอ sattaya prata) | ตรวจซ้ำทั้งโปรเจค + ดึง `/permission/menus/{roleId}` จาก API จริง | **DB แก้แล้ว:** tree ครบ 47 แถว HR / Roster / Master Data / QA Document มีลูกครบ · **พบว่าโค้ดแก้ของ §4 ข้อ 10 ไม่อยู่ใน repo** (commit 1718cf26 มีแค่ไฟล์นี้) → ใส่กลับ: `lib/permission-tree.ts` (`recalcParents` ล่างขึ้นบน + test 3 ตัว), เอา `permCode` ออกจากเมนูกลุ่ม 6 ตัวใน `lib/menus.ts` · **พบสำเนา `recalcParents` อีกจุด** ใน `user-login/components/UserFormDialog.tsx` (บั๊กเดียวกัน) → ใช้ตัวกลางร่วมกับหน้า Role · MENUS_DB.json ปรับให้ตรง DB จริง (ลบ `QA_TRAINING_TRAINING`, id 1–47) · code / route map / sidebar / ปุ่ม action ไม่พบจุดหลุด · test สิทธิ์ 37/37 ผ่าน · `tsc` ผ่าน (ยกเว้น error เดิม) · role ที่ทดสอบ: `QA_DOC_EMPLOYEE_HISTORY` และ `MASTER_DATA_USER_LOGIN` ยังเป็น false ทุก action |
 | 2026-11-12 | Claude (ตามคำขอ sattaya prata) | Course Management: เพิ่มปุ่ม Template (GET `/migration/courses-template`) | อยู่ใน `PermissionActionGuard` QA_COURSE_MANAGEMENT canCreate ร่วมกับ Import / Add Course — ไม่มี canCreate จะไม่เห็นปุ่ม · ไม่มีเมนูหรือ route ใหม่ ไม่ต้องแก้ DB |
 | 2026-11-12 | Claude (ตามคำขอ sattaya prata) | HR Staff List: เพิ่มปุ่ม Template (GET `/migration/staffs-template`) | อยู่ใน `PermissionActionGuard` HR_STAFF canCreate เดียวกับ Import Excel — ไม่มี canCreate จะไม่เห็นปุ่ม · ไม่มีเมนูหรือ route ใหม่ ไม่ต้องแก้ DB |
+| 2026-11-13 | Claude (ตามคำขอ sattaya prata) | HR Staff Detail: เพิ่ม tab User Account (สร้างบัญชี / ดูบัญชี / เปลี่ยนรหัสผ่าน) | ใช้สิทธิ์ `MASTER_DATA_USER_LOGIN` (ไม่ใช่ HR_STAFF) เพราะเป็นการจัดการบัญชีผู้ใช้ · ผู้ใช้ดูและเปลี่ยนรหัสผ่านบัญชีตัวเองได้แม้ไม่มีสิทธิ์ · tab แสดงทุกคนที่เข้าหน้า Staff Detail ได้ · ไม่มีเมนูหรือ route ใหม่ ไม่ต้องแก้ DB |

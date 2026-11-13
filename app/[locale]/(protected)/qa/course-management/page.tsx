@@ -228,7 +228,7 @@ export default function CourseManagementPage() {
                                 <div className={`${showMobileFilters ? 'block' : 'hidden'} space-y-4 rounded-lg border border-border p-3 lg:block lg:rounded-none lg:border-0 lg:p-0`}>
                                 {/* Department Filter */}
                                 <div>
-                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Departments</p>
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Departments (AMO145)</p>
                                     <div className="space-y-0.5">
                                         {apiDepartments.map(dept => {
                                             const isSelected = selectedDept === dept.id
@@ -268,19 +268,25 @@ export default function CourseManagementPage() {
                                                     {isExpanded && hasRoles && (
                                                         <div className="ml-3 mt-0.5 mb-1 border-l-2 border-primary/20 pl-3 space-y-0.5">
                                                             {dept.roles.map((role: { id: number; name: string }) => {
-                                                                const isSubSelected = selectedSubDept === role.id
+                                                                // Matrix tab filters by department only — positions are listed but not selectable
+                                                                const positionLocked = activeTab === 'matrix'
+                                                                const isSubSelected = !positionLocked && selectedSubDept === role.id
                                                                 return (
                                                                     <div
                                                                         key={role.id}
+                                                                        aria-disabled={positionLocked}
                                                                         onClick={(e) => {
                                                                             e.stopPropagation()
+                                                                            if (positionLocked) return
                                                                             setSelectedSubDept(isSubSelected ? null : role.id)
                                                                             setSelectedCourse(null)
                                                                         }}
-                                                                        className={`flex items-center gap-2 py-1 px-2 rounded-md text-[11px] cursor-pointer transition-colors ${
-                                                                            isSubSelected
-                                                                                ? 'bg-primary/10 text-primary font-medium'
-                                                                                : 'text-foreground/60 hover:bg-primary/5 hover:text-primary'
+                                                                        className={`flex items-center gap-2 py-1 px-2 rounded-md text-[11px] transition-colors ${
+                                                                            positionLocked
+                                                                                ? 'cursor-default text-foreground/40'
+                                                                                : isSubSelected
+                                                                                    ? 'cursor-pointer bg-primary/10 text-primary font-medium'
+                                                                                    : 'cursor-pointer text-foreground/60 hover:bg-primary/5 hover:text-primary'
                                                                         }`}
                                                                     >
                                                                         <div className={`w-1 h-1 rounded-full shrink-0 ${isSubSelected ? 'bg-primary' : 'bg-primary/30'}`} />
@@ -356,7 +362,10 @@ export default function CourseManagementPage() {
                                             )}
                                         </>
                                     ) : (
-                                        <TrainingNeedsMatrix />
+                                        <TrainingNeedsMatrix
+                                            departmentId={selectedDept === 'all' ? 0 : Number(selectedDept) || 0}
+                                            categoryId={selectedCategory === 'All' ? 0 : apiCategories.find((c: CourseCategory) => c.name === selectedCategory)?.id ?? 0}
+                                        />
                                     )}
                                 </div>
 

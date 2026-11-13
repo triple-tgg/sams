@@ -54,15 +54,15 @@ const OrganizationTree = ({
     const lower = searchTerm.toLowerCase();
     return departments.filter((dept) => {
       if (
-        dept.code.toLowerCase().includes(lower) ||
-        dept.name.toLowerCase().includes(lower)
+        (dept.code ?? "").toLowerCase().includes(lower) ||
+        (dept.name ?? "").toLowerCase().includes(lower)
       )
         return true;
       const deptPositions = positionsByDept.get(dept.id) || [];
       for (const pos of deptPositions) {
         if (
-          pos.positionCode.toLowerCase().includes(lower) ||
-          pos.positionName.toLowerCase().includes(lower)
+          (pos.positionCode ?? "").toLowerCase().includes(lower) ||
+          (pos.positionName ?? "").toLowerCase().includes(lower)
         )
           return true;
       }

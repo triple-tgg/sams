@@ -20,6 +20,10 @@ export interface ImportStaffInfo {
     joined: string;
     /** Resolved from the Position column against the position master. */
     positionId: number;
+    /** True when the staff belongs to a Part-145 (AMO 145) department. */
+    isDepartmentAmo145: boolean;
+    /** Resolved from the AMO 145 Position column against the AMO 145 position master; 0 when not AMO 145. */
+    staffDepartmentPositionAmo145Id: number;
     /** Resolved from the Station column against the station master; BKK when blank. */
     stationId: number | null;
     idCardNo: string;
@@ -40,8 +44,7 @@ interface StaffRef {
 
 export interface ImportAmelLicense extends StaffRef {
     licenseNumber: string;
-    category: string;
-    categoryId?: number;
+    categoryId: number;
     issuedDate: string;
     expiryDate: string;
 }
@@ -110,6 +113,8 @@ export interface ParsedSheetInput {
 /** Name → id, for the columns the sheet holds as text but the API wants as an id. */
 export interface ImportStaffLookups {
     positions: Array<{ id: number; code?: string | null; name: string }>;
+    /** AMO 145 position master, for the AMO 145 Position column. */
+    positionsAmo145?: Array<{ id: number; code?: string | null; name: string }>;
     stations?: Array<{ id: number; code?: string | null; name: string }>;
     aircraftLicenses?: Array<{ id: number; code?: string | null; name: string }>;
     aircraftCombinations?: Array<any>;
@@ -198,6 +203,18 @@ export function buildLookupIndex(
 
 // ── Mapping ─────────────────────────────────────────────────────────────────
 
+/** Staff Info headers (normalized) that carry the AMO 145 Yes/No flag. */
+const AMO145_FLAG_COLUMNS = ["isdepartmentamo145", "departmentamo145", "amo145", "part145"];
+/** Staff Info headers (normalized) that carry the AMO 145 position. */
+const AMO145_POSITION_COLUMNS = [
+    "staffdepartmentpositionamo145", "positionamo145", "amo145position", "part145position",
+];
+
+/** Read a Yes/No style cell: yes / y / true / 1 / ✓ count as yes, anything else as no. */
+export function parseYesNo(value: string | null | undefined): boolean {
+    return ["yes", "y", "true", "1", "✓", "x"].includes(String(value ?? "").trim().toLowerCase());
+}
+
 const EMPTY_PAYLOAD = (): ImportStaffRequest => ({
     staffInfo: [],
     amelLicense: [],
@@ -253,6 +270,7 @@ export function buildImportStaffPayload(
     };
 
     const positionIndex = buildLookupIndex(lookups.positions);
+    const positionAmo145Index = buildLookupIndex(lookups.positionsAmo145 ?? []);
     const stationIndex = buildLookupIndex(lookups.stations ?? []);
     const licenceIndex = buildLookupIndex(lookups.aircraftLicenses ?? []);
     const categoryIndex = buildLookupIndex(lookups.amelCategories ?? []);
@@ -314,11 +332,25 @@ export function buildImportStaffPayload(
                     warnings.push(`${sheet.name} row ${rowIndex}: station "${stationName}" is not in the station master`);
                 }
 
+                // AMO 145: a Yes/No flag column and/or an AMO 145 position column.
+                // A resolved AMO 145 position implies the flag even when the flag cell is blank.
+                const amoPositionName = get(data, AMO145_POSITION_COLUMNS);
+                let staffDepartmentPositionAmo145Id = 0;
+                if (amoPositionName) {
+                    const matched = positionAmo145Index.get(normalizeKey(amoPositionName));
+                    if (matched) staffDepartmentPositionAmo145Id = matched;
+                    else warnings.push(`${sheet.name} row ${rowIndex}: AMO 145 position "${amoPositionName}" is not in the AMO 145 position master`);
+                }
+                const isDepartmentAmo145 =
+                    parseYesNo(get(data, AMO145_FLAG_COLUMNS)) || staffDepartmentPositionAmo145Id > 0;
+
                 const entry: ImportStaffInfo = {
                     ...ref,
                     title: get(data, ["title"]),
                     joined: get(data, ["joined", "joineddate"]),
                     positionId,
+                    isDepartmentAmo145,
+                    staffDepartmentPositionAmo145Id: isDepartmentAmo145 ? staffDepartmentPositionAmo145Id : 0,
                     stationId,
                     idCardNo: get(data, ["thaiidcardno", "idcardno"]),
                     nationality: get(data, ["nationality"]),
@@ -329,7 +361,7 @@ export function buildImportStaffPayload(
                     address: get(data, ["address"]),
                 };
                 // stationId always has the BKK default, so it says nothing about whether the row is blank.
-                if (!isEmptyRecord(entry, ["stationId"])) add("staffInfo", entry);
+                if (!isEmptyRecord(entry, ["stationId", "isDepartmentAmo145"])) add("staffInfo", entry);
                 continue;
             }
 
@@ -350,7 +382,6 @@ export function buildImportStaffPayload(
                 const entry: ImportAmelLicense = {
                     ...ref,
                     licenseNumber: get(data, ["amellicensenumber", "licensenumber"]),
-                    category: categoryId > 0 ? String(categoryId) : categoryName,
                     categoryId,
                     issuedDate: get(data, ["issueddate"]),
                     expiryDate: get(data, ["expirydate"]),
@@ -821,10 +852,11 @@ export function parseImportStaffResult(body: unknown): ImportStaffResult {
         }
     }
 
-    const failedCount = staff.filter((s) => s.isError).length;
+    // Wrapper totals ({ total, succeeded, failed, created, updated }) win over counts derived from staffResults.
+    const failedCount = readCount(inner, ["failed", "failedCount"]) ?? staff.filter((s) => s.isError).length;
     const newFromFlags = staff.filter((s) => !s.isError && s.isNewStaff === true).length;
     const updatedFromFlags = staff.filter((s) => !s.isError && s.isNewStaff === false).length;
-    const newCount = readCount(inner, ["newStaffCount", "newCount", "createdCount", "inserted", "insertCount"]) ?? newFromFlags;
+    const newCount = readCount(inner, ["created", "newStaffCount", "newCount", "createdCount", "inserted", "insertCount"]) ?? newFromFlags;
     const updatedCount = readCount(inner, ["updatedStaffCount", "updatedCount", "updateCount", "updated"]) ?? updatedFromFlags;
 
     const warnings = Array.from(
@@ -842,7 +874,10 @@ export function parseImportStaffResult(body: unknown): ImportStaffResult {
     const rowErrors = collectRowErrors(inner.validateList ?? data.validateList);
     const flag = inner.flagPass ?? data.flagPass;
     // Staff that failed on their own are reported in the summary; the import only fails outright when none went in.
-    const allStaffFailed = staff.length > 0 && failedCount === staff.length;
+    const succeeded = readCount(inner, ["succeeded", "succeededCount"]);
+    const allStaffFailed = succeeded !== null
+        ? succeeded === 0 && failedCount > 0
+        : staff.length > 0 && failedCount === staff.length;
 
     return {
         success: flag !== false && errors.length === 0 && rowErrors.length === 0 && !allStaffFailed,

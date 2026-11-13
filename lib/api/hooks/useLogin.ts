@@ -59,6 +59,10 @@ export const useLogin = (options: UseLoginOptions = {}) => {
           role: data.responseData.roleObj?.name ?? '',       // role name
           roleId: data.responseData.roleObj?.id,             // role id
           roleCode: data.responseData.roleObj?.code ?? '',   // role code
+          flagInternal: data.responseData.flagInternal ?? false,
+          staffId: data.responseData.staffId ?? null,
+          staffEmployeeId: data.responseData.staffEmployeeId ?? data.responseData.employeeId ?? null,
+          fullNameEn: data.responseData.fullNameEn ?? null,
           token: data.responseData.accessToken
         }
 

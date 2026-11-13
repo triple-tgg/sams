@@ -175,14 +175,29 @@ export interface UpsertTrainingMonitoringExpiryRequest {
   staffId: number;
   courseId: number;
   courseAssignmentId: number;
+  /** Training start date (YYYY-MM-DD or local ISO); empty → null. */
+  dateFrom?: string | null;
+  /** Training end date (YYYY-MM-DD or local ISO); empty → null. */
+  dateTo?: string | null;
   expiryDate: string;
 }
 
 export interface UpsertTrainingMonitoringExpiryResponse {
   message: string;
-  responseData: string | { courseAssignmentId?: number } | any;
+  responseData: string;
   error: string;
 }
+
+/** A date as a local date-time without timezone ("YYYY-MM-DDT00:00:00"), or null when blank/invalid. */
+const toLocalDateTime = (value?: string | null): string | null => {
+  const v = (value ?? "").trim();
+  if (!v) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return `${v}T00:00:00`;
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?/.test(v)) {
+    return v.replace(/Z$/, "").replace(/[+-]\d{2}:\d{2}$/, "").replace(/\.\d+$/, "");
+  }
+  return null;
+};
 
 export const upsertTrainingMonitoringExpiry = async (
   data: UpsertTrainingMonitoringExpiryRequest
@@ -200,7 +215,11 @@ export const upsertTrainingMonitoringExpiry = async (
     }
 
     const res = await axiosConfig.post("/training/training-monitoring/expiry/upsert", {
-      ...data,
+      staffId: data.staffId,
+      courseId: data.courseId,
+      courseAssignmentId: data.courseAssignmentId,
+      dateFrom: toLocalDateTime(data.dateFrom),
+      dateTo: toLocalDateTime(data.dateTo),
       expiryDate: cleanedExpiry,
     });
     return res.data as UpsertTrainingMonitoringExpiryResponse;

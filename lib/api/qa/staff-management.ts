@@ -1,3 +1,4 @@
+import type { StaffDepartmentAmo145, StaffDepartmentPositionAmo145 } from "@/lib/api/master/organization-amo145";
 import axiosConfig from "@/lib/axios.config";
 
 // ── Nested Object Interfaces ──
@@ -102,6 +103,8 @@ export interface QAStaffListRequest {
      * Leave undefined to not filter — the field is then omitted from the body.
      */
     isDepartmentAmo145?: boolean;
+    /** AMO 145 position filter (empty / undefined = all). */
+    staffDepartmentPositionAmo145IdList?: number[];
     sortBy: string;
     sortDirection: string;
     page: number;
@@ -127,7 +130,8 @@ const toStaffTypeIds = (value: number | number[] | undefined): number[] =>
 /**
  * Get QA staff management list data
  * POST /master/staff-management/listdata
- * Body: { keyword, name, employeeId, staffDepartmentPositionId, departmentId, stationId,
+ * Body: { keyword, name, employeeId, staffDepartmentPositionId, staffDepartmentPositionAmo145IdList: number[],
+ *         departmentId, stationId,
  *         staffstypeId: number[], isActive, isDepartmentAmo145, sortBy, sortDirection, page, perPage }
  */
 export const getQAStaffList = async (
@@ -139,6 +143,7 @@ export const getQAStaffList = async (
             name: params.name ?? "",
             employeeId: params.employeeId ?? "",
             staffDepartmentPositionId: params.staffDepartmentPositionId || params.positionId || 0,
+            staffDepartmentPositionAmo145IdList: (params.staffDepartmentPositionAmo145IdList ?? []).filter((id) => id > 0),
             departmentId: params.departmentId ?? 0,
             stationId: params.stationId && params.stationId > 0 ? params.stationId : 0,
             staffstypeId: toStaffTypeIds(params.staffstypeId),
@@ -455,6 +460,10 @@ export interface StaffByIdData {
     email: string | null;
     address: string | null;
     employeeId: string | null;
+    /** True when a login account is linked to this staff member. */
+    isUser?: boolean;
+    /** Linked login account id (null when no account). */
+    userId?: number | null;
     startDate: string | null;
     /** Not returned by byid any more; use endWorkingDate. */
     endDate?: string | null;
@@ -464,6 +473,9 @@ export interface StaffByIdData {
     /** Part-145 Approved Maintenance Organization (AMO) assignment. */
     isDepartmentAmo145?: boolean | null;
     staffDepartmentPositionAmo145Id?: number | null;
+    /** AMO 145 position / department objects (may be null even when the id is set). */
+    staffDepartmentPositionAmo145Obj?: StaffDepartmentPositionAmo145 | null;
+    staffDepartmentAmo145Obj?: StaffDepartmentAmo145 | null;
     departmentObj: DepartmentObj | null;
     staffstypeObj: StaffTypeObj | null;
     stationId: number | null;

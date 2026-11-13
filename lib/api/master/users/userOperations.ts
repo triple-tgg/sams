@@ -6,7 +6,9 @@ import type {
     UserUpsertRequest,
     UserUpsertResponse,
     UserDeleteRequest,
-    UserDeleteResponse
+    UserDeleteResponse,
+    ChangePasswordRequest,
+    ChangePasswordResponse
 } from "./users.interface";
 
 const API_BASE = process.env.NEXT_PUBLIC_ENVIRONTMENT !== "production"
@@ -70,5 +72,27 @@ export const deleteUser = async (data: UserDeleteRequest): Promise<UserDeleteRes
     } catch (error: any) {
         console.error('Error deleting user:', error);
         throw new Error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to delete user');
+    }
+};
+
+/**
+ * Whether POST /user/change-password is live. The endpoint is still being updated on the
+ * backend; flip this to true once its body is confirmed (see ChangePasswordRequest).
+ */
+export const CHANGE_PASSWORD_API_READY = false;
+
+/**
+ * Change a user's password.
+ * POST /user/change-password — body is provisional until the API is finalised.
+ */
+export const changeUserPassword = async (data: ChangePasswordRequest): Promise<ChangePasswordResponse> => {
+    try {
+        const res = await axios.post(`${API_BASE}/user/change-password`, data, {
+            headers: { 'Content-Type': 'application/json' },
+        });
+        return res.data as ChangePasswordResponse;
+    } catch (error: any) {
+        console.error('Error changing password:', error);
+        throw new Error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to change password');
     }
 };

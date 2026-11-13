@@ -198,6 +198,8 @@ export interface CourseMatrixRequirement {
   departmentSubCode: string;
   departmentSubName: string;
   isRequired: boolean;
+  /** Aircraft/engine combinations saved on this requirement (Type Course), when the API sends them. */
+  aircraftEngineCombinationIds?: number[];
 }
 
 export interface CourseMatrixCourse {
@@ -240,10 +242,19 @@ export interface UpsertCourseMatrixRequirementRequest {
   courseId: number;
   courseDepartmentSubId: number;
   isRequired: boolean;
-  userName: string;
+  /** Aircraft/engine combinations this requirement applies to (Type Course only; [] otherwise). */
+  aircraftEngineCombinationIds: number[];
 }
 
-export const upsertCourseMatrixRequirements = async (data: UpsertCourseMatrixRequirementRequest[]) => {
+export interface UpsertCourseMatrixRequirementResponse {
+  message: string;
+  responseData: string;
+  error: string;
+}
+
+export const upsertCourseMatrixRequirements = async (
+  data: UpsertCourseMatrixRequirementRequest[]
+): Promise<UpsertCourseMatrixRequirementResponse> => {
   try {
     const res = await axiosConfig.post("/training/course-department-subs/requirements/upsert", data);
     return res.data;

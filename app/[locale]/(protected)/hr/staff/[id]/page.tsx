@@ -2,10 +2,9 @@
 
 import { useState, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { ArrowLeft, User, Shield, Briefcase, ClipboardList, Building2, Calendar, FileText, Printer, Loader2 } from 'lucide-react'
+import { ArrowLeft, User, Shield, Briefcase, ClipboardList, KeyRound, Building2, Calendar, FileText, Loader2 } from 'lucide-react'
 
 import { ProfileAvatar } from './components/ProfileAvatar'
-import { PrintPreview } from './components/PrintPreview'
 
 import { TabName, StaffData } from './types'
 import { formatDate } from './utils'
@@ -13,6 +12,7 @@ import { ProfileTab } from './components/ProfileTab'
 import { TrainingTab } from './components/TrainingTab'
 import { ExperienceTab } from './components/ExperienceTab'
 import { LogbookTab } from './components/LogbookTab'
+import { UserAccountTab } from './components/UserAccountTab'
 import { useStaffById, useStaffTrainingDashboard, useUploadStaffFile, useUpsertStaff } from '@/lib/api/hooks/useQAStaffManagement'
 import { buildStaffUpsertRequest, type StaffByIdData, type TrainingDashboardResponseData } from '@/lib/api/qa/staff-management'
 import { toast } from 'sonner'
@@ -26,6 +26,7 @@ const TABS: { name: TabName; icon: React.ReactNode }[] = [
     { name: 'Training', icon: <Shield className="h-4 w-4" /> },
     { name: 'Experience', icon: <Briefcase className="h-4 w-4" /> },
     { name: 'Logbook Records', icon: <ClipboardList className="h-4 w-4" /> },
+    { name: 'User Account', icon: <KeyRound className="h-4 w-4" /> },
 ]
 
 // ── Tab Content Map ──
@@ -34,6 +35,7 @@ const TAB_CONTENT: Record<TabName, React.ComponentType<{ staff: StaffData, apiDa
     'Training': TrainingTab,
     'Experience': ExperienceTab,
     'Logbook Records': LogbookTab,
+    'User Account': UserAccountTab,
 }
 
 // ── Map API data → StaffData ──
@@ -177,7 +179,6 @@ export default function StaffProfilePage() {
     const params = useParams()
     const staffId = Number(params.id)
     const [activeTab, setActiveTab] = useState<TabName>('Profile')
-    const [showPrintPreview, setShowPrintPreview] = useState(false)
     const uploadMutation = useUploadStaffFile()
     const upsertMutation = useUpsertStaff()
 
@@ -310,15 +311,6 @@ export default function StaffProfilePage() {
                     <div className="min-w-0">
                         {/* ── Profile Header Card ── */}
                         <div className="bg-white border border-[#e8ecf1] rounded-t-[14px] py-7 px-8 mb-0 flex items-center gap-6 relative max-md:flex-col max-md:items-start max-md:gap-4 max-md:p-5">
-                            <div className="absolute top-3 right-3 sm:top-5 sm:right-6 flex items-center gap-2 z-10">
-                                {perm.canExport && (<button
-                                    className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] border border-slate-200 bg-white text-slate-500 cursor-pointer transition-all duration-200 hover:border-slate-400 hover:text-slate-800 hover:shadow-sm"
-                                    onClick={() => setShowPrintPreview(true)}
-                                    title="Print"
-                                >
-                                    <Printer className="h-4 w-4" />
-                                </button>)}
-                            </div>
                             <ProfileAvatar
                                 initials={staff.initials}
                                 avatarBg={staff.avatarBg}
@@ -368,13 +360,6 @@ export default function StaffProfilePage() {
                     </div>
                 </div>
             </div>
-
-            {/* Print Preview Modal */}
-            <PrintPreview
-                isOpen={showPrintPreview}
-                onClose={() => setShowPrintPreview(false)}
-                staff={staff}
-            />
         </>
     )
 }

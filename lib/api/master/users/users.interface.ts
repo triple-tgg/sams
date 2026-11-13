@@ -19,6 +19,10 @@ export interface UserItem {
     fullName: string;
     roleObj: RoleObj;
     isActive: boolean;
+    /** true = internal (staff-linked) account, false = external account. */
+    flagInternal: boolean;
+    /** Linked staff employee ID (internal accounts only). */
+    staffEmployeeId: string | null;
     createdDate: string;
     createdBy: string;
     updatedDate: string;
@@ -60,12 +64,15 @@ export interface UserUpsertRequest {
     fullName: string;
     roleId: number; // role id as number
     isActive: boolean;
-    userBy: string; // userName from canedit API
+    /** true = internal (staff-linked) account, false = external account. */
+    flagInternal: boolean;
+    /** Linked staff employee ID — send "" for external accounts. */
+    staffEmployeeId: string;
 }
 
 export interface UserUpsertResponse {
     message: string;
-    responseData: UserItem | null;
+    responseData: string[] | null;
     error: string;
 }
 
@@ -78,5 +85,18 @@ export interface UserDeleteRequest {
 export interface UserDeleteResponse {
     message: string;
     responseData: null;
+    error: string;
+}
+
+// Change password (POST /user/change-password)
+// NOTE: the backend contract is still being finalised — field names below are provisional.
+export interface ChangePasswordRequest {
+    userId: number;
+    newPassword: string;
+}
+
+export interface ChangePasswordResponse {
+    message: string;
+    responseData: unknown;
     error: string;
 }

@@ -120,4 +120,4 @@ export interface StaffData {
     staffTypeId?: number
 }
 
-export type TabName = 'Profile' | 'Training' | 'Experience' | 'Logbook Records'
+export type TabName = 'Profile' | 'Training' | 'Experience' | 'Logbook Records' | 'User Account'

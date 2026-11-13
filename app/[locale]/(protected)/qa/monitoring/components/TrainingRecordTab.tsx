@@ -607,6 +607,8 @@ export function TrainingRecordTab() {
                             staffId: emp.staffId ?? 0,
                             courseId: Number(course.id) || Number(staffCourse?.courseId) || 0,
                             courseAssignmentId,
+                            dateFrom: data.dateFrom,
+                            dateTo: data.dateTo,
                             expiryDate: localExpiryDate,
                         })
 

@@ -71,6 +71,7 @@ export const useQAStaffList = (
             params.staffstypeId,
             params.isActive,
             params.isDepartmentAmo145,
+            params.staffDepartmentPositionAmo145IdList,
         ],
         queryFn: () => getQAStaffList(params),
         enabled,

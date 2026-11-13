@@ -78,6 +78,7 @@ import {
     type ResolvedValidationRowError,
 } from '@/lib/api/migration/importStaff';
 import { useStaffDepartmentPositions } from '@/lib/api/master/organization.hooks';
+import { useStaffDepartmentPositionAmo145s } from '@/lib/api/master/organization-amo145.hooks';
 import { useStations } from '@/lib/api/hooks/useStations';
 import { useAircraftTypeLicenses } from '@/lib/api/master/aircraft-type-licenses.hooks';
 import { useAmelCategories } from '@/lib/api/master/amel-categories.hooks';
@@ -467,6 +468,7 @@ export function StaffExcelImportModal({
 
     // Master data lookups
     const { data: positionsResp } = useStaffDepartmentPositions();
+    const { data: positionsAmo145Resp } = useStaffDepartmentPositionAmo145s();
     const { data: stationsResp } = useStations();
     const { data: aircraftLicenses } = useAircraftTypeLicenses();
     const { data: combinationsData = [] } = useCombinations();
@@ -518,6 +520,11 @@ export function StaffExcelImportModal({
         const list = positionsResp?.responseData ?? [];
         return list.filter((p) => !p.isdelete);
     }, [positionsResp]);
+
+    const positionsAmo145List = useMemo(() => {
+        const list = positionsAmo145Resp?.responseData ?? [];
+        return list.filter((p) => !p.isdelete);
+    }, [positionsAmo145Resp]);
 
     const stationsList = useMemo(() => {
         const list = stationsResp?.responseData ?? [];
@@ -1615,6 +1622,7 @@ export function StaffExcelImportModal({
 
         const { payload, warnings, sources } = buildImportStaffPayload(sheets, {
             positions: positionsList,
+            positionsAmo145: positionsAmo145List,
             stations: stationsList,
             aircraftLicenses: aircraftLicenses ?? [],
             aircraftCombinations: combinationsList,

@@ -163,6 +163,41 @@ describe("buildImportStaffPayload", () => {
         });
     });
 
+    describe("AMO 145", () => {
+        const AMO_LOOKUPS = {
+            ...LOOKUPS,
+            positionsAmo145: [{ id: 31, code: "QA-INS", name: "QA Inspector" }],
+        };
+
+        it("resolves the AMO 145 position and sets the flag", () => {
+            const sheets = [
+                sheet("Staff Info", ["Employee ID", "AMO 145", "AMO 145 Position"], [["0068", "Yes", "QA Inspector"]]),
+            ];
+            const { payload, warnings } = buildImportStaffPayload(sheets, AMO_LOOKUPS);
+            expect(payload.staffInfo[0]).toMatchObject({ isDepartmentAmo145: true, staffDepartmentPositionAmo145Id: 31 });
+            expect(warnings).toEqual([]);
+        });
+
+        it("implies the flag from a resolved AMO 145 position", () => {
+            const sheets = [sheet("Staff Info", ["Employee ID", "Position AMO145"], [["0068", "QA-INS"]])];
+            const { payload } = buildImportStaffPayload(sheets, AMO_LOOKUPS);
+            expect(payload.staffInfo[0]).toMatchObject({ isDepartmentAmo145: true, staffDepartmentPositionAmo145Id: 31 });
+        });
+
+        it("sends false / 0 when the sheet has no AMO 145 columns", () => {
+            const sheets = [sheet("Staff Info", ["Employee ID"], [["0068"]])];
+            const { payload } = buildImportStaffPayload(sheets, AMO_LOOKUPS);
+            expect(payload.staffInfo[0]).toMatchObject({ isDepartmentAmo145: false, staffDepartmentPositionAmo145Id: 0 });
+        });
+
+        it("warns when the AMO 145 position is not in the master", () => {
+            const sheets = [sheet("Staff Info", ["Employee ID", "AMO 145 Position"], [["0068", "Wizard"]])];
+            const { payload, warnings } = buildImportStaffPayload(sheets, AMO_LOOKUPS);
+            expect(payload.staffInfo[0].staffDepartmentPositionAmo145Id).toBe(0);
+            expect(warnings[0]).toContain("Wizard");
+        });
+    });
+
     it("resolves the AMEL category name or code to an id", () => {
         const sheets = [
             sheet("AMEL License",
@@ -174,9 +209,7 @@ describe("buildImportStaffPayload", () => {
         const { payload, warnings } = buildImportStaffPayload(sheets, LOOKUPS);
         expect(payload.amelLicense).toHaveLength(3);
         expect(payload.amelLicense[0].categoryId).toBe(1);
-        expect(payload.amelLicense[0].category).toBe("1");
         expect(payload.amelLicense[1].categoryId).toBe(5);
-        expect(payload.amelLicense[1].category).toBe("5");
         expect(payload.amelLicense[2].categoryId).toBe(0);
         expect(warnings[0]).toContain("Unknown Cat");
     });
@@ -779,5 +812,39 @@ describe("summarizePayloadByEmployee", () => {
             counts: { amelLicense: 2, aircraftLicense: 0, previousTraining: 0, trainingRecords: 0, workExperience: 0, education: 0 },
         });
         expect(m.get("12")?.counts.previousTraining).toBe(1);
+    });
+});
+
+describe("parseImportStaffResult — staffResults wrapper", () => {
+    const body = (over: Record<string, unknown> = {}) => ({
+        message: "success",
+        responseData: {
+            total: 2, succeeded: 1, failed: 1, created: 1, updated: 0,
+            staffResults: [
+                { staffId: 10, employeeId: "0068", isNewStaff: true, amelLicenseCount: 2, aircraftLicenseCount: 1,
+                  previousTrainingCount: 0, trainingRecordCount: 3, workExperienceCount: 1, educationCount: 1, error: "", isError: false },
+                { staffId: 0, employeeId: "0069", isNewStaff: false, amelLicenseCount: 0, aircraftLicenseCount: 0,
+                  previousTrainingCount: 0, trainingRecordCount: 0, workExperienceCount: 0, educationCount: 0,
+                  error: "Position not found", isError: true },
+            ],
+            ...over,
+        },
+        error: "",
+    });
+
+    it("reads the wrapper totals and per-staff results", () => {
+        const r = parseImportStaffResult(body());
+        expect(r.success).toBe(true);
+        expect(r.newCount).toBe(1);
+        expect(r.updatedCount).toBe(0);
+        expect(r.failedCount).toBe(1);
+        expect(r.staff).toHaveLength(2);
+        expect(r.staff[1]).toMatchObject({ employeeId: "0069", isError: true, error: "Position not found" });
+        expect(r.counts).toMatchObject({ amelLicense: 2, aircraftLicense: 1, trainingRecords: 3 });
+    });
+
+    it("fails when nothing succeeded", () => {
+        const r = parseImportStaffResult(body({ succeeded: 0, failed: 2 }));
+        expect(r.success).toBe(false);
     });
 });

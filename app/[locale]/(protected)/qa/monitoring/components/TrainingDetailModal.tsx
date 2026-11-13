@@ -389,19 +389,10 @@ export function TrainingDetailModal({
                                 <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-0.5">
                                     Conducted By
                                 </span>
-                                {isEditing ? (
-                                    <input
-                                        type="text"
-                                        value={provider}
-                                        onChange={(e) => setProvider(e.target.value)}
-                                        placeholder="e.g. Lufthansa Technical Training"
-                                        className="w-full mt-1 px-2.5 py-1.5 text-xs text-slate-800 bg-white border border-slate-200 rounded-lg outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-                                    />
-                                ) : (
-                                    <span className="text-sm font-medium text-slate-800">
-                                        {displayProvider || '-'}
-                                    </span>
-                                )}
+                                {/* Read-only: Conducted By comes from the course record and is not editable here */}
+                                <span className="text-sm font-medium text-slate-800">
+                                    {displayProvider || '-'}
+                                </span>
                             </div>
                         </div>
                     </div>

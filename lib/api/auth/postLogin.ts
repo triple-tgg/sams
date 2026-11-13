@@ -20,6 +20,7 @@ export interface LoginRoleObj {
 }
 
 // Login response interface
+// On failure the API answers { message: "error", responseData: null, error: "<reason>" }.
 export interface LoginResponse {
   message: string
   responseData: {
@@ -27,12 +28,22 @@ export interface LoginResponse {
     userName: string
     email: string
     fullName: string
+    /** true = internal account linked to a staff member. */
+    flagInternal: boolean
+    /** Employee ID the account is linked to (internal accounts; null otherwise). */
+    staffEmployeeId: string | null
+    /** Linked staff record id (null when not linked). */
+    staffId: number | null
+    /** Linked staff employee ID as stored on the staff record (null when not linked). */
+    employeeId: string | null
+    /** Linked staff English full name (null when not linked). */
+    fullNameEn: string | null
     roleObj: LoginRoleObj
     menuPermissions: import('@/lib/api/permission/menuPermissions.interface').MenuPermissionItem[]
     accessToken: string
     refreshToken: string
     expiresIn: number
-  }
+  } | null
   error: string
 }
 

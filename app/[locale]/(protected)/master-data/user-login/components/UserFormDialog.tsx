@@ -14,6 +14,8 @@ import { useRolesOptions } from "@/lib/api/hooks/useRoles";
 import { useRolePermissions } from "@/lib/api/hooks/useRoleOperations";
 import type { MenuPermission } from "@/lib/api/master/roles/roles.interface";
 import { recalcParents } from "@/lib/permission-tree";
+import { Checkbox } from "@/components/ui/checkbox";
+import StaffEmployeePicker from "./StaffEmployeePicker";
 
 type FlatPerm = MenuPermission & {
     _depth: number;
@@ -65,7 +67,7 @@ const DEFAULT_MENUS: Omit<MenuPermission, "canView" | "canCreate" | "canEdit" | 
 ];
 
 // ─── Password complexity validation ────────────────────────────────────────────
-interface PasswordValidation {
+export interface PasswordValidation {
     minLength: boolean;
     hasUppercase: boolean;
     hasLowercase: boolean;
@@ -73,7 +75,7 @@ interface PasswordValidation {
     hasSpecial: boolean;
 }
 
-const validatePassword = (password: string): PasswordValidation => ({
+export const validatePassword = (password: string): PasswordValidation => ({
     minLength: password.length >= 8,
     hasUppercase: /[A-Z]/.test(password),
     hasLowercase: /[a-z]/.test(password),
@@ -81,7 +83,7 @@ const validatePassword = (password: string): PasswordValidation => ({
     hasSpecial: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password),
 });
 
-const isPasswordValid = (validation: PasswordValidation): boolean =>
+export const isPasswordValid = (validation: PasswordValidation): boolean =>
     Object.values(validation).every(Boolean);
 
 const PASSWORD_RULES: { key: keyof PasswordValidation; label: string }[] = [
@@ -92,7 +94,7 @@ const PASSWORD_RULES: { key: keyof PasswordValidation; label: string }[] = [
     { key: "hasSpecial", label: "At least one special character (!@#$%^&*)" },
 ];
 
-const PasswordRequirements = ({ validation, show }: { validation: PasswordValidation; show: boolean }) => {
+export const PasswordRequirements = ({ validation, show }: { validation: PasswordValidation; show: boolean }) => {
     if (!show) return null;
     return (
         <div className="mt-2 space-y-1 pl-0.5">
@@ -145,11 +147,10 @@ const PermCell = ({
         onClick={() => !disabled && onChange?.(!value)}
         title={label}
         disabled={disabled}
-        className={`flex items-center justify-center w-7 h-7 rounded transition-all duration-150 border ${
-            value
-                ? "bg-primary border-transparent text-primary-foreground shadow-sm"
-                : "border-border bg-muted/30 text-muted-foreground"
-        } ${disabled ? "cursor-default opacity-70" : "cursor-pointer hover:opacity-80"}`}
+        className={`flex items-center justify-center w-7 h-7 rounded transition-all duration-150 border ${value
+            ? "bg-primary border-transparent text-primary-foreground shadow-sm"
+            : "border-border bg-muted/30 text-muted-foreground"
+            } ${disabled ? "cursor-default opacity-70" : "cursor-pointer hover:opacity-80"}`}
     >
         <Icon className="w-3 h-3" />
     </button>
@@ -174,12 +175,12 @@ const PermissionSection = ({
         icon: React.ElementType;
         label: string;
     }[] = [
-        { field: "canView", icon: Eye, label: "View" },
-        { field: "canCreate", icon: FilePlus2, label: "Create" },
-        { field: "canEdit", icon: SquarePen, label: "Edit" },
-        { field: "canDelete", icon: Eraser, label: "Delete" },
-        { field: "canExport", icon: Download, label: "Export" },
-    ];
+            { field: "canView", icon: Eye, label: "View" },
+            { field: "canCreate", icon: FilePlus2, label: "Create" },
+            { field: "canEdit", icon: SquarePen, label: "Edit" },
+            { field: "canDelete", icon: Eraser, label: "Delete" },
+            { field: "canExport", icon: Download, label: "Export" },
+        ];
 
     const toggleField = (menuId: string, field: keyof MenuPermission) => {
         if (isViewMode) return;
@@ -221,7 +222,7 @@ const PermissionSection = ({
 
     return (
         <div className="flex flex-col h-full">
-            {/* Column header row */}
+            {/* Column header row — stays put; only the rows below scroll */}
             <div className="flex items-center gap-1.5 px-2 py-1.5 bg-muted/20 rounded-t border border-b-0 text-xs text-muted-foreground">
                 <span className="flex-1 font-medium text-foreground">Menu</span>
                 {cols.map((col) => (
@@ -231,11 +232,10 @@ const PermissionSection = ({
                             disabled={isViewMode}
                             onClick={() => toggleAll(col.field)}
                             title={`Toggle all ${col.label}`}
-                            className={`w-7 h-5 rounded text-[9px] font-bold transition-colors ${
-                                visiblePermissions.filter((p) => !p._isParent).every((p) => p[col.field])
-                                    ? "bg-primary text-primary-foreground"
-                                    : "bg-muted text-muted-foreground"
-                            } ${isViewMode ? "cursor-default" : "hover:opacity-80 cursor-pointer"}`}
+                            className={`w-7 h-5 rounded text-[9px] font-bold transition-colors ${visiblePermissions.filter((p) => !p._isParent).every((p) => p[col.field])
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-muted text-muted-foreground"
+                                } ${isViewMode ? "cursor-default" : "hover:opacity-80 cursor-pointer"}`}
                         >
                             {col.label.slice(0, 3)}
                         </button>
@@ -243,8 +243,8 @@ const PermissionSection = ({
                 ))}
             </div>
 
-            {/* Rows */}
-            <div className="border border-t-0 rounded-b overflow-hidden">
+            {/* Rows — scroll inside the card so the dialog itself does not scroll */}
+            <div className="border border-t-0 rounded-b overflow-y-auto max-h-[50vh] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/30">
                 {visiblePermissions.length === 0 ? (
                     <div className="p-8 text-center text-xs text-muted-foreground bg-muted/5 font-medium">
                         No access permissions
@@ -253,9 +253,8 @@ const PermissionSection = ({
                     visiblePermissions.map((perm, idx) => (
                         <div
                             key={perm.menuId}
-                            className={`flex items-center gap-1.5 px-2 py-1.5 border-b border-border/40 last:border-0 transition-colors hover:bg-muted/10 ${
-                                perm._isParent ? "bg-muted/15" : idx % 2 === 0 ? "" : "bg-muted/5"
-                            }`}
+                            className={`flex items-center gap-1.5 px-2 py-1.5 border-b border-border/40 last:border-0 transition-colors hover:bg-muted/10 ${perm._isParent ? "bg-muted/15" : idx % 2 === 0 ? "" : "bg-muted/5"
+                                }`}
                         >
                             <span
                                 className={`flex-1 text-xs truncate ${perm._depth === 0 ? "font-semibold" : "font-normal text-muted-foreground"}`}
@@ -283,9 +282,22 @@ const PermissionSection = ({
 };
 
 // ─── Main component props ──────────────────────────────────────────────────────
+/** Prefill for a new user (add mode). */
+export type UserFormDefaults = {
+    username?: string;
+    email?: string;
+    fullName?: string;
+    flagInternal?: boolean;
+    staffEmployeeId?: string;
+};
+
 type Props = {
     mode: "add" | "edit" | "view";
     user?: UserItem | null;
+    /** Add mode only: initial values (e.g. when creating an account from a staff profile). */
+    defaults?: UserFormDefaults;
+    /** Keep Internal Staff + linked employee fixed (account is being created for a known staff member). */
+    lockStaffLink?: boolean;
     isPending?: boolean;
     onClose: () => void;
     onSubmit?: (data: {
@@ -295,12 +307,14 @@ type Props = {
         fullName: string;
         role: string;
         isActive: boolean;
+        flagInternal: boolean;
+        staffEmployeeId: string;
         permissions: MenuPermission[];
     }) => void;
 };
 
 // ─── Main UserFormDialog ───────────────────────────────────────────────────────
-const UserFormDialog = ({ mode, user, isPending = false, onClose, onSubmit }: Props) => {
+const UserFormDialog = ({ mode, user, defaults, lockStaffLink = false, isPending = false, onClose, onSubmit }: Props) => {
     const [username, setUsername] = useState("");
     const [email, setEmail] = useState("");
     const [passwordData, setPasswordData] = useState("");
@@ -310,6 +324,8 @@ const UserFormDialog = ({ mode, user, isPending = false, onClose, onSubmit }: Pr
     const [fullName, setFullName] = useState("");
     const [role, setRole] = useState("");
     const [isActive, setIsActive] = useState(true);
+    const [flagInternal, setFlagInternal] = useState(false);
+    const [staffEmployeeId, setStaffEmployeeId] = useState("");
     const [permissions, setPermissions] = useState<FlatPerm[]>(buildDefaultPermissions);
 
     // Password complexity state
@@ -342,15 +358,20 @@ const UserFormDialog = ({ mode, user, isPending = false, onClose, onSubmit }: Pr
             setFullName(user.fullName || "");
             setRole(user.roleObj?.id?.toString() || "");
             setIsActive(user.isActive ?? true);
+            setFlagInternal(user.flagInternal ?? false);
+            setStaffEmployeeId(user.staffEmployeeId || "");
             setPasswordData("");
         } else {
-            setUsername("");
-            setEmail("");
+            setUsername(defaults?.username ?? "");
+            setEmail(defaults?.email ?? "");
             setPasswordData("");
-            setFullName("");
+            setFullName(defaults?.fullName ?? "");
             setRole("");
             setIsActive(true);
+            setFlagInternal(defaults?.flagInternal ?? false);
+            setStaffEmployeeId(defaults?.staffEmployeeId ?? "");
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user]);
 
     // When role permissions load, populate permission panel
@@ -363,6 +384,8 @@ const UserFormDialog = ({ mode, user, isPending = false, onClose, onSubmit }: Pr
     }, [rolePermData, selectedRoleId]);
 
     const isFormValid = () => {
+        // Internal accounts must be linked to a staff employee ID
+        if (flagInternal && !staffEmployeeId.trim()) return false;
         if (isAddMode) {
             return username.trim() && email.trim() && passwordData.trim() && role && passwordComplexityOk && passwordsMatch;
         }
@@ -382,6 +405,8 @@ const UserFormDialog = ({ mode, user, isPending = false, onClose, onSubmit }: Pr
             fullName: fullName.trim(),
             role,
             isActive,
+            flagInternal,
+            staffEmployeeId: flagInternal ? staffEmployeeId.trim() : "",
             permissions,
         });
     };
@@ -389,13 +414,13 @@ const UserFormDialog = ({ mode, user, isPending = false, onClose, onSubmit }: Pr
     return (
         <div className="flex flex-col max-h-[85vh]">
             {/* ── Header ── */}
-            <DialogHeader className="px-6 pt-6 pb-4 shrink-0">
+            <DialogHeader className="px-5 pt-5 pb-3 shrink-0">
                 <DialogTitle>{dialogTitle}</DialogTitle>
                 <DialogDescription>{dialogDesc}</DialogDescription>
             </DialogHeader>
 
             {/* ── Scrollable body ── */}
-            <div className="flex-1 overflow-y-auto px-6">
+            <div className="flex-1 overflow-y-auto px-5 pb-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/30">
                 <form id="user-form" onSubmit={handleSubmit}>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* ── LEFT: General Info ── */}
@@ -404,6 +429,57 @@ const UserFormDialog = ({ mode, user, isPending = false, onClose, onSubmit }: Pr
                                 <User className="h-4 w-4 text-primary" />
                                 <h3 className="text-sm font-semibold">General Information</h3>
                             </div>
+                            <div className="rounded-lg border p-3 space-y-3">
+                                <div className="flex items-start gap-2.5">
+                                    <Checkbox
+                                        id="user-internal"
+                                        className="mt-0.5"
+                                        checked={flagInternal}
+                                        onCheckedChange={(v) => {
+                                            const next = v === true;
+                                            setFlagInternal(next);
+                                            if (!next) setStaffEmployeeId("");
+                                        }}
+                                        disabled={isViewMode || isPending || lockStaffLink}
+                                    />
+                                    <div className="space-y-0.5">
+                                        <Label htmlFor="user-internal" className="text-sm cursor-pointer">
+                                            Internal Staff
+                                        </Label>
+                                        <p className="text-xs text-muted-foreground">
+                                            {flagInternal
+                                                ? "This account is linked to a staff member"
+                                                : "Tick if this user is a staff member (external account otherwise)"}
+                                        </p>
+                                    </div>
+                                </div>
+                                {flagInternal && (
+                                    <div className="space-y-1">
+                                        <Label>
+                                            Staff Employee <span className="text-destructive">*</span>
+                                        </Label>
+                                        <StaffEmployeePicker
+                                            value={staffEmployeeId}
+                                            disabled={isViewMode || isPending || lockStaffLink}
+                                            invalid={!isViewMode && !staffEmployeeId}
+                                            onChange={(employeeId, staff) => {
+                                                setStaffEmployeeId(employeeId);
+                                                // Prefill empty fields from the linked staff record
+                                                if (staff) {
+                                                    if (!fullName.trim()) {
+                                                        setFullName([staff.title, staff.name].filter(Boolean).join(" ") || staff.fullNameEn || "");
+                                                    }
+                                                    if (!email.trim() && staff.email) setEmail(staff.email);
+                                                }
+                                            }}
+                                        />
+                                        {!isViewMode && !staffEmployeeId && (
+                                            <p className="text-xs text-destructive">Select the staff member to link this account to.</p>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
                             <div className="space-y-1">
                                 <Label htmlFor="user-username">
                                     Username <span className="text-destructive">*</span>
@@ -485,13 +561,12 @@ const UserFormDialog = ({ mode, user, isPending = false, onClose, onSubmit }: Pr
                                                     value={confirmPassword}
                                                     onChange={(e) => setConfirmPassword(e.target.value)}
                                                     disabled={isPending}
-                                                    className={`pr-10 ${
-                                                        confirmPassword.length > 0
-                                                            ? passwordsMatch
-                                                                ? "border-green-500 bg-green-50/50 focus-visible:ring-green-500"
-                                                                : "border-red-500 bg-red-50/50 focus-visible:ring-red-500"
-                                                            : ""
-                                                    }`}
+                                                    className={`pr-10 ${confirmPassword.length > 0
+                                                        ? passwordsMatch
+                                                            ? "border-green-500 bg-green-50/50 focus-visible:ring-green-500"
+                                                            : "border-red-500 bg-red-50/50 focus-visible:ring-red-500"
+                                                        : ""
+                                                        }`}
                                                 />
                                                 <button
                                                     type="button"
@@ -580,10 +655,10 @@ const UserFormDialog = ({ mode, user, isPending = false, onClose, onSubmit }: Pr
                                                 "Created",
                                                 user.createdDate
                                                     ? new Date(user.createdDate).toLocaleDateString("en-GB", {
-                                                          day: "2-digit",
-                                                          month: "short",
-                                                          year: "numeric",
-                                                      })
+                                                        day: "2-digit",
+                                                        month: "short",
+                                                        year: "numeric",
+                                                    })
                                                     : "-",
                                             ],
                                             ["Updated By", user.updatedBy || "-"],
@@ -591,10 +666,10 @@ const UserFormDialog = ({ mode, user, isPending = false, onClose, onSubmit }: Pr
                                                 "Updated",
                                                 user.updatedDate
                                                     ? new Date(user.updatedDate).toLocaleDateString("en-GB", {
-                                                          day: "2-digit",
-                                                          month: "short",
-                                                          year: "numeric",
-                                                      })
+                                                        day: "2-digit",
+                                                        month: "short",
+                                                        year: "numeric",
+                                                    })
                                                     : "-",
                                             ],
                                         ].map(([label, val]) => (
@@ -637,13 +712,14 @@ const UserFormDialog = ({ mode, user, isPending = false, onClose, onSubmit }: Pr
             </div>
 
             {/* ── Footer ── */}
-            <DialogFooter className="px-6 py-4 border-t shrink-0">
-                <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
+            <DialogFooter className="px-5 py-2.5 border-t shrink-0">
+                <Button type="button" size="md" variant="outline" onClick={onClose} disabled={isPending}>
                     {isViewMode ? "Close" : "Cancel"}
                 </Button>
                 {!isViewMode && (
                     <Button
                         type="submit"
+                        size="md"
                         form="user-form"
                         disabled={isPending || !isFormValid()}
                     >

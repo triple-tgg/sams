@@ -10,6 +10,12 @@ export interface AuthProfile {
   role?: string;       // role name
   roleId?: number;     // role id
   roleCode?: string;   // role code
+  /** Internal (staff-linked) account flag from login. */
+  flagInternal?: boolean;
+  /** Linked staff record id / employee id / English name (null when not linked). */
+  staffId?: number | null;
+  staffEmployeeId?: string | null;
+  fullNameEn?: string | null;
   token?: string;
   reToken?: string;
 }

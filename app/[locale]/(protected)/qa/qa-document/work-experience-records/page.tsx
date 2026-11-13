@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useQAStaffList } from '@/lib/api/hooks/useQAStaffManagement'
-import { useStaffDepartments, useStaffDepartmentPositions } from '@/lib/api/master/organization.hooks'
+import { useStaffDepartmentAmo145s, useStaffDepartmentPositionAmo145s } from '@/lib/api/master/organization-amo145.hooks'
 import { QAStaffItem } from '@/lib/api/qa/staff-management'
 import { CertifyingStaffPreview } from './components/CertifyingStaffPreview'
 import { WorkExperiencePreview } from './components/WorkExperiencePreview'
@@ -33,30 +33,42 @@ export default function WorkExperienceRecordsPage() {
   const [departmentId, setDepartmentId] = useState('all')
   const [positionId, setPositionId] = useState('all')
   const [previewStaffId, setPreviewStaffId] = useState<number | null>(null)
-  const [previewType, setPreviewType] = useState<'Certifying Staff' | 'Work Experience' | null>(null)
+  const [previewType, setPreviewType] = useState<'Certifying Staff' | 'Employee Profile' | null>(null)
 
   const [page, setPage] = useState(1)
   const perPage = 10
 
-  // Fetch dropdown options
-  const { data: deptRes, isLoading: deptLoading } = useStaffDepartments()
-  const { data: posRes, isLoading: posLoading } = useStaffDepartmentPositions()
+  // Dropdown options come from the AMO 145 organization master
+  const { data: deptRes, isLoading: deptLoading } = useStaffDepartmentAmo145s()
+  const { data: posRes, isLoading: posLoading } = useStaffDepartmentPositionAmo145s()
 
-  const departments = deptRes?.responseData || []
-  const positions = posRes?.responseData || []
+  const departments = useMemo(() => deptRes?.responseData || [], [deptRes])
+  const positions = useMemo(() => posRes?.responseData || [], [posRes])
+
+  const departmentById = useMemo(() => new Map(departments.map(d => [d.id, d])), [departments])
+  const positionById = useMemo(() => new Map(positions.map(p => [p.id, p])), [positions])
 
   // Filter positions by selected department if needed, or show all
   const filteredPositions = useMemo(() => {
     if (departmentId === 'all') return positions
-    return positions.filter(p => p.staffDepartmentId === Number(departmentId))
+    return positions.filter(p => p.staffDepartmentAmo145Id === Number(departmentId))
   }, [positions, departmentId])
 
-  // Fetch data
+  // AMO 145 position ids to filter by: the chosen position, or every position of the chosen department
+  const amo145PositionIds = useMemo(() => {
+    if (positionId !== 'all') return [Number(positionId)]
+    if (departmentId !== 'all') return filteredPositions.map(p => p.id)
+    return []
+  }, [positionId, departmentId, filteredPositions])
+  // A department with no positions can never match — skip the request and show an empty list
+  const noMatchingPositions = departmentId !== 'all' && !posLoading && amo145PositionIds.length === 0
+
   const { data: listRes, isLoading, isFetching } = useQAStaffList({
     name: debouncedSearchTerm,
     employeeId: '',
-    positionId: positionId === 'all' ? 0 : Number(positionId),
-    departmentId: departmentId === 'all' ? 0 : Number(departmentId),
+    positionId: 0,
+    departmentId: 0,
+    staffDepartmentPositionAmo145IdList: amo145PositionIds,
     staffstypeId: [],
     sortBy: '',
     sortDirection: '',
@@ -65,11 +77,19 @@ export default function WorkExperienceRecordsPage() {
     isDepartmentAmo145: true,
     page,
     perPage
-  })
+  }, !noMatchingPositions && !(departmentId !== 'all' && posLoading))
 
-  const staffList = listRes?.responseData || []
-  const totalItems = listRes?.total || 0
+  const staffList = noMatchingPositions ? [] : listRes?.responseData || []
+  const totalItems = noMatchingPositions ? 0 : listRes?.total || 0
   const totalPages = Math.ceil(totalItems / perPage)
+
+  const getAmoPosition = (staff: QAStaffItem) =>
+    staff.staffDepartmentPositionAmo145Id ? positionById.get(staff.staffDepartmentPositionAmo145Id) : undefined
+  const getAmoDepartment = (staff: QAStaffItem) => {
+    const deptId = getAmoPosition(staff)?.staffDepartmentAmo145Id
+    return deptId ? departmentById.get(deptId) : undefined
+  }
+
 
   // ── Filter helpers ──
   const [filtersOpen, setFiltersOpen] = useState(false)
@@ -125,9 +145,9 @@ export default function WorkExperienceRecordsPage() {
   )
 
   const handleDocumentAction = (staff: QAStaffItem, docType: string) => {
-    if (docType === 'Certifying Staff' || docType === 'Work Experience') {
+    if (docType === 'Certifying Staff' || docType === 'Employee Profile') {
       setPreviewStaffId(staff.id)
-      setPreviewType(docType as 'Certifying Staff' | 'Work Experience')
+      setPreviewType(docType as 'Certifying Staff' | 'Employee Profile')
     } else {
       toast.info(`Viewing ${docType} for ${staff.name}`)
     }
@@ -249,8 +269,8 @@ export default function WorkExperienceRecordsPage() {
                     <tr>
                       <th className="px-6 py-2 w-full">Employee Name</th>
                       <th className="px-6 py-2 whitespace-nowrap">Staff Type</th>
-                      <th className="px-6 py-2 whitespace-nowrap">Department</th>
-                      <th className="px-6 py-2 whitespace-nowrap">Position</th>
+                      <th className="px-6 py-2 whitespace-nowrap">Department (145)</th>
+                      <th className="px-6 py-2 whitespace-nowrap">Position (145)</th>
                       <th className="px-6 py-2 text-right whitespace-nowrap">Documents</th>
                     </tr>
                   </thead>
@@ -279,7 +299,14 @@ export default function WorkExperienceRecordsPage() {
                                 <User className="h-4 w-4" />
                               </div>
                               <div>
-                                <div className="font-semibold text-slate-800">{staff.title} {staff.name}</div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-slate-800">{staff.title} {staff.name}</span>
+                                  {staff.isDepartmentAmo145 && (
+                                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                                      Part-145
+                                    </span>
+                                  )}
+                                </div>
                                 <div className="text-xs text-slate-500">{staff.employeeId || 'No ID'}</div>
                               </div>
                             </div>
@@ -299,11 +326,11 @@ export default function WorkExperienceRecordsPage() {
                           </td>
                           <td className="px-6 py-2 whitespace-nowrap">
                             <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700">
-                              {staff.departmentObj?.name || '-'}
+                              {getAmoDepartment(staff)?.name || '-'}
                             </span>
                           </td>
                           <td className="px-6 py-2 whitespace-nowrap text-slate-600">
-                            {staff.positionObj?.name || '-'}
+                            {getAmoPosition(staff)?.name || '-'}
                           </td>
                           <td className="px-6 py-2 whitespace-nowrap flex justify-center">
                             <DropdownMenu>
@@ -314,9 +341,9 @@ export default function WorkExperienceRecordsPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuItem onClick={() => handleDocumentAction(staff, 'Work Experience')}>
+                                <DropdownMenuItem onClick={() => handleDocumentAction(staff, 'Employee Profile')}>
                                   <FileText className="mr-2 h-4 w-4 text-blue-500" />
-                                  Work Experience
+                                  Employee Profile
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleDocumentAction(staff, 'Certifying Staff')}>
                                   <FileBadge className="mr-2 h-4 w-4 text-amber-500" />
@@ -360,7 +387,7 @@ export default function WorkExperienceRecordsPage() {
         />
       )}
 
-      {previewType === 'Work Experience' && (
+      {previewType === 'Employee Profile' && (
         <WorkExperiencePreview 
           isOpen={previewStaffId !== null} 
           onClose={() => {

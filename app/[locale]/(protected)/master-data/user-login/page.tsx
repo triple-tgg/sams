@@ -64,6 +64,8 @@ const UserLoginPage = () => {
         fullName: string;
         role: string;
         isActive: boolean;
+        flagInternal: boolean;
+        staffEmployeeId: string;
         permissions: import('@/lib/api/master/roles/roles.interface').MenuPermission[];
     } | null>(null);
 
@@ -164,7 +166,8 @@ const UserLoginPage = () => {
             fullName: formData.fullName,
             roleId: parseInt(formData.role),
             isActive: formData.isActive,
-            userBy: 'system',
+            flagInternal: formData.flagInternal,
+            staffEmployeeId: formData.flagInternal ? formData.staffEmployeeId : '',
         };
 
         upsertUser(payload, {
@@ -194,7 +197,8 @@ const UserLoginPage = () => {
             fullName: formData.fullName,
             roleId: parseInt(formData.role),
             isActive: formData.isActive,
-            userBy: 'system',
+            flagInternal: formData.flagInternal,
+            staffEmployeeId: formData.flagInternal ? formData.staffEmployeeId : '',
         };
 
         upsertUser(payload, {
@@ -449,7 +453,7 @@ const UserLoginPage = () => {
             </Card>
 
             <Dialog open={dialogMode === 'add'} onOpenChange={(open) => !open && closeDialog()}>
-                <DialogContent size="md" className="max-w-4xl" onInteractOutside={(e) => e.preventDefault()}>
+                <DialogContent size="md" className="max-w-4xl p-2 gap-0" onInteractOutside={(e) => e.preventDefault()}>
                     <UserFormDialog
                         mode="add"
                         onClose={closeDialog}
@@ -460,7 +464,7 @@ const UserLoginPage = () => {
 
             {/* View Dialog */}
             <Dialog open={dialogMode === 'view'} onOpenChange={(open) => !open && closeDialog()}>
-                <DialogContent size="md" className="max-w-4xl">
+                <DialogContent size="md" className="max-w-4xl p-2 gap-0">
                     <UserFormDialog
                         mode="view"
                         user={detailUser}
@@ -471,7 +475,7 @@ const UserLoginPage = () => {
 
             {/* Edit Dialog */}
             <Dialog open={dialogMode === 'edit'} onOpenChange={(open) => !open && closeDialog()}>
-                <DialogContent size="md" className="max-w-4xl" onInteractOutside={(e) => e.preventDefault()}>
+                <DialogContent size="md" className="max-w-4xl p-2 gap-0" onInteractOutside={(e) => e.preventDefault()}>
                     <UserFormDialog
                         mode="edit"
                         user={detailUser}

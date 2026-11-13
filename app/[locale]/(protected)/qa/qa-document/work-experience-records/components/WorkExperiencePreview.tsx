@@ -1,12 +1,13 @@
 'use client'
 
+import { formatEnglishName, formatThaiName } from '@/lib/utils/personTitle'
 import { X, Download, Printer } from 'lucide-react'
 import { useWorkExperiencePreview } from '@/lib/api/hooks/useQAStaffManagement'
 import { formatDate } from '@/app/[locale]/(protected)/hr/staff/[id]/utils'
 import { groupCombinationDisplayLabels } from '@/lib/utils/aircraftEngineDisplay'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
-import { useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, useLayoutEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import './work-experience-preview.css'
 import { MENU } from "@/lib/permission-codes";
@@ -82,6 +83,7 @@ function formatDmy(d: Date): string {
 /** Format an API date as MMM-YYYY, e.g. Feb-2022 */
 function formatMonthYear(value?: string | null): string {
     const d = parseApiDate(value)
+    // "Feb-2022"
     return d ? `${MONTHS_SHORT[d.getMonth()]}-${d.getFullYear()}` : '-'
 }
 
@@ -163,8 +165,9 @@ export function WorkExperiencePreview({ isOpen, onClose, staffId }: WorkExperien
     const api = previewData?.responseData?.profile
     const trainingResp = previewData?.responseData?.training
 
-    const nameEn = api?.fullNameEn || api?.name || '-'
-    const nameTh = api?.title ? `${api.title} ${api.name}` : (api?.name || '-')
+    // `title` is one value (usually English, e.g. "Mr.") — each name gets the title in its own language
+    const nameEn = formatEnglishName(api?.title, api?.fullNameEn) || api?.name || '-'
+    const nameTh = formatThaiName(api?.title, api?.name) || '-'
     const dob = api?.dateOfBirth ? formatDate(api.dateOfBirth) : '-'
     const pob = api?.placeOfBirth || '-'
     const idCard = api?.idCardNo || '-'
@@ -175,7 +178,10 @@ export function WorkExperiencePreview({ isOpen, onClose, staffId }: WorkExperien
 
     const educations = (api?.educations || []).filter(e => !e.isdelete)
     const amelLicenses = (api?.staffAmelLicenseList || []).filter(l => !l.isdelete)
-    const employments = (api?.workExperiences || []).filter(w => !w.isdelete)
+    // Most recent employment first, as on the original form
+    const employments = (api?.workExperiences || [])
+        .filter(w => !w.isdelete)
+        .sort((a, b) => (parseApiDate(b.periodFrom)?.getTime() ?? 0) - (parseApiDate(a.periodFrom)?.getTime() ?? 0))
 
     // Build aircraft ratings from staffAircraftLicenseList using group display labels
     const aircraftLicenseList = (api?.staffAircraftLicenseList || []).filter(l => !l.isdelete)
@@ -531,27 +537,27 @@ export function WorkExperiencePreview({ isOpen, onClose, staffId }: WorkExperien
                             </tr>
                         </thead>
                         <tbody>
+                            {/* Each employment = an Employer row followed by its Position row */}
                             {employments.length > 0 ? employments.map((emp, i) => (
-                                <tr key={i}>
-                                    <td className="wep-label" style={{ width: '15%' }}>Employer:</td>
-                                    <td colSpan={5}>{emp.company || '-'}</td>
-                                </tr>
+                                <Fragment key={emp.id ?? i}>
+                                    <tr>
+                                        <td className="wep-label" style={{ width: '15%' }}>Employer:</td>
+                                        <td colSpan={5}>{emp.company || '-'}</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="wep-label">Position:</td>
+                                        <td>{emp.jobTitle || '-'}</td>
+                                        <td className="wep-label wep-fit">From:</td>
+                                        <td className="wep-fit" style={{ textAlign: 'center' }}>{formatMonthYear(emp.periodFrom)}</td>
+                                        <td className="wep-label wep-fit">To:</td>
+                                        <td className="wep-fit" style={{ textAlign: 'center' }}>{formatMonthYear(emp.periodTo)}</td>
+                                    </tr>
+                                </Fragment>
                             )) : (
                                 <tr>
                                     <td colSpan={6} style={{ textAlign: 'center' }}>No records found</td>
                                 </tr>
                             )}
-                            {/* Detailed position rows mapped after employer for structure */}
-                            {employments.length > 0 && employments.map((emp, i) => (
-                                <tr key={`pos-${i}`}>
-                                    <td className="wep-label">Position:</td>
-                                    <td>{emp.jobTitle || '-'}</td>
-                                    <td className="wep-label wep-fit">From:</td>
-                                    <td className="wep-fit" style={{ textAlign: 'center' }}>{formatMonthYear(emp.periodFrom)}</td>
-                                    <td className="wep-label wep-fit">To:</td>
-                                    <td className="wep-fit" style={{ textAlign: 'center' }}>{formatMonthYear(emp.periodTo)}</td>
-                                </tr>
-                            ))}
                         </tbody>
                     </table>
 
