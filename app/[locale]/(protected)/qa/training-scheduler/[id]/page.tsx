@@ -105,7 +105,8 @@ export default function ScheduleDetailPage() {
                     )
                     return labels.length > 0 ? labels.join('\n') : '-'
                 })(),
-                dept: s.department || '-',
+                // Department column shows the AMO 145 department
+                dept: s.staffDepartmentAmo145Name || '-',
                 date: s.enrolledDate ? s.enrolledDate.split('T')[0] : '-',
                 status: s.trainingEnrollmentStatus?.name ?? s.status ?? 'Enrolled',
                 result: s.result ?? s.trainingEnrollmentActionStatus?.name ?? 'Pending',

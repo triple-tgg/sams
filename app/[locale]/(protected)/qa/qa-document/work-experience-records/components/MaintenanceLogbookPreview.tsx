@@ -57,6 +57,17 @@ function paginate(records: LogbookRecordItem[]): LogbookRecordItem[][] {
     return pages
 }
 
+/** First and last day of the current month as YYYY-MM-DD, in the viewer's local time. */
+function currentMonthRange() {
+    const now = new Date()
+    const ymd = (d: Date) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    return {
+        start: ymd(new Date(now.getFullYear(), now.getMonth(), 1)),
+        end: ymd(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
+    }
+}
+
 async function waitForPrintableAssets(container: HTMLElement) {
     if (document.fonts?.ready) await document.fonts.ready
     const images = Array.from(container.querySelectorAll('img'))
@@ -80,9 +91,11 @@ export function MaintenanceLogbookPreview({ isOpen, onClose, staffId }: Maintena
     const pagesRef = useRef<HTMLDivElement>(null)
     const [isPrinting, setIsPrinting] = useState(false)
 
-    // Date range (body of POST /staffs/maintenance-experiences/logbook-records/list); blank = no limit
-    const [startDate, setStartDate] = useState('')
-    const [endDate, setEndDate] = useState('')
+    // Date range (body of POST /staffs/maintenance-experiences/logbook-records/list); defaults to the current month,
+    // a blank field means no limit on that side
+    const [defaultRange] = useState(currentMonthRange)
+    const [startDate, setStartDate] = useState(defaultRange.start)
+    const [endDate, setEndDate] = useState(defaultRange.end)
 
     const { data: records = [], isLoading, isError, error, isFetching } = useAllLogbookRecords(
         {
@@ -129,9 +142,9 @@ export function MaintenanceLogbookPreview({ isOpen, onClose, staffId }: Maintena
                         To
                         <input type="date" value={endDate} min={startDate || undefined} onChange={(e) => setEndDate(e.target.value)} />
                     </label>
-                    {(startDate || endDate) && (
-                        <button type="button" className="lbp-link-btn" onClick={() => { setStartDate(''); setEndDate('') }}>
-                            Clear
+                    {(startDate !== defaultRange.start || endDate !== defaultRange.end) && (
+                        <button type="button" className="lbp-link-btn" onClick={() => { setStartDate(defaultRange.start); setEndDate(defaultRange.end) }}>
+                            This month
                         </button>
                     )}
                     {isFetching && !isLoading && <Loader2 className="h-4 w-4 animate-spin text-slate-300" />}

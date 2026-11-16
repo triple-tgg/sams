@@ -22,7 +22,15 @@ export interface EnrolledStaffItem {
   employeeName: string;
   employeeId: string;
   license: string;
+  /** Regular department */
   department: string;
+  staffDepartmentCode?: string | null;
+  staffDepartmentName?: string | null;
+  /** AMO 145 department — shown in the Enrolled Staff "Department" column */
+  staffDepartmentAmo145Code?: string | null;
+  staffDepartmentAmo145Name?: string | null;
+  staffDepartmentPositionAmo145Code?: string | null;
+  staffDepartmentPositionAmo145Name?: string | null;
   enrolledDate: string;
   status: string;
   result: string;
