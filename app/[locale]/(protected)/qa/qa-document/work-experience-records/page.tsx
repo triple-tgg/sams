@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Search, Filter, FileText, FileBadge, RotateCw, MoreVertical, User, SlidersHorizontal } from 'lucide-react'
+import { Search, Filter, FileText, FileBadge, RotateCw, MoreVertical, User, SlidersHorizontal, ClipboardList } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   DropdownMenu,
@@ -18,9 +18,11 @@ import { useStaffDepartmentAmo145s, useStaffDepartmentPositionAmo145s } from '@/
 import { QAStaffItem } from '@/lib/api/qa/staff-management'
 import { CertifyingStaffPreview } from './components/CertifyingStaffPreview'
 import { WorkExperiencePreview } from './components/WorkExperiencePreview'
+import { MaintenanceLogbookPreview } from './components/MaintenanceLogbookPreview'
 import { useDebounce } from '@/hooks/useDebounce'
 import { toast } from 'sonner'
 import { Pagination } from '../employee-history-training/components/Pagination'
+import { staffTitleText } from '@/lib/api/master/staff-titles'
 
 const normalizeTypeCode = (code?: string | null) => (code || '').replace(/\s+/g, '').toUpperCase()
 /** Same colours as the HR staff list. */
@@ -33,7 +35,7 @@ export default function WorkExperienceRecordsPage() {
   const [departmentId, setDepartmentId] = useState('all')
   const [positionId, setPositionId] = useState('all')
   const [previewStaffId, setPreviewStaffId] = useState<number | null>(null)
-  const [previewType, setPreviewType] = useState<'Certifying Staff' | 'Employee Profile' | null>(null)
+  const [previewType, setPreviewType] = useState<'Certifying Staff' | 'Employee Profile' | 'Work Experience' | null>(null)
 
   const [page, setPage] = useState(1)
   const perPage = 10
@@ -145,9 +147,9 @@ export default function WorkExperienceRecordsPage() {
   )
 
   const handleDocumentAction = (staff: QAStaffItem, docType: string) => {
-    if (docType === 'Certifying Staff' || docType === 'Employee Profile') {
+    if (docType === 'Certifying Staff' || docType === 'Employee Profile' || docType === 'Work Experience') {
       setPreviewStaffId(staff.id)
-      setPreviewType(docType as 'Certifying Staff' | 'Employee Profile')
+      setPreviewType(docType)
     } else {
       toast.info(`Viewing ${docType} for ${staff.name}`)
     }
@@ -300,7 +302,7 @@ export default function WorkExperienceRecordsPage() {
                               </div>
                               <div>
                                 <div className="flex items-center gap-2">
-                                  <span className="font-semibold text-slate-800">{staff.title} {staff.name}</span>
+                                  <span className="font-semibold text-slate-800">{staffTitleText(staff)} {staff.name}</span>
                                   {staff.isDepartmentAmo145 && (
                                     <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
                                       Part-145
@@ -349,6 +351,10 @@ export default function WorkExperienceRecordsPage() {
                                   <FileBadge className="mr-2 h-4 w-4 text-amber-500" />
                                   Certifying Staff
                                 </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleDocumentAction(staff, 'Work Experience')}>
+                                  <ClipboardList className="mr-2 h-4 w-4 text-emerald-600" />
+                                  Work Experience
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </td>
@@ -384,6 +390,17 @@ export default function WorkExperienceRecordsPage() {
             setPreviewType(null)
           }} 
           staffId={previewStaffId!} 
+        />
+      )}
+
+      {previewType === 'Work Experience' && (
+        <MaintenanceLogbookPreview
+          isOpen={previewStaffId !== null}
+          onClose={() => {
+            setPreviewStaffId(null)
+            setPreviewType(null)
+          }}
+          staffId={previewStaffId!}
         />
       )}
 

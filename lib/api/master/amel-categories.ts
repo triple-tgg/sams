@@ -30,3 +30,7 @@ export const getAmelCategories = async (): Promise<AmelCategory[]> => {
     throw new Error(error.response?.data?.message || "Failed to fetch AMEL categories");
   }
 };
+
+/** Display label for a category: "B1.1 - Aeroplane Turbine" (just the name when there is no code). */
+export const formatAmelCategoryLabel = (cat: { code?: string | null; name: string }): string =>
+  cat.code ? `${cat.code} - ${cat.name}` : cat.name;

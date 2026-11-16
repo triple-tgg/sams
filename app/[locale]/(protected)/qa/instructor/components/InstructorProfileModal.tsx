@@ -8,6 +8,8 @@ import { useCombinations } from "@/lib/api/master/aircraft-engine/aircraftEngine
 import { useAmelCategories } from "@/lib/api/master/amel-categories.hooks";
 import { useStaffDepartmentAmo145s, useStaffDepartmentPositionAmo145s } from "@/lib/api/master/organization-amo145.hooks";
 import { groupAircraftEngineDisplayLabels } from "@/lib/utils/aircraftEngineDisplay";
+import { staffTitleText } from "@/lib/api/master/staff-titles"
+import { formatAmelCategoryLabel } from "@/lib/api/master/amel-categories";
 
 interface InstructorProfileModalProps {
   /** Linked staff id of an Internal instructor; null closes the modal */
@@ -81,7 +83,7 @@ export function InstructorProfileModal({ staffId, onClose }: InstructorProfileMo
   const amelLicense = (staff?.staffAmelLicenseList ?? []).find((l) => !l.isdelete);
   const categoryLabel = (id: number) => {
     const cat = (amelCategoriesData ?? []).find((c) => c.id === id);
-    return cat ? `${cat.code} — ${cat.name}` : `Category ${id}`;
+    return cat ? formatAmelCategoryLabel(cat) : `Category ${id}`;
   };
 
   // Part-145 AMO assignment — resolved the same way as the HR profile
@@ -142,7 +144,7 @@ export function InstructorProfileModal({ staffId, onClose }: InstructorProfileMo
                     </div>
                     <div className="min-w-0 space-y-2">
                       <h2 className="text-2xl font-bold text-foreground wrap-anywhere">
-                        {staff.title ? `${staff.title} ` : ""}{englishName}
+                        {staffTitleText(staff) ? `${staffTitleText(staff)} ` : ""}{englishName}
                       </h2>
                       {staff.fullNameEn && staff.name && (
                         <p className="text-sm text-muted-foreground">{staff.name}</p>

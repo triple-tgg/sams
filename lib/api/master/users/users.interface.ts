@@ -89,14 +89,29 @@ export interface UserDeleteResponse {
 }
 
 // Change password (POST /user/change-password)
-// NOTE: the backend contract is still being finalised — field names below are provisional.
+// Changes the password of the signed-in user (identified by the access token).
 export interface ChangePasswordRequest {
-    userId: number;
+    currentPassword: string;
     newPassword: string;
 }
 
 export interface ChangePasswordResponse {
     message: string;
-    responseData: unknown;
+    responseData: string;
+    error: string;
+}
+
+// Account check before creating a staff login (POST /master/users-check)
+// Finds an existing account by email so the staff profile can link it instead of creating a duplicate.
+export interface UserCheckRequest {
+    email: string;
+    /** Employee ID of the staff member the account is being created for. */
+    employeeID: string;
+}
+
+export interface UserCheckResponse {
+    message: string;
+    /** Matched account, or null when no account uses this email. */
+    responseData: UserItem | null;
     error: string;
 }

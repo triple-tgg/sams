@@ -75,3 +75,22 @@ export const getLogbookRecordsList = async (
   );
   return res.data;
 };
+
+/**
+ * Every logbook record that matches the filter, fetched page by page (for printed forms,
+ * which must not stop at one page). Stops at `maxRecords` as a safety limit.
+ */
+export const getAllLogbookRecords = async (
+  filter: Omit<LogbookRecordsListRequest, "page" | "perPage">,
+  { perPage = 500, maxRecords = 10000 }: { perPage?: number; maxRecords?: number } = {}
+): Promise<LogbookRecordItem[]> => {
+  const all: LogbookRecordItem[] = [];
+  for (let page = 1; ; page += 1) {
+    const res = await getLogbookRecordsList({ ...filter, page, perPage });
+    const rows = res.responseData ?? [];
+    all.push(...rows);
+    const total = res.total || res.totalAll || 0;
+    if (rows.length < perPage || all.length >= total || all.length >= maxRecords) break;
+  }
+  return all.slice(0, maxRecords);
+};

@@ -1,12 +1,15 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useSelector } from "react-redux";
 import { usePathname, useRouter } from "next/navigation";
 import type { RootState } from "@/store/rootReducer";
 import { canAccessRoute } from "@/lib/route-permissions";
 import { usePermissionIndex } from "@/hooks/use-menu-permission";
 import { Icon } from "@iconify/react";
+import { getFirstViewableRoute } from "@/lib/api/permission/getFirstViewableRoute";
+import { getLocaleFromPathname } from "@/lib/auth/resolveAuthRedirect";
+import { IT_SUPPORT_ROUTE } from "@/config/support";
 
 /**
  * Strip the locale prefix from the pathname.
@@ -26,7 +29,8 @@ function stripLocale(pathname: string): string {
  *
  * Checks the current route against ROUTE_PERMISSION_MAP (menu code + action,
  * canView by default). If the user lacks it, shows
- * an "Access Denied" screen instead of the page content.
+ * an "Access Denied" screen (with a link to IT Support) instead of the page content.
+ * A user whose role has no viewable menu at all is sent straight to the IT Support page.
  *
  * Must be placed INSIDE PermissionGuard (which loads permissions first).
  */
@@ -35,17 +39,27 @@ export default function RoutePermissionGuard({ children }: { children: React.Rea
     const router = useRouter();
     const permIndex = usePermissionIndex();
     const isPermLoaded = useSelector((s: RootState) => s.permission.isLoaded);
+    const permissions = useSelector((s: RootState) => s.permission.menus);
+
+    const path = stripLocale(pathname);
+    const locale = getLocaleFromPathname(pathname);
+    // Strip locale, then check the route's required menu code + action
+    const hasAccess = !isPermLoaded || canAccessRoute(permIndex, path);
+    // Denied here AND nothing else is viewable → the IT Support page is the only useful place
+    const noViewableRoute = isPermLoaded && !hasAccess && getFirstViewableRoute(permissions) === null;
+
+    useEffect(() => {
+        if (noViewableRoute) router.replace(`/${locale}${IT_SUPPORT_ROUTE}`);
+    }, [noViewableRoute, locale, router]);
 
     // Don't check until permissions are loaded (PermissionGuard handles the loading state)
-    if (!isPermLoaded) {
+    if (hasAccess) {
         return <>{children}</>;
     }
 
-    // Strip locale, then check the route's required menu code + action
-    const hasAccess = canAccessRoute(permIndex, stripLocale(pathname));
-
-    if (hasAccess) {
-        return <>{children}</>;
+    // Redirecting to IT Support — render nothing to avoid flashing "Access Denied"
+    if (noViewableRoute) {
+        return null;
     }
 
     // ── Access Denied ───────────────────────────────────────
@@ -62,8 +76,9 @@ export default function RoutePermissionGuard({ children }: { children: React.Rea
             </h1>
             <p className="text-sm text-muted-foreground text-center max-w-md">
                 You don&apos;t have permission to access this page.
-                Please contact your administrator to request access.
+                Please contact IT Support to request access.
             </p>
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
             <button
                 onClick={() => {
                     // If opened in a new tab (no history), close the tab
@@ -73,10 +88,18 @@ export default function RoutePermissionGuard({ children }: { children: React.Rea
                         router.back();
                     }
                 }}
-                className="mt-2 px-6 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+                className="px-6 py-2 rounded-md border border-border bg-card text-sm font-medium text-foreground hover:bg-muted transition-colors"
             >
                 Go Back
             </button>
+            <button
+                onClick={() => router.push(`/${locale}${IT_SUPPORT_ROUTE}?from=${encodeURIComponent(path)}`)}
+                className="inline-flex items-center gap-1.5 px-6 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+                <Icon icon="heroicons-outline:lifebuoy" className="w-4 h-4" />
+                Contact IT Support
+            </button>
+            </div>
         </div>
     );
 }

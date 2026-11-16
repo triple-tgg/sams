@@ -32,7 +32,11 @@ export interface Education {
     id?: number
     degree: string
     institution: string
+    /** Display text, e.g. "2017 – 2021" */
     year: string
+    /** Empty / missing when unknown (mock data has only `year`) */
+    startYear?: string
+    endYear?: string
     field: string
 }
 
@@ -98,6 +102,8 @@ export interface StaffData {
     avatarBg: string
     profileImage?: string
     titleName?: string
+    /** Name title master id (titleObj.id) */
+    titleId?: number
     dob: string
     idCard: string
     nationality: string

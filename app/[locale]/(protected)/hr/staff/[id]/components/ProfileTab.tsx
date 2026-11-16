@@ -26,6 +26,7 @@ import type { StaffDocumentStatus } from '@/lib/api/master/staff/staffDocumentSt
 import { useAmelCategories } from '@/lib/api/master/amel-categories.hooks'
 import { MENU } from "@/lib/permission-codes";
 import { useMenuPermission } from "@/hooks/use-menu-permission";
+import { formatAmelCategoryLabel } from '@/lib/api/master/amel-categories'
 
 // ── Constants ──
 const AIRCRAFT_TYPE_LICENSES = [
@@ -41,12 +42,12 @@ const AIRCRAFT_TYPE_LICENSES = [
 ]
 
 const AMEL_LICENSE_CATEGORIES = [
-    { code: 'B1.1', label: 'B1.1 — Aeroplane Turbine' },
-    { code: 'B1.2', label: 'B1.2 — Aeroplane Piston' },
-    { code: 'B1.3', label: 'B1.3 — Helicopter Turbine' },
-    { code: 'B1.4', label: 'B1.4 — Helicopter Piston' },
-    { code: 'B2', label: 'B2 — Avionics' },
-    { code: 'C', label: 'C — Base Maintenance' },
+    { code: 'B1.1', label: 'B1.1 - Aeroplane Turbine' },
+    { code: 'B1.2', label: 'B1.2 - Aeroplane Piston' },
+    { code: 'B1.3', label: 'B1.3 - Helicopter Turbine' },
+    { code: 'B1.4', label: 'B1.4 - Helicopter Piston' },
+    { code: 'B2', label: 'B2 - Avionics' },
+    { code: 'C', label: 'C - Base Maintenance' },
 ]
 
 // DOCUMENT_TYPES is now fetched from the API via useStaffDocumentTypes()
@@ -365,7 +366,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
 
     const handleSavePersonal = (data: any) => {
         const payload = buildUpsertPayload({
-            title: data.titleNameTH || data.titleNameEN || '',
+            titleId: Number(data.titleId) || 0,
             fullNameTh: data.name,
             fullNameEn: data.nameEn,
             // '-' is a display placeholder, not a date — the backend rejects it as DateOnly
@@ -568,7 +569,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
 
     const getCategoryLabel = (categoryId: number) => {
         const cat = amelCategories.find(c => c.id === categoryId)
-        if (cat) return `${cat.code} — ${cat.name}`
+        if (cat) return formatAmelCategoryLabel(cat)
         const fallback = AMEL_LICENSE_CATEGORIES[categoryId - 1]
         return fallback ? fallback.label : `Category ${categoryId}`
     }

@@ -16,6 +16,7 @@ import type { MenuPermission } from "@/lib/api/master/roles/roles.interface";
 import { recalcParents } from "@/lib/permission-tree";
 import { Checkbox } from "@/components/ui/checkbox";
 import StaffEmployeePicker from "./StaffEmployeePicker";
+import { staffTitleText } from "@/lib/api/master/staff-titles"
 
 type FlatPerm = MenuPermission & {
     _depth: number;
@@ -298,6 +299,8 @@ type Props = {
     defaults?: UserFormDefaults;
     /** Keep Internal Staff + linked employee fixed (account is being created for a known staff member). */
     lockStaffLink?: boolean;
+    /** Keep the email fixed (it was already checked for an existing account). */
+    lockEmail?: boolean;
     isPending?: boolean;
     onClose: () => void;
     onSubmit?: (data: {
@@ -314,7 +317,7 @@ type Props = {
 };
 
 // ─── Main UserFormDialog ───────────────────────────────────────────────────────
-const UserFormDialog = ({ mode, user, defaults, lockStaffLink = false, isPending = false, onClose, onSubmit }: Props) => {
+const UserFormDialog = ({ mode, user, defaults, lockStaffLink = false, lockEmail = false, isPending = false, onClose, onSubmit }: Props) => {
     const [username, setUsername] = useState("");
     const [email, setEmail] = useState("");
     const [passwordData, setPasswordData] = useState("");
@@ -467,7 +470,7 @@ const UserFormDialog = ({ mode, user, defaults, lockStaffLink = false, isPending
                                                 // Prefill empty fields from the linked staff record
                                                 if (staff) {
                                                     if (!fullName.trim()) {
-                                                        setFullName([staff.title, staff.name].filter(Boolean).join(" ") || staff.fullNameEn || "");
+                                                        setFullName([staffTitleText(staff), staff.name].filter(Boolean).join(" ") || staff.fullNameEn || "");
                                                     }
                                                     if (!email.trim() && staff.email) setEmail(staff.email);
                                                 }
@@ -504,7 +507,7 @@ const UserFormDialog = ({ mode, user, defaults, lockStaffLink = false, isPending
                                     placeholder="e.g. john@example.com"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    disabled={isViewMode || isPending}
+                                    disabled={isViewMode || isPending || lockEmail}
                                     required={!isViewMode}
                                 />
                             </div>

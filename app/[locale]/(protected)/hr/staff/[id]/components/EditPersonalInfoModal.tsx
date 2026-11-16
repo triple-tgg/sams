@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react'
 import { X, User } from 'lucide-react'
 import { StaffData } from '../types'
+import { useStaffTitles } from '@/lib/api/master/staff-titles.hooks'
+import { resolveStaffTitleId } from '@/lib/api/master/staff-titles'
 
-interface PersonalInfoFormData {
-    titleNameTH: string
-    titleNameEN: string
+export interface PersonalInfoFormData {
+    /** Name title id (titleObj.id) as a string; the Thai and English selects both edit it */
+    titleId: string
     name: string
     nameEn: string
     dob: string
@@ -15,18 +17,6 @@ interface PersonalInfoFormData {
     nationality: string
 }
 
-const TITLE_OPTIONS_TH = [
-    { value: 'นาย', label: 'นาย' },
-    { value: 'นาง', label: 'นาง' },
-    { value: 'นางสาว', label: 'นางสาว' },
-]
-
-const TITLE_OPTIONS_EN = [
-    { value: 'Mr.', label: 'Mr.' },
-    { value: 'Mrs.', label: 'Mrs.' },
-    { value: 'Ms.', label: 'Ms.' },
-    { value: 'Dr.', label: 'Dr.' },
-]
 
 interface EditPersonalInfoModalProps {
     isOpen: boolean
@@ -95,8 +85,7 @@ const toDateInputValue = (value?: string | null) => blankIfDash(value).slice(0, 
 
 export function EditPersonalInfoModal({ isOpen, onClose, staff, onSave }: EditPersonalInfoModalProps) {
     const [form, setForm] = useState<PersonalInfoFormData>({
-        titleNameTH: staff.titleName ?? '',
-        titleNameEN: '',
+        titleId: staff.titleId ? String(staff.titleId) : '',
         name: blankIfDash(staff.name),
         nameEn: blankIfDash(staff.nameEn),
         dob: toDateInputValue(staff.dob),
@@ -109,8 +98,7 @@ export function EditPersonalInfoModal({ isOpen, onClose, staff, onSave }: EditPe
     useEffect(() => {
         if (isOpen) {
             setForm({
-                titleNameTH: staff.titleName ?? '',
-                titleNameEN: '',
+                titleId: staff.titleId ? String(staff.titleId) : '',
                 name: blankIfDash(staff.name),
                 nameEn: blankIfDash(staff.nameEn),
                 dob: toDateInputValue(staff.dob),
@@ -122,8 +110,25 @@ export function EditPersonalInfoModal({ isOpen, onClose, staff, onSave }: EditPe
     }, [isOpen, staff])
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
+        // Both title selects (Thai / English) set the same titleId
+        const key = e.target.name === 'titleIdTh' || e.target.name === 'titleIdEn' ? 'titleId' : e.target.name
+        setForm(prev => ({ ...prev, [key]: e.target.value }))
     }
+
+    // Title options from the title master: each row has both the Thai and the English name
+    const { data: titles = [] } = useStaffTitles()
+    // Records saved before titleId existed: preselect by matching the old title text
+    useEffect(() => {
+        if (!isOpen || form.titleId || !staff.titleName || titles.length === 0) return
+        const id = resolveStaffTitleId(staff.titleName, titles)
+        if (id) setForm(prev => ({ ...prev, titleId: String(id) }))
+    }, [isOpen, form.titleId, staff.titleName, titles])
+    // Miss and Ms. are both "นางสาว": add the English name where the Thai one is shared
+    const titleOptionsTh = [{ value: '', label: '-' }, ...titles.map(t => ({
+        value: String(t.id),
+        label: titles.some(o => o.id !== t.id && o.nameTh === t.nameTh) ? `${t.nameTh} (${t.nameEn})` : t.nameTh,
+    }))]
+    const titleOptionsEn = [{ value: '', label: '-' }, ...titles.map(t => ({ value: String(t.id), label: t.nameEn }))]
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
@@ -166,10 +171,10 @@ export function EditPersonalInfoModal({ isOpen, onClose, staff, onSave }: EditPe
                             <div className="col-span-5">
                                 <FormSelect
                                     label="Title"
-                                    name="titleNameTH"
-                                    value={form.titleNameTH}
+                                    name="titleIdTh"
+                                    value={form.titleId}
                                     onChange={handleChange}
-                                    options={TITLE_OPTIONS_TH}
+                                    options={titleOptionsTh}
                                 />
                             </div>
                             <div className="col-span-19">
@@ -186,10 +191,10 @@ export function EditPersonalInfoModal({ isOpen, onClose, staff, onSave }: EditPe
                             <div className="col-span-5">
                                 <FormSelect
                                     label="Title"
-                                    name="titleNameEN"
-                                    value={form.titleNameEN}
+                                    name="titleIdEn"
+                                    value={form.titleId}
                                     onChange={handleChange}
-                                    options={TITLE_OPTIONS_EN}
+                                    options={titleOptionsEn}
                                 />
                             </div>
                             <div className="col-span-19">

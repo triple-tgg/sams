@@ -8,10 +8,12 @@ import { groupCombinationDisplayLabels } from '@/lib/utils/aircraftEngineDisplay
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import { Fragment, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
 import './work-experience-preview.css'
 import { MENU } from "@/lib/permission-codes";
 import { useMenuPermission } from "@/hooks/use-menu-permission";
+import { staffTitleText } from "@/lib/api/master/staff-titles"
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -166,8 +168,8 @@ export function WorkExperiencePreview({ isOpen, onClose, staffId }: WorkExperien
     const trainingResp = previewData?.responseData?.training
 
     // `title` is one value (usually English, e.g. "Mr.") — each name gets the title in its own language
-    const nameEn = formatEnglishName(api?.title, api?.fullNameEn) || api?.name || '-'
-    const nameTh = formatThaiName(api?.title, api?.name) || '-'
+    const nameEn = formatEnglishName(staffTitleText(api), api?.fullNameEn) || api?.name || '-'
+    const nameTh = formatThaiName(staffTitleText(api), api?.name) || '-'
     const dob = api?.dateOfBirth ? formatDate(api.dateOfBirth) : '-'
     const pob = api?.placeOfBirth || '-'
     const idCard = api?.idCardNo || '-'
@@ -392,7 +394,9 @@ export function WorkExperiencePreview({ isOpen, onClose, staffId }: WorkExperien
         }
     }
 
-    return (
+    // Portal to <body>: an ancestor in the app layout has a transform, which would turn the fixed overlay
+    // into a box inside the content area instead of covering the whole screen.
+    return createPortal(
         <div className="wep-overlay">
             {/* Toolbar */}
             <div className="wep-toolbar">
@@ -478,8 +482,8 @@ export function WorkExperiencePreview({ isOpen, onClose, staffId }: WorkExperien
                                 <tr key={i}>
                                     <td style={{ textAlign: 'center' }}>{edu.degree || '-'}</td>
                                     <td>{edu.institution || '-'}</td>
-                                    <td style={{ textAlign: 'center' }}>-</td>
-                                    <td style={{ textAlign: 'center' }}>{edu.year || '-'}</td>
+                                    <td style={{ textAlign: 'center' }}>{edu.startYear || '-'}</td>
+                                    <td style={{ textAlign: 'center' }}>{edu.endYear || '-'}</td>
                                 </tr>
                             )) : (
                                 <tr>
@@ -612,5 +616,5 @@ export function WorkExperiencePreview({ isOpen, onClose, staffId }: WorkExperien
                 <div data-measure="footer"><FormFooter page={1} total={1} /></div>
             </div>
         </div>
-    )
+    , document.body)
 }

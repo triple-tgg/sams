@@ -207,3 +207,43 @@ export const getCoursesTemplate = async (): Promise<TemplateDownload> => {
     );
   }
 };
+
+/** Used when the server's filename isn't readable. Includes today's date, e.g. "Courses Export 2026-11-15.xlsx". */
+const coursesExportFilename = () => {
+  const d = new Date(); // local date, not UTC
+  const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return `Courses Export ${ymd}.xlsx`;
+};
+
+/**
+ * POST /migration/courses-export — all courses as an Excel file.
+ * Staging currently serves this route with GET only (POST → 405), so a 405 retries with GET.
+ */
+export const exportCourses = async (): Promise<TemplateDownload> => {
+  const config = { responseType: "blob" as const, timeout: 120000 }; // file download
+  try {
+    let response;
+    try {
+      response = await axiosConfig.post("/migration/courses-export", {}, config);
+    } catch (error: any) {
+      if (error?.response?.status !== 405) throw error;
+      response = await axiosConfig.get("/migration/courses-export", config);
+    }
+    return {
+      blob: response.data as Blob,
+      fileName: parseContentDispositionFilename(
+        response.headers?.["content-disposition"],
+        coursesExportFilename()
+      ),
+    };
+  } catch (error: any) {
+    console.error("Error exporting courses:", error);
+    const fromBlob = await readBlobErrorMessage(error?.response?.data);
+    throw new Error(
+      fromBlob ||
+        error?.response?.data?.error ||
+        error?.response?.data?.message ||
+        "Failed to export courses"
+    );
+  }
+};

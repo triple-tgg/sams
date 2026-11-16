@@ -84,7 +84,7 @@ function readStation(source: Partial<StationFields> | undefined, stationCodeById
         stationCode: source?.stationObj?.code || (stationId ? stationCodeById.get(stationId) ?? '' : ''),
         transfers: (source?.staffStationTransferList ?? [])
             .filter((t) => !t.isdelete)
-            .map((t) => ({ id: t.id, stationId: t.stationId, stationCode: stationCodeById.get(t.stationId) ?? '' })),
+            .map((t) => ({ id: t.id, stationId: t.stationId, stationCode: t.stationObj?.code || stationCodeById.get(t.stationId) || '' })),
     };
 }
 

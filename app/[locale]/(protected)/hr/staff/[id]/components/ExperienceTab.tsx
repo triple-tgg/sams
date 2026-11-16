@@ -26,10 +26,11 @@ interface EducationDraft {
     degree: string
     institution: string
     fieldOfStudy: string
-    year: string
+    startYear: string
+    endYear: string
 }
 
-const emptyEducationDraft = (): EducationDraft => ({ degree: '', institution: '', fieldOfStudy: '', year: '' })
+const emptyEducationDraft = (): EducationDraft => ({ degree: '', institution: '', fieldOfStudy: '', startYear: '', endYear: '' })
 
 const inputCls =
     'w-full px-3 py-2 text-sm text-slate-800 bg-white border border-slate-200 rounded-lg outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100'
@@ -119,7 +120,8 @@ export function ExperienceTab({ staff, apiData }: { staff: StaffData, apiData?: 
             degree: e.degree || '',
             institution: e.institution || '',
             fieldOfStudy: e.fieldOfStudy || '',
-            year: e.year || 0,
+            startYear: e.startYear || 0,
+            endYear: e.endYear || 0,
         }))
 
     const isSaving = upsertMutation.isPending
@@ -143,7 +145,8 @@ export function ExperienceTab({ staff, apiData }: { staff: StaffData, apiData?: 
             degree: edu.degree,
             institution: edu.institution,
             fieldOfStudy: edu.fieldOfStudy,
-            year: edu.year ? String(edu.year) : '',
+            startYear: edu.startYear ? String(edu.startYear) : '',
+            endYear: edu.endYear ? String(edu.endYear) : '',
         })
         setEduEditing(id)
     }
@@ -164,12 +167,18 @@ export function ExperienceTab({ staff, apiData }: { staff: StaffData, apiData?: 
     const submitEducation = () => {
         const degree = eduDraft.degree.trim()
         const institution = eduDraft.institution.trim()
-        const year = Number(eduDraft.year)
+        const startYear = Number(eduDraft.startYear) || 0
+        const endYear = Number(eduDraft.endYear) || 0
         const maxYear = new Date().getFullYear() + 10
+        const inRange = (y: number) => Number.isInteger(y) && y >= 1900 && y <= maxYear
         if (!degree) return toast.error('Degree is required')
         if (!institution) return toast.error('Institution is required')
-        if (!eduDraft.year || !Number.isInteger(year) || year < 1900 || year > maxYear) {
+        if (!startYear && !endYear) return toast.error('Enter a start year or an end year')
+        if ((startYear && !inRange(startYear)) || (endYear && !inRange(endYear))) {
             return toast.error(`Year must be between 1900 and ${maxYear}`)
+        }
+        if (startYear && endYear && startYear > endYear) {
+            return toast.error('Start year must not be after end year')
         }
 
         const entry: UpsertEducation = {
@@ -177,7 +186,8 @@ export function ExperienceTab({ staff, apiData }: { staff: StaffData, apiData?: 
             degree,
             institution,
             fieldOfStudy: eduDraft.fieldOfStudy.trim(),
-            year,
+            startYear,
+            endYear,
         }
         const list =
             eduEditing === 'new'
@@ -202,7 +212,7 @@ export function ExperienceTab({ staff, apiData }: { staff: StaffData, apiData?: 
 
     const renderEducationEditor = (key: string | number) => (
         <tr key={key} className={eduEditing === 'new' ? 'bg-emerald-50/30' : 'bg-blue-50/50'}>
-            <td className="py-2 px-2 border-b border-slate-100 min-w-[150px]">
+            <td className="py-2 px-2 border-b border-slate-100 min-w-[130px]">
                 <select
                     value={eduDraft.degree}
                     onChange={(e) => setEduDraft((d) => ({ ...d, degree: e.target.value }))}
@@ -220,14 +230,17 @@ export function ExperienceTab({ staff, apiData }: { staff: StaffData, apiData?: 
                     ))}
                 </select>
             </td>
-            <td className="py-2 px-2 border-b border-slate-100 min-w-[180px]">
+            <td className="py-2 px-2 border-b border-slate-100 min-w-[150px]">
                 <input type="text" value={eduDraft.institution} onChange={(e) => setEduDraft((d) => ({ ...d, institution: e.target.value }))} onKeyDown={eduKeyDown} placeholder="Institution" className={inputCls} />
             </td>
-            <td className="py-2 px-2 border-b border-slate-100 min-w-[160px]">
+            <td className="py-2 px-2 border-b border-slate-100 min-w-[130px]">
                 <input type="text" value={eduDraft.fieldOfStudy} onChange={(e) => setEduDraft((d) => ({ ...d, fieldOfStudy: e.target.value }))} onKeyDown={eduKeyDown} placeholder="Field of study" className={inputCls} />
             </td>
-            <td className="py-2 px-2 border-b border-slate-100 w-[110px]">
-                <input type="number" inputMode="numeric" value={eduDraft.year} onChange={(e) => setEduDraft((d) => ({ ...d, year: e.target.value.slice(0, 4) }))} onKeyDown={eduKeyDown} placeholder="YYYY" className={inputCls} />
+            <td className="py-2 px-2 border-b border-slate-100 w-[76px]">
+                <input type="text" inputMode="numeric" maxLength={4} aria-label="Start year" value={eduDraft.startYear} onChange={(e) => setEduDraft((d) => ({ ...d, startYear: e.target.value.replace(/\D/g, '').slice(0, 4) }))} onKeyDown={eduKeyDown} placeholder="YYYY" className={`${inputCls} !w-[64px] !px-2 text-center`} />
+            </td>
+            <td className="py-2 px-2 border-b border-slate-100 w-[76px]">
+                <input type="text" inputMode="numeric" maxLength={4} aria-label="End year" value={eduDraft.endYear} onChange={(e) => setEduDraft((d) => ({ ...d, endYear: e.target.value.replace(/\D/g, '').slice(0, 4) }))} onKeyDown={eduKeyDown} placeholder="YYYY" className={`${inputCls} !w-[64px] !px-2 text-center`} />
             </td>
             <td className="py-2 px-2 border-b border-slate-100">
                 <div className="flex items-center justify-center gap-1.5">
@@ -376,7 +389,7 @@ export function ExperienceTab({ staff, apiData }: { staff: StaffData, apiData?: 
                     <table className="w-full min-w-[620px] border-collapse">
                         <thead>
                             <tr>
-                                {['Degree', 'Institution', 'Field of Study', 'Year'].map((h) => (
+                                {['Degree', 'Institution', 'Field of Study', 'Start Year', 'End Year'].map((h) => (
                                     <th
                                         key={h}
                                         className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider py-2.5 px-3.5 bg-white sticky top-0 z-[2] shadow-[inset_0_-1px_0_#e8ecf1] text-left whitespace-nowrap"
@@ -399,7 +412,8 @@ export function ExperienceTab({ staff, apiData }: { staff: StaffData, apiData?: 
                                         <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-800 font-medium">{edu.degree || '-'}</td>
                                         <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-600">{edu.institution || '-'}</td>
                                         <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-500">{edu.field || '-'}</td>
-                                        <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700 whitespace-nowrap">{edu.year || '-'}</td>
+                                        <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700 whitespace-nowrap tabular-nums">{edu.startYear || '-'}</td>
+                                        <td className="text-[13px] py-3 px-3.5 border-b border-slate-100 text-slate-700 whitespace-nowrap tabular-nums">{edu.endYear || '-'}</td>
                                         <td className="py-3 px-3.5 border-b border-slate-100">
                                                 <div className="flex items-center justify-center gap-1.5">
                                                     {perm.canEdit && (<button onClick={() => startEditEducation(id)} disabled={isLocked || edu.id === undefined} title="Edit" className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 cursor-pointer transition-all bg-transparent border-none disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-400">

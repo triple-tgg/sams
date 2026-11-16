@@ -27,7 +27,7 @@ import {
     PopoverTrigger,
 } from '@/components/ui/popover'
 import {
-    ChevronLeft, ChevronRight, Plus, MoreHorizontal, Eye, Search, Users, RefreshCw, AlertCircle, User, FileUp, Download, Loader2,
+    ChevronLeft, ChevronRight, Plus, MoreHorizontal, Eye, Search, Users, RefreshCw, AlertCircle, User, FileUp, Download, FileSpreadsheet, Loader2,
     ArrowUpDown, ArrowUp, ArrowDown, SlidersHorizontal, Filter, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -37,11 +37,12 @@ import { useStaffDepartments, useStaffDepartmentPositions } from '@/lib/api/mast
 import { useStaffsTypesAll } from '@/lib/api/hooks/useStaffsTypes'
 import { PermissionActionGuard } from '@/components/partials/auth/PermissionActionGuard'
 import { StaffExcelImportModal } from './components/StaffExcelImportModal'
-import { getStaffsTemplate } from '@/lib/api/migration/importStaff'
+import { exportStaffs, getStaffsTemplate } from '@/lib/api/migration/importStaff'
 import { useApiTemplateDownload } from '@/hooks/use-api-template-download'
 import './hr-staff.css'
 import { MENU } from "@/lib/permission-codes";
 import { useLocale } from "next-intl";
+import { staffTitleText } from "@/lib/api/master/staff-titles"
 
 const staffTypeColors: Record<string, string> = {
     'CS': '#2563eb',
@@ -69,6 +70,7 @@ export default function HRStaffListPage() {
     const [selectedImportFile, setSelectedImportFile] = useState<File | null>(null)
     const importFileInputRef = useRef<HTMLInputElement>(null)
     const { downloadTemplate, isDownloading: isDownloadingTemplate } = useApiTemplateDownload(getStaffsTemplate)
+    const { downloadTemplate: downloadExport, isDownloading: isExporting } = useApiTemplateDownload(exportStaffs)
 
     const handleImportClick = () => {
         importFileInputRef.current?.click()
@@ -185,6 +187,20 @@ export default function HRStaffListPage() {
                             className="hidden"
                             onChange={handleImportFileSelect}
                         />
+                        <PermissionActionGuard menuCode={MENU.HR_STAFF} action="canExport">
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="hr-btn-import"
+                                onClick={downloadExport}
+                                disabled={isExporting}
+                            >
+                                {isExporting
+                                    ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                                    : <FileSpreadsheet className="h-4 w-4 mr-1.5" />}
+                                Export
+                            </Button>
+                        </PermissionActionGuard>
                         <PermissionActionGuard menuCode={MENU.HR_STAFF} action="canCreate">
                         <Button
                             size="sm"
@@ -688,7 +704,7 @@ export default function HRStaffListPage() {
                                                             </div>
                                                             <div>
                                                                 <div className="font-medium text-sm flex items-center gap-2">
-                                                                    <span>{staff.fullNameEn || (`${staff.title ? `${staff.title} ` : ''}${staff.name}`)}</span>
+                                                                    <span>{staff.fullNameEn || (`${staffTitleText(staff) ? `${staffTitleText(staff)} ` : ''}${staff.name}`)}</span>
                                                                     {staff.isDepartmentAmo145 && (
                                                                         <span
                                                                             className="hr-position-tag shrink-0"

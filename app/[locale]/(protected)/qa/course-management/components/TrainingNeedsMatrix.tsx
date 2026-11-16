@@ -6,8 +6,9 @@ import { CATEGORY_DOT } from '../types'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getCourseMatrix, upsertCourseMatrixRequirements, getCourseById, getCourseCategories, getCourseList } from '@/lib/api/qa/course'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { getCourseMatrix, getCourseById, getCourseCategories, getCourseList } from '@/lib/api/qa/course'
+import { useUpsertCourseMatrixRequirements } from '@/lib/api/qa/course.hooks'
 import { TransferBox } from '@/components/ui/transfer-box'
 import { useCombinations } from '@/lib/api/master/aircraft-engine/aircraftEngine.hooks'
 import { groupCombinationDisplayLabels } from '@/lib/utils/aircraftEngineDisplay'
@@ -36,8 +37,8 @@ export function TrainingNeedsMatrix({ departmentId = 0, categoryId = 0, departme
     const [hoveredRow, setHoveredRow] = useState<number | null>(null)
     const [hoveredCol, setHoveredCol] = useState<number | null>(null)
     const [editingCell, setEditingCell] = useState<{ courseId: number, courseName: string, roleIndex: number, currentVal: number, roleId: number } | null>(null)
-    const queryClient = useQueryClient()
     const { user } = useReduxAuth()
+    const queryClient = useQueryClient()
 
     // Column header label: short role code (default) or full role name (rotated).
     const [headerMode, setHeaderMode] = useState<'code' | 'name'>('code')
@@ -135,8 +136,20 @@ export function TrainingNeedsMatrix({ departmentId = 0, categoryId = 0, departme
         }
         return map
     }, [courseListResp])
-    /** Only Type Course requirements are editable from the matrix. */
+    /** Aircraft types are edited from the matrix for Type Course rows only (role cells are editable for every course). */
     const isTypeCourseRow = (courseId: number) => courseMeta.get(courseId)?.category === 'Type Course'
+
+    /** Required requirements of a course, across every department sub the matrix returned (not just the visible column filter). */
+    const requiredReqsOf = (courseId: number) =>
+        apiCourses.find(c => c.courseId === courseId)?.requirements.filter(r => r.isRequired) ?? []
+    /**
+     * Aircraft types shown for a course: the union saved on its Required requirements,
+     * else the course's own list (older data / matrix without per-requirement combos).
+     */
+    const effectiveComboIds = (courseId: number): number[] => {
+        const fromReqs = Array.from(new Set(requiredReqsOf(courseId).flatMap(r => r.aircraftEngineCombinationIds ?? [])))
+        return fromReqs.length > 0 ? fromReqs : courseMeta.get(courseId)?.comboIds ?? []
+    }
 
     const { data: editingCourseResp, isLoading: isLoadingEditingCourse } = useQuery({
         queryKey: ['course-detail', editingCell?.courseId],
@@ -158,10 +171,12 @@ export function TrainingNeedsMatrix({ departmentId = 0, categoryId = 0, departme
         (needsAircraftTypes && !sameIds(selectedComboIds, initialComboIds))
     )
 
-    // Clicking a Not Required cell proposes Required; a Required cell opens as-is for editing.
+    // The dialog proposes the opposite of the cell's current status (Not Required → Required,
+    // Required → Not Required). A Required Type Course cell can still be switched back to Required
+    // to change its aircraft type licences.
     // Kept apart from the licence prefill below so late-loading course data cannot undo the user's choice.
     useEffect(() => {
-        if (editingCell) setTargetRequired(true)
+        if (editingCell) setTargetRequired(editingCell.currentVal !== 1)
     }, [editingCell])
 
     // Reset the form each time a cell is opened.
@@ -185,17 +200,7 @@ export function TrainingNeedsMatrix({ departmentId = 0, categoryId = 0, departme
         setInitialComboIds(editingCell.currentVal === 1 ? ids : [])
     }, [editingCell, editingCourseResp, apiCourses])
 
-    const mutation = useMutation({
-        mutationFn: upsertCourseMatrixRequirements,
-        onSuccess: () => {
-            toast.success("Training requirement updated successfully")
-            queryClient.invalidateQueries({ queryKey: ['course-matrix'] })
-            setEditingCell(null)
-        },
-        onError: (error) => {
-            toast.error(error.message || "Failed to update training requirement")
-        }
-    })
+    const mutation = useUpsertCourseMatrixRequirements()
 
     const handleConfirmChange = () => {
         if (!editingCell || !hasChanges) return
@@ -213,12 +218,76 @@ export function TrainingNeedsMatrix({ departmentId = 0, categoryId = 0, departme
             return newData
         })
 
-        mutation.mutate([{
-            courseId: editingCell.courseId,
-            courseDepartmentSubId: editingCell.roleId,
-            isRequired: targetRequired,
-            aircraftEngineCombinationIds: needsAircraftTypes ? selectedComboIds : [],
-        }])
+        mutation.mutate(
+            {
+                requirements: [{
+                    courseId: editingCell.courseId,
+                    courseDepartmentSubId: editingCell.roleId,
+                    isRequired: targetRequired,
+                }],
+                aircraftEngineCombinationIds: needsAircraftTypes ? selectedComboIds : [],
+            },
+            {
+                onSuccess: () => {
+                    toast.success("Training requirement updated successfully")
+                    setEditingCell(null)
+                },
+                onError: (error) => {
+                    toast.error(error.message || "Failed to update training requirement")
+                },
+            }
+        )
+    }
+
+    // ── Edit aircraft types dialog (Aircraft Type column) ──
+    // One upsert carries every Required role of the course plus the chosen combinations,
+    // so the aircraft types stay identical across all roles that require the course.
+    const [editingAircraft, setEditingAircraft] = useState<{ courseId: number; courseName: string } | null>(null)
+    const [aircraftComboIds, setAircraftComboIds] = useState<number[]>([])
+    const [aircraftInitialIds, setAircraftInitialIds] = useState<number[]>([])
+    const [aircraftTouched, setAircraftTouched] = useState(false)
+    const aircraftRequiredReqs = editingAircraft ? requiredReqsOf(editingAircraft.courseId) : []
+    const aircraftNoRequiredRoles = !!editingAircraft && aircraftRequiredReqs.length === 0
+    const aircraftMissing = aircraftComboIds.length === 0
+    const aircraftHasChanges = !!editingAircraft && !sameIds(aircraftComboIds, aircraftInitialIds)
+
+    const openAircraftEditor = (courseId: number, courseName: string) => {
+        const ids = effectiveComboIds(courseId)
+        setAircraftComboIds(ids)
+        setAircraftInitialIds(ids)
+        setAircraftTouched(false)
+        setEditingAircraft({ courseId, courseName })
+    }
+
+    const handleSaveAircraft = () => {
+        if (!editingAircraft || !aircraftHasChanges || aircraftNoRequiredRoles) return
+        if (aircraftMissing) {
+            setAircraftTouched(true)
+            return
+        }
+        const { courseId } = editingAircraft
+        mutation.mutate(
+            {
+                requirements: aircraftRequiredReqs.map(r => ({
+                    courseId,
+                    courseDepartmentSubId: r.departmentSubId,
+                    isRequired: true,
+                })),
+                aircraftEngineCombinationIds: aircraftComboIds,
+            },
+            {
+                onSuccess: () => {
+                    toast.success('Aircraft types updated successfully')
+                    // The column falls back to the course-level list, so refresh it too
+                    queryClient.invalidateQueries({ queryKey: ['course-list-matrix-meta'] })
+                    queryClient.invalidateQueries({ queryKey: ['course-detail', courseId] })
+                    setEditingAircraft(null)
+                },
+                onError: (error) => {
+                    toast.error(error.message || 'Failed to update aircraft types')
+                },
+            }
+        )
     }
 
     // Both tables share a fixed layout + colgroup so header and body columns line up.
@@ -358,9 +427,13 @@ export function TrainingNeedsMatrix({ departmentId = 0, categoryId = 0, departme
                             const data = localMatrixData[mc.courseId] || []
                             const courseInfo = courseMeta.get(mc.courseId)
                             const catDot = courseInfo ? CATEGORY_DOT[courseInfo.category] || 'bg-muted-foreground' : 'bg-muted-foreground'
+                            // Role cells: any course (isRequired). Aircraft Type cell: Type Course only.
+                            const roleCellEditable = perm.canEdit
                             const rowEditable = perm.canEdit && isTypeCourseRow(mc.courseId)
-                            const aircraftLabels = courseInfo?.comboIds.length
-                                ? groupCombinationDisplayLabels(courseInfo.comboIds, activeCombinations)
+                            const aircraftNotApplicable = !!courseInfo && courseInfo.category !== 'Type Course'
+                            const rowComboIds = effectiveComboIds(mc.courseId)
+                            const aircraftLabels = rowComboIds.length
+                                ? groupCombinationDisplayLabels(rowComboIds, activeCombinations)
                                 : []
                             return (
                                 <tr
@@ -417,15 +490,40 @@ export function TrainingNeedsMatrix({ departmentId = 0, categoryId = 0, departme
                                             </TooltipContent>
                                         </Tooltip>
                                     </td>
-                                    {/* Aircraft Type: ✓ when the course covers aircraft types (listed in the tooltip), ✕ otherwise */}
-                                    <td className="border-r border-border text-center">
+                                    {/* Aircraft Type: ✓ when the course covers aircraft types (listed in the tooltip), ✕ otherwise.
+                                        Type Course rows open the aircraft type editor on click. */}
+                                    <td
+                                        className={`border-r border-border text-center transition-colors ${
+                                            rowEditable ? 'cursor-pointer hover:bg-primary/10' : 'cursor-default'
+                                        } ${
+                                            // Only Type Course carries aircraft types: shade every other category as not applicable
+                                            aircraftNotApplicable ? 'bg-[#f3f7fa] dark:bg-muted/40' : ''
+                                        }`}
+                                        onClick={() => rowEditable && openAircraftEditor(mc.courseId, mc.courseName)}
+                                    >
                                         <Tooltip>
                                             <TooltipTrigger asChild>
-                                                <div className="w-full h-full flex justify-center items-center py-2 px-0.5">
+                                                <div
+                                                    className="w-full h-full flex justify-center items-center py-2 px-0.5"
+                                                    {...(rowEditable ? {
+                                                        role: 'button',
+                                                        tabIndex: 0,
+                                                        'aria-label': `Edit aircraft types for ${mc.courseName}`,
+                                                        onKeyDown: (e: React.KeyboardEvent) => {
+                                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                                e.preventDefault()
+                                                                openAircraftEditor(mc.courseId, mc.courseName)
+                                                            }
+                                                        },
+                                                    } : {})}
+                                                >
                                                     {aircraftLabels.length > 0 ? (
                                                         <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-primary">
                                                             <Check className="w-3 h-3 text-white" strokeWidth={2.5} />
                                                         </span>
+                                                    ) : aircraftNotApplicable ? (
+                                                        // Shaded, empty cell — no ✕ for categories without aircraft types
+                                                        <span className="w-5 h-5" aria-hidden />
                                                     ) : (
                                                         <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-muted">
                                                             <span className="text-muted-foreground" style={{ fontSize: 8 }}>✕</span>
@@ -447,6 +545,9 @@ export function TrainingNeedsMatrix({ departmentId = 0, categoryId = 0, departme
                                                     ) : (
                                                         <p className="text-xs text-zinc-500">No aircraft type</p>
                                                     )}
+                                                    {rowEditable && (
+                                                        <p className="mt-1.5 text-[10px] text-zinc-400">Click to edit</p>
+                                                    )}
                                                 </div>
                                             </TooltipContent>
                                         </Tooltip>
@@ -455,11 +556,11 @@ export function TrainingNeedsMatrix({ departmentId = 0, categoryId = 0, departme
                                         <td
                                             key={colIdx}
                                             className={`text-center transition-colors ${
-                                                rowEditable ? 'cursor-pointer hover:bg-primary/10' : 'cursor-default'
+                                                roleCellEditable ? 'cursor-pointer hover:bg-primary/10' : 'cursor-default'
                                             } ${hoveredCol === colIdx ? 'bg-primary/[0.06]' : ''}`}
                                             onMouseEnter={() => setHoveredCol(colIdx)}
                                             onMouseLeave={() => setHoveredCol(null)}
-                                            onClick={() => rowEditable && setEditingCell({
+                                            onClick={() => roleCellEditable && setEditingCell({
                                                 courseId: mc.courseId,
                                                 courseName: mc.courseName,
                                                 roleIndex: colIdx,
@@ -624,6 +725,96 @@ export function TrainingNeedsMatrix({ departmentId = 0, categoryId = 0, departme
                             disabled={mutation.isPending || isLoadingEditingCourse || !hasChanges}
                         >
                             {mutation.isPending ? "Saving..." : "Save Changes"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Aircraft Types Modal (Aircraft Type column) */}
+            <Dialog open={!!editingAircraft} onOpenChange={(open) => !open && !mutation.isPending && setEditingAircraft(null)}>
+                <DialogContent size="md" className="max-w-3xl">
+                    <DialogHeader>
+                        <DialogTitle>Edit Aircraft Types</DialogTitle>
+                        <DialogDescription>
+                            Choose the aircraft types this course applies to. The change is saved on every role that requires this course.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {editingAircraft && (
+                        <div className="space-y-4 py-2 text-sm">
+                            {/* Summary */}
+                            <div className="space-y-2.5 bg-muted/50 p-4 rounded-lg">
+                                <div className="grid grid-cols-[110px_1fr] gap-2">
+                                    <span className="text-muted-foreground font-medium">Course:</span>
+                                    <span className="text-foreground">{editingAircraft.courseName}</span>
+                                </div>
+                                <div className="grid grid-cols-[110px_1fr] gap-2">
+                                    <span className="text-muted-foreground font-medium">Category:</span>
+                                    <span className="text-foreground">{courseMeta.get(editingAircraft.courseId)?.category || '-'}</span>
+                                </div>
+                                <div className="grid grid-cols-[110px_1fr] gap-2">
+                                    <span className="text-muted-foreground font-medium">Applies to:</span>
+                                    {aircraftRequiredReqs.length > 0 ? (
+                                        <div className="flex flex-wrap gap-1">
+                                            {aircraftRequiredReqs.map(r => (
+                                                <span
+                                                    key={r.departmentSubId}
+                                                    title={r.departmentSubName}
+                                                    className="inline-flex rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary"
+                                                >
+                                                    {r.departmentSubCode || r.departmentSubName}
+                                                </span>
+                                            ))}
+                                            <span className="text-xs text-muted-foreground self-center">
+                                                ({aircraftRequiredReqs.length} required {aircraftRequiredReqs.length === 1 ? 'role' : 'roles'})
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <span className="text-muted-foreground">No required roles</span>
+                                    )}
+                                </div>
+                            </div>
+
+                            {aircraftNoRequiredRoles ? (
+                                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                                    Mark at least one role as Required for this course before setting its aircraft types.
+                                </div>
+                            ) : (
+                                <div>
+                                    <label className="text-xs font-semibold text-muted-foreground block mb-1.5">
+                                        Aircraft Type License <span className="text-red-400">*</span>
+                                    </label>
+                                    <TransferBox
+                                        items={activeCombinations.map(combo => ({ id: combo.id, name: combo.displayLabel, groupKey: combo.familyCode }))}
+                                        selected={new Set(activeCombinations.filter(combo => aircraftComboIds.includes(combo.id)).map(combo => combo.displayLabel))}
+                                        onSelectedChange={(selectedNames) => {
+                                            setAircraftComboIds(activeCombinations.filter(combo => selectedNames.has(combo.displayLabel)).map(combo => combo.id))
+                                        }}
+                                        emptyLabel="No aircraft type selected"
+                                        hasError={aircraftTouched && aircraftMissing}
+                                        height={260}
+                                        renderSelectedGroupLabel={(_, groupItems) =>
+                                            groupCombinationDisplayLabels(groupItems.map(item => Number(item.id)), activeCombinations).join(', ')
+                                        }
+                                    />
+                                    {aircraftTouched && aircraftMissing && (
+                                        <p className="text-[11px] text-red-500 mt-1">Select at least one aircraft type</p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditingAircraft(null)} disabled={mutation.isPending}>
+                            Cancel
+                        </Button>
+                        <Button
+                            color="primary"
+                            onClick={handleSaveAircraft}
+                            disabled={mutation.isPending || aircraftNoRequiredRoles || !aircraftHasChanges}
+                        >
+                            {mutation.isPending ? 'Saving...' : 'Save Changes'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

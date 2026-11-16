@@ -11,6 +11,22 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    ContextMenu,
+    ContextMenuContent,
+    ContextMenuItem,
+    ContextMenuTrigger,
+} from '@/components/ui/context-menu';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -68,6 +84,9 @@ import {
     countImportStaffPayloadRows,
     normalizeKey,
     sectionForSheet,
+    isMasterDataSheet,
+    isBlankHeaderColumn,
+    AMO145_POSITION_COLUMNS,
     DEFAULT_IMPORT_STATION,
     type ImportStaffRequest,
     type ImportStaffResult,
@@ -82,10 +101,13 @@ import { useStaffDepartmentPositionAmo145s } from '@/lib/api/master/organization
 import { useStations } from '@/lib/api/hooks/useStations';
 import { useAircraftTypeLicenses } from '@/lib/api/master/aircraft-type-licenses.hooks';
 import { useAmelCategories } from '@/lib/api/master/amel-categories.hooks';
+import { useStaffTitles } from '@/lib/api/master/staff-titles.hooks';
+import { resolveStaffTitleId } from '@/lib/api/master/staff-titles';
 import { useCourseList } from '@/lib/api/qa/course.hooks';
 import type { CourseData } from '@/lib/api/qa/course';
 import { useCombinations } from '@/lib/api/master/aircraft-engine/aircraftEngine.hooks';
 import type { AircraftEngineCombination } from '@/lib/api/master/aircraft-engine/aircraftEngine.types';
+import { formatAmelCategoryLabel } from '@/lib/api/master/amel-categories';
 import {
     parseAndSplitAircraftLicense,
     computeRowAircraftLicenseDisplay,
@@ -121,6 +143,8 @@ function findMatchingOption(
             (opt) =>
                 normalizeKey(opt.name) === clean ||
                 (opt.code && normalizeKey(opt.code) === clean) ||
+                // "[code]-[name]", e.g. "B1.1 - Aeroplane Turbine" (separators are dropped by normalizeKey)
+                (opt.code && normalizeKey(`${opt.code}${opt.name}`) === clean) ||
                 String(opt.id) === val.trim()
         ) || null
     );
@@ -464,7 +488,8 @@ export function StaffExcelImportModal({
      */
     const [serverRowErrors, setServerRowErrors] = useState<ResolvedValidationRowError[]>([]);
     /** "sheet:count" keys of row-error banners the user closed; a new count shows the banner again. */
-    const [dismissedErrorBanners, setDismissedErrorBanners] = useState<Set<string>>(new Set());
+    /** Issue details under the sheet toolbar; collapsed so a long list never pushes the table off screen. */
+    const [issuesExpanded, setIssuesExpanded] = useState(false);
 
     // Master data lookups
     const { data: positionsResp } = useStaffDepartmentPositions();
@@ -473,8 +498,9 @@ export function StaffExcelImportModal({
     const { data: aircraftLicenses } = useAircraftTypeLicenses();
     const { data: combinationsData = [] } = useCombinations();
     const combinationsList = useMemo(() => {
+        // Same list as every other screen: no validTo filter. Staging returns every combination with a past
+        // validTo (2026-11-15), so filtering on it left this page with no options at all.
         return [...combinationsData]
-            .filter((c) => !c.validTo)
             .sort((a, b) => {
                 const famA = a.familyCode || '';
                 const famB = b.familyCode || '';
@@ -490,6 +516,7 @@ export function StaffExcelImportModal({
             });
     }, [combinationsData]);
     const { data: amelCategories } = useAmelCategories();
+    const { data: staffTitles = [] } = useStaffTitles();
     const { data: coursesResp } = useCourseList();
 
     // Aircraft License split combinations mapping & expand state
@@ -863,7 +890,7 @@ export function StaffExcelImportModal({
         isEditable: boolean = false
     ) => {
         return (
-            <tr key={`expanded-${row.rowIndex}`} className="bg-slate-100/60 dark:bg-slate-900/60 border-b">
+            <tr key={`expanded-${row.rowIndex}`} data-editing-row={isEditable || undefined} className="bg-slate-100/60 dark:bg-slate-900/60 border-b">
                 <td colSpan={activeSheet.headers.length + 2} className="p-0">
                     <div className="p-3 bg-slate-100/80 dark:bg-slate-900/80 border-y border-slate-200 dark:border-slate-800">
                         {/* Nested card container with left accent border */}
@@ -1028,6 +1055,12 @@ export function StaffExcelImportModal({
     const [editingRowIndex, setEditingRowIndex] = useState<number | null>(null);
     const [editingRowData, setEditingRowData] = useState<Record<string, string>>({});
     editingRowIndexRef.current = editingRowIndex;
+    const isRowEditOpen = editingRowIndex !== null;
+
+    /** One row is edited at a time: other rows, sheet tabs, Add Row, Validate and Import wait until it is saved or cancelled. */
+    const warnRowEditOpen = useCallback(() => {
+        toast.warning(`Save or cancel your changes to row ${editingRowIndexRef.current} first.`);
+    }, []);
 
     const activeSheet = sheets[activeSheetIndex];
     const activeSheetSection = activeSheet ? sectionForSheet(activeSheet.name) : null;
@@ -1063,7 +1096,7 @@ export function StaffExcelImportModal({
         setMappingWarnings([]);
         setIsValidating(false);
         setValidationResult(null);
-        setDismissedErrorBanners(new Set());
+        setIssuesExpanded(false);
         setServerRowErrors([]);
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
@@ -1075,7 +1108,76 @@ export function StaffExcelImportModal({
         onClose();
     }, [resetState, onClose]);
 
+    // ── Leaving guard ──
+    // A loaded file that has not been imported yet is work in progress: the dialog closes only from its
+    // close buttons, closing asks first, and refresh / tab close / browser Back ask before the data is lost.
+    const hasUnsavedImport = isOpen && hasFile && !importResult;
+    const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
+
+    const requestClose = useCallback(() => {
+        if (isImporting || isValidating) return;
+        if (hasUnsavedImport) {
+            setConfirmDiscardOpen(true);
+            return;
+        }
+        handleClose();
+    }, [isImporting, isValidating, hasUnsavedImport, handleClose]);
+
+    // ── Delete a whole sheet (right-click a sheet tab) ──
+    const [sheetPendingDelete, setSheetPendingDelete] = useState<number | null>(null);
+
+    const deleteSheet = useCallback((index: number) => {
+        const removed = sheets[index];
+        if (!removed) return;
+        if (sheets.length === 1) {
+            // Nothing left to import: back to choosing a file
+            resetState();
+            toast.success(`Sheet "${removed.name}" removed`);
+            return;
+        }
+        setSheets((prev) => prev.filter((_, i) => i !== index));
+        setActiveSheetIndex((prev) => (prev > index ? prev - 1 : Math.min(prev, sheets.length - 2)));
+        setServerRowErrors((prev) => prev.filter((e) => e.sheetName !== removed.name));
+        if (sectionForSheet(removed.name) === 'aircraftLicense') {
+            setAircraftRowMappings({});
+            setExpandedAircraftRows(new Set());
+        }
+        // The payload changed, so the last validation no longer applies
+        setValidationResult(null);
+        toast.success(`Sheet "${removed.name}" removed from this import`);
+    }, [sheets, resetState]);
+
+    useEffect(() => {
+        if (!hasUnsavedImport) return;
+
+        const onBeforeUnload = (e: BeforeUnloadEvent) => {
+            e.preventDefault();
+            e.returnValue = '';
+        };
+
+        // Browser Back: a guard entry for the same URL absorbs the first Back press. Next.js's own history
+        // state is copied into it so the App Router treats it as the current page instead of reloading.
+        window.history.pushState({ ...(window.history.state ?? {}), staffImportGuard: true }, '', window.location.href);
+        const onPopState = () => {
+            window.history.pushState({ ...(window.history.state ?? {}), staffImportGuard: true }, '', window.location.href);
+            setConfirmDiscardOpen(true);
+        };
+
+        window.addEventListener('beforeunload', onBeforeUnload);
+        window.addEventListener('popstate', onPopState);
+        return () => {
+            window.removeEventListener('beforeunload', onBeforeUnload);
+            window.removeEventListener('popstate', onPopState);
+            // Drop the guard entry so Back works normally again
+            if (window.history.state?.staffImportGuard) window.history.back();
+        };
+    }, [hasUnsavedImport]);
+
     const startEditRow = useCallback((row: ParsedStaffRow) => {
+        if (editingRowIndex !== null && editingRowIndex !== row.rowIndex) {
+            warnRowEditOpen();
+            return;
+        }
         if (activeSheetSection === 'aircraftLicense') {
             setExpandedAircraftRows((prev) => {
                 const next = new Set(prev);
@@ -1094,7 +1196,7 @@ export function StaffExcelImportModal({
             }
         });
         setEditingRowData(data);
-    }, [activeSheetSection, editingRowIndex]);
+    }, [activeSheetSection, editingRowIndex, warnRowEditOpen]);
 
     const cancelEditRow = useCallback(() => {
         if (editingRowIndex !== null && activeSheetSection === 'aircraftLicense') {
@@ -1173,6 +1275,10 @@ export function StaffExcelImportModal({
     }, [editingRowIndex, editingRowData, activeSheetIndex, combinationsList, activeSheetSection]);
 
     const deleteRow = useCallback((rowIndex: number) => {
+        if (editingRowIndexRef.current !== null && editingRowIndexRef.current !== rowIndex) {
+            warnRowEditOpen();
+            return;
+        }
         setSheets((prevSheets) => {
             return prevSheets.map((sheet, sIdx) => {
                 if (sIdx !== activeSheetIndex) return sheet;
@@ -1246,10 +1352,14 @@ export function StaffExcelImportModal({
             setEditingRowData({});
         }
         toast.success(`Row ${rowIndex} deleted successfully`);
-    }, [activeSheetIndex, editingRowIndex]);
+    }, [activeSheetIndex, editingRowIndex, warnRowEditOpen]);
 
     const handleAddRow = useCallback(() => {
         if (!activeSheet) return;
+        if (editingRowIndexRef.current !== null) {
+            warnRowEditOpen();
+            return;
+        }
         const newRowIndex = activeSheet.rows.length + 1;
         const emptyData: Record<string, string> = {};
         activeSheet.headers.forEach((h) => {
@@ -1272,13 +1382,21 @@ export function StaffExcelImportModal({
         });
         setEditingRowIndex(newRowIndex);
         setEditingRowData(emptyData);
-    }, [activeSheet, activeSheetIndex, activeSheetSection]);
+    }, [activeSheet, activeSheetIndex, activeSheetSection, warnRowEditOpen]);
 
     const parseSheet = (worksheet: XLSX.WorkSheet, sheetName: string): ParsedSheet | null => {
         const jsonData = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: '' });
         if (jsonData.length === 0) return null;
 
-        let headers = Object.keys(jsonData[0]);
+        // Column position of each header in the worksheet, before any columns are added or dropped below
+        const sourceHeaders = Object.keys(jsonData[0]);
+        const sourceColIndex = new Map(sourceHeaders.map((h, i) => [h, i]));
+
+        // SheetJS names a column with no header "__EMPTY", "__EMPTY_1", … — this happens when the sheet's
+        // range reaches past the last real column (e.g. a formatted but blank cell). Drop those that hold no data.
+        let headers = sourceHeaders.filter(
+            (h) => !isBlankHeaderColumn(h) || jsonData.some((row) => String(row[h] ?? '').trim() !== '')
+        );
         const section = sectionForSheet(sheetName);
         if (section === 'trainingRecords') {
             const hasCourseCode = headers.some((h) => normalizeKey(h) === 'coursecode');
@@ -1312,15 +1430,11 @@ export function StaffExcelImportModal({
             }
         }
 
-        // Build a map of column index -> header for Employee ID columns
-        // so we can read the formatted text (w) to preserve leading zeros
-        const employeeIdColIndices: number[] = [];
-        headers.forEach((h, idx) => {
+        // Employee ID columns are read from the formatted text (w) to preserve leading zeros
+        const isEmployeeIdHeader = (h: string) => {
             const nk = normalizeKey(h);
-            if (nk === 'employeeid' || nk === 'employeeno' || nk === 'employeecode') {
-                employeeIdColIndices.push(idx);
-            }
-        });
+            return nk === 'employeeid' || nk === 'employeeno' || nk === 'employeecode';
+        };
 
         // Helper: get formatted text from worksheet cell (preserves leading zeros)
         const getFormattedCellValue = (rowIdx: number, colIdx: number): string | null => {
@@ -1336,15 +1450,16 @@ export function StaffExcelImportModal({
 
         const rows: ParsedStaffRow[] = jsonData.map((row, index) => ({
             rowIndex: index + 1,
-            data: headers.reduce((acc, header, hIdx) => {
+            data: headers.reduce((acc, header) => {
                 if (header === stationHeader) {
                     acc[header] = String(row[header] ?? '').trim() || DEFAULT_IMPORT_STATION;
                     return acc;
                 }
                 const isDate = isDateColumn(header);
                 // For Employee ID columns, use the formatted text from worksheet to preserve leading zeros
-                if (employeeIdColIndices.includes(hIdx)) {
-                    const formatted = getFormattedCellValue(index, hIdx);
+                const colIdx = sourceColIndex.get(header);
+                if (colIdx !== undefined && isEmployeeIdHeader(header)) {
+                    const formatted = getFormattedCellValue(index, colIdx);
                     acc[header] = formatted !== null ? formatted : formatExcelDate(row[header] ?? '', isDate);
                 } else {
                     acc[header] = formatExcelDate(row[header] ?? '', isDate);
@@ -1366,6 +1481,8 @@ export function StaffExcelImportModal({
 
             const parsedSheets: ParsedSheet[] = [];
             for (const sheetName of workbook.SheetNames) {
+                // "_PositionMaster", "_StationsMaster", … are dropdown sources in the template, not import data
+                if (isMasterDataSheet(sheetName)) continue;
                 const worksheet = workbook.Sheets[sheetName];
                 const parsed = parseSheet(worksheet, sheetName);
                 if (parsed) {
@@ -1410,16 +1527,11 @@ export function StaffExcelImportModal({
      * Counted as distinct rows, so a row that is both missing a Category and
      * pointing at an unknown Employee ID is reported once.
      */
-    const getSheetErrors = useCallback(
-        (sheet: ParsedSheet): number => {
+    /** Rows whose Position / Category / Course Code / Aircraft License is not in the master list. */
+    const getUnmappedRows = useCallback(
+        (sheet: ParsedSheet): Set<number> => {
             const section = sectionForSheet(sheet.name);
-            const badRows = new Set<number>(unknownEmployeeRowsBySheet.get(sheet.name) ?? []);
-            for (const rowIndex of nameMismatchCells.get(sheet.name)?.keys() ?? []) {
-                badRows.add(rowIndex);
-            }
-            for (const rowIndex of serverRowErrorsBySheet.get(sheet.name)?.keys() ?? []) {
-                badRows.add(rowIndex);
-            }
+            const badRows = new Set<number>();
 
             if (section === 'staffInfo') {
                 const posHeader = sheet.headers.find((h) => normalizeKey(h) === 'position');
@@ -1466,9 +1578,26 @@ export function StaffExcelImportModal({
                 });
             }
 
+            return badRows;
+        },
+        [positionsList, amelCategoriesList, coursesList, aircraftRowMappings]
+    );
+
+    const getSheetErrors = useCallback(
+        (sheet: ParsedSheet): number => {
+            const badRows = new Set<number>(unknownEmployeeRowsBySheet.get(sheet.name) ?? []);
+            for (const rowIndex of nameMismatchCells.get(sheet.name)?.keys() ?? []) {
+                badRows.add(rowIndex);
+            }
+            for (const rowIndex of serverRowErrorsBySheet.get(sheet.name)?.keys() ?? []) {
+                badRows.add(rowIndex);
+            }
+            for (const rowIndex of getUnmappedRows(sheet)) {
+                badRows.add(rowIndex);
+            }
             return badRows.size;
         },
-        [positionsList, amelCategoriesList, coursesList, aircraftRowMappings, unknownEmployeeRowsBySheet, nameMismatchCells, serverRowErrorsBySheet]
+        [getUnmappedRows, unknownEmployeeRowsBySheet, nameMismatchCells, serverRowErrorsBySheet]
     );
 
     /** Server row errors on the active sheet, in row order. */
@@ -1494,10 +1623,11 @@ export function StaffExcelImportModal({
         return nameMismatchIssues.filter((issue) => issue.sheetName === activeSheet.name);
     }, [activeSheet, nameMismatchIssues]);
 
-    const activeSheetErrors = useMemo(() => {
+    /** Only the master-data misses, for the "unmapped" chip (getSheetErrors also counts name / ID / server issues). */
+    const activeSheetUnmapped = useMemo(() => {
         if (!activeSheet) return 0;
-        return getSheetErrors(activeSheet);
-    }, [activeSheet, getSheetErrors]);
+        return getUnmappedRows(activeSheet).size;
+    }, [activeSheet, getUnmappedRows]);
 
     /**
      * Run the local checks and build the request body.
@@ -1629,6 +1759,7 @@ export function StaffExcelImportModal({
             aircraftRowMappings: aircraftRowMappings,
             amelCategories: amelCategoriesList,
             courses: coursesList,
+            titles: staffTitles,
         });
         setMappingWarnings(warnings);
 
@@ -1641,7 +1772,7 @@ export function StaffExcelImportModal({
             return null;
         }
         return { payload, sources };
-    }, [sheets, positionsList, stationsList, aircraftLicenses, combinationsList, aircraftRowMappings, amelCategoriesList, coursesList, unknownEmployeeIssues, nameMismatchIssues, employeeIdsLoaded]);
+    }, [sheets, positionsList, stationsList, aircraftLicenses, combinationsList, aircraftRowMappings, amelCategoriesList, coursesList, staffTitles, unknownEmployeeIssues, nameMismatchIssues, employeeIdsLoaded]);
 
     // Any edit to the sheets makes the last validation stale.
     useEffect(() => {
@@ -1649,6 +1780,10 @@ export function StaffExcelImportModal({
     }, [sheets, aircraftRowMappings]);
 
     const handleValidate = useCallback(async () => {
+        if (editingRowIndexRef.current !== null) {
+            warnRowEditOpen();
+            return;
+        }
         const prepared = prepareImportPayload();
         if (!prepared) return;
 
@@ -1658,7 +1793,7 @@ export function StaffExcelImportModal({
             const { resolved, unresolved } = resolveValidationRowErrors(raw.rowErrors, prepared.sources);
             const result = { ...raw, errors: [...raw.errors, ...unresolved] };
             setServerRowErrors(resolved);
-            setDismissedErrorBanners(new Set());
+            setIssuesExpanded(resolved.length > 0);
             setValidationResult(result);
 
             // Take the user to the first sheet with a rejected row.
@@ -1700,6 +1835,10 @@ export function StaffExcelImportModal({
     const canImport = validationResult?.isValid === true;
 
     const handleImport = useCallback(async () => {
+        if (editingRowIndexRef.current !== null) {
+            warnRowEditOpen();
+            return;
+        }
         if (!canImport) {
             toast.error('Please validate the data and fix all errors before importing.');
             return;
@@ -1716,7 +1855,7 @@ export function StaffExcelImportModal({
                 const { resolved, unresolved } = resolveValidationRowErrors(res.rowErrors, prepared.sources);
                 const errors = [...res.errors, ...unresolved];
                 setServerRowErrors(resolved);
-                setDismissedErrorBanners(new Set());
+                setIssuesExpanded(resolved.length > 0);
                 setValidationResult(null);
                 if (resolved.length > 0) {
                     const firstSheet = sheets.findIndex((sh) => resolved.some((e) => e.sheetName === sh.name));
@@ -1760,8 +1899,15 @@ export function StaffExcelImportModal({
     }, [canImport, prepareImportPayload, onImportSuccess, sheets, cancelEditRow]);
 
     return (
-        <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-            <DialogContent size="lg" className="max-h-[90vh] overflow-hidden flex flex-col">
+        <>
+        <Dialog open={isOpen} onOpenChange={(open) => !open && requestClose()}>
+            <DialogContent
+                size="full"
+                className="flex flex-col overflow-y-auto sm:rounded-none"
+                // Close only from the close buttons, never by clicking outside or pressing Esc
+                onInteractOutside={(e) => e.preventDefault()}
+                onEscapeKeyDown={(e) => e.preventDefault()}
+            >
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <FileSpreadsheet className="w-5 h-5 text-green-600" />
@@ -1775,7 +1921,7 @@ export function StaffExcelImportModal({
                 {/* File Upload Area */}
                 {!hasFile && (
                     <div
-                        className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 flex flex-col items-center gap-4 cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
+                        className="flex-1 border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 flex flex-col items-center justify-center gap-4 cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
                         onClick={() => fileInputRef.current?.click()}
                     >
                         <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
@@ -1837,8 +1983,8 @@ export function StaffExcelImportModal({
                                     size="icon"
                                     className="h-8 w-8 shrink-0"
                                     onClick={() => {
+                                        if (isRowEditOpen) return warnRowEditOpen();
                                         if (activeSheetIndex > 0) {
-                                            cancelEditRow();
                                             setActiveSheetIndex(activeSheetIndex - 1);
                                         }
                                     }}
@@ -1852,10 +1998,13 @@ export function StaffExcelImportModal({
                                         const isActive = activeSheetIndex === index;
                                         const errors = getSheetErrors(sheet);
                                         return (
+                                            <ContextMenu key={`${sheet.name}-${index}`}>
+                                            <ContextMenuTrigger asChild>
                                             <button
-                                                key={index}
+                                                title="Right-click for sheet options"
                                                 onClick={() => {
-                                                    cancelEditRow();
+                                                    if (index === activeSheetIndex) return;
+                                                    if (isRowEditOpen) return warnRowEditOpen();
                                                     setActiveSheetIndex(index);
                                                 }}
                                                 className={cn(
@@ -1882,6 +2031,19 @@ export function StaffExcelImportModal({
                                                     />
                                                 )}
                                             </button>
+                                            </ContextMenuTrigger>
+                                            <ContextMenuContent className="z-[9999] min-w-[200px]">
+                                                <ContextMenuItem
+                                                    disabled={isRowEditOpen || isValidating || isImporting}
+                                                    onSelect={() => setSheetPendingDelete(index)}
+                                                    className="gap-2 text-xs text-red-600 focus:text-red-700 focus:bg-red-50 dark:focus:bg-red-950/40"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                    Delete sheet
+                                                    {isRowEditOpen && <span className="ml-auto text-[10px] text-muted-foreground">Finish editing first</span>}
+                                                </ContextMenuItem>
+                                            </ContextMenuContent>
+                                            </ContextMenu>
                                         );
                                     })}
                                 </div>
@@ -1891,8 +2053,8 @@ export function StaffExcelImportModal({
                                     size="icon"
                                     className="h-8 w-8 shrink-0"
                                     onClick={() => {
+                                        if (isRowEditOpen) return warnRowEditOpen();
                                         if (activeSheetIndex < sheets.length - 1) {
-                                            cancelEditRow();
                                             setActiveSheetIndex(activeSheetIndex + 1);
                                         }
                                     }}
@@ -1949,119 +2111,119 @@ export function StaffExcelImportModal({
                                 </Button>
                             </div>
 
-                            {/* Employee IDs that exist neither in the Staff Info tab nor in the system */}
-                            {activeSheetUnknownEmployeeIds.length > 0 && (
-                                <div className="flex items-start gap-2 px-3 py-2 rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 text-xs font-medium">
-                                    <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-                                    <span>
-                                        Employee ID {activeSheetUnknownEmployeeIds.map((id) => `"${id}"`).join(', ')}{' '}
-                                        {activeSheetUnknownEmployeeIds.length > 1 ? 'are' : 'is'} not in the Staff Info
-                                        tab and {activeSheetUnknownEmployeeIds.length > 1 ? 'were' : 'was'} not found in
-                                        the system. Add the staff to the Staff Info tab, or correct the Employee ID.
-                                    </span>
-                                </div>
-                            )}
+                            {/* All issues for this sheet in one compact bar; details expand into a scrollable box */}
+                            {(() => {
+                                const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+                                const unmappedField =
+                                    activeSheetSection === 'staffInfo'
+                                        ? 'Position'
+                                        : activeSheetSection === 'amelLicense'
+                                            ? 'Category'
+                                            : activeSheetSection === 'aircraftLicense'
+                                                ? 'Aircraft License'
+                                                : 'Course Code';
+                                const groups = [
+                                    activeSheetServerErrors.length > 0 && {
+                                        key: 'server',
+                                        count: activeSheetServerErrors.length,
+                                        label: plural(activeSheetServerErrors.length, 'validation error', 'validation errors'),
+                                        title: 'Rejected by validation',
+                                        lines: activeSheetServerErrors.map(({ rowIndex, messages }) => ({
+                                            row: rowIndex,
+                                            text: messages.join(' · '),
+                                        })),
+                                    },
+                                    activeSheetUnknownEmployeeIds.length > 0 && {
+                                        key: 'unknown',
+                                        count: activeSheetUnknownEmployeeIds.length,
+                                        label: plural(activeSheetUnknownEmployeeIds.length, 'unknown Employee ID', 'unknown Employee IDs'),
+                                        title: 'Employee ID not in the Staff Info tab or the system',
+                                        lines: [{
+                                            row: null,
+                                            text: `${activeSheetUnknownEmployeeIds.map((id) => `"${id}"`).join(', ')} — add the staff to the Staff Info tab, or correct the Employee ID.`,
+                                        }],
+                                    },
+                                    activeSheetNameMismatches.length > 0 && {
+                                        key: 'names',
+                                        count: activeSheetNameMismatches.length,
+                                        label: plural(activeSheetNameMismatches.length, 'name mismatch', 'name mismatches'),
+                                        title: 'Name does not match the staff the Employee ID refers to',
+                                        lines: activeSheetNameMismatches.map((issue) => ({
+                                            row: issue.rowIndex,
+                                            text: `${issue.employeeId} · ${issue.column === 'fullNameTh' ? 'Full Name (Thai)' : 'Full Name (English)'} is "${issue.value}", staff on file is "${issue.expected}"`,
+                                        })),
+                                    },
+                                    activeSheetUnmapped > 0 && {
+                                        key: 'unmapped',
+                                        count: activeSheetUnmapped,
+                                        label: `${activeSheetUnmapped} unmapped ${unmappedField}`,
+                                        title: `Invalid or unmapped ${unmappedField}`,
+                                        lines: [{
+                                            row: null,
+                                            text: `${plural(activeSheetUnmapped, 'row has', 'rows have')} a value that is not in the master list. Rows are marked in the table — edit or expand them to pick a valid option.`,
+                                        }],
+                                    },
+                                ].filter(Boolean) as {
+                                    key: string; count: number; label: string; title: string
+                                    lines: { row: number | null; text: string }[]
+                                }[];
+                                if (groups.length === 0) return null;
+                                const total = groups.reduce((sum, g) => sum + g.count, 0);
 
-                            {/* Name cells that disagree with the staff the Employee ID points at */}
-                            {activeSheetNameMismatches.length > 0 && (
-                                <div className="flex items-start gap-2 px-3 py-2 rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 text-xs font-medium">
-                                    <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-                                    <div className="flex flex-col gap-0.5">
-                                        <span>
-                                            {activeSheetNameMismatches.length} name
-                                            {activeSheetNameMismatches.length > 1 ? 's do' : ' does'} not match the staff
-                                            the Employee ID refers to:
-                                        </span>
-                                        <ul className="ml-1">
-                                            {activeSheetNameMismatches.slice(0, 5).map((issue, i) => (
-                                                <li key={`name-mismatch-${i}`} className="font-normal">
-                                                    • Row {issue.rowIndex} ({issue.employeeId}):{' '}
-                                                    {issue.column === 'fullNameTh' ? 'Full Name (Thai)' : 'Full Name (English)'}{' '}
-                                                    is "{issue.value}" but the staff on file is "{issue.expected}"
-                                                </li>
-                                            ))}
-                                            {activeSheetNameMismatches.length > 5 && (
-                                                <li className="font-normal">
-                                                    • and {activeSheetNameMismatches.length - 5} more
-                                                </li>
-                                            )}
-                                        </ul>
+                                return (
+                                    <div className="rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 text-xs text-red-800 dark:text-red-200">
+                                        <button
+                                            type="button"
+                                            onClick={() => setIssuesExpanded((v) => !v)}
+                                            aria-expanded={issuesExpanded}
+                                            className="flex w-full items-center gap-2 px-3 py-1.5 text-left cursor-pointer"
+                                        >
+                                            <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                                            <span className="font-semibold shrink-0">
+                                                {plural(total, 'issue', 'issues')}
+                                            </span>
+                                            <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+                                                {groups.map((g) => (
+                                                    <span
+                                                        key={g.key}
+                                                        className="rounded-full border border-red-200 dark:border-red-800 bg-white/70 dark:bg-red-950/40 px-2 py-0.5 text-[11px] font-medium"
+                                                    >
+                                                        {g.label}
+                                                    </span>
+                                                ))}
+                                            </span>
+                                            <span className="ml-auto flex shrink-0 items-center gap-1 text-[11px] font-medium text-red-700 dark:text-red-300">
+                                                {issuesExpanded ? 'Hide details' : 'Show details'}
+                                                <ChevronDown className={cn('w-3.5 h-3.5 transition-transform', issuesExpanded && 'rotate-180')} />
+                                            </span>
+                                        </button>
+                                        {issuesExpanded && (
+                                            <div className="max-h-36 overflow-auto border-t border-red-200 dark:border-red-800 px-3 py-2 space-y-2.5">
+                                                {groups.map((g) => (
+                                                    <div key={g.key}>
+                                                        <p className="font-semibold">{g.title}</p>
+                                                        <ul className="mt-0.5 space-y-0.5">
+                                                            {g.lines.map((line, i) => (
+                                                                <li key={`${g.key}-${i}`} className="flex gap-2">
+                                                                    {line.row !== null && (
+                                                                        <span className="shrink-0 font-mono font-semibold tabular-nums">Row {line.row}</span>
+                                                                    )}
+                                                                    <span className="min-w-0">{line.text}</span>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
-                                </div>
-                            )}
-
-                            {/* Rows the validate endpoint rejected on this sheet */}
-                            {activeSheetServerErrors.length > 0 &&
-                                !dismissedErrorBanners.has(`server:${activeSheet.name}:${activeSheetServerErrors.length}`) && (
-                                <div className="flex items-start gap-2 px-3 py-2 rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 text-xs">
-                                    <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-medium">
-                                            Validation error: {activeSheetServerErrors.length} row
-                                            {activeSheetServerErrors.length > 1 ? 's' : ''} in {activeSheet.name} need
-                                            {activeSheetServerErrors.length > 1 ? '' : 's'} fixing
-                                        </p>
-                                        <ul className="mt-1 space-y-0.5 max-h-32 overflow-auto">
-                                            {activeSheetServerErrors.map(({ rowIndex, messages }) => (
-                                                <li key={`server-error-${rowIndex}`}>
-                                                    <span className="font-semibold">Row {rowIndex}:</span>{' '}
-                                                    {messages.join(' · ')}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            setDismissedErrorBanners((prev) =>
-                                                new Set(prev).add(`server:${activeSheet.name}:${activeSheetServerErrors.length}`)
-                                            )
-                                        }
-                                        className="inline-flex items-center justify-center w-6 h-6 rounded text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50 cursor-pointer shrink-0"
-                                        title="Dismiss"
-                                        aria-label="Dismiss"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            )}
-
-                            {/* Error notification banner for invalid Position / Category / Course Code / Aircraft License */}
-                            {activeSheetErrors > 0 && !dismissedErrorBanners.has(`${activeSheet.name}:${activeSheetErrors}`) && (
-                                <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 text-xs font-medium">
-                                    <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
-                                    <span>
-                                        {activeSheetErrors} row{activeSheetErrors > 1 ? 's have' : ' has'} invalid or
-                                        unmapped{' '}
-                                        {activeSheetSection === 'staffInfo'
-                                            ? 'Position'
-                                            : activeSheetSection === 'amelLicense'
-                                                ? 'Category'
-                                                : activeSheetSection === 'aircraftLicense'
-                                                    ? 'Aircraft License combination'
-                                                    : 'Course Code'}{' '}
-                                        values. Please edit or expand the row to map valid options from the master list.
-                                    </span>
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            setDismissedErrorBanners((prev) =>
-                                                new Set(prev).add(`${activeSheet.name}:${activeSheetErrors}`)
-                                            )
-                                        }
-                                        className="ml-auto inline-flex items-center justify-center w-6 h-6 rounded text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50 cursor-pointer shrink-0"
-                                        title="Dismiss"
-                                        aria-label="Dismiss"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            )}
+                                );
+                            })()}
                         </div>
 
                         {/* Scrollable Table with Fixed Header */}
                         <TooltipProvider delayDuration={0}>
-                            <div className="flex-1 overflow-auto border rounded-lg" style={{ maxHeight: '450px' }}>
+                            <div className="flex-1 min-h-[200px] overflow-auto border rounded-lg">
                                 <table className="w-full text-xs caption-bottom border-separate border-spacing-0">
                                     <thead className="sticky top-0 z-40 bg-slate-100 dark:bg-slate-800 shadow-sm">
                                         <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800">
@@ -2090,7 +2252,14 @@ export function StaffExcelImportModal({
                                             </th>
                                         </tr>
                                     </thead>
-                                    <tbody className="[&_tr:last-child]:border-0 divide-y">
+                                    <tbody
+                                        className={cn(
+                                            "[&_tr:last-child]:border-0 divide-y",
+                                            // While a row is open for editing, the other rows are dimmed and cannot be clicked
+                                            isRowEditOpen &&
+                                                "[&>tr:not([data-editing-row])]:pointer-events-none [&>tr:not([data-editing-row])]:opacity-40 [&>tr:not([data-editing-row])]:select-none"
+                                        )}
+                                    >
                                         {activeSheet.rows.length === 0 ? (
                                             <tr>
                                                 <td
@@ -2111,6 +2280,7 @@ export function StaffExcelImportModal({
                                                     return (
                                                         <Fragment key={row.rowIndex}>
                                                             <tr
+                                                                data-editing-row
                                                                 className="bg-blue-50/80 dark:bg-blue-950/40 ring-1 ring-blue-500/40 transition-colors"
                                                             >
                                                                 <td className="text-center text-blue-600 dark:text-blue-400 font-semibold sticky left-0 bg-blue-100 dark:bg-blue-900 z-10 font-mono text-xs px-2 py-2 border-r border-b shadow-[2px_0_4px_-1px_rgba(0,0,0,0.08)]">
@@ -2133,8 +2303,16 @@ export function StaffExcelImportModal({
                                                                 {activeSheet.headers.map((header, idx) => {
                                                                     const isTruncated = isTruncatedColumn(header);
                                                                     const normH = normalizeKey(header);
+                                                                    const isTitleCol =
+                                                                        section === 'staffInfo' &&
+                                                                        (normH === 'title' ||
+                                                                            normH === 'titleen' ||
+                                                                            normH === 'titleth' ||
+                                                                            normH === 'titlethai');
                                                                     const isPositionCol =
                                                                         section === 'staffInfo' && normH === 'position';
+                                                                    const isAmo145PositionCol =
+                                                                        section === 'staffInfo' && AMO145_POSITION_COLUMNS.includes(normH);
                                                                     const isStationCol =
                                                                         section === 'staffInfo' && normH === 'station';
                                                                     const isCategoryCol =
@@ -2147,6 +2325,119 @@ export function StaffExcelImportModal({
                                                                     const isValidUntilCol =
                                                                         section === 'trainingRecords' &&
                                                                         (normH === 'validuntil' || normH === 'validto');
+
+                                                                    if (isTitleCol) {
+                                                                        const currentVal = (editingRowData[header] ?? '').trim();
+                                                                        const isBlank = !currentVal || currentVal === '-';
+                                                                        const matchedTitleId = isBlank
+                                                                            ? 0
+                                                                            : resolveStaffTitleId(currentVal, staffTitles);
+                                                                        const matchedTitle = matchedTitleId
+                                                                            ? staffTitles.find((t) => t.id === matchedTitleId) ?? null
+                                                                            : null;
+                                                                        const isThaiTitleCol = normH === 'titleth' || normH === 'titlethai';
+                                                                        const matchedHasDuplicateTh =
+                                                                            isThaiTitleCol &&
+                                                                            matchedTitle &&
+                                                                            staffTitles.some(
+                                                                                (o) => o.id !== matchedTitle.id && o.nameTh === matchedTitle.nameTh
+                                                                            );
+                                                                        const resolvedVal = matchedTitle
+                                                                            ? isThaiTitleCol && !matchedHasDuplicateTh
+                                                                                ? matchedTitle.nameTh
+                                                                                : matchedTitle.nameEn
+                                                                            : currentVal;
+                                                                        const isInvalid = !isBlank && !matchedTitle;
+
+                                                                        return (
+                                                                            <td key={idx} className="text-xs px-2 py-1 border-b min-w-[140px]">
+                                                                                <select
+                                                                                    aria-label={header}
+                                                                                    value={isBlank ? '' : resolvedVal}
+                                                                                    onChange={(e) =>
+                                                                                        setEditingRowData((prev) => ({
+                                                                                            ...prev,
+                                                                                            [header]: e.target.value,
+                                                                                        }))
+                                                                                    }
+                                                                                    className={cn(
+                                                                                        'w-full h-8 px-2 py-1 text-xs bg-background border rounded-md focus:outline-none focus:ring-2 font-normal transition-all',
+                                                                                        isInvalid
+                                                                                            ? 'border-red-400 dark:border-red-500 focus:ring-red-400/40 text-red-600 dark:text-red-400'
+                                                                                            : 'border-blue-400 dark:border-blue-600 focus:ring-blue-400/40'
+                                                                                    )}
+                                                                                >
+                                                                                    <option value="">-- Select Title --</option>
+                                                                                    {isInvalid && (
+                                                                                        <option value={currentVal} disabled>
+                                                                                            {currentVal} (Invalid - please select)
+                                                                                        </option>
+                                                                                    )}
+                                                                                    {staffTitles.map((t) => {
+                                                                                        const hasDuplicateTh =
+                                                                                            isThaiTitleCol &&
+                                                                                            staffTitles.some(
+                                                                                                (o) => o.id !== t.id && o.nameTh === t.nameTh
+                                                                                            );
+                                                                                        const optVal =
+                                                                                            isThaiTitleCol && !hasDuplicateTh
+                                                                                                ? t.nameTh
+                                                                                                : t.nameEn;
+                                                                                        const optLabel =
+                                                                                            t.nameTh && t.nameEn
+                                                                                                ? `${t.nameEn} (${t.nameTh})`
+                                                                                                : t.nameEn || t.nameTh;
+                                                                                        return (
+                                                                                            <option key={t.id} value={optVal}>
+                                                                                                {optLabel}
+                                                                                            </option>
+                                                                                        );
+                                                                                    })}
+                                                                                </select>
+                                                                            </td>
+                                                                        );
+                                                                    }
+
+                                                                    // AMO 145 position: optional (not every staff member is in an AMO 145 department)
+                                                                    if (isAmo145PositionCol) {
+                                                                        const currentVal = (editingRowData[header] ?? '').trim();
+                                                                        const isBlank = !currentVal || currentVal === '-';
+                                                                        const matchedAmo = isBlank ? null : findMatchingOption(currentVal, positionsAmo145List);
+                                                                        const isInvalid = !isBlank && !matchedAmo;
+
+                                                                        return (
+                                                                            <td key={idx} className="text-xs px-2 py-1 border-b min-w-[180px]">
+                                                                                <select
+                                                                                    aria-label="Position 145"
+                                                                                    value={isBlank ? '' : matchedAmo ? matchedAmo.name : currentVal}
+                                                                                    onChange={(e) =>
+                                                                                        setEditingRowData((prev) => ({
+                                                                                            ...prev,
+                                                                                            [header]: e.target.value,
+                                                                                        }))
+                                                                                    }
+                                                                                    className={cn(
+                                                                                        'w-full h-8 px-2 py-1 text-xs bg-background border rounded-md focus:outline-none focus:ring-2 font-normal transition-all',
+                                                                                        isInvalid
+                                                                                            ? 'border-red-400 dark:border-red-500 focus:ring-red-400/40 text-red-600 dark:text-red-400'
+                                                                                            : 'border-blue-400 dark:border-blue-600 focus:ring-blue-400/40'
+                                                                                    )}
+                                                                                >
+                                                                                    <option value="">-- None --</option>
+                                                                                    {isInvalid && (
+                                                                                        <option value={currentVal} disabled>
+                                                                                            {currentVal} (Invalid - please select)
+                                                                                        </option>
+                                                                                    )}
+                                                                                    {positionsAmo145List.map((pos) => (
+                                                                                        <option key={pos.id} value={pos.name}>
+                                                                                            {pos.name}
+                                                                                        </option>
+                                                                                    ))}
+                                                                                </select>
+                                                                            </td>
+                                                                        );
+                                                                    }
 
                                                                     if (isPositionCol) {
                                                                         const currentVal = editingRowData[header] ?? '';
@@ -2296,10 +2587,7 @@ export function StaffExcelImportModal({
                                                                                     )}
                                                                                     {amelCategoriesList.map((cat) => (
                                                                                         <option key={cat.id} value={cat.name}>
-                                                                                            {cat.code
-                                                                                                ? `${cat.code} — `
-                                                                                                : ''}
-                                                                                            {cat.name}
+                                                                                            {formatAmelCategoryLabel(cat)}
                                                                                         </option>
                                                                                     ))}
                                                                                 </select>
@@ -2566,6 +2854,8 @@ export function StaffExcelImportModal({
                                                                 const normH = normalizeKey(header);
                                                                 const isPositionCol =
                                                                     section === 'staffInfo' && normH === 'position';
+                                                                const isAmo145PositionCol =
+                                                                    section === 'staffInfo' && AMO145_POSITION_COLUMNS.includes(normH);
                                                                 const isCategoryCol =
                                                                     section === 'amelLicense' && normH === 'category';
                                                                 const isCourseCodeCol =
@@ -2647,6 +2937,32 @@ export function StaffExcelImportModal({
                                                                                     {`Employee ID "${rawVal}" is not in the Staff Info tab and was not found in the system. Add the staff to Staff Info, or correct this Employee ID.`}
                                                                                 </TooltipContent>
                                                                             </Tooltip>
+                                                                        </td>
+                                                                    );
+                                                                }
+
+                                                                if (isAmo145PositionCol) {
+                                                                    const val = (rawVal ?? '').trim();
+                                                                    const isBlank = !val || val === '-';
+                                                                    const matchedAmo = isBlank ? null : findMatchingOption(val, positionsAmo145List);
+                                                                    return (
+                                                                        <td key={idx} className="text-xs px-3 py-1.5 border-b whitespace-nowrap max-w-[220px]">
+                                                                            {isBlank ? (
+                                                                                <span className="text-muted-foreground">-</span>
+                                                                            ) : matchedAmo ? (
+                                                                                <span className="block max-w-[220px] truncate" title={matchedAmo.name}>
+                                                                                    {matchedAmo.name}
+                                                                                </span>
+                                                                            ) : (
+                                                                                <span
+                                                                                    onClick={() => startEditRow(row)}
+                                                                                    title={`Invalid Position 145: "${val}" not found in the AMO 145 position master. Click to select.`}
+                                                                                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-400 border border-red-200 dark:border-red-800 cursor-pointer hover:bg-red-100 transition-colors"
+                                                                                >
+                                                                                    <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                                                                                    <span className="max-w-[180px] truncate">{val}</span>
+                                                                                </span>
+                                                                            )}
                                                                         </td>
                                                                     );
                                                                 }
@@ -2754,7 +3070,7 @@ export function StaffExcelImportModal({
                                                                     }
 
                                                                     const displayVal = matchedCat
-                                                                        ? `${matchedCat.code ? `${matchedCat.code} — ` : ''}${matchedCat.name}`
+                                                                        ? formatAmelCategoryLabel(matchedCat)
                                                                         : rawVal;
 
                                                                     return (
@@ -3261,24 +3577,25 @@ export function StaffExcelImportModal({
                 })()}
 
                 {/* Footer Actions */}
-                <DialogFooter className="flex items-center justify-end gap-2 pt-4 border-t">
-                    <Button variant="outline" onClick={handleClose} disabled={isImporting || isValidating}>
+                <DialogFooter className="shrink-0 flex items-center justify-end gap-2 pt-2.5 border-t">
+                    <Button size="md" variant="outline" onClick={requestClose} disabled={isImporting || isValidating}>
                         {importResult ? 'Close' : 'Cancel'}
                     </Button>
                     {hasFile && !importResult && (
                         <Button
+                            size="md"
                             variant="outline"
                             onClick={handleValidate}
                             disabled={isValidating || isImporting || totalRows === 0}
                         >
                             {isValidating ? (
                                 <>
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
                                     Validating...
                                 </>
                             ) : (
                                 <>
-                                    <ShieldCheck className="w-4 h-4 mr-2" />
+                                    <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />
                                     Validate
                                 </>
                             )}
@@ -3286,6 +3603,7 @@ export function StaffExcelImportModal({
                     )}
                     {hasFile && !importResult && (
                         <Button
+                            size="md"
                             color="success"
                             onClick={handleImport}
                             disabled={!canImport || isImporting || isValidating || totalRows === 0}
@@ -3293,12 +3611,12 @@ export function StaffExcelImportModal({
                         >
                             {isImporting ? (
                                 <>
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
                                     Importing...
                                 </>
                             ) : (
                                 <>
-                                    <Upload className="w-4 h-4 mr-2" />
+                                    <Upload className="w-3.5 h-3.5 mr-1.5" />
                                     Import ({totalRows} rows)
                                 </>
                             )}
@@ -3307,5 +3625,53 @@ export function StaffExcelImportModal({
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+
+        <AlertDialog open={confirmDiscardOpen} onOpenChange={setConfirmDiscardOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Discard this import?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        The file and any changes you made here have not been imported yet. If you leave now, they will be lost.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Keep editing</AlertDialogCancel>
+                    <AlertDialogAction
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        onClick={() => {
+                            setConfirmDiscardOpen(false);
+                            handleClose();
+                        }}
+                    >
+                        Discard
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={sheetPendingDelete !== null} onOpenChange={(open) => !open && setSheetPendingDelete(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Delete sheet &quot;{sheetPendingDelete !== null ? sheets[sheetPendingDelete]?.name : ''}&quot;?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        {sheetPendingDelete !== null ? sheets[sheetPendingDelete]?.rows.length ?? 0 : 0} row(s) in this sheet, including any changes made here,
+                        will not be imported. The Excel file itself is not changed. You will need to validate again.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        onClick={() => {
+                            if (sheetPendingDelete !== null) deleteSheet(sheetPendingDelete);
+                            setSheetPendingDelete(null);
+                        }}
+                    >
+                        Delete sheet
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+        </>
     );
 }

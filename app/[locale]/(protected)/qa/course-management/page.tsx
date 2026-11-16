@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useRef } from 'react'
-import { Plus, Building2, Briefcase, Wrench, ShieldCheck, Upload, Download, Loader2, SlidersHorizontal, ChevronDown } from 'lucide-react'
+import { Plus, Building2, Briefcase, Wrench, ShieldCheck, Upload, Download, FileSpreadsheet, Loader2, SlidersHorizontal, ChevronDown } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -20,7 +20,7 @@ import { TrainingNeedsMatrix } from './components/TrainingNeedsMatrix'
 import { CourseDetailPanel } from './components/CourseDetailModal'
 import { AddCourseModal } from './components/AddCourseModal'
 import { ImportCourseModal } from './components/ImportCourseModal'
-import { getCoursesTemplate } from '@/lib/api/qa/import-courses'
+import { exportCourses, getCoursesTemplate } from '@/lib/api/qa/import-courses'
 import { useApiTemplateDownload } from '@/hooks/use-api-template-download'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getCourseList, getCourseCategories, getCourseDepartments, getCourseSummary, deleteCourse, DeleteCourseRequest, DeleteCourseResponse, CourseDepartmentItem, CourseData, CourseCategory } from '@/lib/api/qa/course'
@@ -43,6 +43,7 @@ export default function CourseManagementPage() {
     const [showMobileFilters, setShowMobileFilters] = useState(false)
     const [importFile, setImportFile] = useState<File | null>(null)
     const { downloadTemplate, isDownloading: downloadingTemplate } = useApiTemplateDownload(getCoursesTemplate)
+    const { downloadTemplate: downloadExport, isDownloading: exporting } = useApiTemplateDownload(exportCourses)
     const importFileInputRef = useRef<HTMLInputElement>(null)
 
     const { getUserName } = useReduxAuth()
@@ -161,6 +162,14 @@ export default function CourseManagementPage() {
                             Manage training courses and requirements
                         </CardDescription>
                         <div className="grid grid-cols-2 gap-2 pt-1 sm:flex sm:items-center sm:ml-auto sm:pt-0">
+                            <PermissionActionGuard menuCode={MENU.QA_COURSE_MANAGEMENT} action="canExport">
+                                <Button variant="outline" size="sm" className="sm:h-10 sm:px-4" onClick={downloadExport} disabled={exporting}>
+                                    {exporting
+                                        ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        : <FileSpreadsheet className="h-4 w-4 mr-2" />}
+                                    Export
+                                </Button>
+                            </PermissionActionGuard>
                             <PermissionActionGuard menuCode={MENU.QA_COURSE_MANAGEMENT} action="canCreate">
                                 <input
                                     ref={importFileInputRef}

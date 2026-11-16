@@ -1,7 +1,7 @@
 // src/lib/api/hooks/useUserOperations.ts
 "use client";
 import { useMutation, useQuery, useQueryClient, UseQueryResult } from "@tanstack/react-query";
-import { getUserList, getUserById, upsertUser, deleteUser } from "@/lib/api/master/users/userOperations";
+import { getUserList, getUserById, upsertUser, deleteUser, changeUserPassword, checkUserEmail } from "@/lib/api/master/users/userOperations";
 import type {
     UserListRequest,
     UserListResponse,
@@ -9,8 +9,12 @@ import type {
     UserUpsertRequest,
     UserUpsertResponse,
     UserDeleteRequest,
-    UserDeleteResponse
+    UserDeleteResponse,
+    ChangePasswordRequest,
+    ChangePasswordResponse,
+    UserCheckRequest
 } from "@/lib/api/master/users/users.interface";
+import type { UserCheckResult } from "@/lib/api/master/users/userCheck";
 
 /**
  * Hook for getting paginated user list
@@ -81,6 +85,28 @@ export const useDeleteUser = () => {
         onError: (error) => {
             console.error('User delete failed:', error);
         },
+    });
+};
+
+/**
+ * Hook for changing the signed-in user's own password.
+ * No cache to invalidate: the user record does not expose password data.
+ */
+export const useChangePassword = () => {
+    return useMutation<ChangePasswordResponse, Error, ChangePasswordRequest>({
+        mutationFn: (data) => changeUserPassword(data),
+        mutationKey: ['user-change-password'],
+    });
+};
+
+/**
+ * Hook for checking an email before creating a staff login.
+ * A mutation (not a query) because it runs on demand when the user clicks Check.
+ */
+export const useCheckUserEmail = () => {
+    return useMutation<UserCheckResult, Error, UserCheckRequest>({
+        mutationFn: (data) => checkUserEmail(data),
+        mutationKey: ['user-check'],
     });
 };
 

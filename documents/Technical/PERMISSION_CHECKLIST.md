@@ -132,7 +132,9 @@
 |---|---|---|---|
 | Monitoring: Edit / Enroll Course | `P/qa/monitoring/components/TrainingDetailModal.tsx` | QA_TRAINING_MONITORING canEdit | ✅ |
 | Course Mgmt: Add / Import / Download Template / Edit / Delete | `P/qa/course-management/**` | QA_COURSE_MANAGEMENT (Template + Import + Add อยู่ใน guard canCreate เดียวกัน) | ✅ |
-| Course Mgmt: Training Needs Matrix cell | `TrainingNeedsMatrix.tsx` | QA_COURSE_MANAGEMENT canEdit | ✅ |
+| Course Mgmt: Export (`/migration/courses-export`) | `P/qa/course-management/page.tsx` | QA_COURSE_MANAGEMENT canExport (guard แยกจาก canCreate) | ✅ |
+| Course Mgmt: Training Needs Matrix role cell (isRequired) — ทุก category | `TrainingNeedsMatrix.tsx` | QA_COURSE_MANAGEMENT canEdit | ✅ |
+| Course Mgmt: Training Needs Matrix › Aircraft Type cell (Edit Aircraft Types) | `TrainingNeedsMatrix.tsx` | QA_COURSE_MANAGEMENT canEdit + Type Course row เท่านั้น | ✅ |
 | Scheduler: New Session / Edit / Delete | `P/qa/training-scheduler/page.tsx`, `SessionDetail.tsx` | QA_TRAINING_SCHEDULER | ✅ |
 | Scheduler `[id]`: เปลี่ยนสถานะ (→ Evidence Upload), Enroll, Submit Score, Remove staff, Send email / Send All / Manager & Instructor report | `P/qa/training-scheduler/[id]/page.tsx` (ซ่อนปุ่ม + handler return) | QA_TRAINING_SCHEDULER canEdit | ✅ |
 | Scheduler `[id]`: Issue Certificates / Print Attendance | `[id]/page.tsx` | QA_TRAINING_SCHEDULER canExport | ✅ |
@@ -143,18 +145,23 @@
 | Authorization: Mech tab | `MechAuthTab.tsx` | — (state ในหน้าเท่านั้น ไม่บันทึก) | ⚪ |
 | Authorization: CRS tab | `CrsTab.tsx` | (มีแค่ filter) | ⚪ |
 | Work Experience: Print | `.../work-experience-records/components/*Preview.tsx` | QA_DOC_WORK_EXPERIENCE canExport | ✅ |
+| Staff Records › เมนู Work Experience (Maintenance Experiences Logbook Records, SAMS-FM-CM-041) | `.../work-experience-records/components/MaintenanceLogbookPreview.tsx` | เปิด Preview: QA_DOC_WORK_EXPERIENCE canView (เหมือนเมนู Employee Profile / Certifying Staff) · Print + PDF: canExport | ✅ |
 
 ### 3.7 HR
 | ปุ่ม | ไฟล์ | ต้องการ | สถานะ |
 |---|---|---|---|
 | Staff list: New Staff / Import Excel / Download Template | `P/hr/staff/page.tsx` | HR_STAFF canCreate | ✅ |
+| Staff list: Export (`/migration/staffs-export`) | `P/hr/staff/page.tsx` | HR_STAFF canExport (guard แยกจาก canCreate) | ✅ |
 | Route `/hr/staff/new` | `lib/route-permissions.ts` | HR_STAFF canCreate | ✅ |
 | Detail: Section edit (Personal / Contact / Employment), Docs edit, Aircraft edit, License edit | `P/hr/staff/[id]/components/ProfileTab.tsx` | HR_STAFF canEdit | ✅ |
 | Detail: Add aircraft | ProfileTab.tsx | HR_STAFF canCreate | ✅ |
 | Detail: Delete doc / Delete AMEL doc | ProfileTab.tsx | HR_STAFF canDelete | ✅ |
 | Detail › User Account tab: view account details | `P/hr/staff/[id]/components/UserAccountTab.tsx` | MASTER_DATA_USER_LOGIN canView (or own account) | ✅ |
 | Detail › User Account tab: Create User Account | UserAccountTab.tsx | MASTER_DATA_USER_LOGIN canCreate | ✅ |
-| Detail › User Account tab: Change Password | UserAccountTab.tsx | MASTER_DATA_USER_LOGIN canEdit (or own account) | ✅ |
+| Detail › User Account tab: Link existing account (หลังเช็ค email) | CreateUserAccountDialog.tsx | MASTER_DATA_USER_LOGIN canCreate (เปิด dialog) + canEdit (ปุ่ม Link Account) | ✅ |
+| Detail › User Account tab: Change Password | UserAccountTab.tsx | Own account only (API ใช้ token + currentPassword) · คนที่มี MASTER_DATA_USER_LOGIN canEdit เห็นข้อความให้ไปรีเซ็ตที่ Master Data › User Login | ✅ |
+| Header profile menu › Account Settings (`/account-settings`): ดูบัญชีตัวเอง + Change Password | `P/account-settings/page.tsx`, `components/partials/header/profile-info.tsx` | ทุกคนที่ login (ไม่อยู่ใน `ROUTE_PERMISSION_MAP` โดยตั้งใจ · ไม่มี menuCode / DB row) | ✅ |
+| IT Support (`/it-support`): หน้าติดต่อ IT · landing ของคนที่ไม่มีเมนูที่ดูได้เลย (`FALLBACK_ROUTE`) · ปลายทางของปุ่ม Contact IT Support ในหน้า Access Denied | `P/it-support/page.tsx`, `RoutePermissionGuard.tsx`, `lib/auth/resolveAuthRedirect.ts` | ทุกคนที่ login (ไม่อยู่ใน `ROUTE_PERMISSION_MAP` โดยตั้งใจ — ต้องเข้าได้แม้ไม่มีสิทธิ์ใดเลย) | ✅ |
 | Detail: Experience / Education add / edit / delete | `ExperienceTab.tsx` | canCreate / canEdit / canDelete | ✅ |
 | Detail: Previous Training add / edit / delete | `TrainingTab.tsx` | canCreate / canEdit / canDelete | ✅ |
 | Detail: Logbook Record / Skip | `LogbookTab.tsx` | canCreate / canEdit | ✅ |
@@ -277,3 +284,12 @@
 | 2026-11-12 | Claude (ตามคำขอ sattaya prata) | Course Management: เพิ่มปุ่ม Template (GET `/migration/courses-template`) | อยู่ใน `PermissionActionGuard` QA_COURSE_MANAGEMENT canCreate ร่วมกับ Import / Add Course — ไม่มี canCreate จะไม่เห็นปุ่ม · ไม่มีเมนูหรือ route ใหม่ ไม่ต้องแก้ DB |
 | 2026-11-12 | Claude (ตามคำขอ sattaya prata) | HR Staff List: เพิ่มปุ่ม Template (GET `/migration/staffs-template`) | อยู่ใน `PermissionActionGuard` HR_STAFF canCreate เดียวกับ Import Excel — ไม่มี canCreate จะไม่เห็นปุ่ม · ไม่มีเมนูหรือ route ใหม่ ไม่ต้องแก้ DB |
 | 2026-11-13 | Claude (ตามคำขอ sattaya prata) | HR Staff Detail: เพิ่ม tab User Account (สร้างบัญชี / ดูบัญชี / เปลี่ยนรหัสผ่าน) | ใช้สิทธิ์ `MASTER_DATA_USER_LOGIN` (ไม่ใช่ HR_STAFF) เพราะเป็นการจัดการบัญชีผู้ใช้ · ผู้ใช้ดูและเปลี่ยนรหัสผ่านบัญชีตัวเองได้แม้ไม่มีสิทธิ์ · tab แสดงทุกคนที่เข้าหน้า Staff Detail ได้ · ไม่มีเมนูหรือ route ใหม่ ไม่ต้องแก้ DB |
+| 2026-11-14 | Claude (ตามคำขอ sattaya prata) | HR Staff Detail › User Account: ต่อ API `POST /user/change-password` ตัวจริง (body `currentPassword`, `newPassword`) | API เปลี่ยนรหัสผ่านของผู้ใช้จาก token เท่านั้น → ฟอร์ม Change Password แสดงเฉพาะบัญชีของตัวเอง · **`MASTER_DATA_USER_LOGIN` canEdit ไม่ให้สิทธิ์เปลี่ยนรหัสผ่านคนอื่นใน tab นี้แล้ว** (แสดงข้อความให้ไปรีเซ็ตที่ Master Data › User Login ซึ่งยังใช้ canEdit เหมือนเดิม) · ไม่มีเมนูหรือ route ใหม่ ไม่ต้องแก้ DB |
+| 2026-11-14 | Claude (ตามคำขอ sattaya prata) | Course Management › Training Needs Matrix: คลิกช่อง Aircraft Type เพื่อแก้ aircraft type ของ course | ใช้สิทธิ์เดียวกับช่อง role คือ `QA_COURSE_MANAGEMENT` canEdit และเฉพาะแถว Type Course · บันทึกผ่าน `POST /training/course-department-subs/requirements/upsert` โดยส่งทุก role ที่ Required ของ course นั้นพร้อม combination ชุดเดียว · ไม่มีเมนูหรือ route ใหม่ ไม่ต้องแก้ DB |
+| 2026-11-14 | Claude (ตามคำขอ sattaya prata) | Training Needs Matrix: ช่อง role แก้ isRequired ได้ทุก course (เดิมเฉพาะ Type Course) | ใช้ `QA_COURSE_MANAGEMENT` canEdit เหมือนเดิม · course ที่ไม่ใช่ Type Course ส่ง `aircraftEngineCombinationIds: []` · ช่อง Aircraft Type ยังแก้ได้เฉพาะ Type Course · ไม่มีเมนูหรือ route ใหม่ ไม่ต้องแก้ DB |
+| 2026-11-14 | Claude (ตามคำขอ sattaya prata) | เพิ่มเมนู Account Settings ใน dropdown โปรไฟล์ (header) → หน้าใหม่ `/account-settings` | หน้าเฉพาะบัญชีของตัวเอง (ข้อมูลจาก `GET user/{id}` ของ id ตัวเอง + `POST /user/change-password`) จึงเปิดให้ทุกคนที่ login · ไม่ใช่เมนู sidebar ไม่มี menuCode ไม่ต้องเพิ่มแถว DB / route map · ฟอร์มเปลี่ยนรหัสผ่านแยกเป็น `components/partials/auth/ChangePasswordForm.tsx` ใช้ร่วมกับ HR Staff › User Account tab |
+| 2026-11-14 | Claude (ตามคำขอ sattaya prata) | เพิ่มหน้า IT Support `/it-support` + เปลี่ยน `FALLBACK_ROUTE` จาก `/flight/list` เป็น `/it-support` | ผู้ใช้ที่ role ไม่มีเมนูที่ดูได้เลย: หลัง login / เปิด root ไปหน้า IT Support (ไม่ใช่ Access Denied ที่ Flight List) · `RoutePermissionGuard`: ถ้าโดนปฏิเสธและไม่มีเมนูที่ดูได้เลย → redirect ไป IT Support, ถ้ายังมีเมนูอื่น → Access Denied พร้อมปุ่ม Contact IT Support (`?from=<path>`) · ช่องทางติดต่ออ่านจาก env `NEXT_PUBLIC_IT_SUPPORT_*` · ไม่มี menuCode ไม่ต้องเพิ่มแถว DB · test `resolveAuthRedirect` +1 |
+| 2026-11-15 | Claude (ตามคำขอ sattaya prata) | HR Staff Detail › User Account: Create User Account เช็ค email ก่อน (`POST /master/users-check`, fallback `Users-list`) | ไม่มีบัญชี → ฟอร์ม Add New User เดิม (canCreate) · มีบัญชีที่ยังไม่ผูก Employee → ปุ่ม Link Account อัปเดตบัญชีเดิม จึงต้องมี `MASTER_DATA_USER_LOGIN` **canEdit** เพิ่ม (ไม่มีจะเห็นข้อความแจ้งและปุ่มกดไม่ได้) · ผูกกับพนักงานอื่นแล้ว → แจ้งเตือนเท่านั้น · ไม่มีเมนูหรือ route ใหม่ ไม่ต้องแก้ DB |
+| 2026-11-15 | Claude (ตามคำขอ sattaya prata) | Course Management: เพิ่มปุ่ม Export (POST `/migration/courses-export`) | ใช้ `PermissionActionGuard` QA_COURSE_MANAGEMENT **canExport** แยกจากกลุ่ม canCreate (Template / Import / Add) · role ที่มีแค่ canView + canExport เห็นเฉพาะปุ่ม Export · staging ตอนนี้ตอบ POST เป็น 405 และรองรับแค่ GET → frontend ลอง GET ต่อเมื่อได้ 405 · ไม่มีเมนูหรือ route ใหม่ ไม่ต้องแก้ DB |
+| 2026-11-15 | Claude (ตามคำขอ sattaya prata) | HR Staff List: เพิ่มปุ่ม Export (POST `/migration/staffs-export`) | ใช้ `PermissionActionGuard` HR_STAFF **canExport** แยกจาก canCreate (Template / Import Excel / New Staff) · staging ตอนนี้ตอบ POST เป็น 405 และรองรับแค่ GET → frontend ลอง GET ต่อเมื่อได้ 405 · ไม่มีเมนูหรือ route ใหม่ ไม่ต้องแก้ DB |
+| 2026-11-15 | Claude (ตามคำขอ sattaya prata) | QA Document › Staff Records: เพิ่มเมนู Work Experience → Preview Maintenance Experiences Logbook Records (A4 แนวนอน, `POST /staffs/maintenance-experiences/logbook-records/list`) | ใช้สิทธิ์เดิมของหน้า `QA_DOC_WORK_EXPERIENCE` · ปุ่ม Print / PDF อยู่ใต้ canExport เหมือน Preview อื่นในหน้า · ไม่มีเมนูหรือ route ใหม่ ไม่ต้องแก้ DB |

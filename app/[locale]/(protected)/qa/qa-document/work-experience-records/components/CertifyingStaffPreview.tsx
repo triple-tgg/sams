@@ -2,6 +2,7 @@
 
 import { Download, Loader2, Printer, X } from 'lucide-react'
 import { useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import { toast } from 'sonner'
@@ -68,28 +69,33 @@ export function CertifyingStaffPreview({ isOpen, onClose, staffId }: CertifyingS
     if (!isOpen) return null
 
     const api = data?.responseData?.profile
+    const maintenance = data?.responseData?.summaryOfMaintenaneObj ?? data?.responseData?.summaryOfMaintenanceObj ?? null
     const employeeId = api?.employeeId || '-'
     const staffName = api?.fullNameEn || api?.name || '-'
     const designation = 'Certifying Staff' // Hardcoded based on PDF
     
-    // Use any as type because the API typing in QAStaffItem for these arrays is unknown[] currently
-    const amelLicenses = (api?.staffAmelLicenseList as any[] || []).filter(l => !l.isdelete)
-    const workExperiences = (api?.workExperiences as any[] || []).filter(w => !w.isdelete)
+    const amelLicenses = (api?.staffAmelLicenseList ?? []).filter(l => !l.isdelete)
+    const workExperiences = (api?.workExperiences ?? []).filter(w => !w.isdelete)
 
     // Build aircraft ratings from staffAircraftLicenseList using group display labels
-    const aircraftLicenseList = (api?.staffAircraftLicenseList as any[] || []).filter(l => !l.isdelete)
-    const aircraftCombinations = aircraftLicenseList
-        .filter((l: any) => l.aircraftEngineObj)
-        .map((l: any) => ({
-            id: l.aircraftEngineId || l.aircraftEngineObj.id,
-            familyCode: l.aircraftEngineObj.familyCode || '',
-            series: l.aircraftEngineObj.series || '',
-            engineCode: l.aircraftEngineObj.engineCode || '',
-        }))
+    const aircraftLicenseList = (api?.staffAircraftLicenseList ?? []).filter(l => !l.isdelete)
+    const aircraftCombinations = aircraftLicenseList.flatMap((l) =>
+        l.aircraftEngineObj
+            ? [{
+                id: l.aircraftEngineId || l.aircraftEngineObj.id,
+                familyCode: l.aircraftEngineObj.familyCode || '',
+                series: l.aircraftEngineObj.series || '',
+                engineCode: l.aircraftEngineObj.engineCode || '',
+            }]
+            : []
+    )
     const aircraftRatingLabels = groupCombinationDisplayLabels(
-        aircraftCombinations.map((c: any) => c.id),
+        aircraftCombinations.map((c) => c.id),
         aircraftCombinations
     )
+
+    // Part 4 task counts (from the API; "-" until it returns them)
+    const taskCount = (n: number | undefined) => (maintenance && typeof n === 'number' ? `${n} ${n === 1 ? 'Task' : 'Tasks'}` : '-')
 
     // Derived values
     const expStartDate = workExperiences.length > 0 && workExperiences[workExperiences.length - 1].periodFrom 
@@ -169,7 +175,9 @@ export function CertifyingStaffPreview({ isOpen, onClose, staffId }: CertifyingS
         }
     }
 
-    return (
+    // Portal to <body>: an ancestor in the app layout has a transform, which would turn the fixed overlay
+    // into a box inside the content area instead of covering the whole screen.
+    return createPortal(
         <div className="csp-overlay">
             {/* Toolbar */}
             <div className="csp-toolbar">
@@ -285,19 +293,26 @@ export function CertifyingStaffPreview({ isOpen, onClose, staffId }: CertifyingS
                         <tbody>
                             <tr>
                                 <td>Group 1</td>
-                                <td>370 Tasks</td>
+                                <td>{taskCount(maintenance?.group1)}</td>
                             </tr>
                             <tr>
                                 <td>Group 2</td>
-                                <td>6 Tasks</td>
+                                <td>{taskCount(maintenance?.group2)}</td>
                             </tr>
+                            {/* Not on the printed form template; shown only when the staff has Group 3 tasks so the total adds up */}
+                            {!!maintenance?.group3 && (
+                                <tr>
+                                    <td>Group 3</td>
+                                    <td>{taskCount(maintenance.group3)}</td>
+                                </tr>
+                            )}
                             <tr>
                                 <td>Training/Management/Instructor<br/>Tasks (Maximum 20%):</td>
-                                <td>2 Tasks</td>
+                                <td>{taskCount(maintenance?.trainingManagementInstructor)}</td>
                             </tr>
                             <tr>
                                 <td>Total</td>
-                                <td>378 Tasks</td>
+                                <td>{taskCount(maintenance?.total)}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -375,5 +390,5 @@ export function CertifyingStaffPreview({ isOpen, onClose, staffId }: CertifyingS
                 </div>
             )}
         </div>
-    )
+    , document.body)
 }

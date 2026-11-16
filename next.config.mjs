@@ -6,6 +6,11 @@ const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const nextConfig = {
   reactStrictMode: false,
+  // Build type-checks app code only. Vitest files are checked by `tsc --noEmit`
+  // with the root tsconfig; Next 16.4 started including them in the build check.
+  typescript: {
+    tsconfigPath: "tsconfig.build.json",
+  },
   images: {
     remotePatterns: [
       {

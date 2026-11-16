@@ -5,6 +5,7 @@ import {
     type TemplateDownload,
 } from "@/lib/api/lineMaintenances/aircraftSchedMappingTemplate";
 import { getQAStaffList } from "@/lib/api/qa/staff-management";
+import { resolveStaffTitleId, type StaffTitle } from "@/lib/api/master/staff-titles";
 import {
     parseAndSplitAircraftLicense,
     type SplitAircraftCombinationItem,
@@ -13,7 +14,8 @@ import {
 // ── Request ─────────────────────────────────────────────────────────────────
 
 export interface ImportStaffInfo {
-    title: string;
+    /** Resolved from the Title (or Title TH) column against the name title master; 0 when not found. */
+    titleId: number;
     employeeId: string;
     fullNameTh: string;
     fullNameEn: string;
@@ -121,6 +123,8 @@ export interface ImportStaffLookups {
     aircraftRowMappings?: Record<number, SplitAircraftCombinationItem[]>;
     amelCategories?: Array<{ id: number; code?: string | null; name: string }>;
     courses?: Array<{ id?: number; courseCode: string; courseName: string }>;
+    /** Name title master, for the Title / Title TH columns. */
+    titles?: StaffTitle[];
 }
 
 /** Station used when a Staff Info row has no Station value (or the sheet has no Station column). */
@@ -180,7 +184,18 @@ const SHEET_SECTIONS: Record<string, keyof ImportStaffRequest> = {
     education: "education",
 };
 
+/** SheetJS's name for a column with no header: "__EMPTY", "__EMPTY_1", … */
+export function isBlankHeaderColumn(header: string): boolean {
+    return /^__EMPTY(_\d+)?$/.test(header);
+}
+
+/** Template sheets named "_…" (e.g. "_PositionMaster") hold master data for dropdowns; they are never imported. */
+export function isMasterDataSheet(sheetName: string): boolean {
+    return sheetName.trim().startsWith("_");
+}
+
 export function sectionForSheet(sheetName: string): keyof ImportStaffRequest | null {
+    if (isMasterDataSheet(sheetName)) return null;
     return SHEET_SECTIONS[normalizeKey(sheetName)] ?? null;
 }
 
@@ -192,7 +207,9 @@ export function buildLookupIndex(
 ): Map<string, number> {
     const index = new Map<string, number>();
     for (const row of rows || []) {
-        for (const label of [row.name, row.code, String(row.id)]) {
+        // "[code]-[name]" too, as exported files write it ("B1.1 - Aeroplane Turbine", "B1.2_Aeroplane Piston")
+        const codeAndName = row.code ? `${row.code}${row.name}` : "";
+        for (const label of [row.name, row.code, String(row.id), codeAndName]) {
             const key = normalizeKey(String(label ?? ""));
             if (!key || index.has(key)) continue;
             index.set(key, row.id);
@@ -206,8 +223,9 @@ export function buildLookupIndex(
 /** Staff Info headers (normalized) that carry the AMO 145 Yes/No flag. */
 const AMO145_FLAG_COLUMNS = ["isdepartmentamo145", "departmentamo145", "amo145", "part145"];
 /** Staff Info headers (normalized) that carry the AMO 145 position. */
-const AMO145_POSITION_COLUMNS = [
-    "staffdepartmentpositionamo145", "positionamo145", "amo145position", "part145position",
+/** Staff Info headers (normalized) that carry the AMO 145 position. The exported file names it "Position145". */
+export const AMO145_POSITION_COLUMNS = [
+    "staffdepartmentpositionamo145", "positionamo145", "amo145position", "part145position", "position145",
 ];
 
 /** Read a Yes/No style cell: yes / y / true / 1 / ✓ count as yes, anything else as no. */
@@ -344,9 +362,16 @@ export function buildImportStaffPayload(
                 const isDepartmentAmo145 =
                     parseYesNo(get(data, AMO145_FLAG_COLUMNS)) || staffDepartmentPositionAmo145Id > 0;
 
+                // Title: English column first, then the Thai one ("Mr." / "นาย" both resolve to the same id)
+                const titleText = get(data, ["title", "titleen"]) || get(data, ["titleth", "titlethai"]);
+                const titleId = resolveStaffTitleId(titleText, lookups.titles ?? []);
+                if (titleText && !titleId && lookups.titles) {
+                    warnings.push(`${sheet.name} row ${rowIndex}: title "${titleText}" is not in the title master`);
+                }
+
                 const entry: ImportStaffInfo = {
                     ...ref,
-                    title: get(data, ["title"]),
+                    titleId,
                     joined: get(data, ["joined", "joineddate"]),
                     positionId,
                     isDepartmentAmo145,
@@ -835,7 +860,8 @@ export function parseImportStaffResult(body: unknown): ImportStaffResult {
             name: String(o.fullNameEn ?? o.fullNameTh ?? o.name ?? ""),
             isNewStaff: typeof o.isNewStaff === "boolean" ? o.isNewStaff : null,
             counts: readCounts(o),
-            isError: o.isError === true || Boolean(error),
+            // isError is authoritative when the API sends it; otherwise any error text marks a failure
+            isError: typeof o.isError === "boolean" ? o.isError : Boolean(error),
             error,
         };
     });
@@ -1221,6 +1247,46 @@ export const getStaffsTemplate = async (): Promise<TemplateDownload> => {
                 error?.response?.data?.error ||
                 error?.response?.data?.message ||
                 "Failed to download the template"
+        );
+    }
+};
+
+/** Used when the server's filename isn't readable. Includes today's local date, e.g. "Staffs Export 2026-11-15.xlsx". */
+const staffsExportFilename = () => {
+    const d = new Date(); // local date, not UTC
+    const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    return `Staffs Export ${ymd}.xlsx`;
+};
+
+/**
+ * POST /migration/staffs-export — all staff as an Excel file.
+ * Staging currently serves this route with GET only (POST → 405), so a 405 retries with GET.
+ */
+export const exportStaffs = async (): Promise<TemplateDownload> => {
+    const config = { responseType: "blob" as const, timeout: 120000 }; // file download
+    try {
+        let response;
+        try {
+            response = await axiosConfig.post("/migration/staffs-export", {}, config);
+        } catch (error: any) {
+            if (error?.response?.status !== 405) throw error;
+            response = await axiosConfig.get("/migration/staffs-export", config);
+        }
+        return {
+            blob: response.data as Blob,
+            fileName: parseContentDispositionFilename(
+                response.headers?.["content-disposition"],
+                staffsExportFilename()
+            ),
+        };
+    } catch (error: any) {
+        console.error("Error exporting staffs:", error);
+        const fromBlob = await readBlobErrorMessage(error?.response?.data);
+        throw new Error(
+            fromBlob ||
+                error?.response?.data?.error ||
+                error?.response?.data?.message ||
+                "Failed to export staff"
         );
     }
 };

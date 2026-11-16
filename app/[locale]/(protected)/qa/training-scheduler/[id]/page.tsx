@@ -27,6 +27,7 @@ import { groupAircraftEngineDisplayLabels } from '@/lib/utils/aircraftEngineDisp
 import type { StaffAircraftLicenseItem } from '@/lib/api/qa/staff-management'
 import { MENU } from "@/lib/permission-codes";
 import { useMenuPermission } from "@/hooks/use-menu-permission";
+import { staffTitleText } from "@/lib/api/master/staff-titles"
 
 // Staff item shape used by this page
 interface StaffItem {
@@ -71,7 +72,7 @@ export default function ScheduleDetailPage() {
     const { data: availableStaffRaw = [], isLoading: isLoadingStaff } = useStaffForEnrollment(sessionId)
     const availableStaff: StaffItem[] = availableStaffRaw.map((s: StaffForEnrollmentItem) => ({
         id: String(s.staffId),
-        name: s.fullNameEn || `${s.title ?? ''} ${s.name ?? ''}`.trim() || (s as any).employeeName || (s as any).staffName || '',
+        name: s.fullNameEn || `${staffTitleText(s)} ${s.name ?? ''}`.trim() || (s as any).employeeName || (s as any).staffName || '',
         code: s.code || s.employeeId || (s as any).staffCode || '',
         license: '',
         dept: s.departmentName || (s as any).department || '',

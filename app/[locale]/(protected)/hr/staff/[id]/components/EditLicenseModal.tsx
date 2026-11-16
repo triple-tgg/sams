@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { X, Award } from 'lucide-react'
 import { useAmelCategories } from '@/lib/api/master/amel-categories.hooks'
+import { formatAmelCategoryLabel } from '@/lib/api/master/amel-categories'
 
 interface LicenseFormData {
     licenseNumber: string
@@ -134,7 +135,7 @@ export function EditLicenseModal({ isOpen, onClose, initialLicense, onSave }: Ed
                                 <option value="">Select Category</option>
                                 {amelCategories.map(c => (
                                     <option key={c.id} value={c.id.toString()}>
-                                        {c.code} — {c.name}
+                                        {formatAmelCategoryLabel(c)}
                                     </option>
                                 ))}
                             </select>

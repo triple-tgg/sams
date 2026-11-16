@@ -181,3 +181,17 @@ describe("resolveAuthRedirect — protected routes", () => {
         ).toEqual({ action: "stay" });
     });
 });
+
+describe("FALLBACK_ROUTE", () => {
+    it("sends a user with no viewable menu to the IT Support page", () => {
+        expect(FALLBACK_ROUTE).toBe("/it-support");
+        expect(
+            resolveAuthRedirect({
+                pathname: "/en/auth/login",
+                isAuth: true,
+                isPermLoaded: true,
+                permissions: [],
+            })
+        ).toEqual({ action: "redirect", href: "/en/it-support" });
+    });
+});

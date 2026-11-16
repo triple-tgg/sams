@@ -34,6 +34,7 @@ import { useStaffListForImport } from "@/lib/api/hooks/useStaffListForImport";
 import { useInstructorList } from "@/lib/api/qa/instructor.hooks";
 import { convertFileToBase64, getFileExtension } from "@/lib/api/uploadFile/fileUpload";
 import { cn } from "@/lib/utils";
+import { staffTitleText } from "@/lib/api/master/staff-titles"
 
 export interface InstructorFormData {
   id: number;
@@ -162,7 +163,7 @@ export function InstructorFormModal({
 
   /** Link a staff record and prefill the instructor fields from it (all remain editable). */
   const handleSelectStaff = (staff: QAStaffItem) => {
-    const staffTitle = staff.title?.trim();
+    const staffTitle = staffTitleText(staff).trim();
     setForm((prev) => ({
       ...prev,
       staffId: staff.id,

@@ -176,6 +176,12 @@ const ProfileInfo = () => {
             </DropdownMenuSub>
           </DropdownMenuGroup> */}
           <DropdownMenuSeparator className="mb-0 dark:bg-background" />
+          <DropdownMenuItem asChild className="flex items-center gap-2 text-sm font-medium text-default-600 mt-1 px-3 cursor-pointer">
+            <Link href="/account-settings" className="w-full">
+              <Icon icon="heroicons:cog-6-tooth" className="w-4 h-4" />
+              Account Settings
+            </Link>
+          </DropdownMenuItem>
           <DropdownMenuItem
             onClick={handleLogout}
             className="flex items-center gap-2 text-sm font-medium text-default-600 capitalize my-1 px-3 cursor-pointer"

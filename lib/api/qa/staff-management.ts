@@ -1,4 +1,5 @@
 import type { StaffDepartmentAmo145, StaffDepartmentPositionAmo145 } from "@/lib/api/master/organization-amo145";
+import type { StaffTitle } from "@/lib/api/master/staff-titles";
 import axiosConfig from "@/lib/axios.config";
 
 // ── Nested Object Interfaces ──
@@ -45,7 +46,10 @@ export interface DepartmentObj {
 export interface QAStaffItem {
     id: number;
     code: string;
-    title: string;
+    /** @deprecated No longer returned; use titleObj (see staffTitleText). */
+    title?: string;
+    titleId?: number | null;
+    titleObj?: StaffTitle | null;
     name: string;
     fullNameEn: string | null;
     dateOfBirth: string | null;
@@ -166,12 +170,23 @@ export const getQAStaffList = async (
 
 // ── Upsert (Create/Update) Staff ──
 
+/** "2017 – 2021", "2021", "2017 – Present" or "" — years of 0 / null are treated as unknown. */
+export const formatEducationYears = (startYear?: number | null, endYear?: number | null): string => {
+    const start = startYear && startYear > 0 ? String(startYear) : "";
+    const end = endYear && endYear > 0 ? String(endYear) : "";
+    if (start && end) return start === end ? end : `${start} – ${end}`;
+    return start ? `${start} – Present` : end;
+};
+
 export interface UpsertEducation {
     id: number;
     degree: string;
     institution: string;
     fieldOfStudy: string;
-    year: number;
+    /** 0 when unknown. */
+    startYear: number;
+    /** 0 when unknown. */
+    endYear: number;
 }
 
 export interface UpsertWorkExperience {
@@ -217,7 +232,8 @@ export interface UpsertAmelLicense {
 
 export interface UpsertStaffRequest {
     staffId: number; // 0 for new, existing id for update
-    title: string;
+    /** Name title master id (titleObj.id); 0 when not set. */
+    titleId: number;
     fullNameTh: string;
     fullNameEn: string;
     dateOfBirth: string;
@@ -248,9 +264,20 @@ export interface UpsertStaffRequest {
 
 export interface UpsertStaffResponse {
     message: string;
-    responseData: { staffId: number }[];
+    responseData: string[] | null;
     error: string;
 }
+
+/**
+ * Staff id from an upsert response. `responseData` is a list of strings; the first one is read as the id
+ * when it is numeric. The older `[{ staffId }]` shape is accepted too. Null when no id can be read.
+ */
+export const upsertedStaffId = (res: { responseData?: unknown } | null | undefined): number | null => {
+    const first = Array.isArray(res?.responseData) ? res.responseData[0] : undefined;
+    const raw = first && typeof first === "object" ? (first as { staffId?: unknown }).staffId : first;
+    const id = Number(typeof raw === "string" ? raw.trim() : raw);
+    return Number.isInteger(id) && id > 0 ? id : null;
+};
 
 /**
  * Create or update a staff member
@@ -317,7 +344,9 @@ export interface StaffEducation {
     degree: string;
     institution: string;
     fieldOfStudy: string;
-    year: number;
+    /** Records saved before start/end were split only have endYear. */
+    startYear: number | null;
+    endYear: number | null;
     isdelete: boolean;
     createddate: string;
     createdby: string;
@@ -389,6 +418,7 @@ export interface AircraftEngineObj {
     familyCode: string;
     series: string | null;
     engineCode: string;
+    similarTechnology: string | null;
     validFrom: string | null;
     validTo: string | null;
     updatedBy: string | null;
@@ -443,13 +473,19 @@ export interface StaffStationTransferItem {
     staffId: number;
     stationId: number;
     isdelete: boolean;
-    [key: string]: unknown;
+    createddate: string;
+    createdby: string;
+    updateddate: string;
+    updatedby: string;
+    stationObj: StaffStationObj | null;
 }
 
 export interface StaffByIdData {
     id: number;
     code: string;
-    title: string;
+    /** Name title master id; display with staffTitleText(). */
+    titleId: number | null;
+    titleObj: StaffTitle | null;
     name: string;
     fullNameEn: string | null;
     dateOfBirth: string | null;
@@ -465,8 +501,6 @@ export interface StaffByIdData {
     /** Linked login account id (null when no account). */
     userId?: number | null;
     startDate: string | null;
-    /** Not returned by byid any more; use endWorkingDate. */
-    endDate?: string | null;
     /** ISO date-time, e.g. "2026-08-06T00:00:00". */
     endWorkingDate: string | null;
     positionObj: PositionObj | null;
@@ -511,7 +545,7 @@ export const buildStaffUpsertRequest = (
     overrides: Partial<UpsertStaffRequest> = {}
 ): UpsertStaffRequest => ({
     staffId: data.id,
-    title: data.title || "",
+    titleId: data.titleId || data.titleObj?.id || 0,
     fullNameTh: data.name || "",
     fullNameEn: data.fullNameEn || "",
     dateOfBirth: data.dateOfBirth || "",
@@ -531,7 +565,16 @@ export const buildStaffUpsertRequest = (
     staffstypeid: data.staffstypeObj?.id || 0,
     jobTitle: data.jobTitle || "",
     profileImagePath: data.profileImagePath || "",
-    educations: (data.educations || []) as UpsertEducation[],
+    educations: (data.educations || [])
+        .filter((education) => !education.isdelete)
+        .map((education) => ({
+            id: education.id,
+            degree: education.degree || "",
+            institution: education.institution || "",
+            fieldOfStudy: education.fieldOfStudy || "",
+            startYear: education.startYear || 0,
+            endYear: education.endYear || 0,
+        })),
     workExperiences: (data.workExperiences || []) as UpsertWorkExperience[],
     staffDocumentList: (data.staffDocumentList || [])
         .filter((document) => !document.isdelete)
@@ -975,14 +1018,12 @@ export const upsertLogbookRecord = async (
 export interface PrintPreviewTrainingRecord {
     id: number;
     courseName: string;
-    completedDate: string | null;
-    expiryDate: string | null;
-    status: string;
-    isPermanent: boolean;
-    dateFrom: string | null;
-    dateTo: string | null;
+    courseCode: string | null;
     validUntil: string | null;
     providedBy: string | null;
+    status: string;
+    dateFrom: string | null;
+    dateTo: string | null;
 }
 
 export interface PrintPreviewNeedsMatrixCourse {
@@ -1012,17 +1053,35 @@ export interface PrintPreviewTraining {
         expired: number;
         permanent: number;
         expiringSoon: number;
+        totalCoursesList: PrintPreviewTrainingRecord[];
+        expiredList: PrintPreviewTrainingRecord[];
+        permanentList: PrintPreviewTrainingRecord[];
+        expiringSoonList: PrintPreviewTrainingRecord[];
     };
     records: PrintPreviewTrainingRecord[];
     needsMatrix: PrintPreviewNeedsMatrix;
     histories: PrintPreviewTrainingHistory[];
 }
 
+/** Task counts for Part 4 of the Certifying Staff Maintenance Experience Summary Form. */
+export interface PrintPreviewMaintenanceSummary {
+    group1: number;
+    group2: number;
+    group3: number;
+    trainingManagementInstructor: number;
+    total: number;
+}
+
 export interface StaffPrintPreviewResponse {
     message: string;
     responseData: {
-        profile: QAStaffItem;
+        /** Same shape as GET /master/staff-management/byid/{id}. */
+        profile: StaffByIdData;
         training: PrintPreviewTraining;
+        /** Spelled "Maintenane" by the API. */
+        summaryOfMaintenaneObj?: PrintPreviewMaintenanceSummary | null;
+        /** Correct spelling, in case the API fixes the key. */
+        summaryOfMaintenanceObj?: PrintPreviewMaintenanceSummary | null;
     };
     error: string;
 }

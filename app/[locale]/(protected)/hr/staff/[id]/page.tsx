@@ -14,7 +14,8 @@ import { ExperienceTab } from './components/ExperienceTab'
 import { LogbookTab } from './components/LogbookTab'
 import { UserAccountTab } from './components/UserAccountTab'
 import { useStaffById, useStaffTrainingDashboard, useUploadStaffFile, useUpsertStaff } from '@/lib/api/hooks/useQAStaffManagement'
-import { buildStaffUpsertRequest, type StaffByIdData, type TrainingDashboardResponseData } from '@/lib/api/qa/staff-management'
+import { staffTitleText } from '@/lib/api/master/staff-titles'
+import { buildStaffUpsertRequest, formatEducationYears, type StaffByIdData, type TrainingDashboardResponseData } from '@/lib/api/qa/staff-management'
 import { toast } from 'sonner'
 import { MENU } from "@/lib/permission-codes";
 import { useMenuPermission } from "@/hooks/use-menu-permission";
@@ -64,7 +65,8 @@ function mapApiToStaffData(api: StaffByIdData, trainingApi?: TrainingDashboardRe
         initials,
         avatarBg: 'linear-gradient(135deg,#475569,#94a3b8)',
         profileImage: api.profileImagePath && api.profileImagePath !== 'string' ? api.profileImagePath : undefined,
-        titleName: api.title || undefined,
+        titleName: staffTitleText(api) || undefined,
+        titleId: api.titleId || api.titleObj?.id || undefined,
         dob: api.dateOfBirth || '-',
         idCard: api.idCardNo || '-',
         nationality: api.nationality || '-',
@@ -103,7 +105,9 @@ function mapApiToStaffData(api: StaffByIdData, trainingApi?: TrainingDashboardRe
                 id: e.id,
                 degree: e.degree || '-',
                 institution: e.institution || '-',
-                year: e.year?.toString() || '-',
+                year: formatEducationYears(e.startYear, e.endYear) || '-',
+                startYear: e.startYear ? String(e.startYear) : '',
+                endYear: e.endYear ? String(e.endYear) : '',
                 field: e.fieldOfStudy || '-',
             })),
         // Mock Logbook Data

@@ -1,4 +1,5 @@
 import { locales } from "@/config";
+import { IT_SUPPORT_ROUTE } from "@/config/support";
 import { getFirstViewableRoute } from "@/lib/api/permission/getFirstViewableRoute";
 import type { MenuPermissionItem } from "@/lib/api/permission/menuPermissions.interface";
 
@@ -7,10 +8,11 @@ export const LOGIN_ROUTE = "/auth/login";
 
 /**
  * Where an authenticated user is sent when their permissions contain no
- * viewable route. Landing here shows "Access Denied" from RoutePermissionGuard,
- * which is a dead end the user can act on — unlike an endless spinner.
+ * viewable route: the IT Support page, which explains the situation and how to
+ * request access (instead of an endless spinner or a bare "Access Denied").
+ * It is not in ROUTE_PERMISSION_MAP, so it opens with zero permissions.
  */
-export const FALLBACK_ROUTE = "/flight/list";
+export const FALLBACK_ROUTE = IT_SUPPORT_ROUTE;
 
 /** Routes reachable without being authenticated (no locale prefix). */
 export const PUBLIC_ROUTES = [

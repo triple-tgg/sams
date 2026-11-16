@@ -16,13 +16,17 @@ import { groupCombinationDisplayLabels } from '@/lib/utils/aircraftEngineDisplay
 import { useStaffsTypesAll } from '@/lib/api/hooks/useStaffsTypes'
 import { useStations } from '@/lib/api/hooks/useStations'
 import { useAmelCategories } from '@/lib/api/master/amel-categories.hooks'
+import { useStaffTitles } from '@/lib/api/master/staff-titles.hooks'
+import { upsertedStaffId } from '@/lib/api/qa/staff-management'
 import { useLocale } from "next-intl";
+import { formatAmelCategoryLabel } from '@/lib/api/master/amel-categories'
 
 // ── Form State ──
 interface StaffForm {
     // Personal Info
     name: string
     nameEn: string
+    /** Selected name title id (titleObj.id), as a string for the <select> */
     titleName: string
     dob: string
     placeOfBirth: string
@@ -46,7 +50,8 @@ interface EducationItem {
     degree: string
     institution: string
     field: string
-    year: string
+    startYear: string
+    endYear: string
 }
 
 interface ExperienceItem {
@@ -102,7 +107,6 @@ const INITIAL_FORM: StaffForm = {
 // POSITIONS and DEPARTMENTS are now fetched from the API via organization hooks
 // STAFF_TYPES are now fetched from the API via useStaffsTypesAll()
 
-const TITLE_NAMES = ['Mr.', 'Mrs.', 'Ms.', 'Miss']
 
 // DOCUMENT_TYPES is now fetched from the API via useStaffDocumentTypes()
 
@@ -259,6 +263,7 @@ export default function NewStaffPage() {
     const { data: stationsData } = useStations()
     const stations = useMemo(() => (stationsData?.responseData || []).filter(s => !s.isdelete), [stationsData])
     const { data: amelCategoriesData } = useAmelCategories()
+    const { data: staffTitles = [], isLoading: titlesLoading } = useStaffTitles()
     const amelCategories = useMemo(() => (amelCategoriesData || []).filter(c => !c.isdelete), [amelCategoriesData])
 
     // ── Fetch aircraft engine combinations from API ──
@@ -519,7 +524,7 @@ export default function NewStaffPage() {
 
         return {
             staffId: 0, // new staff
-            title: form.titleName,
+            titleId: Number(form.titleName) || 0,
             fullNameTh: form.name,
             fullNameEn: form.nameEn,
             dateOfBirth: form.dob || '',
@@ -544,7 +549,8 @@ export default function NewStaffPage() {
                 degree: edu.degree,
                 institution: edu.institution,
                 fieldOfStudy: edu.field,
-                year: parseInt(edu.year) || 0,
+                startYear: parseInt(edu.startYear) || 0,
+                endYear: parseInt(edu.endYear) || 0,
             })),
             workExperiences: experiences.map((exp, idx) => ({
                 id: idx,
@@ -595,7 +601,7 @@ export default function NewStaffPage() {
 
         upsertMutation.mutate(body, {
             onSuccess: (response) => {
-                const staffId = response.responseData?.[0]?.staffId
+                const staffId = upsertedStaffId(response)
                 toast.success('Staff registered successfully!')
                 if (staffId) {
                     router.push(`/${locale}/hr/staff/${staffId}`)
@@ -670,8 +676,8 @@ export default function NewStaffPage() {
                                 <div className="grid grid-cols-3 gap-x-5 gap-y-4">
                                     <Field label="Title" required error={getError('titleName')}>
                                         <select value={form.titleName} onChange={e => update('titleName', e.target.value)} onBlur={() => touch('titleName')} className={selCls('titleName')}>
-                                            <option value="">Select Title</option>
-                                            {TITLE_NAMES.map(t => <option key={t} value={t}>{t}</option>)}
+                                            <option value="">{titlesLoading ? 'Loading…' : 'Select Title'}</option>
+                                            {staffTitles.map(t => <option key={t.id} value={String(t.id)}>{t.nameEn} ({t.nameTh})</option>)}
                                         </select>
                                     </Field>
                                     <Field label="Full Name (Thai)" required error={getError('name')}>
@@ -852,21 +858,35 @@ export default function NewStaffPage() {
                                                         className={inputNormal}
                                                     />
                                                 </Field>
-                                                <Field label="Year" required>
-                                                    <input
-                                                        type="text"
-                                                        value={edu.year}
-                                                        onChange={e => setEducations(prev => prev.map((item, idx) => idx === i ? { ...item, year: e.target.value } : item))}
-                                                        placeholder="e.g. 2020"
-                                                        className={inputNormal}
-                                                    />
+                                                <Field label="Year (Start – End)" required>
+                                                    <div className="flex items-center gap-2">
+                                                        <input
+                                                            type="text"
+                                                            inputMode="numeric"
+                                                            aria-label="Start year"
+                                                            value={edu.startYear}
+                                                            onChange={e => setEducations(prev => prev.map((item, idx) => idx === i ? { ...item, startYear: e.target.value.replace(/\D/g, '').slice(0, 4) } : item))}
+                                                            placeholder="e.g. 2016"
+                                                            className={inputNormal}
+                                                        />
+                                                        <span className="shrink-0 text-slate-400">–</span>
+                                                        <input
+                                                            type="text"
+                                                            inputMode="numeric"
+                                                            aria-label="End year"
+                                                            value={edu.endYear}
+                                                            onChange={e => setEducations(prev => prev.map((item, idx) => idx === i ? { ...item, endYear: e.target.value.replace(/\D/g, '').slice(0, 4) } : item))}
+                                                            placeholder="e.g. 2020"
+                                                            className={inputNormal}
+                                                        />
+                                                    </div>
                                                 </Field>
                                             </div>
                                         </div>
                                     ))}
                                     <button
                                         type="button"
-                                        onClick={() => setEducations(prev => [...prev, { degree: '', institution: '', field: '', year: '' }])}
+                                        onClick={() => setEducations(prev => [...prev, { degree: '', institution: '', field: '', startYear: '', endYear: '' }])}
                                         className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-slate-200 rounded-xl text-sm font-semibold text-slate-400 hover:border-blue-300 hover:text-blue-500 hover:bg-blue-50/30 cursor-pointer transition-all bg-transparent"
                                     >
                                         <Plus className="h-4 w-4" />
@@ -1055,7 +1075,7 @@ export default function NewStaffPage() {
                                                 <option value="">Select Category</option>
                                                 {amelCategories.map(cat => (
                                                     <option key={cat.id} value={cat.code}>
-                                                        {cat.code} — {cat.name}
+                                                        {formatAmelCategoryLabel(cat)}
                                                     </option>
                                                 ))}
                                             </select>

@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useQAStaffList } from "@/lib/api/hooks/useQAStaffManagement";
 import type { QAStaffItem } from "@/lib/api/qa/staff-management";
+import { staffTitleText } from "@/lib/api/master/staff-titles"
 
 type Props = {
     /** Selected staff employee ID ("" = none). */
@@ -17,7 +18,7 @@ type Props = {
     invalid?: boolean;
 };
 
-const staffLabel = (s: QAStaffItem) => [s.title, s.name].filter(Boolean).join(" ") || s.fullNameEn || "-";
+const staffLabel = (s: QAStaffItem) => [staffTitleText(s), s.name].filter(Boolean).join(" ") || s.fullNameEn || "-";
 
 /** Searchable staff picker that links a user account to a staff member by employee ID. */
 const StaffEmployeePicker = ({ value, onChange, disabled, invalid }: Props) => {

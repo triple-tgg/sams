@@ -153,10 +153,11 @@ function AttendanceSheetPage({ data, rows, sheet, dayIndex, totalDays }: {
                     {rows.map((r, i) => (
                         <tr key={i} style={{ height: 26 }}>
                             <td style={{ ...cell, fontWeight: 500 }}>{i + 1}.</td>
-                            <td style={cell}>{r.function}</td>
+                            {/* Function / Position are the AMO 145 department and position */}
+                            <td style={cell}>{r.staffDepartmentAmo145Name ?? ''}</td>
                             <td style={cell}>{r.staffId}</td>
                             <td style={{ ...cell, textAlign: 'left', padding: '0 6px' }}>{r.name}</td>
-                            <td style={cell}>{r.position}</td>
+                            <td style={cell}>{r.staffDepartmentPositionAmo145Name ?? ''}</td>
                             <td style={cell}></td>
                             <td style={cell}></td>
                         </tr>

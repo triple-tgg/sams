@@ -30,6 +30,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Check, ChevronDown } from "lucide-react";
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard";
 import { MENU } from "@/lib/permission-codes";
+import { TimeComparisonDialog } from "@/components/partials/header/time-comparison-dialog";
 
 
 
@@ -46,6 +47,7 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isAlarm, setIsAlarm] = useState(false);
     const [showClockPill, setShowClockPill] = useState(true);
+    const [timeCompareOpen, setTimeCompareOpen] = useState(false);
 
     // Remember whether the Local/UTC clock pill was closed (per browser; storage may be unavailable)
     useEffect(() => {
@@ -515,16 +517,31 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                 {/* Sticky Timezone Pill - Centered at the top. Needs to be inside contentRef to be visible in fullscreen mode. */}
                 <div className={`fixed left-1/2 -translate-x-1/2 z-[100] transition-all duration-300 pointer-events-none ${isFullscreen ? 'top-2' : 'top-4'}`}>
                     {showClockPill ? (
-                        <div className="flex items-center gap-3 pl-6 pr-2 py-2 rounded-full border border-slate-200/80 dark:border-slate-700/80 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md shadow-lg pointer-events-auto">
-                            <div className="flex items-center gap-2 ">
-                                <span className="text-slate-500 font-bold tracking-wider text-[11px] bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-md">LOCAL (BANGKOK)</span>
-                                <span className="text-slate-800 dark:text-slate-200 text-[11px] font-mono font-medium tracking-tight">{formattedLocalTime}</span>
-                            </div>
-                            <div className="h-5 w-px bg-slate-300 dark:bg-slate-600 mx-1"></div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-sky-600 dark:text-sky-400 font-bold tracking-wider text-[11px] bg-sky-50 dark:bg-sky-900/30 px-2 py-0.5 rounded-md">UTC</span>
-                                <span className="text-slate-800 dark:text-slate-200 text-[11px] font-mono font-medium tracking-tight">{formattedUtcTime}</span>
-                            </div>
+                        // Collapsed: Local only. Hover / keyboard focus slides UTC open; click opens the 24-hour comparison.
+                        <div className="group flex items-center gap-1 pl-2 pr-2 py-1 rounded-full border border-slate-200/80 dark:border-slate-700/80 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md shadow-lg pointer-events-auto">
+                            <button
+                                type="button"
+                                onClick={() => setTimeCompareOpen(true)}
+                                title="Show 24-hour time comparison"
+                                aria-label={`Local time ${formattedLocalTime}, UTC ${formattedUtcTime}. Show 24-hour time comparison`}
+                                className="flex items-center rounded-full pl-4 pr-1 py-1 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <span className="text-slate-500 font-bold tracking-wider text-[11px] bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-md">LOCAL (BANGKOK)</span>
+                                    <span className="text-slate-800 dark:text-slate-200 text-[11px] font-mono font-medium tracking-tight">{formattedLocalTime}</span>
+                                </div>
+                                <div className="grid grid-cols-[0fr] opacity-0 transition-[grid-template-columns,opacity] duration-300 ease-out group-hover:grid-cols-[1fr] group-hover:opacity-100 group-focus-within:grid-cols-[1fr] group-focus-within:opacity-100 motion-reduce:transition-none">
+                                    <div className="min-w-0 overflow-hidden" aria-hidden>
+                                        <div className="flex items-center gap-3 pl-3 whitespace-nowrap">
+                                            <div className="h-5 w-px bg-slate-300 dark:bg-slate-600"></div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sky-600 dark:text-sky-400 font-bold tracking-wider text-[11px] bg-sky-50 dark:bg-sky-900/30 px-2 py-0.5 rounded-md">UTC</span>
+                                                <span className="text-slate-800 dark:text-slate-200 text-[11px] font-mono font-medium tracking-tight">{formattedUtcTime}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </button>
                             <button
                                 onClick={() => updateClockPill(false)}
                                 title="Hide clock"
@@ -545,6 +562,15 @@ export function FlightTimelineWrapper({ initialDate }: FlightTimelineWrapperProp
                         </button>
                     )}
                 </div>
+
+                {/* Rendered inside contentRef while in browser fullscreen, otherwise it would be hidden */}
+                <TimeComparisonDialog
+                    open={timeCompareOpen}
+                    onOpenChange={setTimeCompareOpen}
+                    now={dayjs(currentTime)}
+                    localCity={typeof Intl !== 'undefined' ? (Intl.DateTimeFormat().resolvedOptions().timeZone.split('/').pop()?.replace(/_/g, ' ') ?? '') : ''}
+                    container={isFullscreen ? contentRef.current : undefined}
+                />
 
                 {/* Fullscreen Header */}
                 {isFullscreen && (

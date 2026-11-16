@@ -9,6 +9,8 @@ import {
     findUnknownEmployeeIds,
     normalizeKey,
     sectionForSheet,
+    isMasterDataSheet,
+    isBlankHeaderColumn,
     buildLookupIndex,
     buildImportStaffPayload,
     countImportStaffPayloadRows,
@@ -87,6 +89,30 @@ describe("buildLookupIndex", () => {
     });
 });
 
+describe("buildLookupIndex [code]-[name]", () => {
+    const cats = [
+        { id: 1, code: "B1.1", name: "Aeroplane Turbine" },
+        { id: 2, code: "B1.2", name: "Aeroplane Piston" },
+        { id: 5, code: "B2", name: "Avionics" },
+    ];
+    it("matches code and name written together, with any separator", () => {
+        const index = buildLookupIndex(cats);
+        expect(index.get(normalizeKey("B1.1 - Aeroplane Turbine"))).toBe(1);
+        expect(index.get(normalizeKey("B1.1-Aeroplane Turbine"))).toBe(1);
+        expect(index.get(normalizeKey("B1.2_Aeroplane Piston"))).toBe(2);
+        expect(index.get(normalizeKey("B2 - Avionics"))).toBe(5);
+    });
+    it("does not match a code with another row's name", () => {
+        expect(buildLookupIndex(cats).get(normalizeKey("B1.1 - Avionics"))).toBeUndefined();
+    });
+    it("resolves the AMEL Category column in the payload", () => {
+        const sheets = [sheet("AMEL License", ["Employee ID", "License Number", "Category"], [["0068", "1275", "B1.1 - Aeroplane Turbine"]])];
+        const { payload, warnings } = buildImportStaffPayload(sheets, { ...LOOKUPS, amelCategories: cats });
+        expect(payload.amelLicense[0].categoryId).toBe(1);
+        expect(warnings.filter((w) => /category/i.test(w))).toEqual([]);
+    });
+});
+
 describe("buildImportStaffPayload", () => {
     it("maps the staff info sheet, resolving the position to an id", () => {
         const sheets = [
@@ -122,6 +148,44 @@ describe("buildImportStaffPayload", () => {
         const { payload, warnings } = buildImportStaffPayload(sheets, LOOKUPS);
         expect(payload.staffInfo[0].positionId).toBe(0);
         expect(warnings[0]).toContain("Chief Wizard");
+    });
+
+    it("reads the AMO 145 position from the exported Position145 column", () => {
+        const sheets = [sheet("Staff Info", ["Employee ID", "AMO145", "Position145"], [["0012", "true", "Engineering Manager"]])];
+        const { payload } = buildImportStaffPayload(sheets, {
+            ...LOOKUPS,
+            positionsAmo145: [{ id: 7, code: "EM", name: "Engineering Manager" }],
+        });
+        expect(payload.staffInfo[0]).toMatchObject({ isDepartmentAmo145: true, staffDepartmentPositionAmo145Id: 7 });
+    });
+
+    describe("title", () => {
+        const withTitles: ImportStaffLookups = {
+            ...LOOKUPS,
+            titles: [
+                { id: 1, nameEn: "Mr.", nameTh: "นาย", sortOrder: 10 },
+                { id: 4, nameEn: "Ms.", nameTh: "นางสาว", sortOrder: 40 },
+            ],
+        };
+
+        it("resolves the Title column to titleId", () => {
+            const sheets = [sheet("Staff Info", ["Employee ID", "Title", "Title TH"], [["0068", "Mr.", "นาย"], ["0069", "Miss", ""]])];
+            const { payload, warnings } = buildImportStaffPayload(sheets, withTitles);
+            expect(payload.staffInfo.map((r) => r.titleId)).toEqual([1, 4]);
+            expect(warnings).toEqual([]);
+        });
+
+        it("falls back to the Title TH column", () => {
+            const sheets = [sheet("Staff Info", ["Employee ID", "Title TH"], [["0068", "นางสาว"]])];
+            expect(buildImportStaffPayload(sheets, withTitles).payload.staffInfo[0].titleId).toBe(4);
+        });
+
+        it("warns and sends 0 when the title is not in the master", () => {
+            const sheets = [sheet("Staff Info", ["Employee ID", "Title"], [["0068", "Capt."]])];
+            const { payload, warnings } = buildImportStaffPayload(sheets, withTitles);
+            expect(payload.staffInfo[0].titleId).toBe(0);
+            expect(warnings[0]).toContain('title "Capt."');
+        });
     });
 
     describe("station", () => {
@@ -846,5 +910,72 @@ describe("parseImportStaffResult — staffResults wrapper", () => {
     it("fails when nothing succeeded", () => {
         const r = parseImportStaffResult(body({ succeeded: 0, failed: 2 }));
         expect(r.success).toBe(false);
+    });
+
+    it("trusts isError over the error text", () => {
+        const r = parseImportStaffResult({
+            message: "success",
+            responseData: {
+                total: 2, succeeded: 1, failed: 1, created: 0, updated: 1,
+                staffResults: [
+                    { staffId: 11, employeeId: "0070", isNewStaff: false, educationCount: 1, error: "Updated existing staff", isError: false },
+                    { staffId: 0, employeeId: "0071", isNewStaff: true, educationCount: 0, error: "", isError: true },
+                ],
+            },
+            error: "",
+        });
+        expect(r.staff.map((s) => s.isError)).toEqual([false, true]);
+        expect(r.counts).toMatchObject({ education: 1 });
+        expect(r.success).toBe(true);
+    });
+});
+
+// Bodies captured from the staging API (2026-11-15)
+describe("import-staff-validate response (staging)", () => {
+    const sections = { staffInfo: [], amelLicense: [], aircraftLicense: [], previousTrainingRecords: [], trainingRecords: [], workExperience: [], education: [] };
+
+    it("passes when flagPass is true and every section is empty", () => {
+        const r = parseImportStaffValidation({
+            message: "success",
+            responseData: { flagPass: true, validateList: [sections] },
+            error: "",
+        });
+        expect(r.isValid).toBe(true);
+        expect(r.rowErrors).toEqual([]);
+        expect(r.errors).toEqual([]);
+    });
+
+    it("fails with the row error when the payload has no staffInfo", () => {
+        const r = parseImportStaffValidation({
+            message: "success",
+            responseData: {
+                flagPass: false,
+                validateList: [{ ...sections, staffInfo: [{ rowId: 1, employeeId: "", statusText: "ต้องมี StaffInfo อย่างน้อย 1 รายการ" }] }],
+            },
+            error: "",
+        });
+        expect(r.isValid).toBe(false);
+        expect(r.rowErrors).toEqual([
+            { section: "staffInfo", rowId: 1, employeeId: "", statusText: "ต้องมี StaffInfo อย่างน้อย 1 รายการ" },
+        ]);
+    });
+});
+
+describe("master data sheets", () => {
+    it("treats sheets starting with _ as master data and never maps them to a section", () => {
+        expect(isMasterDataSheet("_PositionMaster")).toBe(true);
+        expect(isMasterDataSheet(" _StationsMaster")).toBe(true);
+        expect(isMasterDataSheet("Staff Info")).toBe(false);
+        expect(sectionForSheet("_Education")).toBeNull();
+        expect(sectionForSheet("Education")).toBe("education");
+    });
+});
+
+describe("blank header columns", () => {
+    it("recognises SheetJS names for columns without a header", () => {
+        expect(isBlankHeaderColumn("__EMPTY")).toBe(true);
+        expect(isBlankHeaderColumn("__EMPTY_3")).toBe(true);
+        expect(isBlankHeaderColumn("Address")).toBe(false);
+        expect(isBlankHeaderColumn("__EMPTYISH")).toBe(false);
     });
 });

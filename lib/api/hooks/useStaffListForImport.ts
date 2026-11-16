@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { getQAStaffList, QAStaffItem } from '@/lib/api/qa/staff-management';
+import { staffTitleText } from '@/lib/api/master/staff-titles'
 
 export interface StaffOption {
     id: number;
@@ -117,7 +118,7 @@ export const useStaffListForImport = (enabled: boolean = true) => {
     const allStaff: StaffOption[] = (query.data ?? []).map((staff: QAStaffItem) => {
         const displayName =
             staff.fullNameEn?.trim() ||
-            (staff.name ? `${staff.title ? `${staff.title.trim()} ` : ''}${staff.name.trim()}` : '') ||
+            (staff.name ? `${staffTitleText(staff) ? `${staffTitleText(staff).trim()} ` : ''}${staff.name.trim()}` : '') ||
             staff.name?.trim() ||
             staff.code ||
             `Staff #${staff.id}`;

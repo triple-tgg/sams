@@ -8,8 +8,11 @@ import type {
     UserDeleteRequest,
     UserDeleteResponse,
     ChangePasswordRequest,
-    ChangePasswordResponse
+    ChangePasswordResponse,
+    UserCheckRequest,
+    UserItem
 } from "./users.interface";
+import { findUserByEmail, resolveUserCheck, type UserCheckResult } from "./userCheck";
 
 const API_BASE = process.env.NEXT_PUBLIC_ENVIRONTMENT !== "production"
     ? `${process.env.NEXT_PUBLIC_DEVELOPMENT_API}`
@@ -76,14 +79,10 @@ export const deleteUser = async (data: UserDeleteRequest): Promise<UserDeleteRes
 };
 
 /**
- * Whether POST /user/change-password is live. The endpoint is still being updated on the
- * backend; flip this to true once its body is confirmed (see ChangePasswordRequest).
- */
-export const CHANGE_PASSWORD_API_READY = false;
-
-/**
- * Change a user's password.
- * POST /user/change-password — body is provisional until the API is finalised.
+ * Change the signed-in user's own password.
+ * POST /user/change-password — body: { currentPassword, newPassword }.
+ * The target account comes from the access token, so this cannot change another user's password
+ * (admins reset other users' passwords via Users-upsert `passwordData`).
  */
 export const changeUserPassword = async (data: ChangePasswordRequest): Promise<ChangePasswordResponse> => {
     try {
@@ -95,4 +94,36 @@ export const changeUserPassword = async (data: ChangePasswordRequest): Promise<C
         console.error('Error changing password:', error);
         throw new Error(error?.response?.data?.error || error?.response?.data?.message || 'Failed to change password');
     }
+};
+
+/**
+ * Check whether an account already uses `email` before creating a login for a staff member.
+ * POST /master/users-check — body: { email, employeeID }.
+ *
+ * The endpoint is still being built. Until it is deployed (404 / 405), the check falls back to
+ * Users-list filtered by email, which returns the same account fields (flagInternal, staffEmployeeId).
+ * `responseData` is read as a single account, an array, or null so either backend shape works.
+ */
+export const checkUserEmail = async (data: UserCheckRequest): Promise<UserCheckResult> => {
+    const email = data.email.trim();
+    try {
+        const res = await axios.post(`${API_BASE}/master/users-check`, { ...data, email }, {
+            headers: { 'Content-Type': 'application/json' },
+        });
+        const body = res.data as { message?: string; responseData?: UserItem | UserItem[] | null; error?: string };
+        if (body?.error && body.message !== 'success') throw new Error(body.error);
+        const raw = body?.responseData;
+        const matched = Array.isArray(raw) ? findUserByEmail(raw, email) : raw && raw.id ? raw : null;
+        return resolveUserCheck(matched, data.employeeID);
+    } catch (error: any) {
+        const status = error?.response?.status;
+        if (status !== 404 && status !== 405) {
+            console.error('Error checking user email:', error);
+            throw new Error(error?.response?.data?.error || error?.response?.data?.message || error?.message || 'Failed to check email');
+        }
+    }
+
+    // Fallback: endpoint not available yet
+    const list = await getUserList({ page: 1, perPage: 50, email });
+    return resolveUserCheck(findUserByEmail(list.responseData, email), data.employeeID);
 };

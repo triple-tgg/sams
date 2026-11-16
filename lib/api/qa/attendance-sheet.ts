@@ -6,10 +6,24 @@ import axiosConfig from "@/lib/axios.config";
 
 export interface AttendanceSheetStaff {
   no: number;
+  /** Regular department (not printed; the sheet uses the AMO 145 department) */
   function: string;
   staffId: string;
   name: string;
+  /** Regular position (not printed; the sheet uses the AMO 145 position) */
   position: string;
+  departmentCode?: string | null;
+  positionCode?: string | null;
+  staffDepartmentCode?: string | null;
+  staffDepartmentName?: string | null;
+  staffDepartmentPositionCode?: string | null;
+  staffDepartmentPositionName?: string | null;
+  /** AMO 145 department — printed in the Function column */
+  staffDepartmentAmo145Code?: string | null;
+  staffDepartmentAmo145Name?: string | null;
+  /** AMO 145 position — printed in the Position column */
+  staffDepartmentPositionAmo145Code?: string | null;
+  staffDepartmentPositionAmo145Name?: string | null;
 }
 
 export interface AttendanceSheetData {
