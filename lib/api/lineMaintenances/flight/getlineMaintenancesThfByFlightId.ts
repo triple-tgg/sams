@@ -215,6 +215,9 @@ export interface FluidServicing {
   engOil: number[] | null;
   csdOil: number[] | null;
   apuOil: number | null;
+  /** "SAMS" | "CUSTOMER" — oil source; may be missing on older records */
+  engOilStockType?: string | null;
+  hydraulicStockType?: string | null;
 }
 
 export interface AircraftTowing {

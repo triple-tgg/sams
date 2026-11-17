@@ -101,6 +101,8 @@ export const servicesFormSchema = z.object({
     hydOilA: z.number().optional(),
     hydOilB: z.number().optional(),
     hydOilSTBY: z.number().optional(),
+    engOilStockType: z.enum(['SAMS', 'CUSTOMER']).nullable().optional(),
+    hydOilStockType: z.enum(['SAMS', 'CUSTOMER']).nullable().optional(),
     apuOil: z.number().optional(),
     rampFuel: z.number().optional(),
     actualUplift: z.number().optional(),

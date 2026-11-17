@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import type { RootState } from "@/store/rootReducer";
 import { getMenuPermissions } from "@/lib/api/permission/getMenuPermissions";
@@ -86,4 +86,32 @@ export function usePermissionHydration() {
                 }
             });
     }, [isAuth, isLoaded, isLoading, users, dispatch]);
+}
+
+/**
+ * Re-fetch the current user's menu permissions (and their sortOrder) into Redux
+ * and the localStorage cache — e.g. after menus are edited, so the sidebar
+ * reflects the change without logging in again.
+ */
+export function useRefreshPermissions() {
+    const dispatch = useDispatch();
+    const users = useSelector((s: RootState) => s.auth.users);
+
+    return useCallback(async () => {
+        const roleId = (users as any)?.roleId;
+        if (!roleId) return;
+        try {
+            const res = await getMenuPermissions(Number(roleId));
+            const newPerms = res.responseData ?? [];
+            dispatch(setPermissions(newPerms));
+            const cached = localStorage.getItem("user");
+            if (cached) {
+                const userData = JSON.parse(cached);
+                userData.menuPermissions = newPerms;
+                localStorage.setItem("user", JSON.stringify(userData));
+            }
+        } catch (err) {
+            console.error("[useRefreshPermissions] fetch failed:", err);
+        }
+    }, [users, dispatch]);
 }

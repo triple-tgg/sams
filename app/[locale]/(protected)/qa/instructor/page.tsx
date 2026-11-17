@@ -39,6 +39,7 @@ import { isInstructorActive, fromDateInputValue, toDateInputValue, getValiditySt
 import { Switch } from '@/components/ui/switch'
 import { MENU } from "@/lib/permission-codes";
 import { useMenuPermission } from "@/hooks/use-menu-permission";
+import { Pagination } from '../qa-document/employee-history-training/components/Pagination'
 
 /** Badge under the Valid To date: expired / expiring soon. */
 function ValidityBadge({ status }: { status: ValidityStatus }) {
@@ -60,6 +61,8 @@ function ValidityBadge({ status }: { status: ValidityStatus }) {
     }
     return null
 }
+
+const PAGE_SIZE = 10
 
 type TypeFilter = 'all' | 'internal' | 'external'
 const TYPE_FILTERS: { value: TypeFilter; label: string }[] = [
@@ -121,6 +124,14 @@ export default function InstructorPage() {
             return codeSort === 'asc' ? cmp : -cmp
         })
         : searched
+
+    // Client-side paging; any filter, search or sort change goes back to page 1
+    const filterKey = `${search}|${typeFilter}|${showAttentionOnly}|${codeSort}`
+    const [pageState, setPageState] = useState({ key: filterKey, index: 0 })
+    const pageCount = Math.ceil(filtered.length / PAGE_SIZE)
+    const pageIndex = pageState.key === filterKey ? Math.min(pageState.index, Math.max(0, pageCount - 1)) : 0
+    const setPageIndex = (index: number) => setPageState({ key: filterKey, index })
+    const pageRows = filtered.slice(pageIndex * PAGE_SIZE, (pageIndex + 1) * PAGE_SIZE)
 
     const activeCount = instructors.filter(isInstructorActive).length
     const inactiveCount = instructors.length - activeCount
@@ -412,9 +423,9 @@ export default function InstructorPage() {
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                filtered.map((inst, idx) => (
+                                pageRows.map((inst, idx) => (
                                     <TableRow key={inst.id} className={idx % 2 === 1 ? 'bg-slate-50 dark:bg-slate-900' : 'bg-card'}>
-                                        <TableCell className="text-xs font-medium text-muted-foreground">{idx + 1}</TableCell>
+                                        <TableCell className="text-xs font-medium text-muted-foreground">{pageIndex * PAGE_SIZE + idx + 1}</TableCell>
                                         <TableCell className="sticky left-0 z-10 min-w-55 bg-inherit shadow-[1px_0_0_0_var(--border)]">
                                             <div>
                                                 <p className="text-sm font-semibold text-foreground">{inst.title} {inst.name}</p>
@@ -517,6 +528,15 @@ export default function InstructorPage() {
                             )}
                         </TableBody>
                     </Table>
+                    {!isLoading && filtered.length > 0 && (
+                        <Pagination
+                            pageIndex={pageIndex}
+                            pageCount={pageCount}
+                            totalItems={filtered.length}
+                            pageSize={PAGE_SIZE}
+                            onPageChange={setPageIndex}
+                        />
+                    )}
                 </CardContent>
             </Card>
 

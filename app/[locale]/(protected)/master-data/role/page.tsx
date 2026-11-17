@@ -40,7 +40,9 @@ import {
     Download,
     Check,
     X,
+    ListTree,
 } from "lucide-react";
+import { Link } from "@/i18n/routing";
 import { toast } from "sonner";
 import {
     useInfiniteRoleList,
@@ -509,6 +511,12 @@ const RolePermissionPage = () => {
                     <h1 className="text-xl font-bold tracking-tight">Role &amp; Permission</h1>
                     <p className="text-sm text-muted-foreground">Manage roles and their menu permissions</p>
                 </div>
+                <Button asChild size="sm" variant="outline">
+                    <Link href="/master-data/permission-menu">
+                        <ListTree className="h-4 w-4 mr-1" />
+                        Manage Menus
+                    </Link>
+                </Button>
             </div>
 
             {/* Two-panel layout */}

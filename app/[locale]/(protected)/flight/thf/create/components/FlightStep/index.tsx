@@ -4,6 +4,7 @@ import { useForm, FieldErrors, Controller } from 'react-hook-form'
 import { useEffect, useRef, useCallback, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useRouteStationCheck } from "@/hooks/use-route-station-check";
 
 import { useStep } from '../step-context'
 import { Separator } from '@/components/ui/separator'
@@ -88,11 +89,16 @@ const FlightStep = (props: FlightStepProps) => {
     reset,
     watch,
     setValue,
+    setError,
+    clearErrors,
+    getFieldState,
     formState: { errors },
   } = useForm<Step1FormInputs>({
     resolver: zodResolver(flightFormSchema),
     defaultValues: props.formData ? sanitizeFormData(props.formData) : getDefaultValues(),
   })
+  // Live check: Station must differ from Route From / Route To
+  useRouteStationCheck({ watch, setError, clearErrors, getFieldState })
 
   // Watch acTypeCode for combo filtering
   const selectedAcType = watch('acTypeCode')

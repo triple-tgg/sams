@@ -884,7 +884,7 @@ export default function CertifyingStaffView({ variant = 'certifying' }: Certifyi
                             <LoadingBlock label="Loading AMEL certifying staff data..." />
                         ) : amelQuery.error ? (
                             <EmptyBlock>Failed to load staff: {(amelQuery.error as Error).message}</EmptyBlock>
-                        ) : amelRows.length === 0 || amelGroups.length === 0 ? (
+                        ) : amelRows.length === 0 ? (
                             <EmptyBlock>No staff match these filters.</EmptyBlock>
                         ) : (
                             <div className="max-h-[calc(100vh-320px)] overflow-auto">
@@ -907,6 +907,15 @@ export default function CertifyingStaffView({ variant = 'certifying' }: Certifyi
                                             >
                                                 ENGINE
                                             </th>
+                                            {amelGroups.length === 0 && (
+                                                <th
+                                                    rowSpan={2}
+                                                    className="border-b-2 border-l border-border bg-slate-50 dark:bg-slate-800/90 px-3 py-2 text-center text-[11px] font-bold text-slate-600 dark:text-slate-300 align-middle"
+                                                    style={{ minWidth: 240 }}
+                                                >
+                                                    AMEL Qualifications
+                                                </th>
+                                            )}
                                             {amelGroups.map((group, gi) => (
                                                 <th
                                                     key={group.id}
@@ -1045,6 +1054,14 @@ export default function CertifyingStaffView({ variant = 'certifying' }: Certifyi
                                                     >
                                                         <AmelAcTypeDisplay acType={s.aircraftType} />
                                                     </td>
+                                                    {amelGroups.length === 0 && ri === 0 && (
+                                                        <td
+                                                            rowSpan={amelRows.length}
+                                                            className="border-b border-l border-border/50 bg-white dark:bg-slate-950 px-3 text-center align-middle text-xs text-muted-foreground"
+                                                        >
+                                                            No AMEL qualification columns
+                                                        </td>
+                                                    )}
                                                     {/* Engine Cells (UI styled matching Image 1: StatusDot + TRUE + mint background) */}
                                                     {amelGroups.flatMap((group) =>
                                                         group.columns.map((col, ci) => {
@@ -1294,7 +1311,7 @@ export default function CertifyingStaffView({ variant = 'certifying' }: Certifyi
                             <LoadingBlock label="Loading Aircraft Licence data..." />
                         ) : licenceQuery.error ? (
                             <EmptyBlock>Failed to load staff: {(licenceQuery.error as Error).message}</EmptyBlock>
-                        ) : licenceRows.length === 0 || licenceAirlines.length === 0 ? (
+                        ) : licenceRows.length === 0 ? (
                             <EmptyBlock>No staff match these filters.</EmptyBlock>
                         ) : (
                             <div className="max-h-[calc(100vh-320px)] overflow-auto">
@@ -1317,6 +1334,15 @@ export default function CertifyingStaffView({ variant = 'certifying' }: Certifyi
                                             >
                                                 AIRLINES
                                             </th>
+                                            {licenceAirlines.length === 0 && (
+                                                <th
+                                                    rowSpan={3}
+                                                    className="border-b-2 border-l border-border bg-slate-50 dark:bg-slate-800/90 px-3 py-2 text-center text-[11px] font-bold text-slate-600 dark:text-slate-300 align-middle"
+                                                    style={{ minWidth: 240 }}
+                                                >
+                                                    Customer Authorizations
+                                                </th>
+                                            )}
                                             {licenceAirlines.map((al, ai) => {
                                                 const subCount = al.aircraftTypes.reduce(
                                                     (sum, at) => sum + Math.max(at.subtypes.length, 1),
@@ -1477,6 +1503,14 @@ export default function CertifyingStaffView({ variant = 'certifying' }: Certifyi
                                                     >
                                                         <AmelAcTypeDisplay acType={s.aircraftType} />
                                                     </td>
+                                                    {licenceAirlines.length === 0 && ri === 0 && (
+                                                        <td
+                                                            rowSpan={licenceRows.length}
+                                                            className="border-b border-l border-border/50 bg-white dark:bg-slate-950 px-3 text-center align-middle text-xs text-muted-foreground"
+                                                        >
+                                                            No customer authorizations
+                                                        </td>
+                                                    )}
                                                     {/* Airline Subtype Authorizations */}
                                                     {licenceAirlines.flatMap((al) =>
                                                         al.aircraftTypes.flatMap((at) =>

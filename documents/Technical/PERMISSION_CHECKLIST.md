@@ -72,8 +72,10 @@
 | MD · Station | `MENU.MASTER_DATA_STATION` | ✅ | ✅ | ✅ |
 | MD · User Login | `MENU.MASTER_DATA_USER_LOGIN` | ✅ | ✅ | ✅ |
 | MD · Role / Set Permission | `MENU.MASTER_DATA_ROLE` | ✅ | ✅ | ✅ |
+| MD · Role › Permission Menu (`/master-data/permission-menu`) | `MENU.MASTER_DATA_ROLE` (ใช้ code เดียวกับหน้า Role — ไม่ต้องเพิ่มแถว DB) | ✅ | ✅ | ✅ |
+| MD · Training › Venues | `MENU.MASTER_DATA_TRAINING_VENUE` (DB ต้องเพิ่มแถว — ดู MENUS_DB.json id 48–49) | ✅ | ✅ | ✅ |
 
-**ตัวเลขรวม (36 แถว):** ✅ 36 · ⚪ 0 · 🟡 0 · ❌ 0 — code ทุกตัวมีใน DB แล้ว ไม่มี fallback
+**ตัวเลขรวม (38 แถว):** ✅ 38 · ⚪ 0 · 🟡 0 · ❌ 0 — code ทุกตัวมีใน DB แล้ว ไม่มี fallback
 
 ---
 
@@ -188,6 +190,8 @@
 | Customer Airline / Station / User Login: Add / Edit / Delete | page.tsx ของแต่ละเมนู | code ของเมนูนั้น | ✅ |
 | Authority: Add / Edit / Delete | `P/master-data/customer-airline/authority/page.tsx` | MASTER_DATA_AUTHORITY | ✅ |
 | Role: Add / Edit / Delete / Save permission | `P/master-data/role/page.tsx` | MASTER_DATA_ROLE | ✅ |
+| Permission Menu: Add Menu / Add child (canCreate) · Edit / Drag reorder / Save Order / Reset (canEdit) — Sort Order แสดงอย่างเดียว | `P/master-data/permission-menu/page.tsx` | MASTER_DATA_ROLE (handler เช็คซ้ำ) | ✅ |
+| Training Venues: Add Venue / Edit / Delete (View ทุกคนที่เข้าหน้าได้) | `P/master-data/training-venues/page.tsx` | MASTER_DATA_TRAINING_VENUE canCreate / canEdit / canDelete (handler เช็คซ้ำ) | ✅ |
 
 ---
 
@@ -293,3 +297,7 @@
 | 2026-11-15 | Claude (ตามคำขอ sattaya prata) | Course Management: เพิ่มปุ่ม Export (POST `/migration/courses-export`) | ใช้ `PermissionActionGuard` QA_COURSE_MANAGEMENT **canExport** แยกจากกลุ่ม canCreate (Template / Import / Add) · role ที่มีแค่ canView + canExport เห็นเฉพาะปุ่ม Export · staging ตอนนี้ตอบ POST เป็น 405 และรองรับแค่ GET → frontend ลอง GET ต่อเมื่อได้ 405 · ไม่มีเมนูหรือ route ใหม่ ไม่ต้องแก้ DB |
 | 2026-11-15 | Claude (ตามคำขอ sattaya prata) | HR Staff List: เพิ่มปุ่ม Export (POST `/migration/staffs-export`) | ใช้ `PermissionActionGuard` HR_STAFF **canExport** แยกจาก canCreate (Template / Import Excel / New Staff) · staging ตอนนี้ตอบ POST เป็น 405 และรองรับแค่ GET → frontend ลอง GET ต่อเมื่อได้ 405 · ไม่มีเมนูหรือ route ใหม่ ไม่ต้องแก้ DB |
 | 2026-11-15 | Claude (ตามคำขอ sattaya prata) | QA Document › Staff Records: เพิ่มเมนู Work Experience → Preview Maintenance Experiences Logbook Records (A4 แนวนอน, `POST /staffs/maintenance-experiences/logbook-records/list`) | ใช้สิทธิ์เดิมของหน้า `QA_DOC_WORK_EXPERIENCE` · ปุ่ม Print / PDF อยู่ใต้ canExport เหมือน Preview อื่นในหน้า · ไม่มีเมนูหรือ route ใหม่ ไม่ต้องแก้ DB |
+| 2026-11-17 | Claude (ตามคำขอ sattaya prata) | Master Data: เพิ่มกลุ่ม Training › Venues (`/master-data/training-venues`, API `/master/trainingVenues/*`) | code ใหม่ `MASTER_DATA_TRAINING_VENUE` ใน `MENU` · sidebar `permCode` · route map (ก่อน prefix `/master-data`) · ปุ่ม Add ใช้ `PermissionActionGuard` canCreate, Edit/Delete ในเมนูแถวใช้ `perm.canEdit` / `perm.canDelete` + เช็คใน handler · **ต้องเพิ่มแถว DB:** `MASTER_TRAINING` (id 48, parent 34, sortOrder 950, กลุ่มเท่านั้น) และ `MASTER_DATA_TRAINING_VENUE` (id 49, parent 48, sortOrder 951) แล้วตั้งสิทธิ์ในหน้า Role · ถ้ายังไม่มีแถวใน DB หน้านี้จะเข้าไม่ได้สำหรับทุกคน · test สิทธิ์ 35/35 ผ่าน · `tsc` ไม่มี error ใหม่ |
+| 2026-11-17 | Claude (ตามคำขอ sattaya prata) | Role & Permission: เพิ่มหน้า Permission Menu (`/master-data/permission-menu`, API `/menu/list`, `/menu/byid/{id}`, `/menu/upsert`) จัดการเมนูในตาราง menus + ลากเรียง / แก้ sortOrder อิสระ | ใช้ `MENU.MASTER_DATA_ROLE` ทั้งหน้า (ถ้าใช้ code ใหม่จะต้องเพิ่มแถว DB ก่อนถึงจะเข้าได้) · sidebar `permCode` + route map (ก่อน prefix `/master-data`) · Add ใช้ canCreate, Edit/ลากเรียง/Save Order ใช้ canEdit + เช็คใน handler · ไม่มีปุ่ม Delete (API ไม่มี) ใช้ Active toggle แทน · ไม่ต้องแก้ DB · test สิทธิ์ผ่าน · `tsc` ไม่มี error ใหม่ |
+| 2026-11-17 | Claude (ตามคำขอ sattaya prata) | Permission Menu: Sort Order เป็นแบบแสดงอย่างเดียว · ซ่อนคอลัมน์ Code · ลากย้ายเมนูแล้ว sub menu ถูกเลื่อนเลขตาม parent | ไม่มีปุ่มหรือ route ใหม่ สิทธิ์เหมือนเดิม (canEdit สำหรับลาก / Save Order) · ไม่ต้องแก้ DB |
+| 2026-11-17 | Claude (ตามคำขอ sattaya prata) | Sidebar เรียงตาม sortOrder ใน DB (`lib/sidebar-order.ts` ใช้ใน `useFilteredMenuList`) + refresh permission หลังบันทึกในหน้า Permission Menu · แก้ bug ฟอร์ม Parent Menu ที่ส่ง `parentId: 0` | bug ทำให้แถว `MASTER_DATA_ROLE` (id 47) ถูกบันทึกเป็น parent 0 / sortOrder 1 → หลุดจาก `/permission/menus` ทำให้เมนู Role หายและหน้า Role / Permission Menu ขึ้น Access Denied · แก้ข้อมูลกลับเป็น parent 44 / sortOrder 953 แล้ว (ผู้ใช้อนุมัติ) · โครงสร้าง sidebar ยังมาจาก `lib/menus.ts` เปลี่ยนแค่ลำดับ |

@@ -134,6 +134,30 @@ export interface ContractDetailPersonnel {
     email: string;
 }
 
+// PROPOSED (backend pending) — one additional escalation round
+export interface ContractEscalationRound {
+    id: number;
+    /** YYYY-MM-DD (may include a time part) */
+    escalationDate: string;
+    /** Set by the backend once rates were escalated for this round */
+    isApplied: boolean;
+    appliedDate: string | null;
+    appliedBy: string | null;
+}
+
+// PROPOSED (backend pending) — one applied escalation
+export interface ContractEscalationLog {
+    id: number;
+    /** The round's scheduled date (YYYY-MM-DD) */
+    escalationDate: string;
+    roundType: "YEARLY" | "ADDITIONAL";
+    /** When the system applied it */
+    appliedDate: string;
+    appliedBy: string | null;
+    /** % applied to each pricing rate in this round */
+    rateList: { pricingDataId: number; escalationPercent: number }[];
+}
+
 // Interface for contract detail response data
 export interface ContractDetail {
     id: number;
@@ -144,6 +168,12 @@ export interface ContractDetail {
     expiresOn: string;
     isNoExpiryDate: boolean | null;
     escalationDate: string | null;
+    /** PROPOSED (backend pending): additional escalation rounds, oldest first */
+    escalationRoundList?: ContractEscalationRound[] | null;
+    /** PROPOSED (backend pending): last date the system applied an escalation to this contract's rates */
+    lastEscalationAppliedDate?: string | null;
+    /** PROPOSED (backend pending): one entry per escalation the system applied, oldest first */
+    escalationLogList?: ContractEscalationLog[] | null;
     creditTerms: string;
     contractStatusObj: ContractDetailStatusObj;
     serviceStation: string[];

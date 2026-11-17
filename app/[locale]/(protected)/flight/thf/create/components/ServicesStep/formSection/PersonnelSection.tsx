@@ -70,9 +70,16 @@ export const PersonnelSection: React.FC<{
   // Calculate total duration
   const totalDuration = itemDurations.reduce((sum, d) => sum + d, 0)
 
+  // Whole-card collapse, available once personnel are being added. Validation errors keep it open.
+  const [sectionOpen, setSectionOpen] = useState(true)
+  const hasPersonnelErrors = !!form.formState.errors.personnel
+  const isCollapsible = !!addPersonnels
+  const isSectionOpen = !isCollapsible || sectionOpen || hasPersonnelErrors
+
   return (
+    <Collapsible open={isSectionOpen} onOpenChange={setSectionOpen} asChild>
     <Card className="rounded-xl shadow-sm border-l-4 border-l-violet-500 border border-gray-200">
-      <CardHeader className="pb-3">
+      <CardHeader className={isSectionOpen ? "pb-3" : undefined}>
         <CardTitle className="flex items-center gap-2 text-base">
           <Users className="h-5 w-5 text-violet-500" />
           Personnel
@@ -81,8 +88,32 @@ export const PersonnelSection: React.FC<{
               {personnel.length}
             </Badge>
           )}
+          {isCollapsible && (
+            <div className="ml-auto flex items-center gap-2">
+              {personnel.length > 0 ? (
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-700">
+                  <Clock className="h-3.5 w-3.5" />
+                  {formatDuration(totalDuration)}
+                </span>
+              ) : null}
+              <CollapsibleTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  disabled={hasPersonnelErrors}
+                  aria-label={isSectionOpen ? 'Collapse personnel' : 'Expand personnel'}
+                  title={isSectionOpen ? 'Collapse' : 'Expand'}
+                >
+                  <ChevronDown className={`h-4 w-4 transition-transform ${isSectionOpen ? 'rotate-180' : ''}`} />
+                </Button>
+              </CollapsibleTrigger>
+            </div>
+          )}
         </CardTitle>
       </CardHeader>
+      <CollapsibleContent>
       <CardContent className="space-y-4">
         <FormField
           control={form.control}
@@ -109,7 +140,7 @@ export const PersonnelSection: React.FC<{
           const errorMessage = personnelErrors?.message || personnelErrors?.root?.message
           if (!errorMessage) return null
           return (
-            <div className="flex items-center gap-2 p-2.5 bg-red-50 border border-red-200 rounded-lg mt-2">
+            <div data-field-error className="flex items-center gap-2 p-2.5 bg-red-50 border border-red-200 rounded-lg mt-2">
               <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
               <p className="text-sm text-red-600">{errorMessage}</p>
             </div>
@@ -150,7 +181,8 @@ export const PersonnelSection: React.FC<{
                 </div>
 
                 {personnel.map((_, index) => {
-                  const isOpen = openItems[index] !== undefined ? openItems[index] : true
+                  const hasItemError = !!(form.formState.errors.personnel as any)?.[index]
+                  const isOpen = hasItemError || (openItems[index] !== undefined ? openItems[index] : true)
                   const duration = itemDurations[index] || 0
 
                   return (
@@ -296,7 +328,7 @@ export const PersonnelSection: React.FC<{
                                             placeholder="DD-MMM-YYYY"
                                           />
                                           {fieldState.error && (
-                                            <p className="text-xs font-medium text-destructive mt-1">{fieldState.error.message}</p>
+                                            <p data-field-error className="text-xs font-medium text-destructive mt-1">{fieldState.error.message}</p>
                                           )}
                                         </>
                                       )}
@@ -333,7 +365,7 @@ export const PersonnelSection: React.FC<{
                                             placeholder="DD-MMM-YYYY"
                                           />
                                           {fieldState.error && (
-                                            <p className="text-xs font-medium text-destructive mt-1">{fieldState.error.message}</p>
+                                            <p data-field-error className="text-xs font-medium text-destructive mt-1">{fieldState.error.message}</p>
                                           )}
                                         </>
                                       )}
@@ -384,7 +416,9 @@ export const PersonnelSection: React.FC<{
           </div>
         )}
       </CardContent>
+      </CollapsibleContent>
     </Card>
+    </Collapsible>
   )
 }
 

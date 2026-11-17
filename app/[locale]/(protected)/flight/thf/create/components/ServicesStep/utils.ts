@@ -1,5 +1,5 @@
 import { LineMaintenanceThfResponse } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
-import { ServicesFormInputs } from './types'
+import { ServicesFormInputs, toOilStockType } from './types'
 import { AircraftCheckType } from '@/lib/api/master/aircraft-check-types/airlines.interface'
 import { convertDateToBackend, formatFromPicker } from '@/lib/utils/formatPicker'
 import { utcDatetimeToFormDate, utcDatetimeToFormTime } from '@/lib/utils/flightDatetime'
@@ -34,6 +34,8 @@ export const getDefaultValues = (checkTypes?: AircraftCheckType[]): ServicesForm
       hydOilA: 0,
       hydOilB: 0,
       hydOilSTBY: 0,
+      engOilStockType: null,
+      hydOilStockType: null,
       apuOil: 0,
       rampFuel: 0,
       actualUplift: 0,
@@ -244,6 +246,8 @@ export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse |
     hydOilA: fluidServicing?.hydraulicA || 0,
     hydOilB: fluidServicing?.hydraulicB || 0,
     hydOilSTBY: fluidServicing?.hydraulicSTBY || 0,
+    engOilStockType: toOilStockType(fluidServicing?.engOilStockType),
+    hydOilStockType: toOilStockType(fluidServicing?.hydraulicStockType),
 
     apuOil: fluidServicing?.apuOil || 0,
     rampFuel: rampFuel || 0,

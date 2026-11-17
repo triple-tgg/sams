@@ -10,6 +10,8 @@ import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/comp
 import { Badge } from "@/components/ui/badge"
 import { ServicesFormInputs, transformAircraftCheckTypesToOptions, transformAircraftCheckSubTypesToOptions } from '../types'
 import { getServiceDescription } from './serviceDescriptionConfig'
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible"
+import { SectionCollapseToggle, useSectionCollapse } from './SectionCollapse'
 
 /** Check if maintenance type is TR-related (starts with TR/tr or equals TR-Transit) */
 export const isTRType = (value: string) =>
@@ -74,6 +76,17 @@ const AircraftChecksSection: React.FC<{
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTypesKey])
 
+  // Whole-card collapse once there is more than one check. Validation errors keep it open.
+  const { isOpen, setOpen, isCollapsible, hasErrors } = useSectionCollapse(
+    aircraftChecks.length > 1,
+    !!form.formState.errors.aircraftChecks
+  )
+
+  const handleAdd = () => {
+    setOpen(true)
+    onAdd()
+  }
+
   if (props.isLoadingCheckTypes) {
     return (
       <Card className="rounded-xl shadow-sm border-l-4 border-l-emerald-500 border border-gray-200">
@@ -94,8 +107,9 @@ const AircraftChecksSection: React.FC<{
   }
 
   return (
+    <Collapsible open={isOpen} onOpenChange={setOpen} asChild>
     <Card className="rounded-xl shadow-sm border-l-4 border-l-emerald-500 border border-gray-200">
-      <CardHeader className="flex flex-row items-center justify-between pb-3">
+      <CardHeader className={`flex flex-row items-center justify-between ${isOpen ? 'pb-3' : ''}`}>
         <CardTitle className="flex items-center gap-2 text-base">
           <ClipboardCheck className="h-5 w-5 text-emerald-500" />
           Aircraft Checks
@@ -105,17 +119,23 @@ const AircraftChecksSection: React.FC<{
             </Badge>
           )}
         </CardTitle>
-        <Button
-          type="button"
-          color="primary"
-          variant="soft"
-          size="sm"
-          onClick={onAdd}
-        >
-          <PlusIcon className="h-3.5 w-3.5 mr-1" />
-          Add Check
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            color="primary"
+            variant="soft"
+            size="sm"
+            onClick={handleAdd}
+          >
+            <PlusIcon className="h-3.5 w-3.5 mr-1" />
+            Add Check
+          </Button>
+          {isCollapsible && (
+            <SectionCollapseToggle isOpen={isOpen} disabled={hasErrors} label="aircraft checks" />
+          )}
+        </div>
       </CardHeader>
+      <CollapsibleContent>
       <CardContent className="space-y-3">
         {aircraftChecks.map((_, index) => (
           <div
@@ -271,7 +291,9 @@ const AircraftChecksSection: React.FC<{
           </div>
         ))}
       </CardContent>
-    </Card >
+      </CollapsibleContent>
+    </Card>
+    </Collapsible>
   )
 }
 

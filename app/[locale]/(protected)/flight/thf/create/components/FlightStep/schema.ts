@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { refineRouteStation } from '@/lib/flight-route-validation'
 
 // Reusable schemas
 const optionSchema = z.object({
@@ -48,6 +49,9 @@ export const flightFormSchema = z.object({
   bay: z.string().optional(), // Optional
   status: optionalOptionSchema, // Optional
   note: z.string().optional(), // Optional
+}).superRefine((data, ctx) => {
+  // Station must differ from Route From / Route To
+  refineRouteStation(data, ctx)
 })
 
 export type FlightFormSchema = z.infer<typeof flightFormSchema>

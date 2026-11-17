@@ -6,6 +6,7 @@ import type { RootState } from "@/store/rootReducer";
 import { getMenuList, type Group } from "@/lib/menus";
 import { buildPermissionIndex, hasPermission } from "@/lib/permission-utils";
 import type { MenuCodeRef } from "@/lib/permission-codes";
+import { sortMenuListByDb } from "@/lib/sidebar-order";
 
 /**
  * Recursively filter SubChildren by permCode.
@@ -48,7 +49,8 @@ export function useFilteredMenuList(pathname: string, t: any): Group[] {
             return hasPermission(index, code, "canView");
         };
 
-        return rawMenuList
+        // Order every level by the DB sortOrder (Master Data › Permission Menu)
+        return sortMenuListByDb(rawMenuList, index)
             .map((group) => ({
                 ...group,
                 menus: group.menus

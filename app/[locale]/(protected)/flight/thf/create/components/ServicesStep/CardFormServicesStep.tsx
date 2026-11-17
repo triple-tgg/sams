@@ -181,6 +181,29 @@ const CardFormServicesStep = (props: Props) => {
     return isValid
   }, [props.aircraftTypeFlags, form])
 
+  /**
+   * Scroll to and focus the first validation error on screen (top to bottom), after React renders the errors.
+   * Covers RHF FormControl (aria-invalid), FormMessage, FieldError and section-level error markers.
+   */
+  const formRef = React.useRef<HTMLFormElement>(null)
+  const focusFirstError = useCallback(() => {
+    setTimeout(() => {
+      const root = formRef.current
+      if (!root) return
+      const target = root.querySelector<HTMLElement>(
+        '[aria-invalid="true"], [data-error-field], [data-field-error], [id$="-form-item-message"]'
+      )
+      if (!target) return
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      const focusable = 'input:not([type=hidden]):not([disabled]), textarea:not([disabled]), select:not([disabled]), button[role=combobox]:not([disabled]), [role=combobox]:not([disabled])'
+      const field = target.matches(focusable)
+        ? target
+        : (target.closest('[class*="space-y"], .grid > div, [data-error-scope]')?.querySelector<HTMLElement>(focusable)
+          ?? target.parentElement?.querySelector<HTMLElement>(focusable))
+      field?.focus({ preventScroll: true })
+    }, 120)
+  }, [])
+
   // Wrapper: validate flags then run form submission
   const handleSubmitWithFlagValidation = useCallback(() => {
     // Clear previous manual errors first
@@ -191,38 +214,12 @@ const CardFormServicesStep = (props: Props) => {
     ])
     const flagsValid = validateAircraftTypeFlags()
     if (!flagsValid) {
-      // Auto-focus the first errored field after React re-renders with errors
-      setTimeout(() => {
-        const errorFieldOrder = [
-          'fluid.engOilSets', 'fluid.csdIdgVsfgSets',
-          'fluid.hydOilBlue', 'fluid.hydOilGreen', 'fluid.hydOilYellow',
-          'fluid.apuOil'
-        ]
-        for (const fieldName of errorFieldOrder) {
-          // Try data-error-field elements (for section-level errors)
-          const errorEl = document.querySelector(`[data-error-field="${fieldName}"]`)
-          if (errorEl) {
-            errorEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
-            // Try to focus the nearest input in the same section
-            const section = errorEl.closest('.space-y-3')
-            const input = section?.querySelector('input')
-            if (input) input.focus()
-            return
-          }
-          // Try input by name (for individual fields like hydraulic / APU)
-          const input = document.querySelector<HTMLInputElement>(`input[name="${fieldName}"]`)
-          if (input) {
-            input.scrollIntoView({ behavior: 'smooth', block: 'center' })
-            input.focus()
-            return
-          }
-        }
-      }, 100)
+      focusFirstError()
       return
     }
-    // Proceed with normal Zod validation + submit
-    form.handleSubmit((data) => handleSubmitRef.current(data))()
-  }, [form, validateAircraftTypeFlags])
+    // Proceed with normal Zod validation + submit; on failure jump to the first error
+    form.handleSubmit((data) => handleSubmitRef.current(data), () => focusFirstError())()
+  }, [form, validateAircraftTypeFlags, focusFirstError])
 
   // Custom submission hook
   const handleOnSave = () => { onSave }
@@ -297,7 +294,7 @@ const CardFormServicesStep = (props: Props) => {
   return (
 
     <Form {...form}>
-      <form onSubmit={(e) => { e.preventDefault(); handleSubmitWithFlagValidation() }} className="space-y-6">
+      <form ref={formRef} onSubmit={(e) => { e.preventDefault(); handleSubmitWithFlagValidation() }} className="space-y-6">
 
         {/* Form Validation Debug Info */}
         {process.env.NODE_ENV === 'development' && Object.keys(form.formState.errors).length > 0 && (
@@ -308,6 +305,17 @@ const CardFormServicesStep = (props: Props) => {
             </pre>
           </div>
         )}
+
+        {/* Personnel Section */}
+        <PersonnelSection
+          form={form}
+          onAdd={handleAddPersonnel}
+          onRemove={handleRemovePersonnel}
+          staffsTypesValuesOptions={props.staffsTypesValuesOptions}
+          infoData={props.formData}
+        />
+
+        <Separator />
 
         {/* Aircraft Checks Section */}
         <AircraftChecksSection
@@ -355,16 +363,6 @@ const CardFormServicesStep = (props: Props) => {
           isLoadingFlags={props.isLoadingAircraftTypeFlags || false}
         />
 
-        <Separator />
-
-        {/* Personnel Section */}
-        <PersonnelSection
-          form={form}
-          onAdd={handleAddPersonnel}
-          onRemove={handleRemovePersonnel}
-          staffsTypesValuesOptions={props.staffsTypesValuesOptions}
-          infoData={props.formData}
-        />
 
         {/* Form Actions */}
         {!isModal && (

@@ -406,7 +406,7 @@ export function getMenuList(pathname: string, t: any): Group[] {
             {
               href: "/master-data/role",
               label: t("System Function"),
-              active: pathname.includes("/master-data/role") || pathname.includes("/master-data/station") || pathname.includes("/master-data/user-login") || pathname.includes("/master-data/set-permission"),
+              active: pathname.includes("/master-data/role") || pathname.includes("/master-data/station") || pathname.includes("/master-data/user-login") || pathname.includes("/master-data/set-permission") || pathname.includes("/master-data/permission-menu"),
               icon: "heroicons-outline:cog-6-tooth",
               children: [
                 {
@@ -427,6 +427,26 @@ export function getMenuList(pathname: string, t: any): Group[] {
                   href: "/master-data/role",
                   label: t("role"),
                   active: pathname.includes("/master-data/role") || pathname.includes("/master-data/set-permission"),
+                },
+                {
+                  permCode: MENU.MASTER_DATA_ROLE,
+                  href: "/master-data/permission-menu",
+                  label: t("mdPermissionMenu"),
+                  active: pathname.includes("/master-data/permission-menu"),
+                },
+              ]
+            },
+            {
+              href: "/master-data/training-venues",
+              label: t("mdTraining"),
+              active: pathname.includes("/master-data/training-venues"),
+              icon: "heroicons-outline:academic-cap",
+              children: [
+                {
+                  permCode: MENU.MASTER_DATA_TRAINING_VENUE,
+                  href: "/master-data/training-venues",
+                  label: t("mdTrainingVenues"),
+                  active: pathname.includes("/master-data/training-venues"),
                 },
               ]
             },

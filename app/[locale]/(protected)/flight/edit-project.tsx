@@ -4,6 +4,8 @@ import * as React from "react";
 import { useForm, SubmitHandler, Controller, FieldErrors } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouteStationCheck } from "@/hooks/use-route-station-check";
+import { refineRouteStation } from "@/lib/flight-route-validation";
 import { cn } from "@/lib/utils";
 
 import {
@@ -134,6 +136,9 @@ export const FormSchema = z
     { path: ["departureDate"], message: "If departure provided, Date & STD are required" }
   )
   .superRefine((data, ctx) => {
+    // Station must differ from Route From / Route To
+    refineRouteStation(data, ctx);
+
     if (data.aircraftTowing) {
       if (!data.aircraftTowingInfo || data.aircraftTowingInfo.length === 0) {
         ctx.addIssue({
@@ -434,10 +439,15 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
     reset,
     setValue,
     watch,
+    setError,
+    clearErrors,
+    getFieldState,
   } = useForm<Inputs>({
     resolver: zodResolver(FormSchema),
     defaultValues,
   });
+  // Live check: Station must differ from Route From / Route To
+  useRouteStationCheck({ watch, setError, clearErrors, getFieldState });
 
   // Reset form when flight data changes
   useEffect(() => {

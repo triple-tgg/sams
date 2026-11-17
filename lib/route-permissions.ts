@@ -78,6 +78,8 @@ export const ROUTE_PERMISSION_MAP: RoutePermission[] = [
     { path: "/master-data/user-login", menuCodes: MENU.MASTER_DATA_USER_LOGIN },
     { path: "/master-data/role", menuCodes: MENU.MASTER_DATA_ROLE },
     { path: "/master-data/set-permission", menuCodes: MENU.MASTER_DATA_ROLE },
+    { path: "/master-data/permission-menu", menuCodes: MENU.MASTER_DATA_ROLE },
+    { path: "/master-data/training-venues", menuCodes: MENU.MASTER_DATA_TRAINING_VENUE },
     { path: "/master-data", menuCodes: MENU.MASTER_DATA },
 ];
 

@@ -421,5 +421,23 @@
     "route": "/master-data/role",
     "parentId": 44,
     "sortOrder": 943
+  },
+  {
+    "id": 48,
+    "menuCode": "MASTER_TRAINING",
+    "name": "Training",
+    "icon": null,
+    "route": null,
+    "parentId": 34,
+    "sortOrder": 950
+  },
+  {
+    "id": 49,
+    "menuCode": "MASTER_DATA_TRAINING_VENUE",
+    "name": "Venues",
+    "icon": null,
+    "route": "/master-data/training-venues",
+    "parentId": 48,
+    "sortOrder": 951
   }
 ]

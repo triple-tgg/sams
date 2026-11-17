@@ -4,6 +4,8 @@ import * as React from "react";
 import { useForm, SubmitHandler, Controller, type FieldErrors } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouteStationCheck } from "@/hooks/use-route-station-check";
+import { refineRouteStation } from "@/lib/flight-route-validation";
 
 import {
   Dialog,
@@ -241,6 +243,9 @@ const FormSchema = z.object({
     )
     .default([]),
 }).superRefine((data, ctx) => {
+  // Station must differ from Route From / Route To
+  refineRouteStation(data, ctx);
+
   if (data.aircraftTowing) {
     if (!data.aircraftTowingInfo || data.aircraftTowingInfo.length === 0) {
       ctx.addIssue({
@@ -451,10 +456,14 @@ export default function CreateProject({ open, setOpen }: CreateTaskProps) {
     setValue,
     watch,
     setError,
+    clearErrors,
+    getFieldState,
   } = useForm<Inputs>({
     resolver: zodResolver(FormSchema),
     defaultValues: DEFAULT_FORM_VALUES,
   });
+  // Live check: Station must differ from Route From / Route To
+  useRouteStationCheck({ watch, setError, clearErrors, getFieldState });
 
   // Collapsible form groups (Flight Information / Service / Personnel Assignment)
   const [openSections, setOpenSections] = useState<Record<FlightFormSectionKey, boolean>>(INITIAL_FLIGHT_FORM_SECTIONS);

@@ -1,5 +1,7 @@
 "use client";
 
+import { sortEscalationRounds, validateEscalationRounds } from "@/lib/utils/contractEscalation";
+import { EscalationLogTab } from "./EscalationLogTab";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -70,6 +72,25 @@ const transformApiToFormData = (data: ContractDetail): ContractFormData => {
         isNoExpiryDate: data.isNoExpiryDate ?? false,
         // Escalation recurs yearly: the form keeps only "MM-DD"; the API may add a time part.
         escalationDate: data.escalationDate ? data.escalationDate.slice(5, 10) : "",
+        isEscalationRescheduled: (data.escalationRoundList?.length ?? 0) > 0,
+        escalationRounds: sortEscalationRounds(
+            (data.escalationRoundList ?? []).map((r) => ({
+                id: r.id,
+                escalationDate: r.escalationDate ? r.escalationDate.slice(0, 10) : "",
+                isApplied: !!r.isApplied,
+                appliedDate: r.appliedDate ?? null,
+                appliedBy: r.appliedBy ?? null,
+            }))
+        ),
+        lastEscalationAppliedDate: data.lastEscalationAppliedDate ?? null,
+        escalationLog: (data.escalationLogList ?? []).map((l) => ({
+            id: l.id,
+            escalationDate: l.escalationDate ? l.escalationDate.slice(0, 10) : "",
+            source: l.roundType === "ADDITIONAL" ? "additional" : "regular",
+            appliedDate: l.appliedDate,
+            appliedBy: l.appliedBy ?? null,
+            rates: (l.rateList ?? []).map((r) => ({ pricingDataId: r.pricingDataId, percent: r.escalationPercent ?? 0 })),
+        })),
         domicileCountry: data.domicileCountry || "",
         currency: normalizeCurrency(data.currencyType),
         status: data.contractStatusObj?.code || "",
@@ -217,6 +238,10 @@ const transformFormDataToRequest = (
         isNoExpiryDate: formData.isNoExpiryDate,
         // The form holds "MM-DD"; the API needs a full date, so pin it to the current year.
         escalationDate: formData.escalationDate ? `${new Date().getFullYear()}-${formData.escalationDate}` : null,
+        // Applied rounds are history and are always kept, even if rescheduling was switched off
+        escalationRoundList: formData.escalationRounds
+            .filter((r) => r.isApplied || (formData.isEscalationRescheduled && r.escalationDate))
+            .map((r) => ({ id: r.id, escalationDate: r.escalationDate })),
         creditTerms: formData.creditTerms,
         contractStatusId: formData.contractStatusId || parseInt(formData.status) || 0,
         attachContractList: formData.contractDocumentPath ? {
@@ -292,6 +317,12 @@ export const ContractDialog = ({
         setFormData((prev) => ({ ...prev, pricingRates }));
     };
 
+    const handleEscalationChange = (
+        patch: Partial<Pick<ContractFormData, "isEscalationRescheduled" | "escalationRounds">>
+    ) => {
+        setFormData((prev) => ({ ...prev, ...patch }));
+    };
+
     const handleRetentionFeeChange = (
         patch: Partial<Pick<ContractFormData, "retentionFeeMode" | "retentionFeeTotal">>
     ) => {
@@ -338,6 +369,21 @@ export const ContractDialog = ({
         }
         if (!formData.currency) {
             errors.currency = "Currency is required";
+        }
+        if (formData.isEscalationRescheduled) {
+            if (!formData.escalationDate) {
+                errors.escalationDate = "Select the yearly Escalation Date first";
+            }
+            if (!formData.escalationRounds.some((r) => !r.isApplied)) {
+                errors.escalationRounds = "Add at least one escalation round, or turn off Reschedule";
+            }
+            const roundErrors = validateEscalationRounds(
+                formData.escalationRounds,
+                formData.effectiveFrom,
+                formData.expiresOn,
+                formData.isNoExpiryDate
+            );
+            for (const [i, msg] of Object.entries(roundErrors)) errors[`escalationRound-${i}`] = msg;
         }
         return errors;
     };
@@ -489,6 +535,7 @@ export const ContractDialog = ({
                         uploadStatus={uploadStatus}
                         onUploadStatusChange={setUploadStatus}
                         fieldErrors={fieldErrors}
+                        onEscalationChange={handleEscalationChange}
                     />
                 );
             case 2:
@@ -501,7 +548,7 @@ export const ContractDialog = ({
     };
 
     // View tab state
-    const [viewTab, setViewTab] = useState<"info" | "contacts">("info");
+    const [viewTab, setViewTab] = useState<"info" | "contacts" | "escalation">("info");
 
     // Render A4 view for view mode
     if (isViewMode) {
@@ -546,12 +593,30 @@ export const ContractDialog = ({
                                     </span>
                                 )}
                             </button>
+                            <button
+                                onClick={() => setViewTab("escalation")}
+                                className={cn(
+                                    "px-3 md:px-4 py-2 md:py-2.5 text-xs md:text-sm font-medium whitespace-nowrap border-b-2 transition-colors",
+                                    viewTab === "escalation"
+                                        ? "border-primary text-primary"
+                                        : "border-transparent text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                Escalation Log
+                                {formData.escalationLog.length > 0 && (
+                                    <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                                        {formData.escalationLog.length}
+                                    </span>
+                                )}
+                            </button>
                         </div>
 
                         {/* Tab Content */}
                         <div className="flex-1 min-h-0 min-w-0 overflow-auto">
                             {viewTab === "info" ? (
                                 <ContractViewA4 formData={formData} isLoading={isLoadingContract} />
+                            ) : viewTab === "escalation" ? (
+                                <EscalationLogTab formData={formData} isLoading={isLoadingContract} />
                             ) : (
                                 <div className="p-4 md:p-6 space-y-4">
                                     {isLoadingContract ? (

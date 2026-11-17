@@ -4,6 +4,16 @@ import { AdditionalDefectAttachFile } from "@/lib/api/lineMaintenances/flight/ge
 import { AircraftCheckSubType, AircraftCheckType } from "@/lib/api/master/aircraft-check-types/airlines.interface";
 
 
+export type OilStockType = 'SAMS' | 'CUSTOMER'
+
+export const OIL_STOCK_OPTIONS: { value: OilStockType; label: string }[] = [
+  { value: 'SAMS', label: 'SAMS Stock' },
+  { value: 'CUSTOMER', label: 'Customer Stock' },
+]
+
+export const toOilStockType = (v: unknown): OilStockType | null =>
+  v === 'SAMS' || v === 'CUSTOMER' ? v : null
+
 export type FluidOption = {
   label: string;
   value: string
@@ -56,6 +66,9 @@ export type ServicesFormInputs = {
     hydOilA?: number
     hydOilB?: number
     hydOilSTBY?: number
+    /** Oil source for engine oil / hydraulic oil: SAMS stock or customer stock */
+    engOilStockType?: OilStockType | null
+    hydOilStockType?: OilStockType | null
     apuOil?: number
     rampFuel?: number
     actualUplift?: number

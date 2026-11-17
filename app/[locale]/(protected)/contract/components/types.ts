@@ -1,3 +1,4 @@
+import type { EscalationLogEntry, EscalationRound } from "@/lib/utils/contractEscalation";
 // Contract status type
 export type ContractStatus = "all" | "active" | "on-hold" | "terminated";
 
@@ -124,6 +125,14 @@ export interface ContractFormData {
     isNoExpiryDate: boolean;
     /** YYYY-MM-DD; empty when not set. */
     escalationDate: string; // "MM-DD" — year is added on submit
+    /** Escalation rescheduled with additional dated rounds */
+    isEscalationRescheduled: boolean;
+    /** Additional rounds (YYYY-MM-DD). Each replaces the yearly date in its year. */
+    escalationRounds: EscalationRound[];
+    /** From the backend; used to show whether a yearly round was applied */
+    lastEscalationAppliedDate: string | null;
+    /** Applied escalations, from the backend (read-only) */
+    escalationLog: EscalationLogEntry[];
     domicileCountry: string;
     currency: string;
     status: string;

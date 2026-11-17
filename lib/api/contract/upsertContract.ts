@@ -81,6 +81,12 @@ export interface ContractUpsertRequest {
     isNoExpiryDate: boolean;
     /** YYYY-MM-DD, or null when not set. */
     escalationDate: string | null;
+    /**
+     * PROPOSED (backend pending): additional escalation rounds. Each replaces the
+     * yearly escalationDate in its year; empty = yearly date only.
+     * id 0 = new round. Rounds missing from the list are deleted (applied rounds are always sent).
+     */
+    escalationRoundList: { id: number; escalationDate: string }[];
     creditTerms: string;
     contractStatusId: number;
     attachContractList: ContractAttachmentRequest | null;

@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/select";
 import { Upload, FileText, X, ExternalLink, Loader2, CheckCircle2, AlertTriangle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { StepProps } from "./types";
+import { StepProps, type ContractFormData } from "./types";
+import { EscalationRoundsSection } from "./EscalationRoundsSection";
 import { getContractExpiryWarning } from "@/lib/utils/contractExpiry";
 import { useAirlineOptions } from "@/lib/api/hooks/useAirlines";
 import { useContractStatusOptions } from "@/lib/api/hooks/useContractStatus";
@@ -40,6 +41,9 @@ interface GeneralInfoStepProps extends StepProps {
     uploadStatus: UploadStatus;
     onUploadStatusChange: (status: UploadStatus) => void;
     fieldErrors?: Record<string, string>;
+    onEscalationChange?: (
+        patch: Partial<Pick<ContractFormData, "isEscalationRescheduled" | "escalationRounds">>
+    ) => void;
 }
 
 export const GeneralInfoStep = ({
@@ -49,7 +53,8 @@ export const GeneralInfoStep = ({
     onFileChange,
     uploadStatus,
     onUploadStatusChange,
-    fieldErrors = {}
+    fieldErrors = {},
+    onEscalationChange,
 }: GeneralInfoStepProps) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isDragOver, setIsDragOver] = useState(false);
@@ -296,6 +301,13 @@ export const GeneralInfoStep = ({
                         </Select>
                     </div>
                 </div>
+                {onEscalationChange && (
+                    <EscalationRoundsSection
+                        formData={formData}
+                        onChange={onEscalationChange}
+                        fieldErrors={fieldErrors}
+                    />
+                )}
                 <div className="space-y-2">
                     <Label htmlFor="contractType">Contract Type</Label>
                     <Select

@@ -11,6 +11,8 @@ import { PlusIcon, AlertTriangle, TrashIcon, ChevronDown, ChevronRight } from 'l
 import { ServicesFormInputs } from '../types'
 import { AdditionalDefectAttachFile } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
 import PhotoUploadField from '../upload/PhotoUploadField'
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible"
+import { SectionCollapseToggle, useSectionCollapse } from './SectionCollapse'
 
 export const AdditionalDefectsSection: React.FC<{
   form: UseFormReturn<ServicesFormInputs>
@@ -29,16 +31,24 @@ export const AdditionalDefectsSection: React.FC<{
     }))
   }
 
+  // Whole-card collapse once there is more than one defect. Validation errors keep it open.
+  const { isOpen: isSectionOpen, setOpen: setSectionOpen, isCollapsible, hasErrors } = useSectionCollapse(
+    !!additionalDefectRectification && additionalDefects.length > 1,
+    !!form.formState.errors.additionalDefects
+  )
+
   // Auto-expand newly added items
   const handleAdd = () => {
     const nextIndex = additionalDefects.length
     setExpandedItems(prev => ({ ...prev, [nextIndex]: true }))
+    setSectionOpen(true)
     onAdd()
   }
 
   return (
+    <Collapsible open={isSectionOpen} onOpenChange={setSectionOpen} asChild>
     <Card className="rounded-xl shadow-sm border-l-4 border-l-rose-500 border border-gray-200">
-      <CardHeader className="pb-3">
+      <CardHeader className={isSectionOpen ? "pb-3" : undefined}>
         <CardTitle className="flex items-center gap-2 text-base">
           <AlertTriangle className="h-5 w-5 text-rose-500" />
           Additional Defect Rectification
@@ -47,8 +57,14 @@ export const AdditionalDefectsSection: React.FC<{
               {additionalDefects.length}
             </Badge>
           )}
+          {isCollapsible && (
+            <div className="ml-auto">
+              <SectionCollapseToggle isOpen={isSectionOpen} disabled={hasErrors} label="additional defects" />
+            </div>
+          )}
         </CardTitle>
       </CardHeader>
+      <CollapsibleContent>
       <CardContent className="space-y-4">
         <FormField
           control={form.control}
@@ -86,7 +102,7 @@ export const AdditionalDefectsSection: React.FC<{
             )}
 
             {additionalDefects.map((defect, index) => {
-              const isExpanded = expandedItems[index] !== false // Default to expanded
+              const isExpanded = expandedItems[index] !== false || !!(form.formState.errors.additionalDefects as any)?.[index] // Default to expanded; items with errors stay open
               const defectSummary = (form.getValues(`additionalDefects.${index}.defect` as FieldPath<ServicesFormInputs>) as string) || `Defect ${index + 1}`
 
               return (
@@ -181,25 +197,6 @@ export const AdditionalDefectsSection: React.FC<{
                               <FormControl>
                                 <Textarea
                                   placeholder="e.g., 32-41-00"
-                                  {...field}
-                                  value={(field.value as unknown as string) ?? ''}
-                                  className="min-h-[72px] resize-none"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name={`additionalDefects.${index}.acDefect` as FieldPath<ServicesFormInputs>}
-                          render={({ field }) => (
-                            <FormItem className="space-y-1">
-                              <FormLabel className="text-xs text-muted-foreground">A/C Defect</FormLabel>
-                              <FormControl>
-                                <Textarea
-                                  placeholder="Enter A/C defect details..."
                                   {...field}
                                   value={(field.value as unknown as string) ?? ''}
                                   className="min-h-[72px] resize-none"
@@ -317,7 +314,9 @@ export const AdditionalDefectsSection: React.FC<{
           </div>
         )}
       </CardContent>
+      </CollapsibleContent>
     </Card>
+    </Collapsible>
   )
 }
 

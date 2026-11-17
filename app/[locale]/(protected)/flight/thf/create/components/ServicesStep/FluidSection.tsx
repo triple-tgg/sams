@@ -11,11 +11,17 @@ import {
   PlusIcon, TrashIcon, XIcon,
   Droplets, Fuel, Gauge, PlaneTakeoff, Truck
 } from 'lucide-react'
-import { ServicesFormInputs } from './types'
+import { ServicesFormInputs, OIL_STOCK_OPTIONS } from './types'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AircraftTypeFlags } from '@/lib/api/master/aircraft-types/getAircraftTypeById'
 import { CustomDateInput } from '@/components/ui/input-date/CustomDateInput'
 import { CustomTimeInput } from '@/components/ui/input-time/CustomTimeInput'
 import { FieldError } from '@/components/ui/field-error'
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible"
+import { SectionCollapseToggle, useSectionCollapse } from './formSection/SectionCollapse'
+
+/** Engine Oil / CSD sub-sections become collapsible once they hold this many sets (max is 4). */
+const SET_COLLAPSE_THRESHOLD = 4
 
 // ─── Shared UI helpers ───────────────────────────────────────────────
 const SectionHeader: React.FC<{
@@ -33,6 +39,37 @@ const SectionHeader: React.FC<{
       </Badge>
     )}
   </div>
+)
+
+/** Oil source picker (SAMS Stock / Customer Stock) bound to a fluid form field. */
+const OilStockSelect: React.FC<{
+  form: UseFormReturn<ServicesFormInputs>
+  name: 'fluid.engOilStockType' | 'fluid.hydOilStockType'
+}> = ({ form, name }) => (
+  <Controller
+    control={form.control}
+    name={name}
+    render={({ field }) => (
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground whitespace-nowrap">Oil Stock</span>
+        <Select
+          value={field.value ?? ''}
+          onValueChange={(v) => field.onChange(v || null)}
+        >
+          <SelectTrigger className="h-8 w-[160px] text-xs" aria-label="Oil stock">
+            <SelectValue placeholder="Select stock" />
+          </SelectTrigger>
+          <SelectContent>
+            {OIL_STOCK_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value} className="text-xs">
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    )}
+  />
 )
 
 const AddItemButton: React.FC<{
@@ -123,6 +160,17 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
   const showHydYellow = aircraftTypeFlags ? aircraftTypeFlags.flagHydrolicYellow : true
   const showApu = aircraftTypeFlags ? aircraftTypeFlags.flagApu : true
 
+  // Sub-section collapse for Engine Oil / CSD. Validation errors keep them open.
+  const fluidErrors = form.formState.errors.fluid
+  const engOilCollapse = useSectionCollapse(
+    engOilSets.length >= SET_COLLAPSE_THRESHOLD,
+    !!fluidErrors?.engOilSets
+  )
+  const csdCollapse = useSectionCollapse(
+    csdIdgVsfgSets.length >= SET_COLLAPSE_THRESHOLD,
+    !!fluidErrors?.csdIdgVsfgSets
+  )
+
   return (
     <Card className="rounded-xl shadow-sm border-l-4 border-l-sky-500 border border-gray-200">
       <CardHeader className="pb-3">
@@ -136,6 +184,7 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
 
             {/* ── Engine Oil Sets ── */}
             {maxEngineOilSets > 0 && (
+              <Collapsible open={engOilCollapse.isOpen} onOpenChange={engOilCollapse.setOpen} asChild>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <SectionHeader
@@ -143,11 +192,22 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                     title="Engine Oil"
                     count={engOilSets.length}
                   />
-                  {engOilSets.length < maxEngineOilSets && (
-                    <AddItemButton onClick={onAddEngineOilSet} label="Add Set" />
-                  )}
+                  <div className="flex items-center gap-3">
+                    <OilStockSelect form={form} name="fluid.engOilStockType" />
+                    {engOilSets.length < maxEngineOilSets && (
+                      <AddItemButton onClick={onAddEngineOilSet} label="Add Set" />
+                    )}
+                    {engOilCollapse.isCollapsible && (
+                      <SectionCollapseToggle
+                        isOpen={engOilCollapse.isOpen}
+                        disabled={engOilCollapse.hasErrors}
+                        label="engine oil"
+                      />
+                    )}
+                  </div>
                 </div>
 
+                <CollapsibleContent className="space-y-3">
                 {engOilSets.length === 0 && (
                   <p className="text-xs text-muted-foreground italic">No engine oil sets added.</p>
                 )}
@@ -190,11 +250,14 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                     </div>
                   ))}
                 </div>
+                </CollapsibleContent>
               </div>
+              </Collapsible>
             )}
 
             {/* ── CSD/IDG/VSFG ── */}
             {maxCsdSets > 0 && (
+              <Collapsible open={csdCollapse.isOpen} onOpenChange={csdCollapse.setOpen} asChild>
               <div className="space-y-3 pt-4 border-t border-dashed">
                 <div className="flex items-center justify-between">
                   <SectionHeader
@@ -202,11 +265,21 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                     title="CSD/IDG/VSFG"
                     count={csdIdgVsfgSets.length}
                   />
-                  {csdIdgVsfgSets.length < maxCsdSets && (
-                    <AddItemButton onClick={onAddCsdIdgVsfgSet} label="Add Set" />
-                  )}
+                  <div className="flex items-center gap-3">
+                    {csdIdgVsfgSets.length < maxCsdSets && (
+                      <AddItemButton onClick={onAddCsdIdgVsfgSet} label="Add Set" />
+                    )}
+                    {csdCollapse.isCollapsible && (
+                      <SectionCollapseToggle
+                        isOpen={csdCollapse.isOpen}
+                        disabled={csdCollapse.hasErrors}
+                        label="CSD/IDG/VSFG"
+                      />
+                    )}
+                  </div>
                 </div>
 
+                <CollapsibleContent className="space-y-3">
                 {csdIdgVsfgSets.length === 0 && (
                   <p className="text-xs text-muted-foreground italic">No CSD/IDG/VSFG sets added.</p>
                 )}
@@ -249,16 +322,21 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                     </div>
                   ))}
                 </div>
+                </CollapsibleContent>
               </div>
+              </Collapsible>
             )}
 
             {/* ── Hydraulic Oils ── */}
             {(showHydGreen || showHydBlue || showHydYellow) && (
               <div className="space-y-3 pt-4 border-t border-dashed">
-                <SectionHeader
-                  icon={<Droplets className="h-4 w-4" />}
-                  title="Hydraulic Oils"
-                />
+                <div className="flex items-center justify-between">
+                  <SectionHeader
+                    icon={<Droplets className="h-4 w-4" />}
+                    title="Hydraulic Oils"
+                  />
+                  <OilStockSelect form={form} name="fluid.hydOilStockType" />
+                </div>
 
                 {isLoadingFlags ? (
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-500 animate-pulse">
@@ -398,6 +476,17 @@ export const OperationalSections: React.FC<OperationalSectionsProps> = ({
   const aircraftTowing = form.watch('aircraftTowing')
   const aircraftTowingInfo = form.watch('aircraftTowingInfo') || []
 
+  // Towing card is collapsible once towing is enabled (items added). Validation errors keep it open.
+  const towingCollapse = useSectionCollapse(
+    !!aircraftTowing && aircraftTowingInfo.length > 0,
+    !!form.formState.errors.aircraftTowingInfo
+  )
+
+  const handleAddTowingInfo = () => {
+    towingCollapse.setOpen(true)
+    onAddTowingInfo()
+  }
+
   return (
     <div className="space-y-6">
       {/* Flight Deck */}
@@ -431,13 +520,29 @@ export const OperationalSections: React.FC<OperationalSectionsProps> = ({
       </Card>
 
       {/* Aircraft Towing */}
+      <Collapsible open={towingCollapse.isOpen} onOpenChange={towingCollapse.setOpen} asChild>
       <Card className="rounded-xl shadow-sm border-l-4 border-l-amber-500 border border-gray-200">
-        <CardHeader className="pb-3">
+        <CardHeader className={towingCollapse.isOpen ? "pb-3" : undefined}>
           <CardTitle className="flex items-center gap-2 text-base">
             <Truck className="h-5 w-5 text-amber-500" />
             Aircraft Towing
+            {aircraftTowing && aircraftTowingInfo.length > 0 && (
+              <Badge color="default" className="ml-1 text-xs px-1.5 py-0 h-5">
+                {aircraftTowingInfo.length}
+              </Badge>
+            )}
+            {towingCollapse.isCollapsible && (
+              <div className="ml-auto">
+                <SectionCollapseToggle
+                  isOpen={towingCollapse.isOpen}
+                  disabled={towingCollapse.hasErrors}
+                  label="aircraft towing"
+                />
+              </div>
+            )}
           </CardTitle>
         </CardHeader>
+        <CollapsibleContent>
         <CardContent className="space-y-4">
           <FormField
             control={form.control}
@@ -453,7 +558,7 @@ export const OperationalSections: React.FC<OperationalSectionsProps> = ({
                       if (field.value) {
                         form.setValue('aircraftTowingInfo', [])
                       } else {
-                        onAddTowingInfo()
+                        handleAddTowingInfo()
                       }
                     }}
                   />
@@ -467,13 +572,13 @@ export const OperationalSections: React.FC<OperationalSectionsProps> = ({
 
           {/* Array-level error (e.g., "required when enabled", "max 3") */}
           {form.formState.errors.aircraftTowingInfo?.message && (
-            <p className="text-sm text-red-500 mt-2">
+            <p data-field-error className="text-sm text-red-500 mt-2">
               {form.formState.errors.aircraftTowingInfo.message}
             </p>
           )}
           {/* Root-level refine error (shown as root error on the array) */}
           {form.formState.errors.aircraftTowingInfo?.root?.message && (
-            <p className="text-sm text-red-500 mt-2">
+            <p data-field-error className="text-sm text-red-500 mt-2">
               {form.formState.errors.aircraftTowingInfo.root.message}
             </p>
           )}
@@ -571,7 +676,7 @@ export const OperationalSections: React.FC<OperationalSectionsProps> = ({
 
                   {/* Cross-field error: Time off must be after time on */}
                   {(form.formState.errors.aircraftTowingInfo as any)?.[index]?.timeOf?.message && (
-                    <p className="text-sm text-red-500">
+                    <p data-field-error className="text-sm text-red-500">
                       {(form.formState.errors.aircraftTowingInfo as any)?.[index]?.timeOf?.message}
                     </p>
                   )}
@@ -610,15 +715,15 @@ export const OperationalSections: React.FC<OperationalSectionsProps> = ({
 
               <div className="flex justify-end">
                 {aircraftTowingInfo.length < 3 && (
-                  <AddItemButton onClick={onAddTowingInfo} label="Add Towing Info" />
+                  <AddItemButton onClick={handleAddTowingInfo} label="Add Towing Info" />
                 )}
               </div>
             </div>
           )}
         </CardContent>
+        </CollapsibleContent>
       </Card>
-
-
+      </Collapsible>
     </div>
   )
 }

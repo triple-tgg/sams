@@ -37,6 +37,8 @@ export interface AdditionalDefect {
   technicalDelay?: string;
 }
 
+export type OilStockType = 'SAMS' | 'CUSTOMER';
+
 // Interface for fluid servicing
 export interface FluidServicing {
   hydraulicA: number;
@@ -45,6 +47,9 @@ export interface FluidServicing {
   engOil: number[];
   csdOil: number[];
   apuOil: number;
+  /** Oil source: "SAMS" (SAMS stock) or "CUSTOMER" (customer stock); null = not specified */
+  engOilStockType: OilStockType | null;
+  hydraulicStockType: OilStockType | null;
 }
 
 // Interface for aircraft towing
@@ -167,6 +172,8 @@ const createFluidServicing = (fluidData: any): FluidServicing => {
     engOil,
     csdOil,
     apuOil,
+    engOilStockType: fluidData.engOilStockType || null,
+    hydraulicStockType: fluidData.hydOilStockType || null,
   };
 };
 

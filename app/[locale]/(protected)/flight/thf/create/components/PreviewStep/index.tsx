@@ -273,7 +273,6 @@ const PreviewStep: React.FC<PreviewStepProps> = ({ flightInfosId }) => {
                       <Th>Defect Details</Th>
                       <Th>Maintenance Performed</Th>
                       <Th>ATA Chapter</Th>
-                      <Th>A/C Defect</Th>
                       <Th>Action</Th>
                       <Th>LAE MH</Th>
                       <Th>Mech MH</Th>
@@ -286,7 +285,6 @@ const PreviewStep: React.FC<PreviewStepProps> = ({ flightInfosId }) => {
                         <Td className="max-w-[180px]">{def.details}</Td>
                         <Td className="max-w-[180px]">{def.maintenancePerformed}</Td>
                         <Td>{def.ataChapter}</Td>
-                        <Td>{def.acDefect}</Td>
                         <Td>{def.action}</Td>
                         <Td>{def.lae}</Td>
                         <Td>{def.mech}</Td>
