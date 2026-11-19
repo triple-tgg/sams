@@ -13,6 +13,17 @@ function toEnglishPreInvoiceError(message: string): string {
     return message;
 }
 
+/** Backend sends `{ message: "error", error: "<detail>" }` — prefer `error` when `message` is empty or the generic "error". */
+function getApiErrorMessage(error: any): string | undefined {
+    const data = error?.response?.data;
+    const isUseful = (v: unknown): v is string =>
+        typeof v === "string" && v.trim() !== "" && v.trim().toLowerCase() !== "error";
+    if (isUseful(data?.message)) return data.message;
+    if (isUseful(data?.error)) return data.error;
+    if (isUseful(error?.message)) return error.message;
+    return undefined;
+}
+
 const PROCESSING_TOAST_ID = "pre-invoice-processing";
 /** After a client-side timeout the server is usually still working — re-check the lists at these delays. */
 const RECHECK_DELAYS_MS = [10_000, 30_000, 60_000];
@@ -73,7 +84,7 @@ export function useMapContractsV2() {
                 recheckAfterTimeout();
                 return;
             }
-            const message = error?.response?.data?.message || error?.message
+            const message = getApiErrorMessage(error);
             toast.error(message ? toEnglishPreInvoiceError(message) : "Failed to generate Pre-Invoice.", {
                 duration: Infinity,
                 closeButton: true,

@@ -40,11 +40,11 @@ import { MENU } from "@/lib/permission-codes";
 import { useMenuPermission } from "@/hooks/use-menu-permission";
 
 const STATUS_DESCRIPTIONS: Record<ThfMappingStatus, string> = {
-    MAPPED: "จับคู่ THF กับ contract แล้ว ยังแก้ไขข้อมูลและดำเนินการออก Pre-Invoice ได้",
-    LOCKED: "จับคู่แล้ว ถูกล็อกหลังสร้าง Pre-Invoice ห้ามแก้ไข THF จับคู่ contract ใหม่ หรือออก Pre-Invoice ซ้ำ",
-    REVISED: "มีการแก้ไขข้อมูลเรียบร้อย",
-    REVISION_REQUESTED: "ต้องการให้ผู้รับผิดชอบในการกรอกข้อมูลTHF กรอกข้อมูลมาใหม่ให้ถูกต้อง",
-    NONE: "THF สถานะเป็น done แต่ยังไม่ MAPPED",
+    MAPPED: "THF is mapped to a contract. Data can still be edited and a Pre-Invoice can be issued.",
+    LOCKED: "Mapped and locked after Pre-Invoice creation. The THF cannot be edited, remapped to another contract, or issued a Pre-Invoice again.",
+    REVISED: "Data has been revised successfully.",
+    REVISION_REQUESTED: "The person responsible for THF data entry must re-enter the data correctly.",
+    NONE: "THF status is done but not yet MAPPED.",
 };
 
 interface ThfDocumentTableProps {
@@ -283,7 +283,7 @@ export const ThfDocumentTable = ({
                         );
                     }
 
-                    // REVISED : สีส้ม
+                    // REVISED : orange
                     if (status === "REVISED") {
                         return (
                             <TooltipProvider>
@@ -303,7 +303,7 @@ export const ThfDocumentTable = ({
                         );
                     }
 
-                    // 2. REVISION_REQUESTED : สีแดง
+                    // 2. REVISION_REQUESTED : red
                     if (status === "REVISION_REQUESTED") {
                         return (
                             <TooltipProvider>
@@ -318,7 +318,7 @@ export const ThfDocumentTable = ({
                                         <p className="font-semibold text-red-400 mb-0.5">REVISION REQUESTED</p>
                                         <p className="text-slate-100">{STATUS_DESCRIPTIONS.REVISION_REQUESTED}</p>
                                         {rev?.reason && (
-                                            <p className="text-[11px] text-amber-300 mt-1">เหตุผล: {rev.reason}</p>
+                                            <p className="text-[11px] text-amber-300 mt-1">Reason: {rev.reason}</p>
                                         )}
                                         {rev?.category && (
                                             <p className="text-[10px] text-slate-400 mt-0.5">Category: {rev.category}</p>
@@ -332,7 +332,7 @@ export const ThfDocumentTable = ({
                         );
                     }
 
-                    // 5. LOCKED : สีเทาอ่อน
+                    // 5. LOCKED : light gray
                     if (status === "LOCKED") {
                         return (
                             <TooltipProvider>
@@ -352,7 +352,7 @@ export const ThfDocumentTable = ({
                         );
                     }
 
-                    // 4. MAPPED : สี primary
+                    // 4. MAPPED : primary color
                     if (status === "MAPPED") {
                         return (
                             <TooltipProvider>
@@ -371,7 +371,7 @@ export const ThfDocumentTable = ({
                         );
                     }
 
-                    // NONE : สีเทาเข้ม
+                    // NONE : dark gray
                     return (
                         <TooltipProvider>
                             <Tooltip>
@@ -575,7 +575,7 @@ export const ThfDocumentTable = ({
                                 </TooltipTrigger>
                                 <TooltipContent className="max-w-xs text-xs">
                                     <p className="font-semibold text-blue-400 mb-0.5">UNLOCK REQUESTED</p>
-                                    <p className="text-slate-100">มีคำขอปลดล็อก THF จากแผนกซ่อมบำรุงที่รอแผนกบัญชีอนุมัติ</p>
+                                    <p className="text-slate-100">There are THF unlock requests from Maintenance awaiting Accounting approval.</p>
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
@@ -610,7 +610,7 @@ export const ThfDocumentTable = ({
                 <div className="hidden md:flex items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold text-slate-700">STATUS SUMMARY:</span>
-                        {/* 1. NONE : สีเทาเข้ม */}
+                        {/* 1. NONE : dark gray */}
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
@@ -625,7 +625,7 @@ export const ThfDocumentTable = ({
                             </Tooltip>
                         </TooltipProvider>
 
-                        {/* 2. REVISION_REQUESTED : สีแดง */}
+                        {/* 2. REVISION_REQUESTED : red */}
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
@@ -641,7 +641,7 @@ export const ThfDocumentTable = ({
                             </Tooltip>
                         </TooltipProvider>
 
-                        {/* 3. REVISED : สีส้ม */}
+                        {/* 3. REVISED : orange */}
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
@@ -657,7 +657,7 @@ export const ThfDocumentTable = ({
                             </Tooltip>
                         </TooltipProvider>
 
-                        {/* 4. MAPPED : สี primary */}
+                        {/* 4. MAPPED : primary color */}
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
@@ -672,7 +672,7 @@ export const ThfDocumentTable = ({
                             </Tooltip>
                         </TooltipProvider>
 
-                        {/* 5. LOCKED : สีเทาอ่อน */}
+                        {/* 5. LOCKED : light gray */}
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
@@ -700,7 +700,7 @@ export const ThfDocumentTable = ({
                                     </TooltipTrigger>
                                     <TooltipContent className="max-w-xs text-xs">
                                         <p className="font-semibold text-blue-400 mb-0.5">UNLOCK REQUESTED</p>
-                                        <p className="text-slate-100">มีคำขอปลดล็อก THF จากแผนกซ่อมบำรุงที่รอแผนกบัญชีอนุมัติ</p>
+                                        <p className="text-slate-100">There are THF unlock requests from Maintenance awaiting Accounting approval.</p>
                                     </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>

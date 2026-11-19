@@ -14,6 +14,21 @@ export const LOGIN_ROUTE = "/auth/login";
  */
 export const FALLBACK_ROUTE = IT_SUPPORT_ROUTE;
 
+/**
+ * The signed-in user's own staff profile (no locale prefix). Shown in the
+ * header profile menu when the account is linked to a staff record. Not in
+ * ROUTE_PERMISSION_MAP, so it opens with zero permissions.
+ */
+export const PROFILE_ROUTE = "/profile";
+
+/**
+ * Landing route for a user with no viewable menu: their own profile when the
+ * account is linked to a staff record, otherwise the IT Support page.
+ */
+export function getNoMenuLandingRoute(hasStaffProfile: boolean): string {
+    return hasStaffProfile ? PROFILE_ROUTE : FALLBACK_ROUTE;
+}
+
 /** Routes reachable without being authenticated (no locale prefix). */
 export const PUBLIC_ROUTES = [
     "/auth/login",
@@ -47,6 +62,8 @@ export interface AuthRedirectInput {
     /** True once permissions have been fetched (or resolved to empty). */
     isPermLoaded: boolean;
     permissions: MenuPermissionItem[];
+    /** True when the account is linked to a staff record (users.staffId). */
+    hasStaffProfile?: boolean;
 }
 
 /**
@@ -63,15 +80,17 @@ export function resolveAuthRedirect({
     isAuth,
     isPermLoaded,
     permissions,
+    hasStaffProfile = false,
 }: AuthRedirectInput): AuthDecision {
     const locale = getLocaleFromPathname(pathname);
     const path = stripLocale(pathname);
     const loginHref = `/${locale}${LOGIN_ROUTE}`;
 
     // Landing route once permissions are known. Never null: an authenticated
-    // user with no viewable menu still gets moved off the loading screen.
+    // user with no viewable menu still gets moved off the loading screen —
+    // to their own profile when staff-linked, else to IT Support.
     const landingHref = () =>
-        `/${locale}${getFirstViewableRoute(permissions) ?? FALLBACK_ROUTE}`;
+        `/${locale}${getFirstViewableRoute(permissions) ?? getNoMenuLandingRoute(hasStaffProfile)}`;
 
     // Root route ("/", "/en", "/ar") — it renders a bare spinner, so it must
     // always redirect somewhere.

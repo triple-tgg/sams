@@ -42,10 +42,11 @@ import { CustomTimeInput } from "@/components/ui/input-time/CustomTimeInput";
 import { SearchableSelectField } from "@/components/ui/search-select";
 import { CreatableRouteSelect } from "@/components/ui/creatable-route-select";
 import { useAircraftTypes } from "@/lib/api/hooks/useAircraftTypes";
-import { useCombinations, useSystemConfigs } from "@/lib/api/master/aircraft-engine/aircraftEngine.hooks";
+import { useCombinations } from "@/lib/api/master/aircraft-engine/aircraftEngine.hooks";
+import { useFlightAircraftTypeOptions } from "@/lib/api/hooks/useFlightAircraftTypeOptions";
 import type { AircraftEngineCombination } from "@/lib/api/master/aircraft-engine/aircraftEngine.types";
 import { toast } from "sonner";
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useEffect, useState, useRef } from "react";
 import useUpdateFlight from "@/lib/api/hooks/useUpdateFlight";
 import { useLineMaintenancesQueryThfByFlightId } from "@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId";
 import { PersonnelSection } from "./thf/create/components/CPresonel";
@@ -562,21 +563,43 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
 
   // Aircraft Engine Combinations — cascading filter
   const { data: combinationsData } = useCombinations();
-  const { data: systemConfigsData } = useSystemConfigs();
+  // A/C Type options: POST /flight/aircraftTypes-listdata filtered by selected airline + station
+  const watchedCustomer = watch('customer');
+  const watchedStation = watch('station');
+  const watchedAcType = watch('acType');
+  const selectedAirlineId =
+    customerOptions.find(o => o.value === watchedCustomer?.value)?.id ?? (watchedCustomer as any)?.id ?? 0;
+  const {
+    options: flightAcTypeOptions,
+    isLoading: isLoadingFamilyCode,
+    enabled: acTypeQueryEnabled,
+  } = useFlightAircraftTypeOptions(selectedAirlineId, watchedStation?.value);
 
-  // A/C Type options: unique Family Code from Aircraft system config
+  // Keep the flight's saved A/C Type selectable even if the API no longer returns it
   const familyCodeOptions = useMemo(() => {
-    if (!systemConfigsData) return [];
-    const seen = new Set<string>();
-    return systemConfigsData
-      .filter(c => {
-        if (!c.familyCode || seen.has(c.familyCode)) return false;
-        seen.add(c.familyCode);
-        return true;
-      })
-      .map(c => ({ value: c.familyCode, label: c.familyCode }));
-  }, [systemConfigsData]);
-  const isLoadingFamilyCode = !systemConfigsData;
+    const current = watchedAcType?.value;
+    if (!current || flightAcTypeOptions.some(o => o.value === current)) return flightAcTypeOptions;
+    return [{ value: current, label: watchedAcType?.label || current }, ...flightAcTypeOptions];
+  }, [flightAcTypeOptions, watchedAcType]);
+
+  // Clear A/C Type when the user switches airline or station (options depend on both).
+  // Only user edits (type === "change") — not the reset() that loads the flight.
+  // Compare with the previous value so a same-value change event never wipes it.
+  const prevAirlineStationRef = useRef({ customer: watch('customer')?.value, station: watch('station')?.value });
+  useEffect(() => {
+    const sub = watch((values, { name, type }) => {
+      // name is undefined for reset() — just remember the loaded values
+      if (name && name !== 'customer' && name !== 'station') return;
+      const prev = prevAirlineStationRef.current;
+      const next = { customer: values.customer?.value, station: values.station?.value };
+      prevAirlineStationRef.current = next;
+      if (!name) return;
+      if (type === 'change' && prev[name] !== next[name]) {
+        setValue('acType', null);
+      }
+    });
+    return () => sub.unsubscribe();
+  }, [watch, setValue]);
 
   const selectedAcType = watch('acType');
   const selectedSeries = watch('series');
@@ -784,7 +807,8 @@ export default function EditFlight({ open, setOpen, flightInfosId, onClose }: Ed
                         name="acType"
                         control={control}
                         label="A/C Type"
-                        placeholder="Select A/C Type"
+                        placeholder={acTypeQueryEnabled ? "Select A/C Type" : "Select Customer and Station first"}
+                        disabled={!acTypeQueryEnabled}
                         options={familyCodeOptions}
                         isLoading={isLoadingFamilyCode}
                         errorMessage={errors.acType?.message}

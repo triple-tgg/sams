@@ -510,13 +510,17 @@ export function WorkExperiencePreview({ isOpen, onClose, staffId }: WorkExperien
                             </tr>
                         </thead>
                         <tbody>
-                            {amelLicenses.length > 0 ? amelLicenses.map((lic, i) => (
+                            {amelLicenses.length > 0 ? amelLicenses.map((lic, i) => {
+                                // AMEL endorsement (limitations) is listed first, followed by aircraft ratings
+                                const limitations = lic.limitations?.trim()
+                                const ratingRows = limitations ? [limitations, ...aircraftRatingLabels] : aircraftRatingLabels
+                                return (
                                 <tr key={i}>
                                     <td style={{ textAlign: 'center' }}>{lic.licenseNumber || '-'}</td>
                                     <td style={{ padding: 0 }}>
-                                        {aircraftRatingLabels.length > 0
-                                            ? aircraftRatingLabels.map((label, idx) => (
-                                                <div key={idx} style={{ padding: '4px 8px', borderBottom: idx < aircraftRatingLabels.length - 1 ? '1px solid #ccc' : 'none' }}>
+                                        {ratingRows.length > 0
+                                            ? ratingRows.map((label, idx) => (
+                                                <div key={idx} style={{ padding: '4px 8px', borderBottom: idx < ratingRows.length - 1 ? '1px solid #ccc' : 'none' }}>
                                                     {label}
                                                 </div>
                                             ))
@@ -525,7 +529,8 @@ export function WorkExperiencePreview({ isOpen, onClose, staffId }: WorkExperien
                                     <td style={{ textAlign: 'center' }}>{lic.issuedDate ? formatDate(lic.issuedDate) : '-'}</td>
                                     <td style={{ textAlign: 'center' }}>{lic.expiryDate ? formatDate(lic.expiryDate) : '-'}</td>
                                 </tr>
-                            )) : (
+                                )
+                            }) : (
                                 <tr>
                                     <td colSpan={4} style={{ textAlign: 'center' }}>No records found</td>
                                 </tr>

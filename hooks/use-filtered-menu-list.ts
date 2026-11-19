@@ -23,8 +23,28 @@ function filterChildren(
         .map((child) => {
             if (!child.children || child.children.length === 0) return child;
             const filtered = filterChildren(child.children, isViewable);
+            // A nested group with no viewable child is hidden too
+            if (filtered.length === 0) return null;
             return { ...child, children: filtered };
-        });
+        })
+        .filter((child): child is import("@/lib/menus").SubChildren => child !== null);
+}
+
+type MenuNode = { href: string; children?: MenuNode[] };
+
+/**
+ * First real page href in an (already permission-filtered) menu node:
+ * descends into children in display order; a node without children is a page.
+ */
+function firstLeafHref(node: MenuNode): string | null {
+    if (node.children && node.children.length > 0) {
+        for (const child of node.children) {
+            const href = firstLeafHref(child);
+            if (href) return href;
+        }
+        return null;
+    }
+    return node.href && node.href !== "#" ? node.href : null;
 }
 
 /**
@@ -77,7 +97,18 @@ export function useFilteredMenuList(pathname: string, t: any): Group[] {
                             })
                             .filter(Boolean) as typeof menu.submenus;
                         if (filteredSubs.length === 0) return null;
-                        return { ...menu, submenus: filteredSubs };
+                        // Point the parent (and every nested group) at its first
+                        // viewable page, so clicking it never lands on a page the
+                        // user can't open (e.g. HR → /hr/staff → Access Denied).
+                        const subsWithLanding = filteredSubs.map((sub) => ({
+                            ...sub,
+                            href: firstLeafHref(sub) ?? sub.href,
+                        }));
+                        return {
+                            ...menu,
+                            href: firstLeafHref({ href: menu.href, children: subsWithLanding }) ?? menu.href,
+                            submenus: subsWithLanding,
+                        };
                     })
                     .filter(Boolean) as typeof group.menus,
             }))

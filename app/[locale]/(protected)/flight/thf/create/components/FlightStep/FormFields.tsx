@@ -25,6 +25,7 @@ interface SelectFieldProps {
   error?: string;
   usingFallback?: boolean;
   errorMessage?: string;
+  disabled?: boolean;
 }
 
 export const SelectField = ({
@@ -36,7 +37,8 @@ export const SelectField = ({
   isLoading,
   error,
   usingFallback,
-  errorMessage
+  errorMessage,
+  disabled = false
 }: SelectFieldProps) => (
   <div className="space-y-1" data-field-name={name}>
     <Label htmlFor={name}>{label}</Label>
@@ -49,11 +51,15 @@ export const SelectField = ({
           <Select
             value={field.value?.value}
             onValueChange={(value) => {
-              console.log("value", value)
+              // Radix Select inside a <form> re-fires onValueChange when the value is
+              // set programmatically (reset()/setValue) — with the same value, or ""
+              // when the item is not rendered yet. Forwarding that would mark the field
+              // as user-changed (e.g. clearing A/C Type after the THF prefill).
+              if (!value || value === field.value?.value) return
               const option = options.find(opt => opt.value === value);
               field.onChange(option || null);
             }}
-            disabled={isLoading}
+            disabled={disabled || isLoading}
           >
             <SelectTrigger>
               <SelectValue placeholder={isLoading ? `Loading ${label.toLowerCase()}...` : placeholder} />
@@ -65,9 +71,9 @@ export const SelectField = ({
                 </SelectItem>
               ))}
               {options.length === 0 && !isLoading && (
-                <SelectItem value="" disabled>
+                <div className="py-2 px-3 text-sm text-gray-500 select-none">
                   {error ? `Failed to load ${label.toLowerCase()}` : `No ${label.toLowerCase()} found`}
-                </SelectItem>
+                </div>
               )}
             </SelectContent>
           </Select>
@@ -129,9 +135,9 @@ export const StringSelectField = ({
               </SelectItem>
             ))}
             {options.length === 0 && !isLoading && (
-              <SelectItem value="" disabled>
+              <div className="py-2 px-3 text-sm text-gray-500 select-none">
                 {error ? `Failed to load ${label.toLowerCase()}` : `No ${label.toLowerCase()} found`}
-              </SelectItem>
+              </div>
             )}
           </SelectContent>
         </Select>

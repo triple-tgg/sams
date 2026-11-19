@@ -4,6 +4,7 @@ import {
     stripLocale,
     getLocaleFromPathname,
     FALLBACK_ROUTE,
+    PROFILE_ROUTE,
 } from "./resolveAuthRedirect";
 import type { MenuPermissionItem } from "@/lib/api/permission/menuPermissions.interface";
 
@@ -193,5 +194,44 @@ describe("FALLBACK_ROUTE", () => {
                 permissions: [],
             })
         ).toEqual({ action: "redirect", href: "/en/it-support" });
+    });
+});
+
+describe("PROFILE_ROUTE — staff-linked user with no viewable menu", () => {
+    it("lands on their own profile after login", () => {
+        expect(PROFILE_ROUTE).toBe("/profile");
+        expect(
+            resolveAuthRedirect({
+                pathname: "/en/auth/login",
+                isAuth: true,
+                isPermLoaded: true,
+                permissions: [],
+                hasStaffProfile: true,
+            })
+        ).toEqual({ action: "redirect", href: `/en${PROFILE_ROUTE}` });
+    });
+
+    it("lands on their own profile from the root route", () => {
+        expect(
+            resolveAuthRedirect({
+                pathname: "/ar",
+                isAuth: true,
+                isPermLoaded: true,
+                permissions: [],
+                hasStaffProfile: true,
+            })
+        ).toEqual({ action: "redirect", href: `/ar${PROFILE_ROUTE}` });
+    });
+
+    it("still prefers the first viewable menu when there is one", () => {
+        expect(
+            resolveAuthRedirect({
+                pathname: "/en/auth/login",
+                isAuth: true,
+                isPermLoaded: true,
+                permissions: [FLIGHT],
+                hasStaffProfile: true,
+            })
+        ).toEqual({ action: "redirect", href: "/en/flight" });
     });
 });

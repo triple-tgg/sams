@@ -8,7 +8,7 @@ import { canAccessRoute } from "@/lib/route-permissions";
 import { usePermissionIndex } from "@/hooks/use-menu-permission";
 import { Icon } from "@iconify/react";
 import { getFirstViewableRoute } from "@/lib/api/permission/getFirstViewableRoute";
-import { getLocaleFromPathname } from "@/lib/auth/resolveAuthRedirect";
+import { getLocaleFromPathname, getNoMenuLandingRoute } from "@/lib/auth/resolveAuthRedirect";
 import { IT_SUPPORT_ROUTE } from "@/config/support";
 
 /**
@@ -30,7 +30,8 @@ function stripLocale(pathname: string): string {
  * Checks the current route against ROUTE_PERMISSION_MAP (menu code + action,
  * canView by default). If the user lacks it, shows
  * an "Access Denied" screen (with a link to IT Support) instead of the page content.
- * A user whose role has no viewable menu at all is sent straight to the IT Support page.
+ * A user whose role has no viewable menu at all is sent straight to their own
+ * profile (staff-linked account) or to the IT Support page.
  *
  * Must be placed INSIDE PermissionGuard (which loads permissions first).
  */
@@ -40,17 +41,19 @@ export default function RoutePermissionGuard({ children }: { children: React.Rea
     const permIndex = usePermissionIndex();
     const isPermLoaded = useSelector((s: RootState) => s.permission.isLoaded);
     const permissions = useSelector((s: RootState) => s.permission.menus);
+    const hasStaffProfile = useSelector((s: RootState) => !!s.auth.users?.staffId);
 
     const path = stripLocale(pathname);
     const locale = getLocaleFromPathname(pathname);
     // Strip locale, then check the route's required menu code + action
     const hasAccess = !isPermLoaded || canAccessRoute(permIndex, path);
-    // Denied here AND nothing else is viewable → the IT Support page is the only useful place
+    // Denied here AND nothing else is viewable → the user's own profile (staff-linked)
+    // or the IT Support page is the only useful place
     const noViewableRoute = isPermLoaded && !hasAccess && getFirstViewableRoute(permissions) === null;
 
     useEffect(() => {
-        if (noViewableRoute) router.replace(`/${locale}${IT_SUPPORT_ROUTE}`);
-    }, [noViewableRoute, locale, router]);
+        if (noViewableRoute) router.replace(`/${locale}${getNoMenuLandingRoute(hasStaffProfile)}`);
+    }, [noViewableRoute, hasStaffProfile, locale, router]);
 
     // Don't check until permissions are loaded (PermissionGuard handles the loading state)
     if (hasAccess) {

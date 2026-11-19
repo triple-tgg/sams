@@ -39,7 +39,8 @@ import { usePushThf } from '@/lib/api/hooks/usePushThf'
 import { PushThfRequest } from '@/lib/api/lineMaintenances/flight-thf/pushThf'
 import { combineToUtcDatetime } from '@/lib/utils/flightDatetime'
 import { convertDateToBackend } from '@/lib/utils/formatPicker'
-import { useCombinations, useSystemConfigs } from '@/lib/api/master/aircraft-engine/aircraftEngine.hooks'
+import { useCombinations } from '@/lib/api/master/aircraft-engine/aircraftEngine.hooks'
+import { useFlightAircraftTypeOptions } from '@/lib/api/hooks/useFlightAircraftTypeOptions'
 import type { AircraftEngineCombination } from '@/lib/api/master/aircraft-engine/aircraftEngine.types'
 
 interface FlightStepProps {
@@ -62,21 +63,6 @@ const FlightStep = (props: FlightStepProps) => {
 
   // Aircraft Engine Combinations
   const { data: combinationsData } = useCombinations()
-  const { data: systemConfigsData } = useSystemConfigs()
-
-  // A/C Type options: unique Family Code from Aircraft system config
-  const familyCodeOptions = useMemo(() => {
-    if (!systemConfigsData) return []
-    const seen = new Set<string>()
-    return systemConfigsData
-      .filter(c => {
-        if (!c.familyCode || seen.has(c.familyCode)) return false
-        seen.add(c.familyCode)
-        return true
-      })
-      .map(c => ({ value: c.familyCode, label: c.familyCode }))
-  }, [systemConfigsData])
-  const isLoadingFamilyCode = !systemConfigsData
 
   // Mutation Hook
   const pushThfMutation = usePushThf()
@@ -100,8 +86,45 @@ const FlightStep = (props: FlightStepProps) => {
   // Live check: Station must differ from Route From / Route To
   useRouteStationCheck({ watch, setError, clearErrors, getFieldState })
 
+  // A/C Type options: POST /flight/aircraftTypes-listdata filtered by selected airline + station
+  const watchedCustomer = watch('customer')
+  const watchedStation = watch('station')
+  const selectedAirlineId =
+    customerOptions.find(o => o.value === watchedCustomer?.value)?.id ?? (watchedCustomer as any)?.id ?? 0
+  const {
+    options: flightAcTypeOptions,
+    isLoading: isLoadingFamilyCode,
+    enabled: acTypeQueryEnabled,
+  } = useFlightAircraftTypeOptions(selectedAirlineId, watchedStation?.value)
+
   // Watch acTypeCode for combo filtering
   const selectedAcType = watch('acTypeCode')
+
+  // Keep the THF's saved A/C Type selectable even if the API no longer returns it
+  const familyCodeOptions = useMemo(() => {
+    const current = selectedAcType?.value
+    if (!current || flightAcTypeOptions.some(o => o.value === current)) return flightAcTypeOptions
+    return [{ value: current, label: selectedAcType?.label || current }, ...flightAcTypeOptions]
+  }, [flightAcTypeOptions, selectedAcType])
+
+  // Clear A/C Type when the user switches airline or station (options depend on both).
+  // Only user edits (type === "change") — not the reset() that loads the THF.
+  // Compare with the previous value so a same-value change event never wipes it.
+  const prevAirlineStationRef = useRef({ customer: watch('customer')?.value, station: watch('station')?.value })
+  useEffect(() => {
+    const sub = watch((values, { name, type }) => {
+      // name is undefined for reset() — just remember the loaded values
+      if (name && name !== 'customer' && name !== 'station') return
+      const prev = prevAirlineStationRef.current
+      const next = { customer: values.customer?.value, station: values.station?.value }
+      prevAirlineStationRef.current = next
+      if (!name) return
+      if (type === 'change' && prev[name] !== next[name]) {
+        setValue('acTypeCode', null)
+      }
+    })
+    return () => sub.unsubscribe()
+  }, [watch, setValue])
   const selectedSeries = watch('series')
   const selectedEngineCode = watch('engineCode')
 
@@ -322,7 +345,8 @@ const FlightStep = (props: FlightStepProps) => {
                   name="acTypeCode"
                   control={control}
                   label="A/C Type *"
-                  placeholder="Select A/C Type"
+                  placeholder={acTypeQueryEnabled ? "Select A/C Type" : "Select Customer and Station first"}
+                  disabled={!acTypeQueryEnabled}
                   options={familyCodeOptions}
                   isLoading={isLoadingFamilyCode}
                   errorMessage={errors.acTypeCode?.message}

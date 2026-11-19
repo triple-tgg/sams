@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, Eye, EyeOff, FilePlus2, SquarePen, Eraser, Download, ShieldCheck, User, Check, Circle, AlertCircle } from "lucide-react";
+import { Loader2, Eye, EyeOff, FilePlus2, SquarePen, Eraser, Download, ShieldCheck, User, Check, Circle, AlertCircle, X } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import type { UserItem } from "@/lib/api/master/users/users.interface";
 import { useRolesOptions } from "@/lib/api/hooks/useRoles";
@@ -151,7 +151,7 @@ const PermCell = ({
         className={`flex items-center justify-center w-7 h-7 rounded transition-all duration-150 border ${value
             ? "bg-primary border-transparent text-primary-foreground shadow-sm"
             : "border-border bg-muted/30 text-muted-foreground"
-            } ${disabled ? "cursor-default opacity-70" : "cursor-pointer hover:opacity-80"}`}
+            } ${disabled ? "cursor-default" : "cursor-pointer hover:opacity-80"}`}
     >
         <Icon className="w-3 h-3" />
     </button>
@@ -193,12 +193,9 @@ const PermissionSection = ({
 
     const toggleAll = (field: keyof Omit<MenuPermission, "menuId" | "menuName" | "menuKey">) => {
         if (isViewMode) return;
-        const visibleChildren = permissions.filter((p) => p.canView && !p._isParent);
-        const allOn = visibleChildren.every((p) => p[field]);
-        const toggled = permissions.map((p) => {
-            if (!p.canView || p._isParent) return p;
-            return { ...p, [field]: !allOn };
-        });
+        // Children only — parents auto-compute (same as the Role & Permission page)
+        const allOn = permissions.filter((p) => !p._isParent).every((p) => p[field]);
+        const toggled = permissions.map((p) => (p._isParent ? p : { ...p, [field]: !allOn }));
         onPermissionsChange(recalcParents(toggled));
     };
 
@@ -219,7 +216,9 @@ const PermissionSection = ({
         );
     }
 
-    const visiblePermissions = permissions.filter((p) => p.canView);
+    // Show every menu (not only viewable ones) so the preview matches the
+    // Role & Permission page row for row.
+    const visiblePermissions = permissions;
 
     return (
         <div className="flex flex-col h-full">
@@ -248,7 +247,7 @@ const PermissionSection = ({
             <div className="border border-t-0 rounded-b overflow-y-auto max-h-[50vh] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/30">
                 {visiblePermissions.length === 0 ? (
                     <div className="p-8 text-center text-xs text-muted-foreground bg-muted/5 font-medium">
-                        No access permissions
+                        No permission data available for this role.
                     </div>
                 ) : (
                     visiblePermissions.map((perm, idx) => (
@@ -264,16 +263,27 @@ const PermissionSection = ({
                                 {perm._depth > 0 && <span className="mr-1 text-muted-foreground/50">└</span>}
                                 {perm.menuName}
                             </span>
-                            {cols.map((col) => (
-                                <PermCell
-                                    key={col.field}
-                                    value={perm[col.field] as boolean}
-                                    onChange={() => toggleField(perm.menuId, col.field)}
-                                    icon={col.icon}
-                                    label={col.label}
-                                    disabled={isViewMode || perm._isParent}
-                                />
-                            ))}
+                            {perm._isParent
+                                ? /* Group row: read-only indicators computed from children (as on the Role page) */
+                                cols.map((col) => (
+                                    <div
+                                        key={col.field}
+                                        className={`flex items-center justify-center w-7 h-7 ${perm[col.field] ? "text-primary" : "text-muted-foreground/30"}`}
+                                        title={`${col.label}: ${perm[col.field] ? "Yes (from children)" : "No"}`}
+                                    >
+                                        {perm[col.field] ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                                    </div>
+                                ))
+                                : cols.map((col) => (
+                                    <PermCell
+                                        key={col.field}
+                                        value={perm[col.field] as boolean}
+                                        onChange={() => toggleField(perm.menuId, col.field)}
+                                        icon={col.icon}
+                                        label={col.label}
+                                        disabled={isViewMode}
+                                    />
+                                ))}
                         </div>
                     ))
                 )}

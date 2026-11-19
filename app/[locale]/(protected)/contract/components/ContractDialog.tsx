@@ -3,6 +3,7 @@
 import { sortEscalationRounds, validateEscalationRounds } from "@/lib/utils/contractEscalation";
 import { EscalationLogTab } from "./EscalationLogTab";
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -469,6 +470,7 @@ export const ContractDialog = ({
             const step2Errors = validateStep2();
             if (Object.keys(step2Errors).length > 0) {
                 setFieldErrors(step2Errors);
+                toast.error("Please complete the required fields in Service Rates.");
                 return;
             }
 
@@ -477,12 +479,24 @@ export const ContractDialog = ({
             const requestData = transformFormDataToRequest(formData, userName, isCreate);
             console.log("Submitting contract:", requestData);
 
-            await upsertMutation.mutateAsync(requestData);
+            const response = await upsertMutation.mutateAsync(requestData);
 
+            if (response?.error || (response?.message && response.message !== "success")) {
+                toast.error(response.error || response.message || "Failed to save contract");
+                return;
+            }
+
+            toast.success(isCreate ? "Contract created successfully!" : "Contract updated successfully!");
             handleClose();
         } catch (error) {
             console.error("Failed to save contract:", error);
-            alert("Failed to save contract. Please try again.");
+            const err = error as { response?: { data?: { error?: string; message?: string } }; message?: string };
+            toast.error(
+                err.response?.data?.error ||
+                err.response?.data?.message ||
+                err.message ||
+                "Failed to save contract. Please try again."
+            );
         }
     };
 

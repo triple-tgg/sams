@@ -189,9 +189,9 @@ const AircraftChecksSection: React.FC<{
                               )
                             })
                           ) : (
-                            <SelectItem value="" disabled>
+                            <div className="py-2 px-3 text-sm text-gray-500 select-none">
                               No types available
-                            </SelectItem>
+                            </div>
                           )}
                         </SelectContent>
                       </Select>

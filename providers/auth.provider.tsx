@@ -16,7 +16,8 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
     const [isInitializing, setIsInitializing] = useState(true)
 
     // Redux state
-    const { isAuth } = useSelector((state: RootState) => state.auth)
+    const { isAuth, users } = useSelector((state: RootState) => state.auth)
+    const hasStaffProfile = !!users?.staffId
     const permMenus = useSelector((state: RootState) => state.permission.menus)
     const isPermLoaded = useSelector((state: RootState) => state.permission.isLoaded)
 
@@ -43,6 +44,10 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
                         role: userData.roleObj?.name || userData.role || '',
                         roleId: userData.roleObj?.id || userData.roleId,
                         roleCode: userData.roleObj?.code || userData.roleCode || '',
+                        flagInternal: userData.flagInternal ?? false,
+                        staffId: userData.staffId ?? null,
+                        staffEmployeeId: userData.staffEmployeeId ?? userData.employeeId ?? null,
+                        fullNameEn: userData.fullNameEn ?? null,
                         token: accessToken
                     }
 
@@ -80,6 +85,7 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
             isAuth,
             isPermLoaded,
             permissions: permMenus,
+            hasStaffProfile,
         })
 
         // `replace`, not `push`: the login page and the root spinner must not
@@ -88,7 +94,7 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
         if (decision.action === 'redirect' && decision.href !== pathname) {
             router.replace(decision.href)
         }
-    }, [isAuth, pathname, router, isInitializing, isPermLoaded, permMenus])
+    }, [isAuth, pathname, router, isInitializing, isPermLoaded, permMenus, hasStaffProfile])
 
     // Show loading during initialization
     if (isInitializing) {

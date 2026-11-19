@@ -9,6 +9,7 @@ import { useLogbookSummary, useLogbookRecords, useLogbookPending, useUpsertLogbo
 import { useAircraftTypes } from '@/lib/api/hooks/useAircraftTypes'
 import { MENU } from "@/lib/permission-codes";
 import { useMenuPermission } from "@/hooks/use-menu-permission";
+import { useIsSelfProfile } from "./SelfProfileContext";
 
 // ── Task Type Badge Color Map ──
 function getTaskTypeStyle(taskType: string) {
@@ -28,6 +29,10 @@ function getTaskTypeStyle(taskType: string) {
 // ── Logbook Records Tab ──
 export function LogbookTab({ staff }: { staff: StaffData }) {
     const perm = useMenuPermission(MENU.HR_STAFF);
+    // Own profile (/profile): the owner records and edits their own logbook
+    const isSelf = useIsSelfProfile();
+    const canCreateLog = perm.canCreate || isSelf;
+    const canEditLog = perm.canEdit || isSelf;
     const [page, setPage] = useState(1);
     const perPage = 10;
     const [filterDate, setFilterDate] = useState("");
@@ -192,7 +197,7 @@ export function LogbookTab({ staff }: { staff: StaffData }) {
                                                             </span>
                                                         ) : (
                                                             <>
-                                                                {hasRecordedItem && perm.canEdit && (
+                                                                {hasRecordedItem && canEditLog && (
                                                                     <button
                                                                         onClick={(e) => {
                                                                             e.stopPropagation()
@@ -240,7 +245,7 @@ export function LogbookTab({ staff }: { staff: StaffData }) {
                                                                         Skip
                                                                     </button>
                                                                 )}
-                                                                {perm.canCreate && (<button
+                                                                {canCreateLog && (<button
                                                                     onClick={(e) => { e.stopPropagation(); setRecordModal({ defect: { defectId: d.defectId, ata: d.ataCode, description: d.description }, logEntry: log as any }) }}
                                                                     className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-white bg-red-500 rounded-md hover:bg-red-600 transition-colors cursor-pointer border-none shrink-0"
                                                                 >

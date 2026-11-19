@@ -2,6 +2,13 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { X, Award } from 'lucide-react'
+import {
+    AmelEndorsementField,
+    DEFAULT_AMEL_ENDORSEMENT,
+    endorsementFromLimitations,
+    endorsementToLimitations,
+    validateEndorsement,
+} from '../../components/AmelEndorsementField'
 import { useAmelCategories } from '@/lib/api/master/amel-categories.hooks'
 import { formatAmelCategoryLabel } from '@/lib/api/master/amel-categories'
 
@@ -10,6 +17,8 @@ interface LicenseFormData {
     categoryId: string
     issuedDate: string
     expiryDate: string
+    hasEndorsement: boolean
+    endorsementText: string
 }
 
 interface EditLicenseModalProps {
@@ -27,6 +36,8 @@ function emptyForm(): LicenseFormData {
         categoryId: '',
         issuedDate: '',
         expiryDate: '',
+        hasEndorsement: false,
+        endorsementText: DEFAULT_AMEL_ENDORSEMENT,
     }
 }
 
@@ -36,6 +47,7 @@ function fromLicense(license: any): LicenseFormData {
         categoryId: license?.categoryId ? String(license.categoryId) : '',
         issuedDate: license?.issuedDate || '',
         expiryDate: license?.expiryDate || '',
+        ...endorsementFromLimitations(license?.limitations),
     }
 }
 
@@ -45,6 +57,7 @@ function toLicense(form: LicenseFormData): any {
         categoryId: form.categoryId ? Number(form.categoryId) : 0,
         issuedDate: form.issuedDate,
         expiryDate: form.expiryDate,
+        limitations: endorsementToLimitations(form),
         // Preserve combinationIds as empty or ignore, 
         // actually we should probably not touch combinationIds from here if it belongs to Aircraft License
         // But since the API definition might still have it, we return empty array for now.
@@ -60,10 +73,12 @@ export function EditLicenseModal({ isOpen, onClose, initialLicense, onSave }: Ed
     )
 
     const [form, setForm] = useState<LicenseFormData>(emptyForm())
+    const [endorsementError, setEndorsementError] = useState('')
 
     useEffect(() => {
         if (isOpen) {
             setForm(initialLicense ? fromLicense(initialLicense) : emptyForm())
+            setEndorsementError('')
         }
     }, [isOpen, initialLicense])
 
@@ -73,6 +88,11 @@ export function EditLicenseModal({ isOpen, onClose, initialLicense, onSave }: Ed
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
+        const endorsementErr = validateEndorsement(form)
+        if (endorsementErr) {
+            setEndorsementError(endorsementErr)
+            return
+        }
         onSave(toLicense(form))
         onClose()
     }
@@ -162,6 +182,15 @@ export function EditLicenseModal({ isOpen, onClose, initialLicense, onSave }: Ed
                                 />
                             </div>
                         </div>
+
+                        <AmelEndorsementField
+                            value={{ hasEndorsement: form.hasEndorsement, endorsementText: form.endorsementText }}
+                            onChange={v => {
+                                setForm(prev => ({ ...prev, ...v }))
+                                setEndorsementError('')
+                            }}
+                            error={endorsementError}
+                        />
                     </div>
 
                     {/* Footer */}

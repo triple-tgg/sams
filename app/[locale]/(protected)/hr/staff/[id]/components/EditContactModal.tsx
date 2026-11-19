@@ -15,15 +15,18 @@ interface EditContactModalProps {
     onClose: () => void
     staff: StaffData
     onSave: (data: ContactFormData) => void
+    /** Email is read-only (owner editing their own profile). */
+    emailLocked?: boolean
 }
 
-function FormField({ label, name, value, onChange, type = 'text', placeholder }: {
+function FormField({ label, name, value, onChange, type = 'text', placeholder, disabled = false }: {
     label: string
     name: string
     value: string
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
     type?: string
     placeholder?: string
+    disabled?: boolean
 }) {
     return (
         <div className="flex flex-col gap-1.5">
@@ -37,7 +40,8 @@ function FormField({ label, name, value, onChange, type = 'text', placeholder }:
                 value={value}
                 onChange={onChange}
                 placeholder={placeholder}
-                className="w-full px-3.5 py-2.5 text-sm text-slate-800 bg-slate-50 border border-slate-200 rounded-lg outline-none transition-all duration-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:bg-white placeholder:text-slate-300"
+                disabled={disabled}
+                className="w-full px-3.5 py-2.5 text-sm text-slate-800 bg-slate-50 border border-slate-200 rounded-lg outline-none transition-all duration-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:bg-white placeholder:text-slate-300 disabled:cursor-not-allowed disabled:text-slate-400 disabled:bg-slate-100"
             />
         </div>
     )
@@ -72,7 +76,7 @@ function FormTextarea({ label, name, value, onChange, placeholder, rows = 3 }: {
 // StaffData uses '-' as a display placeholder for missing values — never edit/save it as real data
 const blankIfDash = (value?: string | null) => (!value || value.trim() === '-' ? '' : value)
 
-export function EditContactModal({ isOpen, onClose, staff, onSave }: EditContactModalProps) {
+export function EditContactModal({ isOpen, onClose, staff, onSave, emailLocked = false }: EditContactModalProps) {
     const [form, setForm] = useState<ContactFormData>({
         phone: blankIfDash(staff.phone),
         email: blankIfDash(staff.email),
@@ -145,6 +149,7 @@ export function EditContactModal({ isOpen, onClose, staff, onSave }: EditContact
                             onChange={handleChange}
                             type="email"
                             placeholder="email@example.com"
+                            disabled={emailLocked}
                         />
                         <div className="col-span-full">
                             <FormTextarea

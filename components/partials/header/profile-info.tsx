@@ -19,6 +19,7 @@ import { Link } from '@/i18n/routing';
 import { useLogout } from "@/lib/api/hooks/useLogout";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/rootReducer";
+import { PROFILE_ROUTE } from "@/lib/auth/resolveAuthRedirect";
 
 const ProfileInfo = () => {
   const { handleLogout } = useLogout();
@@ -176,7 +177,16 @@ const ProfileInfo = () => {
             </DropdownMenuSub>
           </DropdownMenuGroup> */}
           <DropdownMenuSeparator className="mb-0 dark:bg-background" />
-          <DropdownMenuItem asChild className="flex items-center gap-2 text-sm font-medium text-default-600 mt-1 px-3 cursor-pointer">
+          {/* Own staff profile — only for accounts linked to a staff record */}
+          {users?.staffId ? (
+            <DropdownMenuItem asChild className="flex items-center gap-2 text-sm font-medium text-default-600 mt-1 px-3 cursor-pointer">
+              <Link href={PROFILE_ROUTE} className="w-full">
+                <Icon icon="heroicons:user-circle" className="w-4 h-4" />
+                My Profile
+              </Link>
+            </DropdownMenuItem>
+          ) : null}
+          <DropdownMenuItem asChild className={`flex items-center gap-2 text-sm font-medium text-default-600 px-3 cursor-pointer ${users?.staffId ? "" : "mt-1"}`}>
             <Link href="/account-settings" className="w-full">
               <Icon icon="heroicons:cog-6-tooth" className="w-4 h-4" />
               Account Settings

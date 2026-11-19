@@ -7,7 +7,7 @@ import { handleLogin } from '@/components/partials/auth/store'
 import { setPermissionsLoading, setPermissions, clearPermissions } from '@/components/partials/auth/permissionSlice'
 import { getFirstViewableRoute } from '@/lib/api/permission/getFirstViewableRoute'
 import { getMenuPermissions } from '@/lib/api/permission/getMenuPermissions'
-import { FALLBACK_ROUTE } from '@/lib/auth/resolveAuthRedirect'
+import { getNoMenuLandingRoute } from '@/lib/auth/resolveAuthRedirect'
 
 interface UseLoginOptions {
   onSuccess?: (data: LoginResponse) => void
@@ -97,14 +97,15 @@ export const useLogin = (options: UseLoginOptions = {}) => {
           localStorage.setItem('user', JSON.stringify(storedUser))
         } catch (e) {}
 
-        // Navigate to the first menu the user can view. `replace` keeps the
-        // login page out of history, so Back does not return to a form that
-        // immediately redirects again.
+        // Navigate to the first menu the user can view. With no viewable menu,
+        // a staff-linked account lands on its own profile, others on IT
+        // Support. `replace` keeps the login page out of history, so Back does
+        // not return to a form that immediately redirects again.
         const firstRoute = getFirstViewableRoute(permissions)
         if (!firstRoute) {
           console.warn('[useLogin] No viewable route found — user has no permissions')
         }
-        router.replace(`/${locale}${firstRoute ?? FALLBACK_ROUTE}`)
+        router.replace(`/${locale}${firstRoute ?? getNoMenuLandingRoute(!!userData.staffId)}`)
       }
 
       // Call custom success handler

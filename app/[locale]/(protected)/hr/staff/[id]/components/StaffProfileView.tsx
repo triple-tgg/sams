@@ -1,0 +1,389 @@
+'use client'
+
+import { useState, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
+import { ArrowLeft, User, Shield, Briefcase, ClipboardList, KeyRound, Building2, Calendar, FileText, Loader2 } from 'lucide-react'
+
+import { ProfileAvatar } from './ProfileAvatar'
+import { SelfProfileProvider } from './SelfProfileContext'
+
+import { TabName, StaffData } from '../types'
+import { formatDate } from '../utils'
+import { ProfileTab } from './ProfileTab'
+import { TrainingTab } from './TrainingTab'
+import { ExperienceTab } from './ExperienceTab'
+import { LogbookTab } from './LogbookTab'
+import { UserAccountTab } from './UserAccountTab'
+import { useStaffById, useStaffTrainingDashboard, useUploadStaffFile, useUpsertStaff } from '@/lib/api/hooks/useQAStaffManagement'
+import { staffTitleText } from '@/lib/api/master/staff-titles'
+import { buildStaffUpsertRequest, formatEducationYears, type StaffByIdData, type TrainingDashboardResponseData } from '@/lib/api/qa/staff-management'
+import { toast } from 'sonner'
+import { MENU } from "@/lib/permission-codes";
+import { useMenuPermission } from "@/hooks/use-menu-permission";
+import { useLocale } from "next-intl";
+
+// ── Tab Configuration ──
+const TABS: { name: TabName; icon: React.ReactNode }[] = [
+    { name: 'Profile', icon: <User className="h-4 w-4" /> },
+    { name: 'Training', icon: <Shield className="h-4 w-4" /> },
+    { name: 'Experience', icon: <Briefcase className="h-4 w-4" /> },
+    { name: 'Logbook Records', icon: <ClipboardList className="h-4 w-4" /> },
+    { name: 'User Account', icon: <KeyRound className="h-4 w-4" /> },
+]
+
+// ── Tab Content Map ──
+const TAB_CONTENT: Record<TabName, React.ComponentType<{ staff: StaffData, apiData?: StaffByIdData }>> = {
+    'Profile': ProfileTab,
+    'Training': TrainingTab,
+    'Experience': ExperienceTab,
+    'Logbook Records': LogbookTab,
+    'User Account': UserAccountTab,
+}
+
+// ── Map API data → StaffData ──
+function mapApiToStaffData(api: StaffByIdData, trainingApi?: TrainingDashboardResponseData): StaffData {
+    const nameEn = api.fullNameEn || api.name || 'Staff Member'
+    const initials = nameEn
+        .split(' ')
+        .map(w => w[0])
+        .join('')
+        .substring(0, 2)
+        .toUpperCase()
+
+    return {
+        id: api.id,
+        empId: api.employeeId || '-',
+        name: api.name || '-',
+        nameEn: api.fullNameEn || '-',
+        position: api.positionObj?.name || api.jobTitle || '-',
+        department: api.departmentObj?.name || '-',
+        status: api.isActive ? 'active' : 'inactive',
+        startDate: api.startDate || null,
+        // byid sends a date-time; the date input and formatDate need the date part.
+        endDate: api.endWorkingDate ? api.endWorkingDate.slice(0, 10) : null,
+        stationId: api.stationId ?? null,
+        station: api.stationObj?.code || '',
+        initials,
+        avatarBg: 'linear-gradient(135deg,#475569,#94a3b8)',
+        profileImage: api.profileImagePath && api.profileImagePath !== 'string' ? api.profileImagePath : undefined,
+        titleName: staffTitleText(api) || undefined,
+        titleId: api.titleId || api.titleObj?.id || undefined,
+        dob: api.dateOfBirth || '-',
+        idCard: api.idCardNo || '-',
+        nationality: api.nationality || '-',
+        phone: api.phone || '-',
+        email: api.email || '-',
+        address: api.address || '-',
+        placeOfBirth: api.placeOfBirth || '-',
+        jobNote: api.jobTitle || '',
+        staffType: api.staffstypeObj?.code || api.staffstypeObj?.name || ({ 1: 'MECH', 2: 'CS', 3: 'Operational Staff', 4: 'Back Office' } as Record<number, string>)[api.staffstypeObj?.id ?? 0] || '',
+        staffTypeId: api.staffstypeObj?.id,
+        ratings: [],
+        training: (trainingApi?.records || []).map(t => ({
+            course: t.courseName || '-',
+            courseCode: t.courseCode || undefined,
+            type: 'Training', // API doesn't provide type directly in records
+            dateFrom: t.dateFrom ? formatDate(t.dateFrom) : '-',
+            dateTo: t.dateTo ? formatDate(t.dateTo) : '-',
+            validUntil: (!t.validUntil || t.validUntil === '-' || t.validUntil.toLowerCase() === 'permanent' || t.validUntil.toLowerCase() === 'never' || t.validUntil.startsWith('9999')) ? 'Never' : formatDate(t.validUntil),
+            status: t.status || 'Completed',
+        })),
+        experience: (api.workExperiences || [])
+            .filter(w => !w.isdelete)
+            .map(w => ({
+                id: w.id,
+                title: w.jobTitle || '-',
+                company: w.company || '-',
+                period: [
+                    w.periodFrom ? formatDate(w.periodFrom) : '',
+                    w.periodTo ? formatDate(w.periodTo) : 'Present',
+                ].filter(Boolean).join(' – '),
+                description: w.description || '-',
+            })),
+        education: (api.educations || [])
+            .filter(e => !e.isdelete)
+            .map(e => ({
+                id: e.id,
+                degree: e.degree || '-',
+                institution: e.institution || '-',
+                year: formatEducationYears(e.startYear, e.endYear) || '-',
+                startYear: e.startYear ? String(e.startYear) : '',
+                endYear: e.endYear ? String(e.endYear) : '',
+                field: e.fieldOfStudy || '-',
+            })),
+        // Mock Logbook Data
+        logbook: [
+            {
+                date: '2025-05-18',
+                aircraft: 'Airbus A320',
+                regNo: 'HS-TXA',
+                taskType: 'Line Maintenance',
+                thfNo: 'THF-2025-0518',
+                description: 'Daily Check and defect rectification on Engine 1',
+                hours: 4.5,
+                signedOff: true,
+            },
+            {
+                date: '2025-05-15',
+                aircraft: 'Boeing 737-800',
+                regNo: 'HS-TBC',
+                taskType: 'A-Check',
+                thfNo: 'THF-2025-0515',
+                description: 'Cabin inspection and replacing faulty oxygen masks',
+                hours: 6.0,
+                signedOff: true,
+            },
+            {
+                date: '2025-05-10',
+                aircraft: 'Airbus A320',
+                regNo: 'HS-TXB',
+                taskType: 'Base Maintenance',
+                thfNo: 'THF-2025-0510',
+                description: 'Landing gear lubrication and tire replacement',
+                hours: 8.0,
+                signedOff: false,
+            }
+        ],
+        amelLicenses: (api.staffAmelLicenseList || [])
+            .filter(l => !l.isdelete)
+            .map(l => ({
+                licenseNo: l.licenseNumber || '-',
+                ratings: l.aircraftRatings ? l.aircraftRatings.split(',').map(r => r.trim()).filter(Boolean) : [],
+                validFrom: l.issuedDate ? formatDate(l.issuedDate) : '-',
+                validTo: l.expiryDate ? formatDate(l.expiryDate) : '-',
+            })),
+        previousEmployment: (api.workExperiences || [])
+            .filter(w => !w.isdelete)
+            .map(w => ({
+                employer: w.company || '-',
+                position: w.jobTitle || '-',
+                from: w.periodFrom ? formatDate(w.periodFrom) : '-',
+                to: w.periodTo ? formatDate(w.periodTo) : 'Present',
+            })),
+        previousTraining: (trainingApi?.histories || []).map(t => ({
+            dateFrom: t.dateFrom ? formatDate(t.dateFrom) : '-',
+            dateTo: t.dateTo ? formatDate(t.dateTo) : '-',
+            course: t.courseName || '-',
+            provider: t.academyName || '-',
+        })),
+        currentTraining: (trainingApi?.records || []).map(t => ({
+            dateFrom: t.dateFrom ? formatDate(t.dateFrom) : '-',
+            dateTo: t.dateTo ? formatDate(t.dateTo) : '-',
+            validUntil: (!t.validUntil || t.validUntil === '-' || t.validUntil.toLowerCase() === 'permanent' || t.validUntil.toLowerCase() === 'never' || t.validUntil.startsWith('9999')) ? 'Never' : formatDate(t.validUntil),
+            course: t.courseName || '-',
+            provider: t.providedBy || '-',
+        })),
+    }
+}
+
+// ── Staff Profile View ──
+interface StaffProfileViewProps {
+    staffId: number
+    /**
+     * Where the Back button / error-state button go (path without locale).
+     * `null` hides them — used by the self-service /profile page, whose user
+     * may not be allowed to open the staff list.
+     */
+    backPath?: string | null
+    /** The signed-in user's own profile (/profile): unlocks self-service edits. */
+    isSelf?: boolean
+}
+
+/**
+ * Staff profile (header + tabs). Shared by /hr/staff/[id] and /profile.
+ * Edit actions inside the tabs are gated by the viewer's own permissions, so
+ * a user without HR_STAFF rights sees their own profile read-only.
+ */
+export function StaffProfileView({ staffId, backPath = '/hr/staff', isSelf = false }: StaffProfileViewProps) {
+    const locale = useLocale();
+    const perm = useMenuPermission(MENU.HR_STAFF);
+    const router = useRouter()
+    const [activeTab, setActiveTab] = useState<TabName>('Profile')
+    const uploadMutation = useUploadStaffFile()
+    const upsertMutation = useUpsertStaff()
+
+    // ── Fetch from API ──
+    const { data, isLoading, isError, error } = useStaffById(staffId)
+    const { data: trainingDashboardRes } = useStaffTrainingDashboard(staffId)
+
+    const handleProfileImageUpload = async (file: File): Promise<string> => {
+        const apiData = data?.responseData
+        if (!apiData) throw new Error('Staff data is not available')
+
+        try {
+            const fileBase64 = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader()
+                reader.onload = () => {
+                    const result = typeof reader.result === 'string' ? reader.result : ''
+                    const base64 = result.split(',')[1]
+                    base64 ? resolve(base64) : reject(new Error('Unable to read image file'))
+                }
+                reader.onerror = () => reject(new Error('Unable to read image file'))
+                reader.readAsDataURL(file)
+            })
+            const extension = (file.name.split('.').pop() || 'jpg').toLowerCase()
+            const fileName = file.name.replace(/\.[^/.]+$/, '')
+            const uploadResponse = await uploadMutation.mutateAsync({
+                FileBase64: fileBase64,
+                FileType: 'staff_profile',
+                ExtensionFile: extension,
+                FileName: fileName,
+            })
+            const filePath = uploadResponse.responseData?.[0]?.filePath
+            if (!filePath) throw new Error('Upload API did not return filePath')
+
+            await upsertMutation.mutateAsync(
+                buildStaffUpsertRequest(apiData, { profileImagePath: filePath })
+            )
+            toast.success('Profile image updated successfully')
+            return filePath
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Failed to update profile image')
+            throw error
+        }
+    }
+
+    const staff = useMemo<StaffData>(() => {
+        if (data?.responseData) {
+            return mapApiToStaffData(data.responseData, trainingDashboardRes?.responseData)
+        }
+        // Fallback while loading
+        return {
+            id: staffId,
+            empId: '-',
+            name: 'Loading...',
+            nameEn: 'Loading...',
+            position: '-',
+            department: '-',
+            status: 'active',
+            startDate: null,
+            endDate: null,
+            initials: '--',
+            avatarBg: 'linear-gradient(135deg,#475569,#94a3b8)',
+            dob: '-',
+            idCard: '-',
+            nationality: '-',
+            phone: '-',
+            email: '-',
+            address: '-',
+            placeOfBirth: '-',
+            ratings: [],
+            training: [],
+            experience: [],
+            education: [],
+            logbook: [],
+        }
+    }, [data, trainingDashboardRes, staffId])
+
+    const ActiveTabContent = TAB_CONTENT[activeTab]
+
+    // ── Loading State ──
+    if (isLoading) {
+        return (
+            <div className="min-h-screen rounded-xl">
+                <div className="bg-slate-50 rounded-xl p-8 flex items-center justify-center min-h-[400px]">
+                    <div className="flex flex-col items-center gap-3">
+                        <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
+                        <p className="text-sm font-medium text-slate-500">Loading staff profile...</p>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+    // ── Error State ──
+    if (isError) {
+        return (
+            <div className="min-h-screen rounded-xl">
+                <div className="bg-slate-50 rounded-xl p-8 flex items-center justify-center min-h-[400px]">
+                    <div className="flex flex-col items-center gap-3 text-center">
+                        <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center">
+                            <User className="h-7 w-7 text-red-400" />
+                        </div>
+                        <p className="text-sm font-semibold text-slate-700">Failed to load staff profile</p>
+                        <p className="text-xs text-slate-400 max-w-xs">{error?.message || 'An unexpected error occurred'}</p>
+                        {backPath && (
+                            <button
+                                onClick={() => router.push(`/${locale}${backPath}`)}
+                                className="mt-2 px-4 py-2 text-sm font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
+                            >
+                                Back
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+    return (
+        <SelfProfileProvider value={isSelf}>
+            <div className="w-full min-w-0 overflow-x-clip min-h-screen rounded-xl">
+                <div className="bg-slate-50 rounded-xl p-3 sm:p-5 lg:p-8 grid grid-cols-1 gap-3 sm:gap-4">
+                    {/* ── Top Bar ── */}
+                    {backPath && (
+                        <div className="flex items-center gap-3">
+                            <button
+                                className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] border border-slate-200 bg-white text-slate-600 cursor-pointer transition-all duration-200 shrink-0 hover:border-slate-400 hover:text-slate-800 hover:shadow-sm"
+                                onClick={() => router.push(`/${locale}${backPath}`)}
+                            >
+                                <ArrowLeft className="h-4 w-4" />
+                            </button>
+                            <span className=" font-bold text-slate-800">Back</span>
+                        </div>
+                    )}
+                    <div className="min-w-0">
+                        {/* ── Profile Header Card ── */}
+                        <div className="bg-white border border-[#e8ecf1] rounded-t-[14px] py-7 px-8 mb-0 flex items-center gap-6 relative max-md:flex-col max-md:items-start max-md:gap-4 max-md:p-5">
+                            <ProfileAvatar
+                                initials={staff.initials}
+                                avatarBg={staff.avatarBg}
+                                profileImage={staff.profileImage}
+                                onUpload={perm.canEdit || isSelf ? handleProfileImageUpload : undefined}
+                            />
+                            <div className="flex-1 min-w-0">
+                                <div className="text-lg sm:text-xl font-bold text-slate-800 mb-0.5 break-words">{staff.nameEn}</div>
+                                <div className="text-sm text-slate-500 mb-2.5">{staff.name}</div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-lg whitespace-nowrap bg-blue-50 text-blue-600 border border-blue-200">
+                                        {staff.position}
+                                    </span>
+                                    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-lg whitespace-nowrap border ${staff.status === 'active'
+                                        ? 'bg-green-50 text-green-600 border-green-200'
+                                        : 'bg-slate-100 text-slate-500 border-slate-200'
+                                        }`}>
+                                        {staff.status === 'active' ? '● Active' : '● Inactive'}
+                                    </span>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 mt-2.5 text-xs sm:text-[13px] text-slate-400">
+                                    <span className="flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5 shrink-0" /> {staff.department}</span>
+                                    <span className="flex items-center gap-1.5 whitespace-nowrap"><Calendar className="h-3.5 w-3.5 shrink-0" /> Joined {staff.startDate ? formatDate(staff.startDate) : '-'}</span>
+                                    <span className="flex items-center gap-1.5 whitespace-nowrap"><FileText className="h-3.5 w-3.5 shrink-0" /> {staff.empId}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* ── Tabs ── */}
+                        <div className="flex gap-1 bg-white border border-[#e8ecf1] border-t-0 rounded-b-[14px] py-2 px-2 sm:px-7 mb-3 overflow-x-auto no-scrollbar">
+                            {TABS.map(t => (
+                                <button
+                                    key={t.name}
+                                    className={`inline-flex shrink-0 items-center gap-[7px] py-2 sm:py-2.5 px-3 sm:px-5 text-xs sm:text-[13px] font-medium cursor-pointer border-none bg-transparent rounded-[10px] transition-all duration-200 whitespace-nowrap ${activeTab === t.name
+                                        ? 'text-blue-600 !bg-slate-100 font-semibold! '
+                                        : 'text-slate-500 hover:text-slate-800 hover:bg-[#f8f9fb]'
+                                        }`}
+                                    onClick={() => setActiveTab(t.name)}
+                                >
+                                    {t.icon} {t.name}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* ── Active Tab Content ── */}
+                        <ActiveTabContent staff={staff} apiData={data?.responseData} />
+                    </div>
+                </div>
+            </div>
+        </SelfProfileProvider>
+    )
+}

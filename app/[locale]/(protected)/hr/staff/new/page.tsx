@@ -20,6 +20,12 @@ import { useStaffTitles } from '@/lib/api/master/staff-titles.hooks'
 import { upsertedStaffId } from '@/lib/api/qa/staff-management'
 import { useLocale } from "next-intl";
 import { formatAmelCategoryLabel } from '@/lib/api/master/amel-categories'
+import {
+    AmelEndorsementField,
+    DEFAULT_AMEL_ENDORSEMENT,
+    endorsementToLimitations,
+    validateEndorsement,
+} from '../components/AmelEndorsementField'
 
 // ── Form State ──
 interface StaffForm {
@@ -71,6 +77,8 @@ interface AmelLicenseForm {
     attachmentFilePath: string
     attachmentFileName: string
     attachmentUploading: boolean
+    hasEndorsement: boolean
+    endorsementText: string
 }
 
 interface DocumentUpload {
@@ -247,7 +255,9 @@ export default function NewStaffPage() {
     const [amelLicense, setAmelLicense] = useState<AmelLicenseForm>({
         licenseNumber: '', selectedCategories: [], issuedDate: '', expiryDate: '',
         attachmentFile: null, attachmentFilePath: '', attachmentFileName: '', attachmentUploading: false,
+        hasEndorsement: false, endorsementText: DEFAULT_AMEL_ENDORSEMENT,
     })
+    const [amelEndorsementError, setAmelEndorsementError] = useState<string | null>(null)
     const amelAttachmentRef = useRef<HTMLInputElement>(null)
 
     // ── API Mutations ──
@@ -581,6 +591,7 @@ export default function NewStaffPage() {
                     categoryId: amelCategories.find(c => c.code === amelLicense.selectedCategories[0])?.id || 0,
                     issuedDate: amelLicense.issuedDate || '',
                     expiryDate: amelLicense.expiryDate || '',
+                    limitations: endorsementToLimitations(amelLicense),
                     attachmentFilePath: amelLicense.attachmentFilePath || '',
                     attachmentFileName: amelLicense.attachmentFileName || '',
                 }]
@@ -594,6 +605,13 @@ export default function NewStaffPage() {
 
         if (hasErrors || !isComplete) {
             toast.error('Please fix all validation errors before submitting')
+            return
+        }
+
+        const endorsementErr = validateEndorsement(amelLicense)
+        if (endorsementErr) {
+            setAmelEndorsementError(endorsementErr)
+            toast.error(endorsementErr)
             return
         }
 
@@ -1102,7 +1120,17 @@ export default function NewStaffPage() {
                                         </Field>
                                     </div>
 
-                                    {/* Row 3: Attachments */}
+                                    {/* Row 3: AMEL Endorsement */}
+                                    <AmelEndorsementField
+                                        value={amelLicense}
+                                        onChange={v => {
+                                            setAmelLicense(prev => ({ ...prev, ...v }))
+                                            setAmelEndorsementError(null)
+                                        }}
+                                        error={amelEndorsementError}
+                                    />
+
+                                    {/* Row 4: Attachments */}
                                     <Field label="Attachments">
                                         <input
                                             ref={amelAttachmentRef}

@@ -28,6 +28,7 @@ interface SearchableSelectFieldProps {
   error?: string
   usingFallback?: boolean | "" | undefined
   errorMessage?: string
+  disabled?: boolean
 }
 
 export const SearchableSelectField: React.FC<SearchableSelectFieldProps> = ({
@@ -40,6 +41,7 @@ export const SearchableSelectField: React.FC<SearchableSelectFieldProps> = ({
   error,
   usingFallback,
   errorMessage,
+  disabled = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState("")
 
@@ -62,7 +64,7 @@ export const SearchableSelectField: React.FC<SearchableSelectFieldProps> = ({
               const option = options.find((opt) => opt.value === value)
               field.onChange(option || null)
             }}
-            disabled={isLoading}
+            disabled={disabled || isLoading}
           >
             <SelectTrigger>
               <SelectValue

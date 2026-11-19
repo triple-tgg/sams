@@ -19,6 +19,7 @@ import { useStations } from '@/lib/api/hooks/useStations'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard"
+import { useIsSelfProfile } from "./SelfProfileContext"
 import { useStaffDocumentTypes } from '@/lib/api/master/staff/staffDocumentTypes.hooks'
 import type { StaffDocumentType } from '@/lib/api/master/staff/staffDocumentTypes'
 import { useStaffDocumentStatuses } from '@/lib/api/master/staff/staffDocumentStatuses.hooks'
@@ -83,6 +84,7 @@ function Section({
     iconColor,
     title,
     onEdit,
+    selfEditable = false,
     children,
 }: {
     icon: React.ReactNode
@@ -90,8 +92,20 @@ function Section({
     iconColor: string
     title: string
     onEdit?: () => void
+    /** The owner may edit this section on their own profile (/profile) without HR_STAFF canEdit. */
+    selfEditable?: boolean
     children: React.ReactNode
 }) {
+    const isSelf = useIsSelfProfile()
+    const editButton = onEdit && (
+        <button
+            className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 cursor-pointer transition-all duration-200 hover:border-blue-400 hover:text-blue-600 hover:shadow-sm"
+            onClick={onEdit}
+            title={`Edit ${title}`}
+        >
+            <Pencil className="h-3.5 w-3.5" />
+        </button>
+    )
     return (
         <div className="bg-white border border-[#e8ecf1] rounded-[14px] py-4 px-4 sm:py-6 sm:px-7 mb-4">
             <div className="flex items-center justify-between mb-5 pb-3.5 border-b border-slate-100">
@@ -104,17 +118,13 @@ function Section({
                     </div>
                     {title}
                 </div>
-                {onEdit && (
-                    <PermissionActionGuard menuCode={MENU.HR_STAFF} action="canEdit">
-                        <button
-                            className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 cursor-pointer transition-all duration-200 hover:border-blue-400 hover:text-blue-600 hover:shadow-sm"
-                            onClick={onEdit}
-                            title={`Edit ${title}`}
-                        >
-                            <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                    </PermissionActionGuard>
-                )}
+                {editButton && (selfEditable && isSelf
+                    ? editButton
+                    : (
+                        <PermissionActionGuard menuCode={MENU.HR_STAFF} action="canEdit">
+                            {editButton}
+                        </PermissionActionGuard>
+                    ))}
             </div>
             {children}
         </div>
@@ -165,6 +175,10 @@ function buildDocSlots(
 // ── Profile Tab ──
 export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: StaffByIdData }) {
     const perm = useMenuPermission(MENU.HR_STAFF);
+    // Own profile (/profile): the owner manages their Documents and AMEL Attachment
+    const isSelf = useIsSelfProfile()
+    const canEditOwnFiles = perm.canEdit || isSelf
+    const canDeleteOwnFiles = perm.canDelete || isSelf
     const [showEditPersonal, setShowEditPersonal] = useState(false)
     const [showEditContact, setShowEditContact] = useState(false)
     const [showEditEmployment, setShowEditEmployment] = useState(false)
@@ -389,7 +403,8 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
     const handleSaveContact = (data: any) => {
         const payload = buildUpsertPayload({
             phone: data.phone,
-            email: data.email,
+            // Owner editing their own profile cannot change Email — keep the stored value
+            email: isSelf && !perm.canEdit ? apiData?.email : data.email,
             address: data.address,
         })
         if (!payload) return
@@ -548,7 +563,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                     categoryId: data.categoryId,
                     issuedDate: data.issuedDate,
                     expiryDate: data.expiryDate,
-                    limitations: amelLicense?.limitations || '',
+                    limitations: data.limitations ?? amelLicense?.limitations ?? '',
                     aircraftRatings: amelLicense?.aircraftRatings || '',
                     attachmentFilePath: amelLicense?.attachmentFilePath || '',
                     attachmentFileName: amelLicense?.attachmentFileName || '',
@@ -601,7 +616,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                     </Section>
 
                     {/* Contact */}
-                    <Section icon={<Phone className="h-4 w-4" />} iconBg="#f0fdf4" iconColor="#16a34a" title="Contact" onEdit={() => setShowEditContact(true)}>
+                    <Section icon={<Phone className="h-4 w-4" />} iconBg="#f0fdf4" iconColor="#16a34a" title="Contact" onEdit={() => setShowEditContact(true)} selfEditable>
                         <div className="grid grid-cols-3 gap-y-5 gap-x-8 max-md:grid-cols-1">
                             <InfoRow label="Phone" value={staff.phone} />
                             <InfoRow label="Email" value={staff.email} />
@@ -669,16 +684,14 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                                 >
                                     Done
                                 </button>
-                            ) : (
-                                <PermissionActionGuard menuCode={MENU.HR_STAFF} action="canEdit">
-                                    <button
-                                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 cursor-pointer transition-all duration-200 hover:border-blue-400 hover:text-blue-600 hover:shadow-sm"
-                                        onClick={() => setEditDocMode(true)}
-                                        title="Edit Documents"
-                                    >
-                                        <Pencil className="h-3.5 w-3.5" />
-                                    </button>
-                                </PermissionActionGuard>
+                            ) : canEditOwnFiles && (
+                                <button
+                                    className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 cursor-pointer transition-all duration-200 hover:border-blue-400 hover:text-blue-600 hover:shadow-sm"
+                                    onClick={() => setEditDocMode(true)}
+                                    title="Edit Documents"
+                                >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                </button>
                             )}
                         </div>
 
@@ -760,7 +773,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                                                         <Upload className="h-3 w-3 inline mr-0.5" />
                                                         Replace
                                                     </button>
-                                                    {perm.canDelete && (<button
+                                                    {canDeleteOwnFiles && (<button
                                                         type="button"
                                                         onClick={() => setConfirmDeleteDoc(slot.key)}
                                                         className="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 cursor-pointer transition-colors border-none bg-transparent shrink-0"
@@ -832,7 +845,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                                 </div>
                                 <p className="text-sm font-semibold text-slate-500 mb-1">No Documents</p>
                                 <p className="text-xs text-slate-400 mb-4">No documents have been uploaded yet.</p>
-                                {perm.canEdit && (<button
+                                {canEditOwnFiles && (<button
                                     onClick={() => setEditDocMode(true)}
                                     className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-blue-500 rounded-lg cursor-pointer hover:bg-blue-600 transition-colors border-none"
                                 >
@@ -933,7 +946,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                                             </span>
                                             <ExternalLink className="h-3.5 w-3.5 text-slate-400 group-hover:text-blue-500 shrink-0" />
                                         </a>
-                                        {perm.canDelete && (<button
+                                        {canDeleteOwnFiles && (<button
                                             type="button"
                                             onClick={() => setConfirmDeleteAmelDoc(true)}
                                             className="w-10 h-10 rounded-lg flex items-center justify-center border border-slate-200 bg-white text-slate-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 cursor-pointer transition-all duration-200 shrink-0"
@@ -1123,6 +1136,7 @@ export function ProfileTab({ staff, apiData }: { staff: StaffData, apiData?: Sta
                 onClose={() => setShowEditContact(false)}
                 staff={staff}
                 onSave={handleSaveContact}
+                emailLocked={isSelf && !perm.canEdit}
             />
             <EditEmploymentModal
                 isOpen={showEditEmployment}
