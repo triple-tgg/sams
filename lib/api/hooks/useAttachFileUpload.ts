@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { AttachFileOtherData } from '../lineMaintenances/attachfile-other/putAttachfileOther'
 import { useUploadFile } from './useFileUpload'
 import { AttachFileFormInputs } from '@/app/[locale]/(protected)/flight/thf/create/components/AttachFile/types'
@@ -25,7 +25,8 @@ export interface UseAttachFileUploadReturn {
   updateFileName: (id: string, name: string) => void
   clearFiles: () => void
   uploadFile: (id: string) => Promise<void>
-  uploadAllFiles: () => Promise<void>
+  /** Uploads every pending file and resolves with the latest file list (form is already in sync). */
+  uploadAllFiles: () => Promise<AttachFileData[]>
   getCompletedFilesData: () => AttachFileOtherData[]
   hasFiles: boolean
   hasCompletedFiles: boolean
@@ -38,6 +39,8 @@ export interface UseAttachFileUploadReturn {
  */
 export const useAttachFileUpload = (form: UseFormReturn<AttachFileFormInputs>, initialData: AttachFileFormInputs, thfNumber: string): UseAttachFileUploadReturn => {
   const [files, setFiles] = useState<AttachFileData[]>(initialData.attachFiles)
+  // Latest file list, readable synchronously (React state updaters may run lazily on the next render)
+  const filesRef = useRef<AttachFileData[]>(initialData.attachFiles)
   const uploadFileMutation = useUploadFile()
 
   // Generate unique ID for files
@@ -72,6 +75,16 @@ export const useAttachFileUpload = (form: UseFormReturn<AttachFileFormInputs>, i
     });
   };
 
+  // Apply a change to the file list: update the ref, UI state and form synchronously,
+  // so callers that await an upload can read the form right away.
+  const commitFiles = (updater: (prev: AttachFileData[]) => AttachFileData[]) => {
+    const next = updater(filesRef.current);
+    filesRef.current = next;
+    setFiles(next);
+    syncForm(next);
+    return next;
+  };
+
   // Add files (keep File in UI state only)
   const addFiles = useCallback((newFiles: FileList | File[]) => {
     const fileArray = Array.from(newFiles);
@@ -85,17 +98,12 @@ export const useAttachFileUpload = (form: UseFormReturn<AttachFileFormInputs>, i
       isDelete: false
     }));
 
-    setFiles(prev => {
-      const next = [...prev, ...fileData];
-      // sync with form but only serializable data
-      syncForm(next);
-      return next;
-    });
+    commitFiles(prev => [...prev, ...fileData]);
   }, [form]);
 
   const removeFile = useCallback((id: string) => {
-    setFiles(prev => {
-      const next = prev
+    commitFiles(prev =>
+      prev
         .map(file => {
           if (file.id === id) {
             if (String(file.id).startsWith('uploaded-')) {
@@ -105,36 +113,22 @@ export const useAttachFileUpload = (form: UseFormReturn<AttachFileFormInputs>, i
           }
           return file;
         })
-        .filter(Boolean) as AttachFileData[];
-      syncForm(next);
-
-      return next;
-    });
+        .filter(Boolean) as AttachFileData[]
+    );
   }, [form]);
 
   // Update file name (UI only)
   const updateFileName = useCallback((id: string, name: string) => {
-    setFiles(prev => {
-      const next = prev.map(file => file.id === id ? { ...file, name } : file);
-      // name is serializable, so sync
-      syncForm(next);
-      return next;
-    });
+    commitFiles(prev => prev.map(file => file.id === id ? { ...file, name } : file));
   }, [form]);
 
   // Upload single file
   const uploadFile = useCallback(async (id: string) => {
     // find file
-    const target = files.find(f => f.id === id);
+    const target = filesRef.current.find(f => f.id === id);
     if (!target) return;
 
-    // update status uploading (mutate object safely via setFiles functional update)
-    setFiles(prev => {
-      const next = prev.map(f => f.id === id ? { ...f, status: 'uploading' as const, progress: 0 } : f);
-      // do not include File in form, but update form with other fields
-      syncForm(next);
-      return next;
-    });
+    commitFiles(prev => prev.map(f => f.id === id ? { ...f, status: 'uploading' as const, progress: 0, error: undefined } : f));
 
     try {
       if (!target.file) throw new Error('File is null');
@@ -147,8 +141,8 @@ export const useAttachFileUpload = (form: UseFormReturn<AttachFileFormInputs>, i
       if (response?.responseData && response.responseData.length > 0) {
         const uploadedFile = response.responseData[0];
 
-        setFiles(prev => {
-          const next = prev.map(f =>
+        commitFiles(prev =>
+          prev.map(f =>
             f.id === id
               ? {
                 ...f,
@@ -160,39 +154,38 @@ export const useAttachFileUpload = (form: UseFormReturn<AttachFileFormInputs>, i
                 file: null
               }
               : f
-          );
-          syncForm(next);
-          return next;
-        });
+          )
+        );
+      } else {
+        throw new Error('Upload returned no file');
       }
     } catch (err: any) {
-      setFiles(prev => {
-        const next = prev.map(f =>
+      commitFiles(prev =>
+        prev.map(f =>
           f.id === id
             ? { ...f, status: 'error' as const, error: err?.message ?? 'Upload failed' }
             : f
-        );
-        syncForm(next);
-        return next;
-      });
+        )
+      );
     }
-  }, [files, uploadFileMutation, thfNumber, form]);
+  }, [uploadFileMutation, thfNumber, form]);
 
 
 
   // Clear all files
   const clearFiles = useCallback(() => {
-    setFiles([])
-  }, [])
+    commitFiles(() => [])
+  }, [form])
 
   // Upload all pending files
   const uploadAllFiles = useCallback(async () => {
-    const pendingFiles = files.filter(f => f.status === 'pending')
+    const pendingFiles = filesRef.current.filter(f => f.status === 'pending' && !f.isDelete)
 
     for (const file of pendingFiles) {
       await uploadFile(file.id || '')
     }
-  }, [files, uploadFile])
+    return filesRef.current
+  }, [uploadFile])
 
   const getCompletedFilesData = useCallback((): AttachFileOtherData[] => {
     return files

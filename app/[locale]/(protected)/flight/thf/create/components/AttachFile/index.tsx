@@ -10,7 +10,7 @@ import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import {
   Upload, X, FileText, Check, Loader2,
-  Trash2, AlertCircle, AlertTriangle, Eye, RotateCcw
+  Trash2, AlertCircle, AlertTriangle, Eye, RotateCcw, SquarePen
 } from 'lucide-react'
 
 import { useStep } from '../step-context'
@@ -20,13 +20,14 @@ import { FlightTimeCard } from './FlightTimeCard'
 // Types and utilities
 import { AttachFileFormInputs, validateFile, mapApiDataToAttachFileForm } from './types'
 import { attachFileFormSchema } from './schema'
-import { getDefaultValues, mapDataThfToAttachFileStep, formatFileSize, getFileExtension } from './utils'
+import { getDefaultValues, mapDataThfToAttachFileStep, formatFileSize, getFileExtension, getStepForValidationError } from './utils'
 import { useAttachFileSubmission } from './useAttachFileSubmission'
 import { useAttachFileUpload } from '@/lib/api/hooks/useAttachFileUpload'
 
 import { FlightFormData } from '@/lib/api/hooks/uselineMaintenancesQueryThfByFlightId'
 import { LineMaintenanceThfResponse } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
 import { splitUtcDateTime } from '@/lib/utils/flightDatetime'
+import { toast } from 'sonner'
 
 interface AttachFileStepProps {
   initialData?: LineMaintenanceThfResponse | null
@@ -49,7 +50,7 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
   loading,
   thfNumber,
 }) => {
-  const { goNext, goBack, onSave, setSubmitHandler, setDraftHandler, setIsSubmitting, closeModal, submitPhase, setSubmitPhase } = useStep()
+  const { goNext, goBack, goToStep, onSave, setSubmitHandler, setDraftHandler, setIsSubmitting, setIsDrafting, closeModal, submitPhase, setSubmitPhase } = useStep()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [fileErrors, setFileErrors] = useState<string[]>([])
@@ -89,11 +90,11 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
     handleDraft,
     handleOnBackStep,
     isSubmitting: isSubmittingMutation,
-    isDrafting,
     isSubmitSuccess,
     isSubmitError,
     submitError,
     sharePointError,
+    validationErrors,
     resetMutation,
     hasLineMaintenanceId,
   } = useAttachFileSubmission({
@@ -114,50 +115,58 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
     }
   }, [transformedData, form])
 
+  // Which footer action (Draft / Submit) is currently running, including the upload phase
+  const [activeAction, setActiveAction] = useState<'draft' | 'submit' | null>(null)
+
+  /**
+   * Shared flow for Draft and Submit:
+   * 1. upload pending files (form is synced as each upload finishes)
+   * 2. block if any file is not uploaded (failed files must be retried or removed)
+   * 3. validate the form and run the action
+   */
+  const runFooterAction = useCallback(async (
+    action: 'draft' | 'submit',
+    onValid: (data: AttachFileFormInputs) => Promise<void> | void
+  ) => {
+    setActiveAction(action)
+    try {
+      const latestFiles = await uploadAllFiles()
+
+      const notUploaded = latestFiles.filter(f => !f.isDelete && f.status !== 'completed')
+      if (notUploaded.length > 0) {
+        toast.error('Some files were not uploaded', {
+          description: `Retry or remove: ${notUploaded.map(f => f.name).join(', ')}`,
+          duration: Infinity,
+          closeButton: true,
+        })
+        return
+      }
+
+      await form.handleSubmit(
+        (data) => onValid(data),
+        (errors) => console.log('AttachFile validation errors:', errors)
+      )()
+    } finally {
+      setActiveAction(null)
+    }
+  }, [form, uploadAllFiles])
+
   // Register submit handler for modal wrapper
   useEffect(() => {
-    if (setSubmitHandler) {
-      setSubmitHandler(async () => {
-        // First upload any pending files
-        const pendingFiles = files.filter(f => f.status === 'pending')
-        if (pendingFiles.length > 0) {
-          await uploadAllFiles()
-        }
-
-        // Submit via form validation → handleSubmit
-        form.handleSubmit(
-          (data) => handleSubmit(data),
-          (errors) => console.log('AttachFile validation errors:', errors)
-        )()
-      })
-    }
-  }, [setSubmitHandler, form, handleSubmit, files, uploadAllFiles])
+    setSubmitHandler?.(() => runFooterAction('submit', handleSubmit))
+  }, [setSubmitHandler, runFooterAction, handleSubmit])
 
   // Register draft handler for modal wrapper
   useEffect(() => {
-    if (setDraftHandler) {
-      setDraftHandler(async () => {
-        // First upload any pending files
-        const pendingFiles = files.filter(f => f.status === 'pending')
-        if (pendingFiles.length > 0) {
-          await uploadAllFiles()
-        }
+    setDraftHandler?.(() => runFooterAction('draft', handleDraft))
+  }, [setDraftHandler, runFooterAction, handleDraft])
 
-        // Draft via form validation → handleDraft
-        form.handleSubmit(
-          (data) => handleDraft(data),
-          (errors) => console.log('AttachFile validation errors:', errors)
-        )()
-      })
-    }
-  }, [setDraftHandler, form, handleDraft, files, uploadAllFiles])
-
-  // Sync submitting state
+  // Sync footer button states: Draft and Submit each show their own loading label;
+  // a manual upload (no footer action) still disables both buttons via isSubmitting.
   useEffect(() => {
-    if (setIsSubmitting) {
-      setIsSubmitting(isSubmittingMutation || isDrafting || isUploading)
-    }
-  }, [isSubmittingMutation, isDrafting, isUploading, setIsSubmitting])
+    setIsDrafting?.(activeAction === 'draft')
+    setIsSubmitting?.(activeAction === 'submit' || (activeAction === null && (isSubmittingMutation || isUploading)))
+  }, [activeAction, isSubmittingMutation, isUploading, setIsSubmitting, setIsDrafting])
 
   // ─── Drag & Drop Handlers ───
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -268,6 +277,13 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
     setSubmitPhase?.('idle')
   }, [resetMutation, setSubmitPhase])
 
+  // Jump to the step that needs fixing (validation failed); Submit must be run again afterwards
+  const handleGoToFixStep = useCallback((step: number) => {
+    resetMutation()
+    setSubmitPhase?.('idle')
+    goToStep(step)
+  }, [resetMutation, setSubmitPhase, goToStep])
+
   return (
     <Form {...form}>
       <form className="space-y-6">
@@ -312,7 +328,7 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
                   <Button
                     type="button"
                     onClick={() => uploadAllFiles()}
-                    disabled={isUploading || isSubmittingMutation || submitPhase === 'saving_files' || submitPhase === 'sharepoint'}
+                    disabled={isUploading || isSubmittingMutation || activeAction !== null || submitPhase === 'saving_files' || submitPhase === 'sharepoint'}
                     className="bg-blue-600 hover:bg-blue-700 text-white"
                   >
                     {isUploading ? (
@@ -475,7 +491,7 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
                       size="icon"
                       color="destructive"
                       onClick={() => file.id && removeFile(file.id)}
-                      disabled={isSubmittingMutation || submitPhase === 'saving_files' || submitPhase === 'sharepoint' || submitPhase === 'success'}
+                      disabled={isSubmittingMutation || activeAction !== null || submitPhase === 'saving_files' || submitPhase === 'sharepoint' || submitPhase === 'success'}
                       className="h-8 w-8"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -506,11 +522,11 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
         )} */}
 
         {/* Submit Progress UI */}
-        {(submitPhase === 'saving_files' || submitPhase === 'sharepoint' || submitPhase === 'sharepoint_error' || submitPhase === 'success' || submitPhase === 'error') && (
+        {submitPhase && submitPhase !== 'idle' && (
           <Card className={`border ${
             submitPhase === 'success' ? 'border-green-200 bg-green-50' :
             submitPhase === 'sharepoint_error' ? 'border-amber-300 bg-amber-50' :
-            submitPhase === 'error' ? 'border-red-200 bg-red-50' :
+            submitPhase === 'error' || submitPhase === 'validation_error' ? 'border-red-200 bg-red-50' :
             'border-blue-200 bg-blue-50'
           }`}>
             <CardContent className="p-6">
@@ -528,6 +544,13 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
                       <AlertTriangle className="h-4 w-4 text-white" />
                     </div>
                     <span className="text-amber-800">Submit Completed — SharePoint Upload Failed</span>
+                  </>
+                ) : submitPhase === 'validation_error' ? (
+                  <>
+                    <div className="h-6 w-6 rounded-full bg-red-500 flex items-center justify-center shrink-0">
+                      <AlertTriangle className="h-4 w-4 text-white" />
+                    </div>
+                    <span className="text-red-700">THF Validation Failed</span>
                   </>
                 ) : submitPhase === 'error' ? (
                   <>
@@ -563,32 +586,54 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
                   </span>
                 </div>
 
-                {/* Step 2 */}
+                {/* Step 2: THF validation */}
+                <div className="flex items-center gap-3">
+                  {submitPhase === 'saving_files' || submitPhase === 'error' ? (
+                    <div className="h-4 w-4 rounded-full border-2 border-slate-300 shrink-0" />
+                  ) : submitPhase === 'validating' ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-600 shrink-0" />
+                  ) : submitPhase === 'validation_error' ? (
+                    <div className="h-4 w-4 rounded-full bg-red-500 flex items-center justify-center shrink-0">
+                      <X className="h-3 w-3 text-white" />
+                    </div>
+                  ) : (
+                    <div className="h-4 w-4 rounded-full bg-green-500 flex items-center justify-center shrink-0">
+                      <Check className="h-3 w-3 text-white" />
+                    </div>
+                  )}
+                  <span className={`text-sm font-medium ${
+                    submitPhase === 'saving_files' || submitPhase === 'error' ? 'text-slate-400' :
+                    submitPhase === 'validating' ? 'text-blue-800' :
+                    submitPhase === 'validation_error' ? 'text-red-700' :
+                    'text-slate-700'
+                  }`}>
+                    2. Validating THF{submitPhase === 'validation_error' ? ' (Failed)' : ''}
+                  </span>
+                </div>
+
+                {/* Step 3: SharePoint */}
                 <div className="flex items-start gap-3">
-                  {submitPhase === 'saving_files' ? (
-                    <div className="h-4 w-4 rounded-full border-2 border-slate-300 mt-0.5 shrink-0" />
-                  ) : submitPhase === 'sharepoint' ? (
+                  {submitPhase === 'sharepoint' ? (
                     <Loader2 className="h-4 w-4 animate-spin text-blue-600 mt-0.5 shrink-0" />
                   ) : submitPhase === 'sharepoint_error' ? (
                     <div className="h-4 w-4 rounded-full bg-amber-500 flex items-center justify-center mt-0.5 shrink-0">
                       <AlertTriangle className="h-3 w-3 text-white" />
                     </div>
-                  ) : submitPhase === 'error' ? (
-                    <div className="h-4 w-4 rounded-full border-2 border-slate-300 mt-0.5 shrink-0" />
-                  ) : (
+                  ) : submitPhase === 'success' ? (
                     <div className="h-4 w-4 rounded-full bg-green-500 flex items-center justify-center mt-0.5 shrink-0">
                       <Check className="h-3 w-3 text-white" />
                     </div>
+                  ) : (
+                    <div className="h-4 w-4 rounded-full border-2 border-slate-300 mt-0.5 shrink-0" />
                   )}
                   <div>
                     <span className={`text-sm font-medium ${
-                      submitPhase === 'saving_files' ? 'text-slate-400' :
                       submitPhase === 'sharepoint' ? 'text-blue-800' :
                       submitPhase === 'sharepoint_error' ? 'text-amber-800' :
-                      submitPhase === 'error' ? 'text-slate-400' :
-                      'text-slate-700'
+                      submitPhase === 'success' ? 'text-slate-700' :
+                      'text-slate-400'
                     }`}>
-                      2. Sending to SharePoint{submitPhase === 'sharepoint_error' ? ' (Failed)' : ''}
+                      3. Sending to SharePoint{submitPhase === 'sharepoint_error' ? ' (Failed)' : ''}
                     </span>
                     {submitPhase === 'sharepoint_error' && (
                       <p className="text-xs text-amber-700 mt-1">
@@ -598,6 +643,37 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
                   </div>
                 </div>
               </div>
+
+              {submitPhase === 'validation_error' && (
+                <div className="mt-6 rounded-md border border-red-200 bg-white">
+                  <p className="px-3 pt-3 text-sm font-medium text-red-800">
+                    Attached files were saved, but the THF cannot be marked as Done yet. Fix the items below, then submit again.
+                  </p>
+                  <ul className="divide-y divide-red-100 p-3 pt-2">
+                    {(validationErrors.length > 0 ? validationErrors : ['THF validation failed']).map((message, index) => {
+                      const target = getStepForValidationError(message)
+                      return (
+                        <li key={`${index}-${message}`} className="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex items-start gap-2 text-sm text-red-700">
+                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+                            <span>{message}</span>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleGoToFixStep(target ? target.step : 4)}
+                            className="shrink-0 border-red-300 text-red-700 hover:bg-red-50"
+                          >
+                            <SquarePen className="h-4 w-4 mr-1.5" />
+                            {target ? `Fix in ${target.label}` : 'Review THF'}
+                          </Button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              )}
 
               {submitPhase === 'success' && (
                 <div className="mt-6 p-3 bg-white rounded-md border border-green-200 flex flex-col sm:flex-row items-center justify-between gap-3">

@@ -105,3 +105,22 @@ export const isImageFile = (file: File): boolean => {
 export const sanitizeFilename = (filename: string): string => {
   return filename.replace(/[^a-zA-Z0-9._-]/g, '_')
 }
+
+/**
+ * THF modal step (0-based index, same order as `steps` in CreateThfModal) that a
+ * thf-validate-for-done error message most likely belongs to, so the user can jump there to fix it.
+ * Matching is keyword based because the API returns plain text messages.
+ * Order matters: more specific keywords (parts/tools) are checked before broader ones (equipment).
+ */
+const VALIDATION_STEP_RULES: { step: number; label: string; keywords: RegExp }[] = [
+  { step: 3, label: 'Parts & Tools', keywords: /\b(parts?|tools?|p\/n|part ?no|serial)\b/i },
+  { step: 2, label: 'Equipment', keywords: /\bequipment|gse\b/i },
+  { step: 1, label: 'Services', keywords: /\b(services?|check ?types?|checks?|personnel|staff|mech|engineer|cs|lae|defects?|fluid|oil|hydraulic|fuel|uplift|flight ?deck)\b/i },
+  { step: 0, label: 'Flight Info', keywords: /\b(flight|sta|std|ata|atd|eta|arrival|departure|station|airline|a\/?c ?(reg|type)|aircraft|registration|bay|towing|route)\b/i },
+  { step: 5, label: 'Attach File', keywords: /\b(attach(ment|ed)?|files?|documents?)\b/i },
+]
+
+export const getStepForValidationError = (message: string): { step: number; label: string } | null => {
+  const rule = VALIDATION_STEP_RULES.find(r => r.keywords.test(message))
+  return rule ? { step: rule.step, label: rule.label } : null
+}

@@ -114,6 +114,7 @@ const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, ti
                 setDraftHandler,
                 isModal: true,
                 setIsSubmitting,
+                setIsDrafting,
                 closeModal: onClose,
                 submitPhase,
                 setSubmitPhase

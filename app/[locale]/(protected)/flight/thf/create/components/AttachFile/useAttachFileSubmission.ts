@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { UseFormReturn } from 'react-hook-form'
 import { useParams, useRouter } from 'next/navigation'
 import { AttachFileFormInputs } from './types'
@@ -10,6 +10,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import useReduxAuth from '@/lib/api/hooks/useReduxAuth'
 import { thfRevisionService } from '@/lib/store/useThfRevisionStore'
+import { postThfValidateForDone } from '@/lib/api/lineMaintenances/thf-validate/postThfValidateForDone'
+import type { SubmitPhase } from '../step-context'
 
 export interface UseAttachFileSubmissionParams {
   form: UseFormReturn<AttachFileFormInputs>
@@ -19,7 +21,7 @@ export interface UseAttachFileSubmissionParams {
   existingFlightData?: LineMaintenanceThfResponse | null
   lineMaintenanceId: number | null
   closeModal?: () => void
-  setSubmitPhase?: (phase: any) => void
+  setSubmitPhase?: (phase: SubmitPhase) => void
 }
 
 export interface UseAttachFileSubmissionReturn {
@@ -32,6 +34,8 @@ export interface UseAttachFileSubmissionReturn {
   isSubmitError: boolean
   submitError: Error | null
   sharePointError: Error | null
+  /** Reasons returned by thf-validate-for-done when Submit is blocked */
+  validationErrors: string[]
   resetMutation: () => void
   hasLineMaintenanceId: boolean
 }
@@ -39,7 +43,12 @@ export interface UseAttachFileSubmissionReturn {
 /**
  * Hook for handling attach file form submission
  * - Draft: calls attachfile-other → close modal
- * - Submit: calls attachfile-other → mapping-contracts → close modal
+ * - Submit: calls attachfile-other → thf-validate-for-done → SharePoint send → show result (Close button)
+ *   If validation fails, Submit stops and the errors are shown so the user can jump to the step to fix.
+ *   When validation passes, the API itself changes the THF status (Done → visible to Accounting for mapping).
+ *
+ * Contract mapping is NOT part of Draft/Submit. It runs only when Accounting creates a
+ * Pre-Invoice (PUT /lineMaintenances/mapping-contracts-v2, see useMapContractsV2).
  */
 export const useAttachFileSubmission = ({
   form,
@@ -55,6 +64,7 @@ export const useAttachFileSubmission = ({
   const queryClient = useQueryClient()
   const router = useRouter()
   const { getUserName } = useReduxAuth()
+  const [validationErrors, setValidationErrors] = useState<string[]>([])
 
   // Initialize the PUT mutation for attachfile-other
   const {
@@ -129,10 +139,27 @@ export const useAttachFileSubmission = ({
   const handleSubmit = useCallback(async (data: AttachFileFormInputs) => {
     try {
       // Step 1: Save attach files
+      setValidationErrors([])
       setSubmitPhase?.('saving_files')
       await callAttachFileOther(data)
 
-      // Step 2: Send to SharePoint
+      // Step 2: Validate THF. On pass the API moves the THF to Done (ready for Pre-Invoice mapping).
+      setSubmitPhase?.('validating')
+      const validation = await postThfValidateForDone(lineMaintenanceId as number)
+      if (!validation.isValid) {
+        setValidationErrors(validation.errors)
+        setSubmitPhase?.('validation_error')
+        toast.error('THF validation failed', {
+          description: 'Please fix the listed items and submit again.',
+        })
+        return
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['flightList'] }),
+        queryClient.invalidateQueries({ queryKey: ['thfDocumentList'] }),
+      ])
+
+      // Step 3: Send to SharePoint
       setSubmitPhase?.('sharepoint')
       try {
         await sendToSharePoint()
@@ -168,7 +195,7 @@ export const useAttachFileSubmission = ({
       })
       setSubmitPhase?.('error')
     }
-  }, [callAttachFileOther, sendToSharePoint, getUserName, setSubmitPhase, lineMaintenanceId])
+  }, [callAttachFileOther, sendToSharePoint, setSubmitPhase, lineMaintenanceId, queryClient])
 
   // Handle back navigation
   const handleOnBackStep = useCallback(() => {
@@ -179,6 +206,7 @@ export const useAttachFileSubmission = ({
   const handleResetAll = useCallback(() => {
     resetMutation()
     resetSharePoint()
+    setValidationErrors([])
   }, [resetMutation, resetSharePoint])
 
   return {
@@ -191,6 +219,7 @@ export const useAttachFileSubmission = ({
     isSubmitError,
     submitError,
     sharePointError: sharePointError ?? null,
+    validationErrors,
     resetMutation: handleResetAll,
     hasLineMaintenanceId
   }

@@ -1,6 +1,14 @@
 import { createContext, useContext } from 'react'
 
-export type SubmitPhase = 'idle' | 'saving_files' | 'sharepoint' | 'sharepoint_error' | 'success' | 'error'
+export type SubmitPhase =
+  | 'idle'
+  | 'saving_files'
+  | 'validating'
+  | 'validation_error'
+  | 'sharepoint'
+  | 'sharepoint_error'
+  | 'success'
+  | 'error'
 
 type StepContextType = {
   activeStep: number
@@ -14,6 +22,7 @@ type StepContextType = {
   setDraftHandler?: (handler: () => void) => void
   isModal?: boolean
   setIsSubmitting?: (isSubmitting: boolean) => void
+  setIsDrafting?: (isDrafting: boolean) => void
   closeModal?: () => void
   submitPhase?: SubmitPhase
   setSubmitPhase?: (phase: SubmitPhase) => void
