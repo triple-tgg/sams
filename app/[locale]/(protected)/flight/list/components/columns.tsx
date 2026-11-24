@@ -11,6 +11,222 @@ import { formatUtcToLocalDisplay } from "@/lib/utils/flightDatetime";
 import { PermissionActionGuard } from "@/components/partials/auth/PermissionActionGuard";
 import type { ThfRevisionRecord } from "@/lib/store/useThfRevisionStore";
 import { MENU } from "@/lib/permission-codes";
+import { useMenuPermission } from "@/hooks/use-menu-permission";
+
+interface FlightActionsMenuProps {
+  flight: FlightItem;
+  isLockedFromEdit: boolean;
+  isRevisionRequired: boolean;
+  isPendingUnlock: boolean;
+  isCancelLoading: boolean;
+  isPreInvoiceLoading: boolean;
+  hideStatusActions: boolean;
+  onEditFlight?: (flight: FlightItem) => void;
+  onCreateTHF?: (flight: FlightItem) => void;
+  onRequestUnlock?: (flight: FlightItem) => void;
+  onRequestRevision?: (flight: FlightItem) => void;
+  onReviewUnlock?: (flight: FlightItem) => void;
+  onPreviewTHF?: (flight: FlightItem) => void;
+  onPreInvoice?: (flight: FlightItem) => void;
+  onAttach?: (filePath: string) => void;
+  onCancel?: (flight: FlightItem) => void;
+  onDelete?: (flight: FlightItem) => void;
+}
+
+/** Row "..." menu. Each item is permission-gated; the whole button is hidden when no item is available. */
+function FlightActionsMenu({
+  flight,
+  isLockedFromEdit,
+  isRevisionRequired,
+  isPendingUnlock,
+  isCancelLoading,
+  isPreInvoiceLoading,
+  hideStatusActions,
+  onEditFlight,
+  onCreateTHF,
+  onRequestUnlock,
+  onRequestRevision,
+  onReviewUnlock,
+  onPreviewTHF,
+  onPreInvoice,
+  onAttach,
+  onCancel,
+  onDelete,
+}: FlightActionsMenuProps) {
+  const flightPerm = useMenuPermission(MENU.FLIGHT_LIST);
+  const thfPerm = useMenuPermission(MENU.THF);
+  const isCancelled = flight.statusObj?.code === "Cancel";
+
+  const showEdit = !!onEditFlight && flightPerm.canEdit;
+  const showThf = !!onCreateTHF && !isLockedFromEdit && (flight.state === "plan" ? thfPerm.canCreate : thfPerm.canEdit);
+  const showRequestUnlock = !hideStatusActions && isLockedFromEdit && !!onRequestUnlock && thfPerm.canEdit;
+  const showRequestRevision = hideStatusActions && !!onRequestRevision && !isPendingUnlock && !isRevisionRequired;
+  const showReviewUnlock = hideStatusActions && isPendingUnlock && !!onReviewUnlock;
+  const showPreview = !!onPreviewTHF && flight.state !== "plan" && thfPerm.canView;
+  const showPreInvoice = !!onPreInvoice;
+  const showAttach = !!onAttach && !!flight.isFiles;
+  const showCancel = !!onCancel && flightPerm.canDelete;
+  const showDelete = !!onDelete && flightPerm.canDelete;
+
+  const hasAnyAction =
+    showEdit || showThf || showRequestUnlock || showRequestRevision || showReviewUnlock ||
+    showPreview || showPreInvoice || showAttach || showCancel || showDelete;
+
+  if (!hasAnyAction) return null;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild disabled={isCancelled || isCancelLoading}>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          disabled={isCancelled || isCancelLoading}
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {showEdit && (
+          <DropdownMenuItem
+            className="cursor-pointer"
+            disabled={isCancelled}
+            onClick={() => onEditFlight?.(flight)}
+          >
+            <SquarePen className="h-4 w-4 mr-2" />
+            Edit Flight
+          </DropdownMenuItem>
+        )}
+
+        {/* Create / Edit THF */}
+        {showThf && (
+          <DropdownMenuItem
+            className={clsx(
+              "cursor-pointer",
+              isRevisionRequired && "text-amber-600 font-semibold focus:text-amber-600",
+              isPendingUnlock && "opacity-60 pointer-events-none"
+            )}
+            disabled={isCancelled || isPendingUnlock}
+            onClick={() => onCreateTHF?.(flight)}
+          >
+            {isRevisionRequired ? (
+              <>
+                <AlertTriangle className="h-4 w-4 mr-2 text-amber-600" />
+                Edit THF (Revision Required)
+              </>
+            ) : isPendingUnlock ? (
+              <>
+                <Lock className="h-4 w-4 mr-2 text-yellow-600" />
+                Edit THF (Pending Approval)
+              </>
+            ) : (
+              <>
+                <FilePenLine className="h-4 w-4 mr-2" />
+                {flight.state === "plan" ? "Create THF" : "Edit THF"}
+              </>
+            )}
+          </DropdownMenuItem>
+        )}
+
+        {/* Engineer Request Edit (only when THF is locked by an issued Pre-Invoice) */}
+        {showRequestUnlock && (
+          <DropdownMenuItem
+            className="cursor-pointer text-blue-600 focus:text-blue-600"
+            disabled={isCancelled}
+            onSelect={() => onRequestUnlock?.(flight)}
+            onClick={() => onRequestUnlock?.(flight)}
+          >
+            <LockKeyhole className="h-4 w-4 mr-2" />
+            Request Edit
+          </DropdownMenuItem>
+        )}
+
+        {/* Accounting: Request Revision (in Invoice THF DOCUMENT) */}
+        {showRequestRevision && (
+          <DropdownMenuItem
+            className="cursor-pointer text-amber-600 focus:text-amber-600"
+            disabled={isCancelled}
+            onSelect={() => onRequestRevision?.(flight)}
+            onClick={() => onRequestRevision?.(flight)}
+          >
+            <RotateCcw className="h-4 w-4 mr-2" />
+            Request Revision
+          </DropdownMenuItem>
+        )}
+
+        {/* Accounting: Review Unlock / Edit Request (in Invoice THF DOCUMENT) */}
+        {showReviewUnlock && (
+          <DropdownMenuItem
+            className="cursor-pointer text-blue-600 focus:text-blue-600 font-medium bg-blue-50/50"
+            disabled={isCancelled}
+            onSelect={() => onReviewUnlock?.(flight)}
+            onClick={() => onReviewUnlock?.(flight)}
+          >
+            <LockKeyhole className="h-4 w-4 mr-2 text-blue-600" />
+            Review Edit Request
+          </DropdownMenuItem>
+        )}
+
+        {showPreview && (
+          <DropdownMenuItem
+            className="cursor-pointer"
+            disabled={isCancelled}
+            onClick={() => onPreviewTHF?.(flight)}
+          >
+            <Eye className="h-4 w-4 mr-2" />
+            Preview THF
+          </DropdownMenuItem>
+        )}
+        {showPreInvoice && (
+          <DropdownMenuItem
+            className="cursor-pointer"
+            disabled={isCancelled || isRevisionRequired || isPendingUnlock || isPreInvoiceLoading}
+            onClick={() => onPreInvoice?.(flight)}
+          >
+            <BadgeDollarSign className="h-4 w-4 mr-2" />
+            Create Pre-Invoice
+          </DropdownMenuItem>
+        )}
+        {showAttach && (
+          <DropdownMenuItem
+            className="cursor-pointer"
+            onClick={() => flight.filePath && onAttach?.(flight.filePath)}
+          >
+            <Paperclip className="h-4 w-4 mr-2" />
+            View Attachment
+          </DropdownMenuItem>
+        )}
+        {showCancel && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="cursor-pointer text-destructive focus:text-destructive"
+              disabled={isCancelled}
+              onClick={() => onCancel?.(flight)}
+            >
+              <CircleOff className="h-4 w-4 mr-2" />
+              Cancel Flight
+            </DropdownMenuItem>
+          </>
+        )}
+        {showDelete && (
+          <>
+            {!showCancel && <DropdownMenuSeparator />}
+            <DropdownMenuItem
+              className="cursor-pointer text-destructive focus:text-destructive"
+              // A flight with an issued Pre-Invoice (isMapping) must not be deleted
+              disabled={!flight.flightInfosId || flight.isMapping === true}
+              onClick={() => onDelete?.(flight)}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Flight
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 const getDatasourceColor = (datasource?: string | null) => {
   const ds = datasource?.trim().toLowerCase();
@@ -363,165 +579,25 @@ export function getFlightColumns({
               </TooltipProvider>
             )}
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild disabled={flight.statusObj?.code === "Cancel" || isCancelLoading}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  disabled={flight.statusObj?.code === "Cancel" || isCancelLoading}
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {onEditFlight && (
-                  <PermissionActionGuard menuCode={MENU.FLIGHT_LIST} action="canEdit">
-                    <DropdownMenuItem
-                      className="cursor-pointer"
-                      disabled={flight.statusObj?.code === "Cancel"}
-                      onClick={() => onEditFlight(flight)}
-                    >
-                      <SquarePen className="h-4 w-4 mr-2" />
-                      Edit Flight
-                    </DropdownMenuItem>
-                  </PermissionActionGuard>
-                )}
-
-                {/* Create / Edit THF */}
-                {onCreateTHF && !isLockedFromEdit && (
-                  <PermissionActionGuard menuCode={MENU.THF} action={flight.state === "plan" ? "canCreate" : "canEdit"}>
-                    <DropdownMenuItem
-                      className={clsx(
-                        "cursor-pointer",
-                        isRevisionRequired && "text-amber-600 font-semibold focus:text-amber-600",
-                        isPendingUnlock && "opacity-60 pointer-events-none"
-                      )}
-                      disabled={flight.statusObj?.code === "Cancel" || isPendingUnlock}
-                      onClick={() => onCreateTHF(flight)}
-                    >
-                      {isRevisionRequired ? (
-                        <>
-                          <AlertTriangle className="h-4 w-4 mr-2 text-amber-600" />
-                          Edit THF (Revision Required)
-                        </>
-                      ) : isPendingUnlock ? (
-                        <>
-                          <Lock className="h-4 w-4 mr-2 text-yellow-600" />
-                          Edit THF (Pending Approval)
-                        </>
-                      ) : (
-                        <>
-                          <FilePenLine className="h-4 w-4 mr-2" />
-                          {flight.state === "plan" ? "Create THF" : "Edit THF"}
-                        </>
-                      )}
-                    </DropdownMenuItem>
-                  </PermissionActionGuard>
-                )}
-
-                {/* Engineer Request Edit (only when THF is locked by an issued Pre-Invoice) */}
-                {!hideStatusActions && isLockedFromEdit && onRequestUnlock && (
-                  <PermissionActionGuard menuCode={MENU.THF} action="canEdit">
-                    <DropdownMenuItem
-                      className="cursor-pointer text-blue-600 focus:text-blue-600"
-                      disabled={flight.statusObj?.code === "Cancel"}
-                      onSelect={() => onRequestUnlock(flight)}
-                      onClick={() => onRequestUnlock(flight)}
-                    >
-                      <LockKeyhole className="h-4 w-4 mr-2" />
-                      Request Edit
-                    </DropdownMenuItem>
-                  </PermissionActionGuard>
-                )}
-
-                {/* Accounting: Request Revision (in Invoice THF DOCUMENT) */}
-                {hideStatusActions && onRequestRevision && !isPendingUnlock && !isRevisionRequired && (
-                  <DropdownMenuItem
-                    className="cursor-pointer text-amber-600 focus:text-amber-600"
-                    disabled={flight.statusObj?.code === "Cancel"}
-                    onSelect={() => onRequestRevision(flight)}
-                    onClick={() => onRequestRevision(flight)}
-                  >
-                    <RotateCcw className="h-4 w-4 mr-2" />
-                    Request Revision
-                  </DropdownMenuItem>
-                )}
-
-                {/* Accounting: Review Unlock / Edit Request (in Invoice THF DOCUMENT) */}
-                {hideStatusActions && isPendingUnlock && onReviewUnlock && (
-                  <DropdownMenuItem
-                    className="cursor-pointer text-blue-600 focus:text-blue-600 font-medium bg-blue-50/50"
-                    disabled={flight.statusObj?.code === "Cancel"}
-                    onSelect={() => onReviewUnlock(flight)}
-                    onClick={() => onReviewUnlock(flight)}
-                  >
-                    <LockKeyhole className="h-4 w-4 mr-2 text-blue-600" />
-                    Review Edit Request
-                  </DropdownMenuItem>
-                )}
-
-
-                {onPreviewTHF && flight.state !== "plan" && (
-                  <PermissionActionGuard menuCode={MENU.THF} action="canView">
-                    <DropdownMenuItem
-                      className="cursor-pointer"
-                      disabled={flight.statusObj?.code === "Cancel"}
-                      onClick={() => onPreviewTHF(flight)}
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      Preview THF
-                    </DropdownMenuItem>
-                  </PermissionActionGuard>
-                )}
-                {onPreInvoice && (
-                  <DropdownMenuItem
-                    className="cursor-pointer"
-                    disabled={flight.statusObj?.code === "Cancel" || isRevisionRequired || isPendingUnlock || isPreInvoiceLoading}
-                    onClick={() => onPreInvoice(flight)}
-                  >
-                    <BadgeDollarSign className="h-4 w-4 mr-2" />
-                    Create Pre-Invoice
-                  </DropdownMenuItem>
-                )}
-                {onAttach && flight.isFiles && (
-                  <DropdownMenuItem
-                    className="cursor-pointer"
-                    onClick={() => flight.filePath && onAttach(flight.filePath)}
-                  >
-                    <Paperclip className="h-4 w-4 mr-2" />
-                    View Attachment
-                  </DropdownMenuItem>
-                )}
-                {onCancel && (
-                  <PermissionActionGuard menuCode={MENU.FLIGHT_LIST} action="canDelete">
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="cursor-pointer text-destructive focus:text-destructive"
-                      disabled={flight.statusObj?.code === "Cancel"}
-                      onClick={() => onCancel(flight)}
-                    >
-                      <CircleOff className="h-4 w-4 mr-2" />
-                      Cancel Flight
-                    </DropdownMenuItem>
-                  </PermissionActionGuard>
-                )}
-                {onDelete && (
-                  <PermissionActionGuard menuCode={MENU.FLIGHT_LIST} action="canDelete">
-                    {!onCancel && <DropdownMenuSeparator />}
-                    <DropdownMenuItem
-                      className="cursor-pointer text-destructive focus:text-destructive"
-                      // A flight with an issued Pre-Invoice (isMapping) must not be deleted
-                      disabled={!flight.flightInfosId || flight.isMapping === true}
-                      onClick={() => onDelete(flight)}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete Flight
-                    </DropdownMenuItem>
-                  </PermissionActionGuard>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <FlightActionsMenu
+              flight={flight}
+              isLockedFromEdit={isLockedFromEdit}
+              isRevisionRequired={isRevisionRequired}
+              isPendingUnlock={isPendingUnlock}
+              isCancelLoading={isCancelLoading}
+              isPreInvoiceLoading={isPreInvoiceLoading}
+              hideStatusActions={hideStatusActions}
+              onEditFlight={onEditFlight}
+              onCreateTHF={onCreateTHF}
+              onRequestUnlock={onRequestUnlock}
+              onRequestRevision={onRequestRevision}
+              onReviewUnlock={onReviewUnlock}
+              onPreviewTHF={onPreviewTHF}
+              onPreInvoice={onPreInvoice}
+              onAttach={onAttach}
+              onCancel={onCancel}
+              onDelete={onDelete}
+            />
           </div>
         );
       },

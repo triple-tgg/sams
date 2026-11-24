@@ -138,6 +138,7 @@ export const useLineMaintenancesQueryThfByFlightId = (params: LineMaintenanceThf
     partsToolData: query.data?.responseData?.partsTool || [],
     attachFilesData: query.data?.responseData?.attachFilesOthers || [],
     rampFuel: query.data?.responseData?.rampFuel ?? null,
+    rampFuelUnit: query.data?.responseData?.rampFuelUnit === 'LBS' ? 'Lbs' : 'Kgs',
     actualUplift: query.data?.responseData?.actualUplift ?? null,
   };
 };

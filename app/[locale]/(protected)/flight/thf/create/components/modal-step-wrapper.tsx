@@ -3,7 +3,7 @@
 import React, { useState, Children, ReactNode, useEffect, useRef } from 'react'
 import VerticalStepper from './stepper/vertical-stepper'
 import MobileStepper from './stepper/mobile-stepper'
-import { StepContext, SubmitPhase } from './step-context'
+import { StepContext, SubmitPhase, FixFieldTarget } from './step-context'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { X, CheckCircle2, AlertTriangle } from 'lucide-react'
@@ -31,6 +31,7 @@ const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, ti
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isDrafting, setIsDrafting] = useState(false)
     const [submitPhase, setSubmitPhase] = useState<SubmitPhase>('idle')
+    const [fixTargets, setFixTargets] = useState<FixFieldTarget[] | null>(null)
     const submitHandlerRef = useRef<(() => void) | null>(null)
     const draftHandlerRef = useRef<(() => void) | null>(null)
 
@@ -117,7 +118,9 @@ const ModalStepWrapper: React.FC<ModalStepWrapperProps> = ({ steps, children, ti
                 setIsDrafting,
                 closeModal: onClose,
                 submitPhase,
-                setSubmitPhase
+                setSubmitPhase,
+                fixTargets,
+                setFixTargets
             }}
         >
             <div className="flex flex-col lg:flex-row h-dvh w-full overflow-hidden bg-white shadow-xl">

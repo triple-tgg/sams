@@ -10,6 +10,9 @@ export type SubmitPhase =
   | 'success'
   | 'error'
 
+/** Field to highlight after "Fix" on a failed THF validation (form field name + message to show under it). */
+export type FixFieldTarget = { name: string; message: string }
+
 type StepContextType = {
   activeStep: number
   currentStep: number
@@ -26,6 +29,9 @@ type StepContextType = {
   closeModal?: () => void
   submitPhase?: SubmitPhase
   setSubmitPhase?: (phase: SubmitPhase) => void
+  /** Fields the target step should mark as errors and focus once it mounts (consumed then cleared). */
+  fixTargets?: FixFieldTarget[] | null
+  setFixTargets?: (targets: FixFieldTarget[] | null) => void
 }
 
 export const StepContext = createContext<StepContextType | undefined>(undefined)

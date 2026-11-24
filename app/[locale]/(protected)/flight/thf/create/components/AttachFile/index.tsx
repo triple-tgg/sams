@@ -20,7 +20,7 @@ import { FlightTimeCard } from './FlightTimeCard'
 // Types and utilities
 import { AttachFileFormInputs, validateFile, mapApiDataToAttachFileForm } from './types'
 import { attachFileFormSchema } from './schema'
-import { getDefaultValues, mapDataThfToAttachFileStep, formatFileSize, getFileExtension, getStepForValidationError } from './utils'
+import { getDefaultValues, mapDataThfToAttachFileStep, formatFileSize, getFileExtension, getStepForValidationMessage, formatValidationMessage, getFixTargetsForMessage } from './utils'
 import { useAttachFileSubmission } from './useAttachFileSubmission'
 import { useAttachFileUpload } from '@/lib/api/hooks/useAttachFileUpload'
 
@@ -50,7 +50,7 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
   loading,
   thfNumber,
 }) => {
-  const { goNext, goBack, goToStep, onSave, setSubmitHandler, setDraftHandler, setIsSubmitting, setIsDrafting, closeModal, submitPhase, setSubmitPhase } = useStep()
+  const { goNext, goBack, goToStep, onSave, setSubmitHandler, setDraftHandler, setIsSubmitting, setIsDrafting, closeModal, submitPhase, setSubmitPhase, setFixTargets } = useStep()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [fileErrors, setFileErrors] = useState<string[]>([])
@@ -278,11 +278,14 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
   }, [resetMutation, setSubmitPhase])
 
   // Jump to the step that needs fixing (validation failed); Submit must be run again afterwards
-  const handleGoToFixStep = useCallback((step: number) => {
+  // The target step marks the related fields as errors and focuses the first one (via fixTargets)
+  const handleGoToFixStep = useCallback((step: number, message: string) => {
     resetMutation()
     setSubmitPhase?.('idle')
+    const targets = getFixTargetsForMessage(message, step)
+    setFixTargets?.(targets.length > 0 ? targets : null)
     goToStep(step)
-  }, [resetMutation, setSubmitPhase, goToStep])
+  }, [resetMutation, setSubmitPhase, setFixTargets, goToStep])
 
   return (
     <Form {...form}>
@@ -651,19 +654,20 @@ const AttachFileStep: React.FC<AttachFileStepProps> = ({
                   </p>
                   <ul className="divide-y divide-red-100 p-3 pt-2">
                     {(validationErrors.length > 0 ? validationErrors : ['THF validation failed']).map((message, index) => {
-                      const target = getStepForValidationError(message)
+                      const target = getStepForValidationMessage(message)
                       return (
                         <li key={`${index}-${message}`} className="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-between">
                           <div className="flex items-start gap-2 text-sm text-red-700">
                             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
-                            <span>{message}</span>
+                            <span>{formatValidationMessage(message)}</span>
                           </div>
                           <Button
                             type="button"
                             variant="outline"
+                            color="destructive"
                             size="sm"
-                            onClick={() => handleGoToFixStep(target ? target.step : 4)}
-                            className="shrink-0 border-red-300 text-red-700 hover:bg-red-50"
+                            onClick={() => handleGoToFixStep(target ? target.step : 4, message)}
+                            className="shrink-0"
                           >
                             <SquarePen className="h-4 w-4 mr-1.5" />
                             {target ? `Fix in ${target.label}` : 'Review THF'}

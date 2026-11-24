@@ -67,6 +67,7 @@ const PreviewStep: React.FC<PreviewStepProps> = ({ flightInfosId }) => {
     equipmentData,
     partsToolData,
     rampFuel,
+    rampFuelUnit,
     actualUplift,
   } = useLineMaintenancesQueryThfByFlightId({ flightInfosId })
 
@@ -386,7 +387,7 @@ const PreviewStep: React.FC<PreviewStepProps> = ({ flightInfosId }) => {
                   </p>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-[10px] text-muted-foreground">Ramp Fuel (KGs)</p>
+                      <p className="text-[10px] text-muted-foreground">Ramp Fuel ({rampFuelUnit})</p>
                       <p className="text-lg font-bold">{rampFuel ?? '—'}</p>
                     </div>
                     <div>

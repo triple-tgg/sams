@@ -11,7 +11,7 @@ import {
   PlusIcon, TrashIcon, XIcon,
   Droplets, Fuel, Gauge, PlaneTakeoff, Truck
 } from 'lucide-react'
-import { ServicesFormInputs, OIL_STOCK_OPTIONS } from './types'
+import { ServicesFormInputs, OIL_STOCK_OPTIONS, FUEL_UNIT_OPTIONS } from './types'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AircraftTypeFlags } from '@/lib/api/master/aircraft-types/getAircraftTypeById'
 import { CustomDateInput } from '@/components/ui/input-date/CustomDateInput'
@@ -431,10 +431,30 @@ export const FluidSection: React.FC<FluidSectionProps> = ({
                   name="fluid.rampFuel"
                   render={({ field: { value, onChange, ...field } }) => (
                     <FormItem className="space-y-1">
-                      <FormLabel className="text-xs text-muted-foreground">Ramp Fuel (KGs)</FormLabel>
-                      <FormControl>
-                        <NumberInput value={value} onChange={onChange} step={1} placeholder="0" field={field} />
-                      </FormControl>
+                      <FormLabel className="text-xs text-muted-foreground">Ramp Fuel</FormLabel>
+                      <div className="flex gap-2">
+                        <div className="flex-1 min-w-0">
+                          <FormControl>
+                            <NumberInput value={value} onChange={onChange} step={1} placeholder="0" field={field} />
+                          </FormControl>
+                        </div>
+                        <Controller
+                          control={form.control}
+                          name="fluid.rampFuelUnit"
+                          render={({ field: unitField }) => (
+                            <Select value={unitField.value ?? 'KGS'} onValueChange={unitField.onChange}>
+                              <SelectTrigger className="w-[90px] shrink-0" aria-label="Ramp fuel unit">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {FUEL_UNIT_OPTIONS.map(o => (
+                                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}

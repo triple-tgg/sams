@@ -11,6 +11,17 @@ export const OIL_STOCK_OPTIONS: { value: OilStockType; label: string }[] = [
   { value: 'CUSTOMER', label: 'Customer Stock' },
 ]
 
+export type FuelUnit = 'KGS' | 'LBS'
+
+export const FUEL_UNIT_OPTIONS: { value: FuelUnit; label: string }[] = [
+  { value: 'KGS', label: 'Kgs' },
+  { value: 'LBS', label: 'Lbs' },
+]
+
+/** API value → FuelUnit; anything unknown/empty falls back to KGS (the previous fixed unit). */
+export const toFuelUnit = (v: unknown): FuelUnit =>
+  String(v ?? '').toUpperCase() === 'LBS' ? 'LBS' : 'KGS'
+
 export const toOilStockType = (v: unknown): OilStockType | null =>
   v === 'SAMS' || v === 'CUSTOMER' ? v : null
 
@@ -71,6 +82,7 @@ export type ServicesFormInputs = {
     hydOilStockType?: OilStockType | null
     apuOil?: number
     rampFuel?: number
+    rampFuelUnit?: FuelUnit
     actualUplift?: number
   }
   addPersonnels: boolean

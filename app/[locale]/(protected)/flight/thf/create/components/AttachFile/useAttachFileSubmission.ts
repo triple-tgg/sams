@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react'
 import { UseFormReturn } from 'react-hook-form'
 import { useParams, useRouter } from 'next/navigation'
 import { AttachFileFormInputs } from './types'
-import { prepareAttachFileDataForApi } from './utils'
+import { prepareAttachFileDataForApi, getMissingFlightTimeMessage } from './utils'
 import { usePutAttachFileOtherWithLoading } from '@/lib/api/hooks/usePutAttachfileOther'
 import { useSharePointSend } from '@/lib/api/hooks/useSharePointSend'
 import { LineMaintenanceThfResponse } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
@@ -55,6 +55,7 @@ export const useAttachFileSubmission = ({
   onNextStep,
   onBackStep,
   onUpdateData,
+  existingFlightData,
   lineMaintenanceId,
   closeModal,
   setSubmitPhase
@@ -145,6 +146,19 @@ export const useAttachFileSubmission = ({
 
       // Step 2: Validate THF. On pass the API moves the THF to Done (ready for Pre-Invoice mapping).
       setSubmitPhase?.('validating')
+
+      // Arrival/Departure (Flight No, Date, STA/ATA, STD/ATD) are not checked by the API,
+      // so block here first — before the API call, which would mark the THF as Done.
+      const flightTimeError = getMissingFlightTimeMessage(existingFlightData?.responseData?.flight)
+      if (flightTimeError) {
+        setValidationErrors([flightTimeError])
+        setSubmitPhase?.('validation_error')
+        toast.error('THF validation failed', {
+          description: 'Please fix the listed items and submit again.',
+        })
+        return
+      }
+
       const validation = await postThfValidateForDone(lineMaintenanceId as number)
       if (!validation.isValid) {
         setValidationErrors(validation.errors)
@@ -195,7 +209,7 @@ export const useAttachFileSubmission = ({
       })
       setSubmitPhase?.('error')
     }
-  }, [callAttachFileOther, sendToSharePoint, setSubmitPhase, lineMaintenanceId, queryClient])
+  }, [callAttachFileOther, sendToSharePoint, setSubmitPhase, lineMaintenanceId, queryClient, existingFlightData])
 
   // Handle back navigation
   const handleOnBackStep = useCallback(() => {

@@ -285,6 +285,8 @@ export interface LineMaintenanceThfData {
   partsTool: PartsTool[] | null;
   attachFilesOthers: AttachFile[] | null;
   rampFuel: number | null;
+  /** Unit of rampFuel: 'KGS' | 'LBS' (null/missing = KGS) */
+  rampFuelUnit?: string | null;
   actualUplift: number | null;
 }
 

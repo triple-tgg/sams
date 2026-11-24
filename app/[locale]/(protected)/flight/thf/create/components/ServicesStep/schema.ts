@@ -105,6 +105,7 @@ export const servicesFormSchema = z.object({
     hydOilStockType: z.enum(['SAMS', 'CUSTOMER']).nullable().optional(),
     apuOil: z.number().optional(),
     rampFuel: z.number().optional(),
+    rampFuelUnit: z.enum(['KGS', 'LBS']).default('KGS'),
     actualUplift: z.number().optional(),
   }),
 

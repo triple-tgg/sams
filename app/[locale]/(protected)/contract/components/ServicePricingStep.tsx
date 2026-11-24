@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, type ReactNode } from "react";
+import { useState, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,7 @@ const PriceInput = ({
     currencyLabel = "USD",
     rawSuffix = false,
     step,
+    decimals,
     disabled = false,
     hint,
 }: {
@@ -74,32 +75,71 @@ const PriceInput = ({
     currencyLabel?: string;
     /** Show suffix as-is (e.g. "MH") without the currency prefix. */
     rawSuffix?: boolean;
-    /** Input step (e.g. 0.5 for half-hour increments). */
+    /** Input step (e.g. 0.5 for half-hour increments). Also used for mouse-wheel steps. */
     step?: number;
+    /** Round to this many decimal places; also clamps to >= 0 and enables wheel stepping. */
+    decimals?: number;
     disabled?: boolean;
     /** Small helper text under the input. */
     hint?: ReactNode;
-}) => (
-    <div className="space-y-1.5">
-        <Label htmlFor={id} className="text-xs">{label}</Label>
-        <div className="flex items-center">
-            <Input
-                id={id}
-                type="number"
-                min={0}
-                step={step}
-                value={value}
-                disabled={disabled}
-                onChange={(e) => onChange(Number(e.target.value) || 0)}
-                className="rounded-r-none border-r-0 text-right"
-            />
-            <span className="inline-flex items-center px-3 h-9 text-sm border rounded-r-md bg-muted text-muted-foreground whitespace-nowrap">
-                {rawSuffix || suffix.startsWith("%") ? suffix : `${currencyLabel}${suffix}`}
-            </span>
+}) => {
+    const inputRef = useRef<HTMLInputElement>(null);
+    const isDecimal = decimals !== undefined;
+
+    const normalize = (n: number) => {
+        if (!Number.isFinite(n) || n < 0) return 0;
+        if (!isDecimal) return n;
+        const factor = 10 ** decimals;
+        return Math.round(n * factor) / factor;
+    };
+
+    // Keep latest values for the native wheel listener
+    const latest = useRef({ value, onChange, step, disabled });
+    latest.current = { value, onChange, step, disabled };
+
+    // Wheel over a focused input steps the value (needs a non-passive native listener to preventDefault)
+    useEffect(() => {
+        const el = inputRef.current;
+        if (!el || !isDecimal) return;
+        const handleWheel = (e: WheelEvent) => {
+            const { value: v, onChange: cb, step: s, disabled: d } = latest.current;
+            if (d || document.activeElement !== el) return;
+            e.preventDefault();
+            const delta = (s ?? 1) * (e.deltaY < 0 ? 1 : -1);
+            cb(normalize((Number(v) || 0) + delta));
+        };
+        el.addEventListener("wheel", handleWheel, { passive: false });
+        return () => el.removeEventListener("wheel", handleWheel);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isDecimal, decimals]);
+
+    return (
+        <div className="space-y-1.5">
+            <Label htmlFor={id} className="text-xs">{label}</Label>
+            <div className="flex items-center">
+                <Input
+                    ref={inputRef}
+                    id={id}
+                    type="number"
+                    min={0}
+                    step={step}
+                    value={value}
+                    disabled={disabled}
+                    onKeyDown={isDecimal ? (e) => {
+                        // Block negative sign and exponent notation
+                        if (["-", "e", "E", "+"].includes(e.key)) e.preventDefault();
+                    } : undefined}
+                    onChange={(e) => onChange(isDecimal ? normalize(Number(e.target.value)) : Number(e.target.value) || 0)}
+                    className="rounded-r-none border-r-0 text-right"
+                />
+                <span className="inline-flex items-center px-3 h-9 text-sm border rounded-r-md bg-muted text-muted-foreground whitespace-nowrap">
+                    {rawSuffix || suffix.startsWith("%") ? suffix : `${currencyLabel}${suffix}`}
+                </span>
+            </div>
+            {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
         </div>
-        {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
-    </div>
-);
+    );
+};
 
 // Form group keys for collapsible sections
 const FORM_GROUPS = [
@@ -856,6 +896,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, onRetention
                                         value={rate.escalation}
                                         onChange={handleNumberChange("escalation")}
                                         suffix="%/Year" currencyLabel={currencyLabel}
+                                        step={0.5} decimals={1}
                                     />
                                     <PriceInput
                                         id={`${rate.id}-disbursement`}
@@ -863,6 +904,7 @@ export const ServicePricingStep = ({ formData, onPricingRatesChange, onRetention
                                         value={rate.disbursement}
                                         onChange={handleNumberChange("disbursement")}
                                         suffix="% of Actual Amount" currencyLabel={currencyLabel}
+                                        step={0.5} decimals={1}
                                     />
                                     <PriceInput
                                         id={`${rate.id}-latePenalty`}

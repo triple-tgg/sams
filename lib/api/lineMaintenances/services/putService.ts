@@ -78,6 +78,8 @@ export interface ServiceRequest {
   isAircraftTowing: boolean;
   aircraft: AircraftData;
   rampFuel: number;
+  /** Unit of rampFuel: 'KGS' | 'LBS' */
+  rampFuelUnit: 'KGS' | 'LBS';
   actualUplift: number;
 }
 
@@ -203,6 +205,7 @@ export const createServiceRequestFromForm = (
 
     // Top-level fields
     rampFuel: safeParseFloat(formData.fluid?.rampFuel),
+    rampFuelUnit: formData.fluid?.rampFuelUnit === 'LBS' ? 'LBS' : 'KGS',
     actualUplift: safeParseFloat(formData.fluid?.actualUplift),
 
     aircraft: {

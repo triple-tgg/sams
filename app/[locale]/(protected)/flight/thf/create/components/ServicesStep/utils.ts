@@ -1,5 +1,5 @@
 import { LineMaintenanceThfResponse } from '@/lib/api/lineMaintenances/flight/getlineMaintenancesThfByFlightId'
-import { ServicesFormInputs, toOilStockType } from './types'
+import { ServicesFormInputs, toOilStockType, toFuelUnit } from './types'
 import { AircraftCheckType } from '@/lib/api/master/aircraft-check-types/airlines.interface'
 import { convertDateToBackend, formatFromPicker } from '@/lib/utils/formatPicker'
 import { utcDatetimeToFormDate, utcDatetimeToFormTime } from '@/lib/utils/flightDatetime'
@@ -38,6 +38,7 @@ export const getDefaultValues = (checkTypes?: AircraftCheckType[]): ServicesForm
       hydOilStockType: null,
       apuOil: 0,
       rampFuel: 0,
+      rampFuelUnit: 'KGS',
       actualUplift: 0,
     },
     addPersonnels: false,
@@ -188,7 +189,7 @@ export const validateTimeRange = (from: string, to: string): boolean => {
 export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse | null): ServicesFormInputs | null => {
   if (!queryData?.responseData) return null;
 
-  const { flight, aircraft, lineMaintenance, rampFuel, actualUplift } = queryData.responseData;
+  const { flight, aircraft, lineMaintenance, rampFuel, rampFuelUnit, actualUplift } = queryData.responseData;
 
   // Map aircraft checks — saved THF checks first, otherwise default from the flight's services
   const flightServices = (flight?.flightServiceLists ?? []).filter(service => !!service.code);
@@ -251,6 +252,7 @@ export const mapDataThfToServicesStep = (queryData: LineMaintenanceThfResponse |
 
     apuOil: fluidServicing?.apuOil || 0,
     rampFuel: rampFuel || 0,
+    rampFuelUnit: toFuelUnit(rampFuelUnit),
     actualUplift: actualUplift || 0,
   };
 

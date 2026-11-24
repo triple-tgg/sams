@@ -53,7 +53,7 @@ interface FlightStepProps {
 
 const FlightStep = (props: FlightStepProps) => {
   const router = useRouter()
-  const { goNext, onSave, isModal, closeModal, setSubmitHandler, setIsSubmitting } = useStep()
+  const { goNext, onSave, isModal, closeModal, setSubmitHandler, setIsSubmitting, fixTargets, setFixTargets } = useStep()
 
   // Data Hooks
   const { options: customerOptions, isLoading: loadingAirlines, error: airlinesError, usingFallback: airlinesUsingFallback } = useAirlineOptions()
@@ -210,6 +210,27 @@ const FlightStep = (props: FlightStepProps) => {
       reset(sanitizeFormData(props.formData))
     }
   }, [props.formData, reset])
+
+  // "Fix" from a failed THF validation (Attach File step): show the message under each field and focus the first.
+  // Runs after the reset above (same commit) so the loaded data doesn't wipe these errors.
+  useEffect(() => {
+    if (!fixTargets?.length || props.loading) return
+    const fixErrors: FieldErrors<Step1FormInputs> = {}
+    fixTargets.forEach(({ name, message }) => {
+      setError(name as keyof Step1FormInputs, { type: 'server', message })
+      ;(fixErrors as Record<string, unknown>)[name] = { type: 'server', message }
+    })
+    focusFirstError(fixErrors)
+    setFixTargets?.(null)
+  }, [fixTargets, props.formData, props.loading, setError, focusFirstError, setFixTargets])
+
+  // Clear a "Fix" error as soon as the user edits that field
+  useEffect(() => {
+    const sub = watch((_, { name, type }) => {
+      if (name && type === 'change' && getFieldState(name).error?.type === 'server') clearErrors(name)
+    })
+    return () => sub.unsubscribe()
+  }, [watch, getFieldState, clearErrors])
 
   // Submit handler
   const onSubmit = async (data: Step1FormInputs) => {
